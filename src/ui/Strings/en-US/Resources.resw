@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+
+  <data name="AppDisplayName" xml:space="preserve"><value>VelocityCopy</value></data>
+  <data name="StatusPreparing" xml:space="preserve"><value>Preparing copy…</value></data>
+  <data name="StatusCopying" xml:space="preserve"><value>Copying</value></data>
+  <data name="StatusPaused" xml:space="preserve"><value>Paused</value></data>
+  <data name="StatusCompleted" xml:space="preserve"><value>Copy complete</value></data>
+  <data name="QueuePendingFormat" xml:space="preserve"><value>{0} files pending</value></data>
+  <data name="ActionPause" xml:space="preserve"><value>Pause</value></data>
+  <data name="ActionResume" xml:space="preserve"><value>Resume</value></data>
+  <data name="ActionSkip" xml:space="preserve"><value>Skip</value></data>
+  <data name="ActionStop" xml:space="preserve"><value>Stop</value></data>
+  <data name="ActionCancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="ActionMoveUp" xml:space="preserve"><value>Move up</value></data>
+  <data name="ActionMoveDown" xml:space="preserve"><value>Move down</value></data>
+  <data name="ActionRemove" xml:space="preserve"><value>Remove</value></data>
+  <data name="ActionSaveQueue" xml:space="preserve"><value>Save queue</value></data>
+  <data name="ActionLoadQueue" xml:space="preserve"><value>Load queue</value></data>
+  <data name="DropPrompt" xml:space="preserve"><value>Drop to copy</value></data>
+  <data name="DestinationPrompt" xml:space="preserve"><value>Where do you want to copy?</value></data>
+  <data name="LayoutDirect" xml:space="preserve"><value>Copy directly</value></data>
+  <data name="LayoutKeepFolder" xml:space="preserve"><value>Keep folder</value></data>
+  <data name="ActionChooseDestination" xml:space="preserve"><value>Choose destination</value></data>
+  <data name="ActionStartCopy" xml:space="preserve"><value>Copy</value></data>
+  <data name="ShellCopy" xml:space="preserve"><value>Copy with VelocityCopy</value></data>
+  <data name="ShellPaste" xml:space="preserve"><value>Paste with VelocityCopy</value></data>
+</root>
