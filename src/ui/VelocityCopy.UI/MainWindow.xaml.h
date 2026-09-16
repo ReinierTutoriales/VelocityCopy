@@ -57,6 +57,7 @@ private:
     };
 
     winrt::fire_and_forget HandleDropAsync(Windows::ApplicationModel::DataTransfer::DataPackageView data_view);
+    winrt::fire_and_forget BeginShellLayoutAsync(velocitycopy::CopyJob job);
     winrt::fire_and_forget BrowseAsync();
     void LoadDestinations();
     void NavigateDestination(std::filesystem::path folder);
