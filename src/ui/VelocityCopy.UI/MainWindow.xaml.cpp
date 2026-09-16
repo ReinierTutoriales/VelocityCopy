@@ -370,7 +370,7 @@ void MainWindow::RefreshQueue() {
     QueueCountText().Text(hstring(std::format(L"{}", queue_snapshot_.size())));
 }
 
-std::vector<std::uint64_t> MainWindow::SelectedPendingIds() const {
+std::vector<std::uint64_t> MainWindow::SelectedPendingIds() {
     std::vector<std::uint64_t> ids;
     const auto ranges = QueueList().SelectedRanges();
     for (const auto& range : ranges) {
