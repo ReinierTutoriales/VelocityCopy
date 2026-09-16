@@ -4,6 +4,9 @@
 #include <algorithm>
 #include <cwctype>
 
+using namespace winrt;
+using namespace Microsoft::UI::Xaml;
+
 namespace winrt::VelocityCopyUI::implementation {
 namespace {
 
@@ -22,6 +25,17 @@ bool same_destination(
 }
 
 } // namespace
+
+void MainWindow::OnQueueOrStartCopyClick(IInspectable const&, RoutedEventArgs const&) {
+    auto job = flow_.make_job(next_job_id_++);
+    if (!job) {
+        ShowError();
+        return;
+    }
+
+    DropFlowFlyout().Hide();
+    QueueOrStartCopy(std::move(*job));
+}
 
 void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
     auto target_plan = live_plan_;
