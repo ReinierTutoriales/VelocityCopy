@@ -35,6 +35,8 @@
   <data name="QueueButton.Content" xml:space="preserve"><value>Cola</value></data>
   <data name="DropOverlayText.Text" xml:space="preserve"><value>Suelta para copiar</value></data>
   <data name="DestinationTitle.Text" xml:space="preserve"><value>¿Dónde quieres copiar?</value></data>
+  <data name="DestinationBackButton.Content" xml:space="preserve"><value>Atrás</value></data>
+  <data name="ChooseCurrentFolderButton.Content" xml:space="preserve"><value>Elegir esta carpeta</value></data>
   <data name="BrowseButton.Content" xml:space="preserve"><value>Examinar…</value></data>
   <data name="LayoutTitle.Text" xml:space="preserve"><value>¿Cómo quieres copiarlo?</value></data>
   <data name="PreserveTitle.Text" xml:space="preserve"><value>En carpeta</value></data>
