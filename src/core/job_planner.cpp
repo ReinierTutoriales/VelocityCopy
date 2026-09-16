@@ -9,9 +9,26 @@ namespace {
 std::filesystem::path destination_root_for(
     const std::filesystem::path& source,
     const std::filesystem::path& destination,
-    DestinationLayout layout) {
-    if (layout == DestinationLayout::ContentsOnly && std::filesystem::is_directory(source)) {
-        return destination;
+    DestinationLayout layout,
+    const std::filesystem::file_status& status) {
+    const bool is_directory = std::filesystem::is_directory(status);
+    const bool is_regular_file = std::filesystem::is_regular_file(status);
+
+    if (layout == DestinationLayout::ContentsOnly) {
+        if (is_directory) {
+            return destination;
+        }
+        if (is_regular_file) {
+            return destination / source.filename();
+        }
+    }
+
+    if (is_regular_file) {
+        const auto immediate_parent = source.parent_path().filename();
+        if (!immediate_parent.empty()) {
+            return destination / immediate_parent / source.filename();
+        }
+        return destination / source.filename();
     }
 
     return destination / source.filename();
@@ -97,7 +114,7 @@ CopyPlan JobPlanner::build(const CopyJob& job) const {
             throw std::filesystem::filesystem_error("Source does not exist", source, ec);
         }
 
-        const auto root = destination_root_for(source, job.destination, job.layout);
+        const auto root = destination_root_for(source, job.destination, job.layout, status);
 
         if (std::filesystem::is_regular_file(status)) {
             const auto size = std::filesystem::file_size(source, ec);
