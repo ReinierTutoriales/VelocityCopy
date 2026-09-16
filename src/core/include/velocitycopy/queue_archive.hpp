@@ -11,6 +11,7 @@ namespace velocitycopy {
 
 struct QueueArchive {
     std::optional<CopyPlan> current_plan;
+    std::vector<CopyJob> current_append_jobs;
     std::vector<CopyJob> queued_jobs;
 };
 
