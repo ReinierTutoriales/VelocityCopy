@@ -8,6 +8,7 @@
 #include "velocitycopy/execution_control.hpp"
 #include "velocitycopy/job_executor.hpp"
 #include "velocitycopy/job_planner.hpp"
+#include "velocitycopy/job_planning_worker.hpp"
 #include "velocitycopy/live_copy_plan.hpp"
 #include "velocitycopy/shell_request.hpp"
 #include "velocitycopy/shell_session.hpp"
@@ -51,6 +52,7 @@ private:
     void NavigateDestination(std::filesystem::path folder);
     void ApplyDestinationNavigation(velocitycopy::DestinationNavigationResult result);
     void SelectDestination(std::filesystem::path destination);
+    void QueueOrStartCopy(velocitycopy::CopyJob job);
     void StartCopy(velocitycopy::CopyJob job);
     void PublishLivePlan(std::shared_ptr<velocitycopy::LiveCopyPlan> plan);
     void RefreshQueue();
@@ -70,6 +72,7 @@ private:
     velocitycopy::DestinationCatalog destination_catalog_;
     velocitycopy::DestinationNavigationWorker destination_navigation_;
     velocitycopy::JobPlanner planner_;
+    velocitycopy::JobPlanningWorker append_planner_;
     velocitycopy::JobExecutor executor_;
     std::shared_ptr<velocitycopy::ExecutionControl> execution_control_;
     velocitycopy::ShellSession shell_session_;
