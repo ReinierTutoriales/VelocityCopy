@@ -6,7 +6,11 @@
 #include "velocitycopy/destination_navigation_worker.hpp"
 #include "velocitycopy/drop_flow.hpp"
 #include "velocitycopy/job_executor.hpp"
+#include "velocitycopy/job_planner.hpp"
+#include "velocitycopy/live_copy_plan.hpp"
 #include "velocitycopy/ui_snapshot.hpp"
+
+#include <memory>
 
 namespace winrt::VelocityCopyUI::implementation {
 struct MainWindow : MainWindowT<MainWindow> {
@@ -25,6 +29,10 @@ struct MainWindow : MainWindowT<MainWindow> {
     void OnBackClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnStartCopyClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnCancelClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
+    void OnQueueClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
+    void OnQueueMoveUpClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
+    void OnQueueMoveDownClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
+    void OnQueueRemoveClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
 
 private:
     winrt::fire_and_forget HandleDropAsync(Windows::ApplicationModel::DataTransfer::DataPackageView data_view);
@@ -34,6 +42,10 @@ private:
     void ApplyDestinationNavigation(velocitycopy::DestinationNavigationResult result);
     void SelectDestination(std::filesystem::path destination);
     void StartCopy(velocitycopy::CopyJob job);
+    void PublishLivePlan(std::shared_ptr<velocitycopy::LiveCopyPlan> plan);
+    void RefreshQueue();
+    [[nodiscard]] std::vector<std::uint64_t> SelectedPendingIds() const;
+    void ResizeWindow(int height_epx);
     void ApplySnapshot(const velocitycopy::UiSnapshot& snapshot);
     void FinishCopy(const velocitycopy::JobResult& result);
     void ShowError();
@@ -45,13 +57,17 @@ private:
     velocitycopy::DropFlowController flow_;
     velocitycopy::DestinationCatalog destination_catalog_;
     velocitycopy::DestinationNavigationWorker destination_navigation_;
+    velocitycopy::JobPlanner planner_;
     velocitycopy::JobExecutor executor_;
     velocitycopy::ProgressPresenter presenter_{100};
     std::vector<velocitycopy::DropItem> dropped_items_;
     std::filesystem::path current_destination_folder_;
+    std::shared_ptr<velocitycopy::LiveCopyPlan> live_plan_;
+    std::vector<velocitycopy::PlannedFile> queue_snapshot_;
     Microsoft::UI::Dispatching::DispatcherQueue dispatcher_{nullptr};
     std::atomic_bool cancel_requested_{false};
     std::uint64_t next_job_id_{1};
+    std::uint64_t last_queue_completed_files_{};
     std::jthread copy_thread_;
 };
 }
