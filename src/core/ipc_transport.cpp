@@ -73,6 +73,7 @@ ShellIpcServer::ShellIpcServer() noexcept {
 }
 
 ShellIpcServer::~ShellIpcServer() {
+    stop();
     close_pipe();
 }
 
@@ -80,8 +81,16 @@ bool ShellIpcServer::valid() const noexcept {
     return pipe_ != nullptr && pipe_ != INVALID_HANDLE_VALUE;
 }
 
+bool ShellIpcServer::stopping() const noexcept {
+    return stopping_.load(std::memory_order_acquire);
+}
+
 bool ShellIpcServer::create_pipe() noexcept {
     close_pipe();
+    if (stopping()) {
+        return false;
+    }
+
     const auto name = shell_pipe_name();
     HANDLE pipe = CreateNamedPipeW(
         name.c_str(),
@@ -107,15 +116,48 @@ void ShellIpcServer::close_pipe() noexcept {
     pipe_ = nullptr;
 }
 
+void ShellIpcServer::wake_receiver() noexcept {
+    const auto name = shell_pipe_name();
+    if (!WaitNamedPipeW(name.c_str(), 250)) {
+        return;
+    }
+
+    HANDLE pipe = CreateFileW(
+        name.c_str(),
+        GENERIC_WRITE,
+        0,
+        nullptr,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        nullptr);
+    if (pipe == INVALID_HANDLE_VALUE) {
+        return;
+    }
+
+    const std::uint32_t wake_size = 0;
+    (void)write_all(pipe, &wake_size, sizeof(wake_size));
+    CloseHandle(pipe);
+}
+
+void ShellIpcServer::stop() noexcept {
+    bool expected = false;
+    if (!stopping_.compare_exchange_strong(expected, true, std::memory_order_acq_rel)) {
+        return;
+    }
+    wake_receiver();
+}
+
 std::optional<ShellRequest> ShellIpcServer::receive() noexcept {
-    if (!valid()) {
+    if (!valid() || stopping()) {
         return std::nullopt;
     }
 
     HANDLE pipe = static_cast<HANDLE>(pipe_);
     const BOOL connected = ConnectNamedPipe(pipe, nullptr) ? TRUE : (GetLastError() == ERROR_PIPE_CONNECTED);
     if (!connected) {
-        create_pipe();
+        if (!stopping()) {
+            create_pipe();
+        }
         return std::nullopt;
     }
 
@@ -128,9 +170,14 @@ std::optional<ShellRequest> ShellIpcServer::receive() noexcept {
         }
     }
 
-    FlushFileBuffers(pipe);
+    if (size != 0) {
+        FlushFileBuffers(pipe);
+    }
     DisconnectNamedPipe(pipe);
-    create_pipe();
+
+    if (!stopping()) {
+        create_pipe();
+    }
     return result;
 }
 
