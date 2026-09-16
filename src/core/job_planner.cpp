@@ -65,6 +65,11 @@ bool valid_relative_path(const std::filesystem::path& relative) {
     return true;
 }
 
+void account_file(CopyPlan& plan, const PlannedFile& file) {
+    checked_add(plan.total_bytes, file.size, file.source);
+    plan.largest_file_bytes = std::max(plan.largest_file_bytes, file.size);
+}
+
 } // namespace
 
 bool CopyPlan::move_file(const std::uint64_t file_id, const std::size_t new_index) noexcept {
@@ -131,6 +136,10 @@ bool CopyPlan::remove_file(const std::uint64_t file_id) noexcept {
 
     total_bytes -= it->size;
     files.erase(it);
+    largest_file_bytes = 0;
+    for (const auto& file : files) {
+        largest_file_bytes = std::max(largest_file_bytes, file.size);
+    }
     return true;
 }
 
@@ -166,8 +175,9 @@ CopyPlan JobPlanner::build(const CopyJob& job) const {
             if (ec) {
                 throw std::filesystem::filesystem_error("Unable to read file size", source, ec);
             }
-            plan.files.push_back({next_file_id++, source, root, size});
-            checked_add(plan.total_bytes, size, source);
+            PlannedFile file{next_file_id++, source, root, size};
+            account_file(plan, file);
+            plan.files.push_back(std::move(file));
             continue;
         }
 
@@ -218,8 +228,9 @@ CopyPlan JobPlanner::build(const CopyJob& job) const {
                 if (ec) {
                     throw std::filesystem::filesystem_error("Unable to read file size", entry.path(), ec);
                 }
-                plan.files.push_back({next_file_id++, entry.path(), target, size});
-                checked_add(plan.total_bytes, size, entry.path());
+                PlannedFile file{next_file_id++, entry.path(), target, size};
+                account_file(plan, file);
+                plan.files.push_back(std::move(file));
                 continue;
             }
 
