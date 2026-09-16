@@ -5,6 +5,8 @@
 #include "velocitycopy/execution_control.hpp"
 #include "velocitycopy/job_planner.hpp"
 #include "velocitycopy/live_copy_plan.hpp"
+#include "velocitycopy/storage_profiler.hpp"
+#include "velocitycopy/strategy_selector.hpp"
 
 #include <cstdint>
 #include <filesystem>
@@ -35,6 +37,10 @@ struct JobResult {
     bool stopped{};
 };
 
+struct JobExecutionOptions {
+    std::uint32_t worker_count{1};
+};
+
 class JobExecutor final {
 public:
     [[nodiscard]] JobResult execute(
@@ -54,9 +60,21 @@ public:
         ExecutionControl& control,
         const JobProgressCallback& progress = {}) const noexcept;
 
+    [[nodiscard]] JobResult execute(
+        LiveCopyPlan& plan,
+        ExecutionControl& control,
+        const JobExecutionOptions& options,
+        const JobProgressCallback& progress = {}) const noexcept;
+
+    [[nodiscard]] JobExecutionOptions recommend_options(
+        const CopyJob& job,
+        const CopyPlan& plan) const noexcept;
+
 private:
     CopyEngine engine_;
     JobPlanner planner_;
+    StorageProfiler storage_profiler_;
+    StrategySelector strategy_selector_;
 };
 
 } // namespace velocitycopy
