@@ -38,27 +38,48 @@ void MainWindow::OnQueueOrStartCopyClick(IInspectable const&, RoutedEventArgs co
 }
 
 void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
+    // A stop request is a transition, not an idle state. New work for the same
+    // destination is preserved for the stopped session; another destination is
+    // serialized as a future session. Neither may replace the active jthread.
+    if (stop_requested_) {
+        if (same_destination(active_destination_, job.destination)) {
+            deferred_after_stop_jobs_.push_back(std::move(job));
+        } else {
+            queued_sessions_.push_back(std::move(job));
+        }
+        return;
+    }
+
+    // A fully stopped session owns its LiveCopyPlan even though it has no
+    // ExecutionControl. Same-destination additions are planned directly into
+    // that conserved plan; other destinations remain future sessions.
+    if (stopped_session_ && live_plan_ && append_gate_) {
+        if (!same_destination(active_destination_, job.destination)) {
+            queued_sessions_.push_back(std::move(job));
+            return;
+        }
+        EnqueueAppend(
+            std::move(job), live_plan_, nullptr, append_gate_, false);
+        return;
+    }
+
     auto target_plan = live_plan_;
     auto target_control = execution_control_;
     auto target_gate = append_gate_;
 
-    // No active session: this job owns the copy thread.
+    // No active or stopped session: this job owns the copy thread.
     if (!target_control || !target_gate) {
         StartCopy(std::move(job));
         return;
     }
 
-    // Different destinations are separate sessions and must never replace the
-    // currently running jthread. Preserve arrival order and start them only
-    // after the active session reaches a terminal state.
     if (!same_destination(active_destination_, job.destination)) {
         queued_sessions_.push_back(std::move(job));
         return;
     }
 
-    // The first job may still be in its background planning phase. Reserve the
-    // active session immediately so an ultra-short first batch cannot close
-    // before this deferred job is transferred to the FIFO planning worker.
+    // The first job can still be in background planning. Reserve the session
+    // before queuing the append so an ultra-short initial job cannot close it.
     if (!target_plan) {
         bool reserved = false;
         {
@@ -90,6 +111,11 @@ void MainWindow::EnqueueAppend(
     std::shared_ptr<velocitycopy::ExecutionControl> target_control,
     std::shared_ptr<AppendGate> target_gate,
     const bool reservation_already_held) {
+    if (!target_plan || !target_gate) {
+        queued_sessions_.push_back(std::move(job));
+        return;
+    }
+
     if (!reservation_already_held) {
         bool reserved = false;
         {
@@ -101,7 +127,11 @@ void MainWindow::EnqueueAppend(
         }
 
         if (!reserved) {
-            queued_sessions_.push_back(std::move(job));
+            if (stopped_session_ && same_destination(active_destination_, job.destination)) {
+                deferred_after_stop_jobs_.push_back(std::move(job));
+            } else {
+                queued_sessions_.push_back(std::move(job));
+            }
             return;
         }
     }
@@ -125,13 +155,14 @@ void MainWindow::EnqueueAppend(
                 (void)dispatcher.TryEnqueue([weak, target_gate]() {
                     if (auto self = weak.get(); self && self->append_gate_ == target_gate) {
                         self->ShowError();
+                        self->FinalizeStoppedSessionIfEmpty();
                     }
                 });
                 return;
             }
 
-            // Planning and directory creation stay off the UI thread. Creating
-            // directories here also preserves empty folders in appended batches.
+            // Planning and directory creation stay off the UI thread. Empty
+            // folders from appended batches are therefore preserved too.
             for (const auto& directory : result.plan->directories) {
                 {
                     std::lock_guard gate_lock(target_gate->mutex);
@@ -151,6 +182,7 @@ void MainWindow::EnqueueAppend(
                     (void)dispatcher.TryEnqueue([weak, target_gate]() {
                         if (auto self = weak.get(); self && self->append_gate_ == target_gate) {
                             self->ShowError();
+                            self->FinalizeStoppedSessionIfEmpty();
                         }
                     });
                     return;
@@ -161,9 +193,7 @@ void MainWindow::EnqueueAppend(
                 velocitycopy::LivePlanAppendResult::Drained;
             bool committed = false;
             {
-                // Gate -> plan is the single lock order used by the session.
-                // It prevents the executor from closing the session between the
-                // final planning reservation and the queue commit.
+                // Gate -> plan is the single lock order for append commits.
                 std::lock_guard gate_lock(target_gate->mutex);
                 if (target_gate->accepting) {
                     append_result = target_plan->append(std::move(*result.plan), true);
@@ -203,6 +233,7 @@ void MainWindow::EnqueueAppend(
                     case velocitycopy::LivePlanAppendResult::DestinationCollision:
                     case velocitycopy::LivePlanAppendResult::SizeOverflow:
                         self->ShowError();
+                        self->FinalizeStoppedSessionIfEmpty();
                         return;
                     }
                 }
