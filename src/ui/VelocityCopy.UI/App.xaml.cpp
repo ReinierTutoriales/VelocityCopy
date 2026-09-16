@@ -2,21 +2,15 @@
 #include "App.xaml.h"
 #include "MainWindow.xaml.h"
 
-#include "velocitycopy/ipc_transport.hpp"
 #include "velocitycopy/process_activation.hpp"
 
 #include <shellapi.h>
 
 #include <cstdlib>
-#include <memory>
 #include <optional>
-#include <thread>
 
 namespace winrt::VelocityCopyUI::implementation {
 namespace {
-
-std::unique_ptr<velocitycopy::SingleInstance> g_instance;
-std::shared_ptr<velocitycopy::ShellIpcServer> g_server;
 
 std::optional<std::uintptr_t> parse_uintptr(const wchar_t* text) noexcept {
     if (text == nullptr || *text == L'\0') {
@@ -67,16 +61,28 @@ App::App() {
     InitializeComponent();
 }
 
+App::~App() {
+    if (server_) {
+        server_->stop();
+    }
+    ipc_thread_.request_stop();
+    if (ipc_thread_.joinable()) {
+        ipc_thread_.join();
+    }
+    server_.reset();
+    instance_.reset();
+}
+
 void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
     const auto initial_request = inherited_shell_request();
 
-    g_instance = std::make_unique<velocitycopy::SingleInstance>();
-    if (!g_instance->valid()) {
+    instance_ = std::make_unique<velocitycopy::SingleInstance>();
+    if (!instance_->valid()) {
         Microsoft::UI::Xaml::Application::Current().Exit();
         return;
     }
 
-    if (!g_instance->primary()) {
+    if (!instance_->primary()) {
         if (initial_request) {
             (void)velocitycopy::send_shell_request(*initial_request, 1000);
         }
@@ -101,27 +107,34 @@ void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
         deliver(*initial_request);
     }
 
-    g_server = std::make_shared<velocitycopy::ShellIpcServer>();
-    if (!g_server->valid()) {
+    server_ = std::make_shared<velocitycopy::ShellIpcServer>();
+    if (!server_->valid()) {
+        server_.reset();
         return;
     }
 
     const auto dispatcher = Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
-    auto server = g_server;
-    std::thread([server, dispatcher, deliver = std::move(deliver)]() mutable {
-        for (;;) {
-            auto request = server->receive();
-            if (!request) {
-                return;
-            }
+    auto server = server_;
+    ipc_thread_ = std::jthread(
+        [server, dispatcher, deliver = std::move(deliver)](std::stop_token stop_token) mutable {
+            while (!stop_token.stop_requested() && !server->stopping()) {
+                auto request = server->receive();
+                if (!request) {
+                    if (stop_token.stop_requested() || server->stopping()) {
+                        return;
+                    }
+                    // A malformed/aborted client must not permanently stop Explorer integration.
+                    continue;
+                }
 
-            auto value = std::move(*request);
-            if (!dispatcher.TryEnqueue([deliver, value = std::move(value)]() mutable {
-                    deliver(value);
-                })) {
-                return;
+                auto value = std::move(*request);
+                if (!dispatcher.TryEnqueue([deliver, value = std::move(value)]() mutable {
+                        deliver(value);
+                    })) {
+                    server->stop();
+                    return;
+                }
             }
-        }
-    }).detach();
+        });
 }
 }
