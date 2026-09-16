@@ -33,6 +33,9 @@ struct MainWindow : MainWindowT<MainWindow> {
     void OnQueueMoveUpClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnQueueMoveDownClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnQueueRemoveClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
+    void OnQueueDragItemsCompleted(
+        Microsoft::UI::Xaml::Controls::ListViewBase const&,
+        Microsoft::UI::Xaml::Controls::DragItemsCompletedEventArgs const&);
 
 private:
     winrt::fire_and_forget HandleDropAsync(Windows::ApplicationModel::DataTransfer::DataPackageView data_view);
