@@ -267,7 +267,7 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <Button x:Name="BackButton" x:Uid="BackButton" Click="OnBackClick" />
-                                <Button x:Name="StartCopyButton" x:Uid="StartCopyButton" Grid.Column="2" Click="OnStartCopyClick" IsEnabled="False" Style="{StaticResource AccentButtonStyle}" />
+                                <Button x:Name="StartCopyButton" x:Uid="StartCopyButton" Grid.Column="2" Click="OnQueueOrStartCopyClick" IsEnabled="False" Style="{StaticResource AccentButtonStyle}" />
                             </Grid>
                         </Grid>
                     </Grid>
