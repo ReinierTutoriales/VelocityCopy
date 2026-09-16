@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.28)
 
-project(VelocityCopy VERSION 0.1.0 LANGUAGES CXX)
+project(VelocityCopy VERSION 0.2.0 LANGUAGES CXX)
 
 if(NOT WIN32)
     message(FATAL_ERROR "VelocityCopy currently targets Windows only.")
@@ -12,6 +12,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(velocitycopy_core STATIC
     src/core/copy_engine.cpp
+    src/core/job_executor.cpp
+    src/core/job_planner.cpp
 )
 
 target_include_directories(velocitycopy_core
