@@ -16,7 +16,7 @@ namespace {
 constexpr std::uint32_t kMaxCopyWorkers = 4;
 
 struct ConcurrentProgressState {
-    std::mutex mutex;
+    mutable std::mutex mutex;
     std::uint64_t completed_bytes{};
     std::uint64_t completed_files{};
     std::unordered_map<std::uint64_t, std::uint64_t> active_bytes;
@@ -39,8 +39,7 @@ struct ConcurrentProgressState {
     }
 
     [[nodiscard]] std::pair<std::uint64_t, std::uint64_t> totals() const {
-        auto& mutable_mutex = const_cast<std::mutex&>(mutex);
-        std::lock_guard lock(mutable_mutex);
+        std::lock_guard lock(mutex);
         std::uint64_t transferred = completed_bytes;
         for (const auto& [file_id, partial] : active_bytes) {
             (void)file_id;
@@ -55,7 +54,7 @@ struct ConcurrentProgressState {
 };
 
 struct ConcurrentResultState {
-    std::mutex mutex;
+    mutable std::mutex mutex;
     std::int32_t first_error{S_OK};
 
     void record_error(const std::int32_t code) {
@@ -66,20 +65,55 @@ struct ConcurrentResultState {
     }
 
     [[nodiscard]] std::int32_t error() const {
-        auto& mutable_mutex = const_cast<std::mutex&>(mutex);
-        std::lock_guard lock(mutable_mutex);
+        std::lock_guard lock(mutex);
         return first_error;
     }
 };
 
 WorkloadProfile workload_from_plan(const CopyPlan& plan) noexcept {
-    WorkloadProfile workload{};
-    workload.total_bytes = plan.total_bytes;
-    workload.file_count = plan.files.size();
-    for (const auto& file : plan.files) {
-        workload.largest_file_bytes = std::max(workload.largest_file_bytes, file.size);
+    return {
+        plan.total_bytes,
+        static_cast<std::uint64_t>(plan.files.size()),
+        plan.largest_file_bytes,
+    };
+}
+
+WorkloadProfile workload_from_live_plan(const LiveCopyPlan& plan) noexcept {
+    return {
+        plan.total_bytes(),
+        plan.total_files(),
+        plan.largest_file_bytes(),
+    };
+}
+
+JobExecutionOptions recommend_for_roots(
+    const StorageProfiler& profiler,
+    const StrategySelector& selector,
+    const std::vector<std::filesystem::path>& source_roots,
+    const std::filesystem::path& destination_root,
+    const WorkloadProfile& workload) noexcept {
+    JobExecutionOptions options{};
+    if (source_roots.empty() || destination_root.empty() || workload.file_count < 2) {
+        return options;
     }
-    return workload;
+
+    const auto destination = profiler.inspect(destination_root);
+    std::uint32_t worker_count = kMaxCopyWorkers;
+
+    for (const auto& source_path : source_roots) {
+        const auto source = profiler.inspect(source_path);
+        const auto recommendation = selector.choose(source, destination, workload);
+        worker_count = std::min(worker_count, recommendation.suggested_queue_depth);
+        if (worker_count <= 1) {
+            return options;
+        }
+    }
+
+    options.worker_count = std::clamp<std::uint32_t>(
+        worker_count,
+        1,
+        static_cast<std::uint32_t>(std::min<std::uint64_t>(workload.file_count, kMaxCopyWorkers)));
+    return options;
 }
 
 } // namespace
@@ -170,42 +204,35 @@ JobResult JobExecutor::execute(
     LiveCopyPlan& plan,
     const JobProgressCallback& progress) const noexcept {
     ExecutionControl control;
-    return execute(plan, control, JobExecutionOptions{}, progress);
+    return execute(plan, control, recommend_options(plan), progress);
 }
 
 JobResult JobExecutor::execute(
     LiveCopyPlan& plan,
     ExecutionControl& control,
     const JobProgressCallback& progress) const noexcept {
-    return execute(plan, control, JobExecutionOptions{}, progress);
+    return execute(plan, control, recommend_options(plan), progress);
 }
 
 JobExecutionOptions JobExecutor::recommend_options(
     const CopyJob& job,
     const CopyPlan& plan) const noexcept {
-    JobExecutionOptions options{};
-    if (job.sources.empty() || plan.files.size() < 2) {
-        return options;
-    }
+    return recommend_for_roots(
+        storage_profiler_,
+        strategy_selector_,
+        job.sources,
+        job.destination,
+        workload_from_plan(plan));
+}
 
-    const auto destination = storage_profiler_.inspect(job.destination);
-    const auto workload = workload_from_plan(plan);
-
-    std::uint32_t worker_count = kMaxCopyWorkers;
-    for (const auto& source_path : job.sources) {
-        const auto source = storage_profiler_.inspect(source_path);
-        const auto recommendation = strategy_selector_.choose(source, destination, workload);
-        worker_count = std::min(worker_count, recommendation.suggested_queue_depth);
-        if (worker_count <= 1) {
-            return options;
-        }
-    }
-
-    options.worker_count = std::clamp<std::uint32_t>(
-        worker_count,
-        1,
-        static_cast<std::uint32_t>(std::min<std::size_t>(plan.files.size(), kMaxCopyWorkers)));
-    return options;
+JobExecutionOptions JobExecutor::recommend_options(
+    const LiveCopyPlan& plan) const noexcept {
+    return recommend_for_roots(
+        storage_profiler_,
+        strategy_selector_,
+        plan.source_roots(),
+        plan.destination_root(),
+        workload_from_live_plan(plan));
 }
 
 JobResult JobExecutor::execute(
