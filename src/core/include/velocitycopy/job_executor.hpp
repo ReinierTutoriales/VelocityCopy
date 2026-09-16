@@ -2,6 +2,7 @@
 
 #include "velocitycopy/copy_engine.hpp"
 #include "velocitycopy/copy_job.hpp"
+#include "velocitycopy/execution_control.hpp"
 #include "velocitycopy/job_planner.hpp"
 #include "velocitycopy/live_copy_plan.hpp"
 
@@ -31,6 +32,7 @@ struct JobResult {
     bool success{};
     bool cancelled{};
     std::int32_t native_code{};
+    bool stopped{};
 };
 
 class JobExecutor final {
@@ -45,6 +47,11 @@ public:
 
     [[nodiscard]] JobResult execute(
         LiveCopyPlan& plan,
+        const JobProgressCallback& progress = {}) const noexcept;
+
+    [[nodiscard]] JobResult execute(
+        LiveCopyPlan& plan,
+        ExecutionControl& control,
         const JobProgressCallback& progress = {}) const noexcept;
 
 private:
