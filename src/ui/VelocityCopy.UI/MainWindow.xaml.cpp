@@ -150,7 +150,7 @@ void MainWindow::NavigateDestination(std::filesystem::path folder) {
         std::move(folder),
         true,
         [weak, dispatcher](velocitycopy::DestinationNavigationResult result) mutable {
-            dispatcher.TryEnqueue([weak, result = std::move(result)]() mutable {
+            (void)dispatcher.TryEnqueue([weak, result = std::move(result)]() mutable {
                 if (auto self = weak.get()) {
                     self->ApplyDestinationNavigation(std::move(result));
                 }
@@ -309,7 +309,7 @@ void MainWindow::StartCopy(velocitycopy::CopyJob job) {
         try {
             plan = std::make_shared<velocitycopy::LiveCopyPlan>(planner_.build(job));
         } catch (...) {
-            dispatcher.TryEnqueue([weak]() {
+            (void)dispatcher.TryEnqueue([weak]() {
                 if (auto self = weak.get()) {
                     self->FinishCopy({false, false, static_cast<std::int32_t>(E_FAIL), false});
                 }
@@ -317,7 +317,7 @@ void MainWindow::StartCopy(velocitycopy::CopyJob job) {
             return;
         }
 
-        dispatcher.TryEnqueue([weak, plan]() {
+        (void)dispatcher.TryEnqueue([weak, plan]() {
             if (auto self = weak.get()) {
                 self->PublishLivePlan(plan);
             }
@@ -335,7 +335,7 @@ void MainWindow::StartCopy(velocitycopy::CopyJob job) {
 
             if (auto snapshot = presenter_.observe(progress, GetTickCount64())) {
                 const auto value = *snapshot;
-                dispatcher.TryEnqueue([weak, value]() {
+                (void)dispatcher.TryEnqueue([weak, value]() {
                     if (auto self = weak.get()) {
                         self->ApplySnapshot(value);
                     }
@@ -344,7 +344,7 @@ void MainWindow::StartCopy(velocitycopy::CopyJob job) {
             return velocitycopy::JobDecision::Continue;
         });
 
-        dispatcher.TryEnqueue([weak, result]() {
+        (void)dispatcher.TryEnqueue([weak, result]() {
             if (auto self = weak.get()) {
                 self->FinishCopy(result);
             }
@@ -379,9 +379,13 @@ std::vector<std::uint64_t> MainWindow::SelectedPendingIds() {
     std::vector<std::uint64_t> ids;
     const auto ranges = QueueList().SelectedRanges();
     for (const auto& range : ranges) {
-        const auto first = static_cast<std::size_t>(range.FirstIndex);
-        const auto last = static_cast<std::size_t>(range.LastIndex);
-        for (std::size_t index = first; index <= last && index < queue_snapshot_.size(); ++index) {
+        const auto first = static_cast<std::size_t>(range.FirstIndex());
+        const auto last = static_cast<std::size_t>(range.LastIndex());
+        if (first >= queue_snapshot_.size()) {
+            continue;
+        }
+        const auto bounded_last = std::min(last, queue_snapshot_.size() - 1);
+        for (std::size_t index = first; index <= bounded_last; ++index) {
             ids.push_back(queue_snapshot_[index].id);
         }
     }
@@ -405,7 +409,7 @@ void MainWindow::OnQueueMoveUpClick(IInspectable const&, RoutedEventArgs const&)
     }
     const auto ids = SelectedPendingIds();
     for (const auto id : ids) {
-        live_plan_->move_pending_file_up(id);
+        (void)live_plan_->move_pending_file_up(id);
     }
     RefreshQueue();
 }
@@ -416,7 +420,7 @@ void MainWindow::OnQueueMoveDownClick(IInspectable const&, RoutedEventArgs const
     }
     auto ids = SelectedPendingIds();
     for (auto it = ids.rbegin(); it != ids.rend(); ++it) {
-        live_plan_->move_pending_file_down(*it);
+        (void)live_plan_->move_pending_file_down(*it);
     }
     RefreshQueue();
 }
@@ -427,7 +431,7 @@ void MainWindow::OnQueueRemoveClick(IInspectable const&, RoutedEventArgs const&)
     }
     const auto ids = SelectedPendingIds();
     for (const auto id : ids) {
-        live_plan_->remove_pending_file(id);
+        (void)live_plan_->remove_pending_file(id);
     }
     RefreshQueue();
 }
@@ -465,7 +469,7 @@ void MainWindow::OnQueueDragItemsCompleted(
     }
 
     for (std::size_t index = 0; index < ordered_ids.size(); ++index) {
-        live_plan_->move_pending_file(ordered_ids[index], index);
+        (void)live_plan_->move_pending_file(ordered_ids[index], index);
     }
     RefreshQueue();
 }
