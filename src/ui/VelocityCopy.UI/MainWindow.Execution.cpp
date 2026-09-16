@@ -62,12 +62,23 @@ void MainWindow::SetExecutionButtonsStopped() {
     }
 }
 
+void MainWindow::SetExecutionButtonsConflict() {
+    PauseButton().IsEnabled(false);
+    SkipButton().IsEnabled(false);
+    StopButton().IsEnabled(false);
+    CancelButton().IsEnabled(true);
+    current_file_id_ = 0;
+    current_file_skippable_ = false;
+    paused_ = false;
+}
+
 velocitycopy::JobResult MainWindow::RunLivePlanSession(
     std::shared_ptr<velocitycopy::LiveCopyPlan> plan,
     std::shared_ptr<velocitycopy::ExecutionControl> control,
     std::shared_ptr<AppendGate> gate,
     const std::stop_token stop_token,
-    const bool publish_plan) {
+    const bool publish_plan,
+    std::uint64_t replace_file_id) {
     auto weak = get_weak();
     auto dispatcher = dispatcher_;
 
@@ -81,9 +92,18 @@ velocitycopy::JobResult MainWindow::RunLivePlanSession(
 
     velocitycopy::JobResult result{true, false, S_OK, false};
     for (;;) {
+        auto options = executor_.recommend_options(*plan);
+        if (replace_file_id != 0) {
+            // Resolve exactly one user-authorized replacement first. The core
+            // yields after that file so the next loop recomputes adaptive N.
+            options.worker_count = 1;
+            options.replace_file_id = replace_file_id;
+        }
+
         result = executor_.execute(
             *plan,
             *control,
+            options,
             [this, weak, dispatcher, control, stop_token](const velocitycopy::JobProgress& progress) {
                 if (stop_token.stop_requested() ||
                     cancel_requested_.load(std::memory_order_relaxed)) {
@@ -101,6 +121,7 @@ velocitycopy::JobResult MainWindow::RunLivePlanSession(
                 }
                 return velocitycopy::JobDecision::Continue;
             });
+        replace_file_id = 0;
 
         if (result.cancelled || (!result.success && !result.stopped)) {
             break;
@@ -185,6 +206,8 @@ velocitycopy::JobResult MainWindow::RunLivePlanSession(
 void MainWindow::StartCopy(velocitycopy::CopyJob job) {
     active_destination_ = job.destination;
     stopped_session_ = false;
+    conflict_session_ = false;
+    conflict_replace_file_id_ = 0;
     stop_requested_ = false;
     resume_requested_ = false;
     current_file_id_ = 0;
@@ -245,7 +268,7 @@ void MainWindow::StartCopy(velocitycopy::CopyJob job) {
             }
 
             const auto result = RunLivePlanSession(
-                plan, control, gate, stop_token, true);
+                plan, control, gate, stop_token, true, 0);
             (void)dispatcher.TryEnqueue([weak, result]() {
                 if (auto self = weak.get()) {
                     self->FinishCopy(result);
@@ -276,6 +299,7 @@ void MainWindow::ResumeStoppedCopy() {
 
     resume_requested_ = false;
     stopped_session_ = false;
+    conflict_session_ = false;
     stop_requested_ = false;
     current_file_id_ = 0;
     current_file_skippable_ = false;
@@ -298,7 +322,7 @@ void MainWindow::ResumeStoppedCopy() {
     copy_thread_ = std::jthread(
         [this, weak, dispatcher, plan, control, gate](std::stop_token stop_token) {
             const auto result = RunLivePlanSession(
-                plan, control, gate, stop_token, false);
+                plan, control, gate, stop_token, false, 0);
             (void)dispatcher.TryEnqueue([weak, result]() {
                 if (auto self = weak.get()) {
                     self->FinishCopy(result);
@@ -308,7 +332,8 @@ void MainWindow::ResumeStoppedCopy() {
 }
 
 void MainWindow::StartNextQueuedSession() {
-    if (execution_control_ || stopped_session_ || stop_requested_ || queued_sessions_.empty()) {
+    if (execution_control_ || stopped_session_ || conflict_session_ ||
+        stop_requested_ || queued_sessions_.empty()) {
         return;
     }
     auto next = std::move(queued_sessions_.front());
@@ -367,7 +392,7 @@ void MainWindow::OnPauseClick(IInspectable const&, RoutedEventArgs const&) {
 }
 
 void MainWindow::OnSkipClick(IInspectable const&, RoutedEventArgs const&) {
-    if (!execution_control_ || paused_ || stopped_session_ || stop_requested_ ||
+    if (!execution_control_ || paused_ || stopped_session_ || conflict_session_ || stop_requested_ ||
         current_file_id_ == 0 || !current_file_skippable_) {
         return;
     }
@@ -377,7 +402,7 @@ void MainWindow::OnSkipClick(IInspectable const&, RoutedEventArgs const&) {
 }
 
 void MainWindow::OnStopClick(IInspectable const&, RoutedEventArgs const&) {
-    if (!execution_control_ || stopped_session_ || stop_requested_) {
+    if (!execution_control_ || stopped_session_ || conflict_session_ || stop_requested_) {
         return;
     }
 
@@ -391,8 +416,13 @@ void MainWindow::OnStopClick(IInspectable const&, RoutedEventArgs const&) {
 }
 
 void MainWindow::OnCancelClick(IInspectable const&, RoutedEventArgs const&) {
+    CancelCurrentSession();
+}
+
+void MainWindow::CancelCurrentSession() {
     cancel_requested_.store(true, std::memory_order_relaxed);
     resume_requested_ = false;
+    conflict_replace_file_id_ = 0;
     current_file_id_ = 0;
     current_file_skippable_ = false;
     SkipButton().IsEnabled(false);
@@ -413,8 +443,9 @@ void MainWindow::OnCancelClick(IInspectable const&, RoutedEventArgs const&) {
         return;
     }
 
-    if (stopped_session_) {
+    if (stopped_session_ || conflict_session_) {
         stopped_session_ = false;
+        conflict_session_ = false;
         stop_requested_ = false;
         live_plan_.reset();
         append_gate_.reset();
@@ -435,7 +466,7 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
     current_file_skippable_ = snapshot.current_file_skippable;
     SkipButton().IsEnabled(
         execution_control_ && current_file_id_ != 0 && current_file_skippable_ &&
-        !paused_ && !stopped_session_ && !stop_requested_);
+        !paused_ && !stopped_session_ && !conflict_session_ && !stop_requested_);
 
     if (!snapshot.current_source.empty()) {
         CurrentItemText().Text(hstring(snapshot.current_source.filename().wstring()));
@@ -472,6 +503,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     if (result.stopped) {
         stop_requested_ = false;
         stopped_session_ = true;
+        conflict_session_ = false;
         append_gate_ = std::make_shared<AppendGate>();
         if (live_plan_) {
             active_destination_ = live_plan_->destination_root();
@@ -495,9 +527,36 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         return;
     }
 
+    if (result.destination_conflict && live_plan_ && result.conflict_file_id != 0) {
+        stop_requested_ = false;
+        stopped_session_ = false;
+        conflict_session_ = true;
+        resume_requested_ = false;
+        conflict_replace_file_id_ = 0;
+        append_gate_ = std::make_shared<AppendGate>();
+        active_destination_ = live_plan_->destination_root();
+        SetExecutionButtonsConflict();
+        RefreshQueue();
+        QueueButton().IsEnabled(live_plan_->remaining_files() != 0);
+        SpeedText().Text(L"—");
+        EtaText().Text(L"—");
+
+        auto plan = live_plan_;
+        auto gate = append_gate_;
+        for (auto& job : deferred_initial) {
+            if (plan && gate) {
+                EnqueueAppend(std::move(job), plan, nullptr, gate, false);
+            }
+        }
+        ShowConflictDialogAsync(result);
+        return;
+    }
+
     resume_requested_ = false;
+    conflict_replace_file_id_ = 0;
     stop_requested_ = false;
     stopped_session_ = false;
+    conflict_session_ = false;
     if (append_gate_) {
         std::lock_guard gate_lock(append_gate_->mutex);
         append_gate_->accepting = false;
@@ -566,6 +625,7 @@ void MainWindow::FinalizeStoppedSessionIfEmpty() {
 
     resume_requested_ = false;
     stopped_session_ = false;
+    conflict_session_ = false;
     stop_requested_ = false;
     current_file_id_ = 0;
     current_file_skippable_ = false;
