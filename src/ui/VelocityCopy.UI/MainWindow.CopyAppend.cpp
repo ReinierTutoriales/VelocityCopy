@@ -150,14 +150,22 @@ void MainWindow::EnqueueAppend(
                 target_gate->condition.notify_all();
             };
 
-            if (!result.plan) {
-                release_reservation();
+            auto notify_failure = [weak, dispatcher, target_gate]() {
                 (void)dispatcher.TryEnqueue([weak, target_gate]() {
                     if (auto self = weak.get(); self && self->append_gate_ == target_gate) {
                         self->ShowError();
-                        self->FinalizeStoppedSessionIfEmpty();
+                        if (self->stopped_session_ && self->resume_requested_) {
+                            self->ResumeStoppedCopy();
+                        } else {
+                            self->FinalizeStoppedSessionIfEmpty();
+                        }
                     }
                 });
+            };
+
+            if (!result.plan) {
+                release_reservation();
+                notify_failure();
                 return;
             }
 
@@ -179,12 +187,7 @@ void MainWindow::EnqueueAppend(
                 std::filesystem::create_directories(directory.destination, ec);
                 if (ec) {
                     release_reservation();
-                    (void)dispatcher.TryEnqueue([weak, target_gate]() {
-                        if (auto self = weak.get(); self && self->append_gate_ == target_gate) {
-                            self->ShowError();
-                            self->FinalizeStoppedSessionIfEmpty();
-                        }
-                    });
+                    notify_failure();
                     return;
                 }
             }
@@ -226,6 +229,9 @@ void MainWindow::EnqueueAppend(
                     case velocitycopy::LivePlanAppendResult::Appended:
                         self->QueueButton().IsEnabled(true);
                         self->RefreshQueue();
+                        if (self->stopped_session_ && self->resume_requested_) {
+                            self->ResumeStoppedCopy();
+                        }
                         return;
 
                     case velocitycopy::LivePlanAppendResult::Drained:
@@ -233,7 +239,11 @@ void MainWindow::EnqueueAppend(
                     case velocitycopy::LivePlanAppendResult::DestinationCollision:
                     case velocitycopy::LivePlanAppendResult::SizeOverflow:
                         self->ShowError();
-                        self->FinalizeStoppedSessionIfEmpty();
+                        if (self->stopped_session_ && self->resume_requested_) {
+                            self->ResumeStoppedCopy();
+                        } else {
+                            self->FinalizeStoppedSessionIfEmpty();
+                        }
                         return;
                     }
                 }
