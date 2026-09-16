@@ -14,6 +14,7 @@
 #include "velocitycopy/shell_session.hpp"
 #include "velocitycopy/ui_snapshot.hpp"
 
+#include <deque>
 #include <memory>
 
 namespace winrt::VelocityCopyUI::implementation {
@@ -80,6 +81,8 @@ private:
     velocitycopy::ProgressPresenter presenter_{100};
     std::vector<velocitycopy::DropItem> dropped_items_;
     std::filesystem::path current_destination_folder_;
+    std::filesystem::path active_destination_;
+    std::deque<velocitycopy::CopyJob> deferred_same_destination_jobs_;
     std::shared_ptr<velocitycopy::LiveCopyPlan> live_plan_;
     std::vector<velocitycopy::PlannedFile> queue_snapshot_;
     Microsoft::UI::Dispatching::DispatcherQueue dispatcher_{nullptr};
