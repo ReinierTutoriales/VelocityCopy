@@ -114,16 +114,19 @@ void MainWindow::OnLoadQueueClick(IInspectable const&, RoutedEventArgs const&) {
 fire_and_forget MainWindow::SaveQueueAsync() {
     auto lifetime = get_strong();
 
-    Microsoft::Windows::Storage::Pickers::PickFileResult result{nullptr};
+    std::optional<std::filesystem::path> selected_path;
     try {
         Microsoft::Windows::Storage::Pickers::FileSavePicker picker(AppWindow().Id());
         picker.SuggestedFileName(L"VelocityCopy Queue.vcq");
-        result = co_await picker.PickSaveFileAsync();
+        auto result = co_await picker.PickSaveFileAsync();
+        if (result) {
+            selected_path = std::filesystem::path(result.Path().c_str());
+        }
     } catch (...) {
         ShowError();
         co_return;
     }
-    if (!result) {
+    if (!selected_path) {
         co_return;
     }
 
@@ -161,7 +164,7 @@ fire_and_forget MainWindow::SaveQueueAsync() {
         current_append_jobs.clear();
     }
 
-    std::filesystem::path path(result.Path().c_str());
+    auto path = std::move(*selected_path);
     if (path.extension().empty()) {
         path += L".vcq";
     }
@@ -202,31 +205,32 @@ fire_and_forget MainWindow::LoadQueueAsync() {
         co_return;
     }
 
-    Microsoft::Windows::Storage::Pickers::PickFileResult result{nullptr};
+    std::optional<std::filesystem::path> selected_path;
     try {
         Microsoft::Windows::Storage::Pickers::FileOpenPicker picker(AppWindow().Id());
         picker.FileTypeFilter().Append(L".vcq");
-        result = co_await picker.PickSingleFileAsync();
+        auto result = co_await picker.PickSingleFileAsync();
+        if (result) {
+            selected_path = std::filesystem::path(result.Path().c_str());
+        }
     } catch (...) {
         ShowError();
         co_return;
     }
-    if (!result) {
+    if (!selected_path) {
         co_return;
     }
 
-    const std::filesystem::path path(result.Path().c_str());
     auto dispatcher = dispatcher_;
     auto weak = get_weak();
+    const auto path = std::move(*selected_path);
     co_await resume_background();
 
     auto archive = velocitycopy::QueueArchiveStore{}.load(path);
     if (archive) {
         try {
-            if (archive->current_plan) {
-                if (!revalidate_plan_sources(*archive->current_plan)) {
-                    archive.reset();
-                }
+            if (archive->current_plan && !revalidate_plan_sources(*archive->current_plan)) {
+                archive.reset();
             }
             if (archive && archive->current_plan) {
                 velocitycopy::LiveCopyPlan merged(std::move(*archive->current_plan));
