@@ -51,6 +51,9 @@
               <desktop5:Verb Id="VelocityCopy.CopyDirectory" Clsid="7E1D27A7-BA17-4EEA-9B93-967EE777BD21" />
               <desktop5:Verb Id="VelocityCopy.PasteDirectory" Clsid="CBBA1A7E-35B4-4708-9D03-9446D03FC843" />
             </desktop5:ItemType>
+            <desktop5:ItemType Type="Directory\Background">
+              <desktop5:Verb Id="VelocityCopy.PasteBackground" Clsid="CBBA1A7E-35B4-4708-9D03-9446D03FC843" />
+            </desktop5:ItemType>
           </desktop4:FileExplorerContextMenus>
         </desktop4:Extension>
       </Extensions>
