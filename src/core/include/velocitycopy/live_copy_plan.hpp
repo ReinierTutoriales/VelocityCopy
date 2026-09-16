@@ -2,6 +2,7 @@
 
 #include "velocitycopy/job_planner.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -50,9 +51,26 @@ public:
     LiveCopyPlan& operator=(const LiveCopyPlan&) = delete;
 
     [[nodiscard]] std::vector<PlannedDirectory> directories() const;
-    [[nodiscard]] LiveDirectoryBatch pending_directories() const;
-    void mark_directories_materialized(std::size_t through_index) noexcept;
-    [[nodiscard]] bool has_pending_directories() const noexcept;
+    [[nodiscard]] LiveDirectoryBatch pending_directories() const {
+        std::lock_guard lock(mutex_);
+        LiveDirectoryBatch batch{};
+        batch.through_index = directories_.size();
+        batch.directories.reserve(batch.through_index - materialized_directory_count_);
+        batch.directories.insert(
+            batch.directories.end(),
+            directories_.begin() + static_cast<std::ptrdiff_t>(materialized_directory_count_),
+            directories_.end());
+        return batch;
+    }
+    void mark_directories_materialized(const std::size_t through_index) noexcept {
+        std::lock_guard lock(mutex_);
+        materialized_directory_count_ = std::max(
+            materialized_directory_count_, std::min(through_index, directories_.size()));
+    }
+    [[nodiscard]] bool has_pending_directories() const noexcept {
+        std::lock_guard lock(mutex_);
+        return materialized_directory_count_ < directories_.size();
+    }
     [[nodiscard]] std::vector<std::filesystem::path> source_roots() const;
     [[nodiscard]] const std::filesystem::path& destination_root() const noexcept;
     [[nodiscard]] LiveCopyPlanSnapshot snapshot() const;
