@@ -42,10 +42,14 @@ int main() {
         return fail(1, "required production source missing");
     }
 
-    if (!contains(control_h, "request_skip(std::uint64_t file_id)") ||
-        !contains(control_h, "consume_skip(std::uint64_t file_id)") ||
+    if (!contains(control_h, "void request_skip(std::uint64_t file_id) noexcept") ||
+        !contains(control_h, "bool consume_skip(std::uint64_t file_id) noexcept") ||
+        !contains(control_h, "std::unordered_set<std::uint64_t> skip_file_ids_") ||
+        !contains(control_cpp, "ExecutionControl::request_skip") ||
+        !contains(control_cpp, "ExecutionControl::consume_skip") ||
         !contains(control_cpp, "skip_file_ids_.insert(file_id)") ||
-        !contains(control_cpp, "skip_file_ids_.erase(file_id)")) {
+        !contains(control_cpp, "skip_file_ids_.find(file_id)") ||
+        !contains(control_cpp, "skip_file_ids_.erase(it)")) {
         return fail(2, "Skip must be targeted by stable file id");
     }
 
