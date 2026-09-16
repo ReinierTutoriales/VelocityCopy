@@ -3,6 +3,7 @@
 #include "MainWindow.g.h"
 
 #include "velocitycopy/destination_catalog.hpp"
+#include "velocitycopy/destination_navigation_worker.hpp"
 #include "velocitycopy/drop_flow.hpp"
 #include "velocitycopy/job_executor.hpp"
 #include "velocitycopy/ui_snapshot.hpp"
@@ -15,6 +16,9 @@ struct MainWindow : MainWindowT<MainWindow> {
     void OnDragLeave(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
     void OnDrop(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
     void OnDestinationClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
+    void OnDestinationFolderClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
+    void OnDestinationBackClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
+    void OnChooseCurrentFolderClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnBrowseClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnPreserveClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnDirectClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
@@ -26,20 +30,25 @@ private:
     winrt::fire_and_forget HandleDropAsync(Windows::ApplicationModel::DataTransfer::DataPackageView data_view);
     winrt::fire_and_forget BrowseAsync();
     void LoadDestinations();
+    void NavigateDestination(std::filesystem::path folder);
+    void ApplyDestinationNavigation(velocitycopy::DestinationNavigationResult result);
     void SelectDestination(std::filesystem::path destination);
     void StartCopy(velocitycopy::CopyJob job);
     void ApplySnapshot(const velocitycopy::UiSnapshot& snapshot);
     void FinishCopy(const velocitycopy::JobResult& result);
     void ShowError();
     static hstring PreviewText(const velocitycopy::DropChoicePreview& preview);
+    static hstring FormatCapacity(const velocitycopy::DestinationCapacity& capacity);
     static hstring FormatSpeed(double bytes_per_second);
     static hstring FormatEta(double seconds);
 
     velocitycopy::DropFlowController flow_;
     velocitycopy::DestinationCatalog destination_catalog_;
+    velocitycopy::DestinationNavigationWorker destination_navigation_;
     velocitycopy::JobExecutor executor_;
     velocitycopy::ProgressPresenter presenter_{100};
     std::vector<velocitycopy::DropItem> dropped_items_;
+    std::filesystem::path current_destination_folder_;
     Microsoft::UI::Dispatching::DispatcherQueue dispatcher_{nullptr};
     std::atomic_bool cancel_requested_{false};
     std::uint64_t next_job_id_{1};
