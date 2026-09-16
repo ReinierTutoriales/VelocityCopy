@@ -41,6 +41,16 @@ velocitycopy::CopyPlan appended_plan(
     return plan;
 }
 
+bool all_outputs_exist(const std::filesystem::path& destination) {
+    std::error_code ec;
+    for (const auto* name : {L"a.txt", L"b.txt", L"c.txt", L"d.txt"}) {
+        if (!std::filesystem::exists(destination / name, ec) || ec) {
+            return false;
+        }
+    }
+    return true;
+}
+
 } // namespace
 
 int wmain() {
@@ -49,7 +59,6 @@ int wmain() {
 
     const auto root = fs::temp_directory_path() / L"VelocityCopyExecutorAppendTest";
     const auto source = root / L"source";
-    const auto destination = root / L"destination";
     std::error_code ec;
     fs::remove_all(root, ec);
 
@@ -58,49 +67,102 @@ int wmain() {
     write_text(source / L"c.txt", "c");
     write_text(source / L"d.txt", "d");
 
-    LiveCopyPlan live(initial_plan(source, destination));
     JobExecutor executor;
-    ExecutionControl control;
-    bool appended = false;
-    bool saw_expanded_totals = false;
 
-    const auto result = executor.execute(
-        live,
-        control,
-        JobExecutionOptions{1},
-        [&](const JobProgress& progress) {
-            if (!appended && progress.completed_files >= 1) {
-                auto extra = appended_plan(source, destination);
-                if (live.append(std::move(extra)) != LivePlanAppendResult::Appended) {
-                    return JobDecision::Cancel;
+    // Hot append while the worker is still inside the same execute() call.
+    {
+        const auto destination = root / L"hot";
+        LiveCopyPlan live(initial_plan(source, destination));
+        ExecutionControl control;
+        bool appended = false;
+        bool saw_expanded_totals = false;
+
+        const auto result = executor.execute(
+            live,
+            control,
+            JobExecutionOptions{1},
+            [&](const JobProgress& progress) {
+                if (!appended && progress.completed_files >= 1) {
+                    auto extra = appended_plan(source, destination);
+                    if (live.append(std::move(extra)) != LivePlanAppendResult::Appended) {
+                        return JobDecision::Cancel;
+                    }
+                    appended = true;
                 }
-                appended = true;
-            }
 
-            if (appended && progress.total_files == 4 && progress.total_bytes == 4) {
-                saw_expanded_totals = true;
-            }
-            return JobDecision::Continue;
-        });
+                if (appended && progress.total_files == 4 && progress.total_bytes == 4) {
+                    saw_expanded_totals = true;
+                }
+                return JobDecision::Continue;
+            });
 
-    if (!result.success || result.cancelled || result.stopped ||
-        !appended || !saw_expanded_totals) {
-        fs::remove_all(root, ec);
-        return 1;
-    }
+        if (!result.success || result.cancelled || result.stopped ||
+            !appended || !saw_expanded_totals || !all_outputs_exist(destination)) {
+            fs::remove_all(root, ec);
+            return 1;
+        }
 
-    for (const auto* name : {L"a.txt", L"b.txt", L"c.txt", L"d.txt"}) {
-        if (!fs::exists(destination / name, ec) || ec) {
+        const auto snapshot = live.snapshot();
+        if (!snapshot.pending_files.empty() || !snapshot.active_files.empty() ||
+            snapshot.total_files != 4 || snapshot.total_bytes != 4 ||
+            snapshot.completed_files != 4 || snapshot.completed_bytes != 4) {
             fs::remove_all(root, ec);
             return 2;
         }
     }
 
-    const auto snapshot = live.snapshot();
-    if (!snapshot.pending_files.empty() || !snapshot.active_files.empty() ||
-        snapshot.total_files != 4 || snapshot.total_bytes != 4) {
-        fs::remove_all(root, ec);
-        return 3;
+    // Reserved append after the pool has drained: a second execute() represents
+    // the same logical UI session, so progress must resume from the persisted
+    // completed counters instead of restarting at zero.
+    {
+        const auto destination = root / L"reactivated";
+        LiveCopyPlan live(initial_plan(source, destination));
+        ExecutionControl control;
+
+        const auto first_result = executor.execute(
+            live,
+            control,
+            JobExecutionOptions{1},
+            {});
+        if (!first_result.success || live.completed_files() != 2 ||
+            live.completed_bytes() != 2 || live.remaining_files() != 0) {
+            fs::remove_all(root, ec);
+            return 3;
+        }
+
+        auto extra = appended_plan(source, destination);
+        if (live.append(std::move(extra), true) != LivePlanAppendResult::Appended) {
+            fs::remove_all(root, ec);
+            return 4;
+        }
+
+        std::uint64_t last_transferred = 2;
+        std::uint64_t last_completed = 2;
+        bool saw_progress = false;
+        const auto second_result = executor.execute(
+            live,
+            control,
+            JobExecutionOptions{1},
+            [&](const JobProgress& progress) {
+                saw_progress = true;
+                if (progress.total_files != 4 || progress.total_bytes != 4 ||
+                    progress.transferred_bytes < 2 || progress.completed_files < 2 ||
+                    progress.transferred_bytes < last_transferred ||
+                    progress.completed_files < last_completed) {
+                    return JobDecision::Cancel;
+                }
+                last_transferred = progress.transferred_bytes;
+                last_completed = progress.completed_files;
+                return JobDecision::Continue;
+            });
+
+        if (!second_result.success || second_result.cancelled || second_result.stopped ||
+            !saw_progress || !all_outputs_exist(destination) ||
+            live.completed_files() != 4 || live.completed_bytes() != 4 ||
+            live.remaining_files() != 0) {
+            fs::remove_all(root, ec);
+            return 5;
+        }
     }
 
     fs::remove_all(root, ec);
