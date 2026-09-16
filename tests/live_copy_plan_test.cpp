@@ -65,7 +65,6 @@ int main() {
     write_text(source / "second.txt", "second");
     write_text(source / "third.txt", "third");
 
-    // Multi-active state, persisted completion counters and bounded queue view.
     {
         LiveCopyPlan concurrent_plan(make_plan(source, destination));
         const auto first = concurrent_plan.acquire_next();
@@ -102,7 +101,6 @@ int main() {
         }
     }
 
-    // Same-destination append, unique ids, collision memory and removal release.
     {
         LiveCopyPlan appended_plan(make_plan(source, destination));
         CopyPlan extra{};
@@ -176,7 +174,6 @@ int main() {
         }
     }
 
-    // Bulk queue manipulation is stable-id based and linear over the live queue.
     {
         LiveCopyPlan edit_plan(make_edit_plan(source, destination));
         if (!edit_plan.reorder_pending_files({3, 1, 5})) {
@@ -244,8 +241,49 @@ int main() {
         edit_plan.release_active(3);
     }
 
-    // A drained plan is closed to ordinary callers; only a previously reserved
-    // append may cross the drain boundary, preserving completion history.
+    // Removing or skipping the largest remaining file must immediately update
+    // adaptive workload metrics and release the destination reservation.
+    {
+        LiveCopyPlan removal_plan(make_plan(source, destination));
+        if (!removal_plan.remove_pending_file(2) ||
+            removal_plan.total_bytes() != 10 || removal_plan.total_files() != 2 ||
+            removal_plan.largest_file_bytes() != 5) {
+            fs::remove_all(root, ec);
+            return 23;
+        }
+
+        LiveCopyPlan skip_plan(make_plan(source, destination));
+        const auto first = skip_plan.acquire_next();
+        const auto largest = skip_plan.acquire_next();
+        if (!first || !largest || first->id != 1 || largest->id != 2 ||
+            !skip_plan.skip_active(largest->id)) {
+            fs::remove_all(root, ec);
+            return 24;
+        }
+        auto snapshot = skip_plan.snapshot();
+        if (snapshot.total_bytes != 10 || snapshot.total_files != 2 ||
+            snapshot.completed_bytes != 0 || snapshot.completed_files != 0 ||
+            snapshot.active_files.size() != 1 || snapshot.active_files[0].id != 1 ||
+            snapshot.pending_files.size() != 1 || snapshot.pending_files[0].id != 3 ||
+            skip_plan.largest_file_bytes() != 5 || skip_plan.remaining_files() != 2) {
+            fs::remove_all(root, ec);
+            return 25;
+        }
+
+        CopyPlan reuse_skipped{};
+        reuse_skipped.destination_root = destination;
+        reuse_skipped.files.push_back({1, source / "replacement-second.txt", destination / "second.txt", 4});
+        reuse_skipped.total_bytes = 4;
+        reuse_skipped.largest_file_bytes = 4;
+        if (skip_plan.append(std::move(reuse_skipped)) != LivePlanAppendResult::Appended ||
+            skip_plan.total_bytes() != 14 || skip_plan.total_files() != 3 ||
+            skip_plan.largest_file_bytes() != 5) {
+            fs::remove_all(root, ec);
+            return 26;
+        }
+        skip_plan.release_active(first->id);
+    }
+
     {
         LiveCopyPlan drained_plan(make_plan(source, destination));
         while (auto file = drained_plan.acquire_next()) {
@@ -255,7 +293,7 @@ int main() {
         if (drained_plan.completed_files() != 3 || drained_plan.completed_bytes() != 16 ||
             drained_plan.remaining_files() != 0) {
             fs::remove_all(root, ec);
-            return 23;
+            return 27;
         }
 
         CopyPlan ordinary{};
@@ -265,7 +303,7 @@ int main() {
         ordinary.largest_file_bytes = 7;
         if (drained_plan.append(std::move(ordinary)) != LivePlanAppendResult::Drained) {
             fs::remove_all(root, ec);
-            return 24;
+            return 28;
         }
 
         CopyPlan reserved{};
@@ -275,7 +313,7 @@ int main() {
         reserved.largest_file_bytes = 8;
         if (drained_plan.append(std::move(reserved), true) != LivePlanAppendResult::Appended) {
             fs::remove_all(root, ec);
-            return 25;
+            return 29;
         }
 
         const auto snapshot = drained_plan.snapshot();
@@ -284,13 +322,10 @@ int main() {
             snapshot.completed_files != 3 || snapshot.completed_bytes != 16 ||
             drained_plan.remaining_files() != 1) {
             fs::remove_all(root, ec);
-            return 26;
+            return 30;
         }
     }
 
-    // This scenario tests live queue edits, not adaptive parallelism. Force a
-    // single worker so file 2/3 remain pending when the first completion arrives.
-    // Parallel acquisition itself is covered by velocitycopy_parallel_executor.
     LiveCopyPlan live_plan(make_plan(source, destination));
     JobExecutor executor;
     ExecutionControl edit_control;
@@ -320,20 +355,20 @@ int main() {
 
     if (!result.success || result.cancelled || !edited || !saw_adjusted_totals) {
         fs::remove_all(root, ec);
-        return 27;
+        return 31;
     }
 
     if (!fs::exists(destination / "first.txt") ||
         !fs::exists(destination / "third.txt") ||
         fs::exists(destination / "second.txt")) {
         fs::remove_all(root, ec);
-        return 28;
+        return 32;
     }
 
     if (read_text(destination / "first.txt") != "first" ||
         read_text(destination / "third.txt") != "third") {
         fs::remove_all(root, ec);
-        return 29;
+        return 33;
     }
 
     const auto final_snapshot = live_plan.snapshot();
@@ -341,7 +376,7 @@ int main() {
         final_snapshot.total_files != 2 || final_snapshot.total_bytes != 10 ||
         final_snapshot.completed_files != 2 || final_snapshot.completed_bytes != 10) {
         fs::remove_all(root, ec);
-        return 30;
+        return 34;
     }
 
     fs::remove_all(root, ec);
