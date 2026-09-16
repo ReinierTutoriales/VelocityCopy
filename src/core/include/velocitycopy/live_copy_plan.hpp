@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <mutex>
 #include <optional>
+#include <unordered_set>
 #include <vector>
 
 namespace velocitycopy {
@@ -16,6 +17,8 @@ struct LiveCopyPlanSnapshot {
     std::vector<PlannedFile> active_files;
     std::uint64_t total_bytes{};
     std::uint64_t total_files{};
+    std::uint64_t completed_bytes{};
+    std::uint64_t completed_files{};
 };
 
 enum class LivePlanAppendResult {
@@ -40,12 +43,9 @@ public:
 
     // Appends a separately planned batch to this live operation. File ids from
     // the incoming plan are remapped so callers may safely append plans that
-    // each start numbering at 1. By default a drained plan is closed. A session
-    // coordinator that reserved an append before the drain boundary may pass
-    // allow_drained=true to commit that already-accepted batch atomically.
-    [[nodiscard]] LivePlanAppendResult append(
-        CopyPlan plan,
-        bool allow_drained = false) noexcept;
+    // each start numbering at 1. A drained plan is only reopened when the UI
+    // session has already reserved the append before the last worker drained.
+    [[nodiscard]] LivePlanAppendResult append(CopyPlan plan, bool allow_drained = false) noexcept;
 
     [[nodiscard]] bool move_pending_file(std::uint64_t file_id, std::size_t new_index) noexcept;
     [[nodiscard]] bool move_pending_file_up(std::uint64_t file_id) noexcept;
@@ -60,6 +60,8 @@ public:
 
     [[nodiscard]] std::uint64_t total_bytes() const noexcept;
     [[nodiscard]] std::uint64_t total_files() const noexcept;
+    [[nodiscard]] std::uint64_t completed_bytes() const noexcept;
+    [[nodiscard]] std::uint64_t completed_files() const noexcept;
     [[nodiscard]] std::uint64_t largest_file_bytes() const noexcept;
 
 private:
@@ -72,8 +74,11 @@ private:
     mutable std::mutex mutex_;
     std::vector<PlannedFile> pending_files_;
     std::vector<PlannedFile> active_files_;
+    std::unordered_set<std::wstring> reserved_destination_keys_;
     std::uint64_t total_bytes_{};
     std::uint64_t total_files_{};
+    std::uint64_t completed_bytes_{};
+    std::uint64_t completed_files_{};
     std::uint64_t largest_file_bytes_{};
     std::uint64_t next_file_id_{1};
 };
