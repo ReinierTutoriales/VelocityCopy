@@ -34,6 +34,7 @@ struct MainWindow : MainWindowT<MainWindow> {
     void OnDirectClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnBackClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnStartCopyClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
+    void OnQueueOrStartCopyClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnPauseClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnStopClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnCancelClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
