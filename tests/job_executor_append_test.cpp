@@ -44,9 +44,7 @@ velocitycopy::CopyPlan appended_plan(
 bool all_outputs_exist(const std::filesystem::path& destination) {
     std::error_code ec;
     for (const auto* name : {L"a.txt", L"b.txt", L"c.txt", L"d.txt"}) {
-        if (!std::filesystem::exists(destination / name, ec) || ec) {
-            return false;
-        }
+        if (!std::filesystem::exists(destination / name, ec) || ec) return false;
     }
     return true;
 }
@@ -78,9 +76,7 @@ int wmain() {
         bool saw_expanded_totals = false;
 
         const auto result = executor.execute(
-            live,
-            control,
-            JobExecutionOptions{1},
+            live, control, JobExecutionOptions{1},
             [&](const JobProgress& progress) {
                 if (!appended && progress.completed_files >= 1) {
                     auto extra = appended_plan(source, destination);
@@ -89,7 +85,6 @@ int wmain() {
                     }
                     appended = true;
                 }
-
                 if (appended && progress.total_files == 4 && progress.total_bytes == 4) {
                     saw_expanded_totals = true;
                 }
@@ -111,19 +106,14 @@ int wmain() {
         }
     }
 
-    // Reserved append after the pool has drained: a second execute() represents
-    // the same logical UI session, so progress must resume from the persisted
-    // completed counters instead of restarting at zero.
+    // Reserved append after a drained worker pool preserves progress history.
     {
         const auto destination = root / L"reactivated";
         LiveCopyPlan live(initial_plan(source, destination));
         ExecutionControl control;
 
         const auto first_result = executor.execute(
-            live,
-            control,
-            JobExecutionOptions{1},
-            {});
+            live, control, JobExecutionOptions{1}, {});
         if (!first_result.success || live.completed_files() != 2 ||
             live.completed_bytes() != 2 || live.remaining_files() != 0) {
             fs::remove_all(root, ec);
@@ -140,9 +130,7 @@ int wmain() {
         std::uint64_t last_completed = 2;
         bool saw_progress = false;
         const auto second_result = executor.execute(
-            live,
-            control,
-            JobExecutionOptions{1},
+            live, control, JobExecutionOptions{1},
             [&](const JobProgress& progress) {
                 saw_progress = true;
                 if (progress.total_files != 4 || progress.total_bytes != 4 ||
@@ -162,6 +150,63 @@ int wmain() {
             live.remaining_files() != 0) {
             fs::remove_all(root, ec);
             return 5;
+        }
+    }
+
+    // Stop and Resume are different from Pause. Stop returns control after the
+    // current file, leaves remaining files in the same LiveCopyPlan, and a new
+    // ExecutionControl can later continue that exact plan without resetting
+    // completion totals.
+    {
+        const auto destination = root / L"stopped";
+        auto plan = initial_plan(source, destination);
+        auto extra = appended_plan(source, destination);
+        plan.files.insert(plan.files.end(), extra.files.begin(), extra.files.end());
+        plan.total_bytes = 4;
+        plan.largest_file_bytes = 1;
+        LiveCopyPlan live(std::move(plan));
+        ExecutionControl first_control;
+        bool stop_requested = false;
+
+        const auto stopped = executor.execute(
+            live, first_control, JobExecutionOptions{1},
+            [&](const JobProgress& progress) {
+                if (!stop_requested && progress.completed_files >= 1) {
+                    stop_requested = true;
+                    first_control.request_stop();
+                }
+                return JobDecision::Continue;
+            });
+
+        if (!stopped.stopped || stopped.success || stopped.cancelled ||
+            !stop_requested || live.completed_files() == 0 ||
+            live.completed_files() >= 4 || live.remaining_files() == 0) {
+            fs::remove_all(root, ec);
+            return 6;
+        }
+
+        const auto completed_before_resume = live.completed_files();
+        const auto bytes_before_resume = live.completed_bytes();
+        ExecutionControl resumed_control;
+        bool resumed_progress = false;
+        const auto resumed = executor.execute(
+            live, resumed_control, JobExecutionOptions{1},
+            [&](const JobProgress& progress) {
+                resumed_progress = true;
+                if (progress.completed_files < completed_before_resume ||
+                    progress.transferred_bytes < bytes_before_resume ||
+                    progress.total_files != 4 || progress.total_bytes != 4) {
+                    return JobDecision::Cancel;
+                }
+                return JobDecision::Continue;
+            });
+
+        if (!resumed.success || resumed.cancelled || resumed.stopped ||
+            !resumed_progress || live.completed_files() != 4 ||
+            live.completed_bytes() != 4 || live.remaining_files() != 0 ||
+            !all_outputs_exist(destination)) {
+            fs::remove_all(root, ec);
+            return 7;
         }
     }
 
