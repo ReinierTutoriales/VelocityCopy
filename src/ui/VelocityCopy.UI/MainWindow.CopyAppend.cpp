@@ -40,17 +40,18 @@ void MainWindow::OnQueueOrStartCopyClick(IInspectable const&, RoutedEventArgs co
 void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
     auto target_plan = live_plan_;
     auto target_control = execution_control_;
+    auto target_gate = append_gate_;
 
     // The first job may still be in its background planning phase. Preserve the
     // user's FIFO intent instead of starting a second copy merely because the
     // LiveCopyPlan has not been published to the UI yet.
-    if (!target_plan && target_control &&
+    if (!target_plan && target_control && target_gate &&
         same_destination(active_destination_, job.destination)) {
         deferred_same_destination_jobs_.push_back(std::move(job));
         return;
     }
 
-    if (!target_plan || !target_control ||
+    if (!target_plan || !target_control || !target_gate ||
         !same_destination(target_plan->destination_root(), job.destination)) {
         active_destination_ = job.destination;
         deferred_same_destination_jobs_.clear();
@@ -58,15 +59,35 @@ void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
         return;
     }
 
+    {
+        std::lock_guard gate_lock(target_gate->mutex);
+        if (!target_gate->accepting) {
+            active_destination_ = job.destination;
+            deferred_same_destination_jobs_.clear();
+            StartCopy(std::move(job));
+            return;
+        }
+        ++target_gate->planning_count;
+    }
+
     auto weak = get_weak();
     auto dispatcher = dispatcher_;
 
     (void)append_planner_.enqueue(
         std::move(job),
-        [weak, dispatcher, target_plan, target_control](velocitycopy::JobPlanningResult result) mutable {
+        [weak, dispatcher, target_plan, target_control, target_gate](velocitycopy::JobPlanningResult result) mutable {
+            auto release_reservation = [&]() {
+                std::lock_guard gate_lock(target_gate->mutex);
+                if (target_gate->planning_count != 0) {
+                    --target_gate->planning_count;
+                }
+                target_gate->condition.notify_all();
+            };
+
             if (!result.plan) {
-                (void)dispatcher.TryEnqueue([weak]() {
-                    if (auto self = weak.get()) {
+                release_reservation();
+                (void)dispatcher.TryEnqueue([weak, target_gate]() {
+                    if (auto self = weak.get(); self && self->append_gate_ == target_gate) {
                         self->ShowError();
                     }
                 });
@@ -76,11 +97,23 @@ void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
             // Planning and directory creation stay off the UI thread. Creating
             // directories here also preserves empty folders in appended batches.
             for (const auto& directory : result.plan->directories) {
+                {
+                    std::lock_guard gate_lock(target_gate->mutex);
+                    if (!target_gate->accepting) {
+                        if (target_gate->planning_count != 0) {
+                            --target_gate->planning_count;
+                        }
+                        target_gate->condition.notify_all();
+                        return;
+                    }
+                }
+
                 std::error_code ec;
                 std::filesystem::create_directories(directory.destination, ec);
                 if (ec) {
-                    (void)dispatcher.TryEnqueue([weak]() {
-                        if (auto self = weak.get()) {
+                    release_reservation();
+                    (void)dispatcher.TryEnqueue([weak, target_gate]() {
+                        if (auto self = weak.get(); self && self->append_gate_ == target_gate) {
                             self->ShowError();
                         }
                     });
@@ -88,19 +121,38 @@ void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
                 }
             }
 
-            const auto append_result = target_plan->append(std::move(*result.plan));
+            velocitycopy::LivePlanAppendResult append_result =
+                velocitycopy::LivePlanAppendResult::Drained;
+            bool committed = false;
+            {
+                // Gate -> plan is the single lock order used by the session.
+                // It prevents the executor from closing the session between the
+                // final planning reservation and the queue commit.
+                std::lock_guard gate_lock(target_gate->mutex);
+                if (target_gate->accepting) {
+                    append_result = target_plan->append(std::move(*result.plan), true);
+                    committed = true;
+                }
+                if (target_gate->planning_count != 0) {
+                    --target_gate->planning_count;
+                }
+                target_gate->condition.notify_all();
+            }
+
+            if (!committed) {
+                return;
+            }
+
             (void)dispatcher.TryEnqueue([
                 weak,
                 target_plan,
                 target_control,
-                job = std::move(result.job),
+                target_gate,
                 append_result]() mutable {
                 if (auto self = weak.get()) {
-                    // The active execution may have changed while this batch was
-                    // being planned. Never append into a stale/stopped session.
                     if (self->live_plan_ != target_plan ||
-                        self->execution_control_ != target_control) {
-                        self->QueueOrStartCopy(std::move(job));
+                        self->execution_control_ != target_control ||
+                        self->append_gate_ != target_gate) {
                         return;
                     }
 
@@ -111,18 +163,7 @@ void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
                         return;
 
                     case velocitycopy::LivePlanAppendResult::Drained:
-                        // The previous operation crossed the drain boundary while
-                        // this batch was being planned. Start it normally rather
-                        // than leaving files stranded in a dead live plan.
-                        self->active_destination_ = job.destination;
-                        self->StartCopy(std::move(job));
-                        return;
-
                     case velocitycopy::LivePlanAppendResult::DifferentDestination:
-                        self->active_destination_ = job.destination;
-                        self->StartCopy(std::move(job));
-                        return;
-
                     case velocitycopy::LivePlanAppendResult::DestinationCollision:
                     case velocitycopy::LivePlanAppendResult::SizeOverflow:
                         self->ShowError();
