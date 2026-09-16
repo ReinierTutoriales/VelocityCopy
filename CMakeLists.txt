@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.28)
 
-project(VelocityCopy VERSION 0.13.0 LANGUAGES CXX)
+project(VelocityCopy VERSION 0.14.0 LANGUAGES CXX)
 
 if(NOT WIN32)
     message(FATAL_ERROR "VelocityCopy currently targets Windows only.")
@@ -12,6 +12,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(velocitycopy_core STATIC
     src/core/copy_engine.cpp
+    src/core/destination_catalog.cpp
     src/core/drop_menu_model.cpp
     src/core/ipc_protocol.cpp
     src/core/ipc_transport.cpp
@@ -82,6 +83,9 @@ target_link_libraries(VelocityCopyDropLayoutTest PRIVATE velocitycopy_core)
 add_executable(VelocityCopyDropMenuModelTest tests/drop_menu_model_test.cpp)
 target_link_libraries(VelocityCopyDropMenuModelTest PRIVATE velocitycopy_core)
 
+add_executable(VelocityCopyDestinationCatalogTest tests/destination_catalog_test.cpp)
+target_link_libraries(VelocityCopyDestinationCatalogTest PRIVATE velocitycopy_core shell32)
+
 add_executable(VelocityCopyStrategyTest tests/strategy_selector_test.cpp)
 target_link_libraries(VelocityCopyStrategyTest PRIVATE velocitycopy_core)
 
@@ -110,6 +114,7 @@ if(MSVC)
     target_compile_options(VelocityCopyPlanEditTest PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyDropLayoutTest PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyDropMenuModelTest PRIVATE /W4 /permissive- /EHsc /utf-8)
+    target_compile_options(VelocityCopyDestinationCatalogTest PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyStrategyTest PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyShellRequestTest PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyIpcTest PRIVATE /W4 /permissive- /EHsc /utf-8)
@@ -124,6 +129,7 @@ add_test(NAME velocitycopy_queue COMMAND VelocityCopyQueueTest)
 add_test(NAME velocitycopy_plan_edit COMMAND VelocityCopyPlanEditTest)
 add_test(NAME velocitycopy_drop_layout COMMAND VelocityCopyDropLayoutTest)
 add_test(NAME velocitycopy_drop_menu_model COMMAND VelocityCopyDropMenuModelTest)
+add_test(NAME velocitycopy_destination_catalog COMMAND VelocityCopyDestinationCatalogTest)
 add_test(NAME velocitycopy_strategy COMMAND VelocityCopyStrategyTest)
 add_test(NAME velocitycopy_shell_request COMMAND VelocityCopyShellRequestTest)
 add_test(NAME velocitycopy_ipc COMMAND VelocityCopyIpcTest)
