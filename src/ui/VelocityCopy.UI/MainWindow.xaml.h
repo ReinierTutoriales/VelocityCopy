@@ -44,7 +44,7 @@ private:
     void StartCopy(velocitycopy::CopyJob job);
     void PublishLivePlan(std::shared_ptr<velocitycopy::LiveCopyPlan> plan);
     void RefreshQueue();
-    [[nodiscard]] std::vector<std::uint64_t> SelectedPendingIds() const;
+    [[nodiscard]] std::vector<std::uint64_t> SelectedPendingIds();
     void ResizeWindow(int height_epx);
     void ApplySnapshot(const velocitycopy::UiSnapshot& snapshot);
     void FinishCopy(const velocitycopy::JobResult& result);
