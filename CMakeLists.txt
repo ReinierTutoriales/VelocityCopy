@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.28)
 
-project(VelocityCopy VERSION 0.2.0 LANGUAGES CXX)
+project(VelocityCopy VERSION 0.3.0 LANGUAGES CXX)
 
 if(NOT WIN32)
     message(FATAL_ERROR "VelocityCopy currently targets Windows only.")
@@ -14,6 +14,7 @@ add_library(velocitycopy_core STATIC
     src/core/copy_engine.cpp
     src/core/job_executor.cpp
     src/core/job_planner.cpp
+    src/core/job_queue.cpp
 )
 
 target_include_directories(velocitycopy_core
@@ -53,8 +54,16 @@ add_executable(VelocityCopySmokeTest
 
 target_link_libraries(VelocityCopySmokeTest PRIVATE velocitycopy_core)
 
+add_executable(VelocityCopyQueueTest
+    tests/queue_test.cpp
+)
+
+target_link_libraries(VelocityCopyQueueTest PRIVATE velocitycopy_core)
+
 if(MSVC)
     target_compile_options(VelocityCopySmokeTest PRIVATE /W4 /permissive- /EHsc /utf-8)
+    target_compile_options(VelocityCopyQueueTest PRIVATE /W4 /permissive- /EHsc /utf-8)
 endif()
 
 add_test(NAME velocitycopy_smoke COMMAND VelocityCopySmokeTest)
+add_test(NAME velocitycopy_queue COMMAND VelocityCopyQueueTest)
