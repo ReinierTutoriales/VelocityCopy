@@ -40,9 +40,12 @@ public:
 
     // Appends a separately planned batch to this live operation. File ids from
     // the incoming plan are remapped so callers may safely append plans that
-    // each start numbering at 1. A drained plan is never reopened: callers
-    // should start a fresh execution instead.
-    [[nodiscard]] LivePlanAppendResult append(CopyPlan plan) noexcept;
+    // each start numbering at 1. By default a drained plan is closed. A session
+    // coordinator that reserved an append before the drain boundary may pass
+    // allow_drained=true to commit that already-accepted batch atomically.
+    [[nodiscard]] LivePlanAppendResult append(
+        CopyPlan plan,
+        bool allow_drained = false) noexcept;
 
     [[nodiscard]] bool move_pending_file(std::uint64_t file_id, std::size_t new_index) noexcept;
     [[nodiscard]] bool move_pending_file_up(std::uint64_t file_id) noexcept;
