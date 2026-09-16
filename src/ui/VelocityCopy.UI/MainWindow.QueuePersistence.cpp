@@ -31,6 +31,46 @@ bool revalidate_plan_sources(velocitycopy::CopyPlan& plan) noexcept {
     }
 }
 
+bool create_append_directories(const velocitycopy::CopyPlan& plan) noexcept {
+    for (const auto& directory : plan.directories) {
+        std::error_code ec;
+        std::filesystem::create_directories(directory.destination, ec);
+        if (ec) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool merge_current_append_jobs(velocitycopy::QueueArchive& archive) {
+    if (archive.current_append_jobs.empty()) {
+        return true;
+    }
+
+    velocitycopy::JobPlanner planner;
+    std::size_t first_append = 0;
+    if (!archive.current_plan) {
+        auto first_plan = planner.build(archive.current_append_jobs.front());
+        archive.current_plan = std::move(first_plan);
+        first_append = 1;
+    }
+
+    velocitycopy::LiveCopyPlan merged(std::move(*archive.current_plan));
+    for (std::size_t index = first_append; index < archive.current_append_jobs.size(); ++index) {
+        auto append_plan = planner.build(archive.current_append_jobs[index]);
+        if (!create_append_directories(append_plan)) {
+            return false;
+        }
+        const auto append_result = merged.append(std::move(append_plan), true);
+        if (append_result != velocitycopy::LivePlanAppendResult::Appended) {
+            return false;
+        }
+    }
+    archive.current_plan = merged.export_remaining_plan();
+    archive.current_append_jobs.clear();
+    return true;
+}
+
 } // namespace
 
 void MainWindow::ConfigureQueuePersistenceMenu() {
@@ -159,10 +199,6 @@ fire_and_forget MainWindow::SaveQueueAsync() {
     if (!current_plan && current_append_jobs.empty() && queued.empty()) {
         co_return;
     }
-    if (!current_plan && !current_append_jobs.empty()) {
-        queued.insert(queued.begin(), current_append_jobs.begin(), current_append_jobs.end());
-        current_append_jobs.clear();
-    }
 
     auto path = std::move(*selected_path);
     if (path.extension().empty()) {
@@ -178,7 +214,7 @@ fire_and_forget MainWindow::SaveQueueAsync() {
         velocitycopy::QueueArchive archive{};
         if (current_plan) {
             archive.current_plan = current_plan->export_remaining_plan();
-            if (archive.current_plan->files.empty()) {
+            if (archive.current_plan->files.empty() && archive.current_plan->directories.empty()) {
                 archive.current_plan.reset();
             }
         }
@@ -232,26 +268,8 @@ fire_and_forget MainWindow::LoadQueueAsync() {
             if (archive->current_plan && !revalidate_plan_sources(*archive->current_plan)) {
                 archive.reset();
             }
-            if (archive && archive->current_plan) {
-                velocitycopy::LiveCopyPlan merged(std::move(*archive->current_plan));
-                velocitycopy::JobPlanner planner;
-                for (const auto& job : archive->current_append_jobs) {
-                    const auto append_result = merged.append(planner.build(job), true);
-                    if (append_result != velocitycopy::LivePlanAppendResult::Appended) {
-                        archive.reset();
-                        break;
-                    }
-                }
-                if (archive) {
-                    archive->current_plan = merged.export_remaining_plan();
-                    archive->current_append_jobs.clear();
-                }
-            } else if (archive && !archive->current_append_jobs.empty()) {
-                archive->queued_jobs.insert(
-                    archive->queued_jobs.begin(),
-                    archive->current_append_jobs.begin(),
-                    archive->current_append_jobs.end());
-                archive->current_append_jobs.clear();
+            if (archive && !merge_current_append_jobs(*archive)) {
+                archive.reset();
             }
         } catch (...) {
             archive.reset();
@@ -280,7 +298,8 @@ fire_and_forget MainWindow::LoadQueueAsync() {
             self->queued_sessions_.push_back(std::move(job));
         }
 
-        if (archive->current_plan && !archive->current_plan->files.empty()) {
+        if (archive->current_plan &&
+            (!archive->current_plan->files.empty() || !archive->current_plan->directories.empty())) {
             self->StartCopyPlan(std::move(*archive->current_plan));
         } else {
             self->StartNextQueuedSession();
@@ -290,7 +309,7 @@ fire_and_forget MainWindow::LoadQueueAsync() {
 }
 
 void MainWindow::StartCopyPlan(velocitycopy::CopyPlan plan) {
-    if (plan.files.empty() || plan.destination_root.empty()) {
+    if (plan.destination_root.empty() || (plan.files.empty() && plan.directories.empty())) {
         StartNextQueuedSession();
         RefreshQueueCommandState();
         return;
