@@ -21,8 +21,14 @@ enum class CopyDecision {
 
 using ProgressCallback = std::function<CopyDecision(const CopyProgress&)>;
 
+enum class ExistingDestinationPolicy {
+    Fail,
+    Replace,
+};
+
 struct CopyOptions {
     bool resume_from_pause{};
+    ExistingDestinationPolicy existing_destination{ExistingDestinationPolicy::Fail};
 };
 
 struct CopyResult {
