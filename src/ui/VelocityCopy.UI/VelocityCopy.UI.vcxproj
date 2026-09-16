@@ -1,108 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <PropertyGroup Label="NuGet">
-    <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
-    <NuGetTargetMoniker>native,Version=v0.0</NuGetTargetMoniker>
-    <NuGetTargetPlatformIdentifier>Windows</NuGetTargetPlatformIdentifier>
-    <NuGetTargetPlatformVersion>$(WindowsTargetPlatformVersion)</NuGetTargetPlatformVersion>
-  </PropertyGroup>
-  <PropertyGroup Label="Globals">
-    <CppWinRTOptimized>true</CppWinRTOptimized>
-    <CppWinRTRootNamespaceAutoMerge>true</CppWinRTRootNamespaceAutoMerge>
-    <MinimalCoreWin>true</MinimalCoreWin>
-    <ProjectGuid>{C842E0F1-D2AA-4AD5-9A1E-4A8F4F736A43}</ProjectGuid>
-    <ProjectName>VelocityCopy.UI</ProjectName>
-    <RootNamespace>VelocityCopyUI</RootNamespace>
-    <TargetName>VelocityCopy.WinUI</TargetName>
-    <DefaultLanguage>en-US</DefaultLanguage>
-    <MinimumVisualStudioVersion>17.0</MinimumVisualStudioVersion>
-    <AppContainerApplication>false</AppContainerApplication>
-    <AppxPackage>true</AppxPackage>
-    <ApplicationType>Windows Store</ApplicationType>
-    <ApplicationTypeRevision>10.0</ApplicationTypeRevision>
-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <WindowsTargetPlatformMinVersion>10.0.22000.0</WindowsTargetPlatformMinVersion>
-    <UseWinUI>true</UseWinUI>
-    <RuntimeIdentifiers>win10-x64</RuntimeIdentifiers>
-    <EnableMsixTooling>true</EnableMsixTooling>
-    <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
-    <AppxBundle>Never</AppxBundle>
-  </PropertyGroup>
-  <ItemGroup>
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.4.0" />
-    <PackageReference Include="Microsoft.Windows.CppWinRT" Version="2.0.240405.15" />
-  </ItemGroup>
+  <PropertyGroup Label="NuGet"><RestoreProjectStyle>PackageReference</RestoreProjectStyle><NuGetTargetMoniker>native,Version=v0.0</NuGetTargetMoniker><NuGetTargetPlatformIdentifier>Windows</NuGetTargetPlatformIdentifier><NuGetTargetPlatformVersion>$(WindowsTargetPlatformVersion)</NuGetTargetPlatformVersion></PropertyGroup>
+  <PropertyGroup Label="Globals"><CppWinRTOptimized>true</CppWinRTOptimized><CppWinRTRootNamespaceAutoMerge>true</CppWinRTRootNamespaceAutoMerge><MinimalCoreWin>true</MinimalCoreWin><ProjectGuid>{C842E0F1-D2AA-4AD5-9A1E-4A8F4F736A43}</ProjectGuid><ProjectName>VelocityCopy.UI</ProjectName><RootNamespace>VelocityCopyUI</RootNamespace><TargetName>VelocityCopy.WinUI</TargetName><DefaultLanguage>en-US</DefaultLanguage><MinimumVisualStudioVersion>17.0</MinimumVisualStudioVersion><AppContainerApplication>false</AppContainerApplication><AppxPackage>true</AppxPackage><ApplicationType>Windows Store</ApplicationType><ApplicationTypeRevision>10.0</ApplicationTypeRevision><WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion><WindowsTargetPlatformMinVersion>10.0.22000.0</WindowsTargetPlatformMinVersion><UseWinUI>true</UseWinUI><RuntimeIdentifiers>win10-x64</RuntimeIdentifiers><EnableMsixTooling>true</EnableMsixTooling><AppxPackageSigningEnabled>false</AppxPackageSigningEnabled><AppxBundle>Never</AppxBundle></PropertyGroup>
+  <ItemGroup><PackageReference Include="Microsoft.WindowsAppSDK" Version="2.4.0" /><PackageReference Include="Microsoft.Windows.CppWinRT" Version="2.0.240405.15" /></ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-  <ItemGroup Label="ProjectConfigurations">
-    <ProjectConfiguration Include="Debug|x64"><Configuration>Debug</Configuration><Platform>x64</Platform></ProjectConfiguration>
-    <ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration>
-  </ItemGroup>
-  <PropertyGroup Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>v145</PlatformToolset>
-    <PlatformToolset Condition="'$(VisualStudioVersion)' == '17.0'">v143</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
-    <DesktopCompatible>true</DesktopCompatible>
-  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations"><ProjectConfiguration Include="Debug|x64"><Configuration>Debug</Configuration><Platform>x64</Platform></ProjectConfiguration><ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration></ItemGroup>
+  <PropertyGroup Label="Configuration"><ConfigurationType>Application</ConfigurationType><PlatformToolset>v145</PlatformToolset><PlatformToolset Condition="'$(VisualStudioVersion)' == '17.0'">v143</PlatformToolset><CharacterSet>Unicode</CharacterSet><DesktopCompatible>true</DesktopCompatible></PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration"><UseDebugLibraries>true</UseDebugLibraries><LinkIncremental>true</LinkIncremental></PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration"><UseDebugLibraries>false</UseDebugLibraries><WholeProgramOptimization>true</WholeProgramOptimization><LinkIncremental>false</LinkIncremental></PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings" />
   <ImportGroup Label="PropertySheets"><Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" /></ImportGroup>
-  <ItemDefinitionGroup>
-    <ClCompile>
-      <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>$(IntDir)pch.pch</PrecompiledHeaderOutputFile>
-      <WarningLevel>Level4</WarningLevel>
-      <LanguageStandard>stdcpp23</LanguageStandard>
-      <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\..\core\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>UNICODE;_UNICODE;WIN32_LEAN_AND_MEAN;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ClCompile>
-    <Link>
-      <AdditionalLibraryDirectories>$(ProjectDir)..\..\..\build\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>velocitycopy_core.lib;shell32.lib;ole32.lib;windowsapp.lib;%(AdditionalDependencies)</AdditionalDependencies>
-    </Link>
-  </ItemDefinitionGroup>
+  <ItemDefinitionGroup><ClCompile><PrecompiledHeader>Use</PrecompiledHeader><PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile><PrecompiledHeaderOutputFile>$(IntDir)pch.pch</PrecompiledHeaderOutputFile><WarningLevel>Level4</WarningLevel><LanguageStandard>stdcpp23</LanguageStandard><ConformanceMode>true</ConformanceMode><AdditionalIncludeDirectories>$(ProjectDir)..\..\core\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories><PreprocessorDefinitions>UNICODE;_UNICODE;WIN32_LEAN_AND_MEAN;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile><Link><AdditionalLibraryDirectories>$(ProjectDir)..\..\..\build\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories><AdditionalDependencies>velocitycopy_core.lib;shell32.lib;ole32.lib;windowsapp.lib;%(AdditionalDependencies)</AdditionalDependencies></Link></ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'"><ClCompile><PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile><Link><EnableCOMDATFolding>true</EnableCOMDATFolding><OptimizeReferences>true</OptimizeReferences></Link></ItemDefinitionGroup>
   <ItemGroup><Manifest Include="app.manifest" /></ItemGroup>
-  <ItemGroup>
-    <ApplicationDefinition Include="App.xaml" />
-    <Page Include="MainWindow.xaml" />
-    <Page Include="..\DesignTokens.xaml"><Link>DesignTokens.xaml</Link></Page>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="pch.h" />
-    <ClInclude Include="App.xaml.h"><DependentUpon>App.xaml</DependentUpon></ClInclude>
-    <ClInclude Include="MainWindow.xaml.h"><DependentUpon>MainWindow.xaml</DependentUpon></ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="pch.cpp"><PrecompiledHeader>Create</PrecompiledHeader></ClCompile>
-    <ClCompile Include="App.xaml.cpp"><DependentUpon>App.xaml</DependentUpon></ClCompile>
-    <ClCompile Include="MainWindow.xaml.cpp"><DependentUpon>MainWindow.xaml</DependentUpon></ClCompile>
-    <ClCompile Include="MainWindow.CopyAppend.cpp" />
-    <ClCompile Include="MainWindow.Execution.cpp" />
-    <ClCompile Include="MainWindow.Shell.cpp" />
-    <ClCompile Include="$(GeneratedFilesDir)module.g.cpp" />
-  </ItemGroup>
+  <ItemGroup><ApplicationDefinition Include="App.xaml" /><Page Include="MainWindow.xaml" /><Page Include="..\DesignTokens.xaml"><Link>DesignTokens.xaml</Link></Page></ItemGroup>
+  <ItemGroup><ClInclude Include="pch.h" /><ClInclude Include="App.xaml.h"><DependentUpon>App.xaml</DependentUpon></ClInclude><ClInclude Include="MainWindow.xaml.h"><DependentUpon>MainWindow.xaml</DependentUpon></ClInclude></ItemGroup>
+  <ItemGroup><ClCompile Include="pch.cpp"><PrecompiledHeader>Create</PrecompiledHeader></ClCompile><ClCompile Include="App.xaml.cpp"><DependentUpon>App.xaml</DependentUpon></ClCompile><ClCompile Include="MainWindow.xaml.cpp"><DependentUpon>MainWindow.xaml</DependentUpon></ClCompile><ClCompile Include="MainWindow.CopyAppend.cpp" /><ClCompile Include="MainWindow.Execution.cpp" /><ClCompile Include="MainWindow.Queue.cpp" /><ClCompile Include="MainWindow.Shell.cpp" /><ClCompile Include="$(GeneratedFilesDir)module.g.cpp" /></ItemGroup>
   <ItemGroup><Midl Include="Project.idl"><SubType>Code</SubType></Midl></ItemGroup>
   <ItemGroup><AppxManifest Include="Package.appxmanifest"><SubType>Designer</SubType></AppxManifest></ItemGroup>
-  <ItemGroup>
-    <PRIResource Include="..\Strings\en-US\Resources.resw"><Link>Strings\en-US\Resources.resw</Link></PRIResource>
-    <PRIResource Include="..\Strings\es-ES\Resources.resw"><Link>Strings\es-ES\Resources.resw</Link></PRIResource>
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="..\..\..\Logo\VelocityCopy.png"><Link>Assets\VelocityCopy.png</Link></Image>
-    <Content Include="..\..\..\build\$(Configuration)\VelocityCopy.Shell.dll">
-      <Link>VelocityCopy.Shell.dll</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <DeploymentContent>true</DeploymentContent>
-    </Content>
-  </ItemGroup>
-  <Target Name="BuildVelocityCopyCore" BeforeTargets="Link">
-    <Exec Command="cmake -S &quot;$(ProjectDir)..\..\..&quot; -B &quot;$(ProjectDir)..\..\..\build&quot; -A x64" />
-    <Exec Command="cmake --build &quot;$(ProjectDir)..\..\..\build&quot; --config $(Configuration) --target velocitycopy_core VelocityCopyShell" />
-  </Target>
+  <ItemGroup><PRIResource Include="..\Strings\en-US\Resources.resw"><Link>Strings\en-US\Resources.resw</Link></PRIResource><PRIResource Include="..\Strings\es-ES\Resources.resw"><Link>Strings\es-ES\Resources.resw</Link></PRIResource></ItemGroup>
+  <ItemGroup><Image Include="..\..\..\Logo\VelocityCopy.png"><Link>Assets\VelocityCopy.png</Link></Image><Content Include="..\..\..\build\$(Configuration)\VelocityCopy.Shell.dll"><Link>VelocityCopy.Shell.dll</Link><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory><DeploymentContent>true</DeploymentContent></Content></ItemGroup>
+  <Target Name="BuildVelocityCopyCore" BeforeTargets="Link"><Exec Command="cmake -S &quot;$(ProjectDir)..\..\..&quot; -B &quot;$(ProjectDir)..\..\..\build&quot; -A x64" /><Exec Command="cmake --build &quot;$(ProjectDir)..\..\..\build&quot; --config $(Configuration) --target velocitycopy_core VelocityCopyShell" /></Target>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
