@@ -2,9 +2,12 @@
 <Package
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:com="http://schemas.microsoft.com/appx/manifest/com/windows10"
+  xmlns:desktop4="http://schemas.microsoft.com/appx/manifest/desktop/windows10/4"
+  xmlns:desktop5="http://schemas.microsoft.com/appx/manifest/desktop/windows10/5"
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-  IgnorableNamespaces="uap rescap">
-  <Identity Name="ReinierTutoriales.VelocityCopy" Publisher="CN=ReinierTutoriales" Version="0.16.0.0" />
+  IgnorableNamespaces="uap com desktop4 desktop5 rescap">
+  <Identity Name="ReinierTutoriales.VelocityCopy" Publisher="CN=ReinierTutoriales" Version="0.19.0.0" />
   <Properties>
     <DisplayName>VelocityCopy</DisplayName>
     <PublisherDisplayName>ReinierTutoriales</PublisherDisplayName>
@@ -24,6 +27,33 @@
         Square44x44Logo="Assets\VelocityCopy.png">
         <uap:DefaultTile />
       </uap:VisualElements>
+      <Extensions>
+        <com:Extension Category="windows.comServer">
+          <com:ComServer>
+            <com:SurrogateServer AppId="8F50A7A5-8A93-4B0E-A444-D0E748630A3A" DisplayName="VelocityCopy Shell Commands">
+              <com:Class
+                Id="7E1D27A7-BA17-4EEA-9B93-967EE777BD21"
+                Path="VelocityCopy.Shell.dll"
+                ThreadingModel="STA" />
+              <com:Class
+                Id="CBBA1A7E-35B4-4708-9D03-9446D03FC843"
+                Path="VelocityCopy.Shell.dll"
+                ThreadingModel="STA" />
+            </com:SurrogateServer>
+          </com:ComServer>
+        </com:Extension>
+        <desktop4:Extension Category="windows.fileExplorerContextMenus">
+          <desktop4:FileExplorerContextMenus>
+            <desktop5:ItemType Type="*">
+              <desktop5:Verb Id="VelocityCopy.Copy" Clsid="7E1D27A7-BA17-4EEA-9B93-967EE777BD21" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type="Directory">
+              <desktop5:Verb Id="VelocityCopy.CopyDirectory" Clsid="7E1D27A7-BA17-4EEA-9B93-967EE777BD21" />
+              <desktop5:Verb Id="VelocityCopy.PasteDirectory" Clsid="CBBA1A7E-35B4-4708-9D03-9446D03FC843" />
+            </desktop5:ItemType>
+          </desktop4:FileExplorerContextMenus>
+        </desktop4:Extension>
+      </Extensions>
     </Application>
   </Applications>
   <Capabilities><rescap:Capability Name="runFullTrust" /></Capabilities>
