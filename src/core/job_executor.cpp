@@ -20,6 +20,12 @@ void remove_partial_destination(const std::filesystem::path& destination) noexce
     (void)std::filesystem::remove(destination, ec);
 }
 
+bool destination_is_safe_to_discard(const std::filesystem::path& destination) noexcept {
+    std::error_code ec;
+    const bool existed = std::filesystem::exists(destination, ec);
+    return !ec && !existed;
+}
+
 struct ConcurrentProgressState {
     mutable std::mutex mutex;
     std::uint64_t completed_bytes{};
@@ -181,6 +187,7 @@ JobResult JobExecutor::execute(
                     aggregate.total_files = plan.files.size();
                     aggregate.completed_files = completed_files;
                     aggregate.current_file_id = file.id;
+                    aggregate.current_file_skippable = false;
                     aggregate.current_source = file.source;
                     aggregate.current_destination = file.destination;
 
@@ -204,6 +211,7 @@ JobResult JobExecutor::execute(
                 aggregate.total_files = plan.files.size();
                 aggregate.completed_files = completed_files;
                 aggregate.current_file_id = 0;
+                aggregate.current_file_skippable = false;
                 aggregate.current_source = file.source;
                 aggregate.current_destination = file.destination;
 
@@ -290,7 +298,10 @@ JobResult JobExecutor::execute(
         std::vector<std::jthread> workers;
         workers.reserve(worker_count);
 
-        auto emit_progress = [&](const PlannedFile& file, const bool file_is_active) -> bool {
+        auto emit_progress = [&](
+            const PlannedFile& file,
+            const bool file_is_active,
+            const bool file_is_skippable) -> bool {
             if (!progress) {
                 return true;
             }
@@ -303,6 +314,7 @@ JobResult JobExecutor::execute(
             aggregate.total_files = plan.total_files();
             aggregate.completed_files = std::min(completed, aggregate.total_files);
             aggregate.current_file_id = file_is_active ? file.id : 0;
+            aggregate.current_file_skippable = file_is_active && file_is_skippable;
             aggregate.current_source = file.source;
             aggregate.current_destination = file.destination;
 
@@ -360,7 +372,8 @@ JobResult JobExecutor::execute(
                             }
                         }
 
-                        if (control.consume_skip(file_id)) {
+                        const bool skip_allowed = destination_is_safe_to_discard(file->destination);
+                        if (skip_allowed && control.consume_skip(file_id)) {
                             progress_state.release(file_id);
                             if (!plan.skip_active(file_id)) {
                                 result_state.record_error(static_cast<std::int32_t>(E_FAIL));
@@ -368,7 +381,7 @@ JobResult JobExecutor::execute(
                                 worker_results[worker_index] = {false, false, static_cast<std::int32_t>(E_FAIL), false};
                                 return;
                             }
-                            if (!emit_progress(*file, false)) {
+                            if (!emit_progress(*file, false, false)) {
                                 worker_results[worker_index] = {
                                     false,
                                     true,
@@ -390,7 +403,7 @@ JobResult JobExecutor::execute(
                                 [&](const CopyProgress& file_progress) {
                                     progress_state.update_active(*file, file_progress.transferred_bytes);
 
-                                    if (control.consume_skip(file_id)) {
+                                    if (skip_allowed && control.consume_skip(file_id)) {
                                         skip_requested = true;
                                         return CopyDecision::Skip;
                                     }
@@ -403,7 +416,7 @@ JobResult JobExecutor::execute(
                                         return CopyDecision::Cancel;
                                     }
 
-                                    return emit_progress(*file, true)
+                                    return emit_progress(*file, true, skip_allowed)
                                         ? CopyDecision::Continue
                                         : CopyDecision::Cancel;
                                 });
@@ -437,7 +450,6 @@ JobResult JobExecutor::execute(
                                         false};
                                     return;
                                 }
-                                // Stop deliberately lets already-started files finish.
                                 resume_from_pause = true;
                                 continue;
                             }
@@ -455,7 +467,7 @@ JobResult JobExecutor::execute(
                         }
 
                         if (skipped) {
-                            if (!emit_progress(*file, false)) {
+                            if (!emit_progress(*file, false, false)) {
                                 worker_results[worker_index] = {
                                     false,
                                     true,
@@ -468,7 +480,7 @@ JobResult JobExecutor::execute(
 
                         progress_state.complete(*file);
                         plan.complete_active(file_id);
-                        if (!emit_progress(*file, false)) {
+                        if (!emit_progress(*file, false, false)) {
                             worker_results[worker_index] = {
                                 false,
                                 true,
