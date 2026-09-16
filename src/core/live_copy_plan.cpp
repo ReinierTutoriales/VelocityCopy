@@ -3,12 +3,17 @@
 #include <algorithm>
 #include <cwctype>
 #include <limits>
+#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
 
 namespace velocitycopy {
 namespace {
+
+static_assert(std::is_nothrow_move_constructible_v<std::filesystem::path>);
+static_assert(std::is_nothrow_move_constructible_v<PlannedDirectory>);
+static_assert(std::is_nothrow_move_constructible_v<PlannedFile>);
 
 std::wstring normalized_path_key(const std::filesystem::path& path) {
     auto value = path.lexically_normal().wstring();
@@ -38,7 +43,11 @@ LiveCopyPlan::LiveCopyPlan(CopyPlan plan)
       largest_file_bytes_(plan.largest_file_bytes) {
     reserved_destination_keys_.reserve(pending_files_.size());
     for (const auto& file : pending_files_) {
-        next_file_id_ = std::max(next_file_id_, file.id + 1);
+        if (file.id == std::numeric_limits<std::uint64_t>::max()) {
+            next_file_id_ = 0;
+        } else if (next_file_id_ != 0) {
+            next_file_id_ = std::max(next_file_id_, file.id + 1);
+        }
         reserved_destination_keys_.insert(normalized_path_key(file.destination));
     }
 }
@@ -92,6 +101,12 @@ LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan, const bool allow_draine
             plan.files.size() > std::numeric_limits<std::uint64_t>::max() - total_files_) {
             return LivePlanAppendResult::SizeOverflow;
         }
+        if (!plan.files.empty()) {
+            if (next_file_id_ == 0) return LivePlanAppendResult::InternalFailure;
+            const auto available_ids =
+                std::numeric_limits<std::uint64_t>::max() - next_file_id_ + 1;
+            if (plan.files.size() > available_ids) return LivePlanAppendResult::InternalFailure;
+        }
 
         std::vector<std::wstring> incoming_keys;
         incoming_keys.reserve(plan.files.size());
@@ -127,7 +142,10 @@ LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan, const bool allow_draine
 
         std::uint64_t assigned_id = next_file_id_;
         for (auto& file : plan.files) {
-            file.id = assigned_id++;
+            file.id = assigned_id;
+            assigned_id = assigned_id == std::numeric_limits<std::uint64_t>::max()
+                ? 0
+                : assigned_id + 1;
             pending_files_.push_back(std::move(file));
         }
 
@@ -138,7 +156,7 @@ LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan, const bool allow_draine
         largest_file_bytes_ = std::max(largest_file_bytes_, plan.largest_file_bytes);
         return LivePlanAppendResult::Appended;
     } catch (...) {
-        return LivePlanAppendResult::DestinationCollision;
+        return LivePlanAppendResult::InternalFailure;
     }
 }
 
