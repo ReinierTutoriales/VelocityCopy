@@ -42,11 +42,24 @@ void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
     auto target_control = execution_control_;
     auto target_gate = append_gate_;
 
+    // No active session: this job owns the copy thread.
+    if (!target_control || !target_gate) {
+        StartCopy(std::move(job));
+        return;
+    }
+
+    // Different destinations are separate sessions and must never replace the
+    // currently running jthread. Preserve arrival order and start them only
+    // after the active session reaches a terminal state.
+    if (!same_destination(active_destination_, job.destination)) {
+        queued_sessions_.push_back(std::move(job));
+        return;
+    }
+
     // The first job may still be in its background planning phase. Reserve the
     // active session immediately so an ultra-short first batch cannot close
     // before this deferred job is transferred to the FIFO planning worker.
-    if (!target_plan && target_control && target_gate &&
-        same_destination(active_destination_, job.destination)) {
+    if (!target_plan) {
         bool reserved = false;
         {
             std::lock_guard gate_lock(target_gate->mutex);
@@ -57,15 +70,9 @@ void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
         }
         if (reserved) {
             deferred_same_destination_jobs_.push_back(std::move(job));
-            return;
+        } else {
+            queued_sessions_.push_back(std::move(job));
         }
-    }
-
-    if (!target_plan || !target_control || !target_gate ||
-        !same_destination(target_plan->destination_root(), job.destination)) {
-        active_destination_ = job.destination;
-        deferred_same_destination_jobs_.clear();
-        StartCopy(std::move(job));
         return;
     }
 
@@ -94,9 +101,7 @@ void MainWindow::EnqueueAppend(
         }
 
         if (!reserved) {
-            active_destination_ = job.destination;
-            deferred_same_destination_jobs_.clear();
-            StartCopy(std::move(job));
+            queued_sessions_.push_back(std::move(job));
             return;
         }
     }
