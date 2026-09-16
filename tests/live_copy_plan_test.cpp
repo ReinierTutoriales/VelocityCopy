@@ -18,6 +18,18 @@ std::string read_text(const std::filesystem::path& path) {
     return {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
 }
 
+velocitycopy::CopyPlan make_plan(
+    const std::filesystem::path& source,
+    const std::filesystem::path& destination) {
+    velocitycopy::CopyPlan plan{};
+    plan.directories.push_back({destination});
+    plan.files.push_back({1, source / "first.txt", destination / "first.txt", 5});
+    plan.files.push_back({2, source / "second.txt", destination / "second.txt", 6});
+    plan.files.push_back({3, source / "third.txt", destination / "third.txt", 5});
+    plan.total_bytes = 16;
+    return plan;
+}
+
 } // namespace
 
 int main() {
@@ -34,14 +46,41 @@ int main() {
     write_text(source / "second.txt", "second");
     write_text(source / "third.txt", "third");
 
-    CopyPlan static_plan{};
-    static_plan.directories.push_back({destination});
-    static_plan.files.push_back({1, source / "first.txt", destination / "first.txt", 5});
-    static_plan.files.push_back({2, source / "second.txt", destination / "second.txt", 6});
-    static_plan.files.push_back({3, source / "third.txt", destination / "third.txt", 5});
-    static_plan.total_bytes = 16;
+    // Contract: the live plan supports more than one active file at a time.
+    {
+        LiveCopyPlan concurrent_plan(make_plan(source, destination));
+        const auto first = concurrent_plan.acquire_next();
+        const auto second = concurrent_plan.acquire_next();
+        if (!first || !second || first->id != 1 || second->id != 2) {
+            fs::remove_all(root, ec);
+            return 1;
+        }
 
-    LiveCopyPlan live_plan(std::move(static_plan));
+        auto snapshot = concurrent_plan.snapshot();
+        if (snapshot.active_files.size() != 2 || snapshot.pending_files.size() != 1 ||
+            snapshot.active_files[0].id != 1 || snapshot.active_files[1].id != 2 ||
+            snapshot.pending_files[0].id != 3) {
+            fs::remove_all(root, ec);
+            return 2;
+        }
+
+        concurrent_plan.complete_active(first->id);
+        snapshot = concurrent_plan.snapshot();
+        if (snapshot.active_files.size() != 1 || snapshot.active_files[0].id != 2) {
+            fs::remove_all(root, ec);
+            return 3;
+        }
+
+        concurrent_plan.release_active(second->id);
+        snapshot = concurrent_plan.snapshot();
+        if (!snapshot.active_files.empty() || snapshot.pending_files.size() != 2 ||
+            snapshot.pending_files[0].id != 2 || snapshot.pending_files[1].id != 3) {
+            fs::remove_all(root, ec);
+            return 4;
+        }
+    }
+
+    LiveCopyPlan live_plan(make_plan(source, destination));
     JobExecutor executor;
     bool edited = false;
     bool saw_adjusted_totals = false;
@@ -65,27 +104,27 @@ int main() {
 
     if (!result.success || result.cancelled || !edited || !saw_adjusted_totals) {
         fs::remove_all(root, ec);
-        return 1;
+        return 5;
     }
 
     if (!fs::exists(destination / "first.txt") ||
         !fs::exists(destination / "third.txt") ||
         fs::exists(destination / "second.txt")) {
         fs::remove_all(root, ec);
-        return 2;
+        return 6;
     }
 
     if (read_text(destination / "first.txt") != "first" ||
         read_text(destination / "third.txt") != "third") {
         fs::remove_all(root, ec);
-        return 3;
+        return 7;
     }
 
     const auto final_snapshot = live_plan.snapshot();
-    if (final_snapshot.active_file || !final_snapshot.pending_files.empty() ||
+    if (!final_snapshot.active_files.empty() || !final_snapshot.pending_files.empty() ||
         final_snapshot.total_files != 2 || final_snapshot.total_bytes != 10) {
         fs::remove_all(root, ec);
-        return 4;
+        return 8;
     }
 
     fs::remove_all(root, ec);
