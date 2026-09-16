@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.28)
 
-project(VelocityCopy VERSION 0.7.0 LANGUAGES CXX)
+project(VelocityCopy VERSION 0.8.0 LANGUAGES CXX)
 
 if(NOT WIN32)
     message(FATAL_ERROR "VelocityCopy currently targets Windows only.")
@@ -12,6 +12,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(velocitycopy_core STATIC
     src/core/copy_engine.cpp
+    src/core/ipc_protocol.cpp
+    src/core/ipc_transport.cpp
     src/core/job_executor.cpp
     src/core/job_planner.cpp
     src/core/job_queue.cpp
@@ -41,11 +43,15 @@ endif()
 add_executable(VelocityCopy src/app/main.cpp)
 target_link_libraries(VelocityCopy PRIVATE velocitycopy_core)
 
+add_executable(VelocityCopyIpcHost src/app/ipc_host.cpp)
+target_link_libraries(VelocityCopyIpcHost PRIVATE velocitycopy_core)
+
 add_executable(VelocityCopyBenchmark tools/benchmark.cpp)
 target_link_libraries(VelocityCopyBenchmark PRIVATE velocitycopy_core)
 
 if(MSVC)
     target_compile_options(VelocityCopy PRIVATE /W4 /permissive- /EHsc /utf-8)
+    target_compile_options(VelocityCopyIpcHost PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyBenchmark PRIVATE /W4 /permissive- /EHsc /utf-8)
 endif()
 
@@ -69,6 +75,9 @@ target_link_libraries(VelocityCopyStrategyTest PRIVATE velocitycopy_core)
 add_executable(VelocityCopyShellRequestTest tests/shell_request_test.cpp)
 target_link_libraries(VelocityCopyShellRequestTest PRIVATE velocitycopy_core)
 
+add_executable(VelocityCopyIpcTest tests/ipc_test.cpp)
+target_link_libraries(VelocityCopyIpcTest PRIVATE velocitycopy_core)
+
 if(MSVC)
     target_compile_options(VelocityCopySmokeTest PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyQueueTest PRIVATE /W4 /permissive- /EHsc /utf-8)
@@ -76,6 +85,7 @@ if(MSVC)
     target_compile_options(VelocityCopyDropLayoutTest PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyStrategyTest PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyShellRequestTest PRIVATE /W4 /permissive- /EHsc /utf-8)
+    target_compile_options(VelocityCopyIpcTest PRIVATE /W4 /permissive- /EHsc /utf-8)
 endif()
 
 add_test(NAME velocitycopy_smoke COMMAND VelocityCopySmokeTest)
@@ -84,3 +94,4 @@ add_test(NAME velocitycopy_plan_edit COMMAND VelocityCopyPlanEditTest)
 add_test(NAME velocitycopy_drop_layout COMMAND VelocityCopyDropLayoutTest)
 add_test(NAME velocitycopy_strategy COMMAND VelocityCopyStrategyTest)
 add_test(NAME velocitycopy_shell_request COMMAND VelocityCopyShellRequestTest)
+add_test(NAME velocitycopy_ipc COMMAND VelocityCopyIpcTest)
