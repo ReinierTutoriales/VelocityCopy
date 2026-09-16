@@ -23,6 +23,8 @@ struct PlannedFile {
 struct CopyPlan {
     std::vector<PlannedDirectory> directories;
     std::vector<PlannedFile> files;
+    std::vector<std::filesystem::path> source_roots;
+    std::filesystem::path destination_root;
     std::uint64_t total_bytes{};
 
     [[nodiscard]] bool move_file(std::uint64_t file_id, std::size_t new_index) noexcept;
