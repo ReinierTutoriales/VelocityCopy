@@ -53,10 +53,8 @@ int wmain() {
     LiveCopyPlan plan(make_plan(source, destination));
     JobExecutor executor;
 
-    // Default policy must never overwrite an existing destination.
     ExecutionControl first_control;
-    const auto first = executor.execute(
-        plan, first_control, JobExecutionOptions{1}, {});
+    const auto first = executor.execute(plan, first_control, JobExecutionOptions{1}, {});
     if (first.success || first.cancelled || first.stopped || !first.destination_conflict ||
         first.conflict_file_id != 1 || first.conflict_source != source / L"a.txt" ||
         first.conflict_destination != destination / L"a.txt" ||
@@ -67,32 +65,41 @@ int wmain() {
         return 1;
     }
 
-    // Authorizing the first conflict must replace only file 1. File 2 must
-    // still stop on its own conflict rather than inheriting a global overwrite.
+    // One-shot authorization replaces file 1 and yields immediately. This is a
+    // transaction boundary: the session loop can restore adaptive parallelism,
+    // and authorization cannot bleed into file 2.
     ExecutionControl second_control;
     JobExecutionOptions replace_first{1};
     replace_first.replace_file_id = first.conflict_file_id;
-    const auto second = executor.execute(plan, second_control, replace_first, {});
-    if (second.success || second.cancelled || second.stopped || !second.destination_conflict ||
-        second.conflict_file_id != 2 || read_text(destination / L"a.txt") != "AAAA" ||
-        read_text(destination / L"b.txt") != "OLD-B" ||
-        plan.completed_files() != 1 || plan.completed_bytes() != 4 ||
-        plan.remaining_files() != 1) {
+    const auto replaced_first = executor.execute(plan, second_control, replace_first, {});
+    if (!replaced_first.success || replaced_first.cancelled || replaced_first.stopped ||
+        replaced_first.destination_conflict || read_text(destination / L"a.txt") != "AAAA" ||
+        read_text(destination / L"b.txt") != "OLD-B" || plan.completed_files() != 1 ||
+        plan.completed_bytes() != 4 || plan.remaining_files() != 1) {
         fs::remove_all(root, ec);
         return 2;
     }
 
+    // Running again with the safe default must independently surface file 2.
     ExecutionControl third_control;
-    JobExecutionOptions replace_second{1};
-    replace_second.replace_file_id = second.conflict_file_id;
-    const auto third = executor.execute(plan, third_control, replace_second, {});
-    if (!third.success || third.cancelled || third.stopped || third.destination_conflict ||
-        read_text(destination / L"a.txt") != "AAAA" ||
-        read_text(destination / L"b.txt") != "BBBB" ||
-        plan.completed_files() != 2 || plan.completed_bytes() != 8 ||
-        plan.remaining_files() != 0) {
+    const auto second_conflict = executor.execute(plan, third_control, JobExecutionOptions{1}, {});
+    if (second_conflict.success || second_conflict.cancelled || second_conflict.stopped ||
+        !second_conflict.destination_conflict || second_conflict.conflict_file_id != 2 ||
+        read_text(destination / L"b.txt") != "OLD-B" || plan.completed_files() != 1 ||
+        plan.remaining_files() != 1) {
         fs::remove_all(root, ec);
         return 3;
+    }
+
+    ExecutionControl fourth_control;
+    JobExecutionOptions replace_second{1};
+    replace_second.replace_file_id = second_conflict.conflict_file_id;
+    const auto completed = executor.execute(plan, fourth_control, replace_second, {});
+    if (!completed.success || completed.cancelled || completed.stopped || completed.destination_conflict ||
+        read_text(destination / L"a.txt") != "AAAA" || read_text(destination / L"b.txt") != "BBBB" ||
+        plan.completed_files() != 2 || plan.completed_bytes() != 8 || plan.remaining_files() != 0) {
+        fs::remove_all(root, ec);
+        return 4;
     }
 
     fs::remove_all(root, ec);
