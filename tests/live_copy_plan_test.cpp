@@ -127,6 +127,43 @@ int main() {
         }
     }
 
+    // Contract: a fully drained plan is closed to ordinary callers. Only a
+    // batch that was reserved by the active session before the drain boundary
+    // may reopen that same live plan.
+    {
+        LiveCopyPlan drained_plan(make_plan(source, destination));
+        while (auto file = drained_plan.acquire_next()) {
+            drained_plan.complete_active(file->id);
+        }
+
+        CopyPlan ordinary{};
+        ordinary.destination_root = destination;
+        ordinary.files.push_back({1, source / "fourth.txt", destination / "fourth.txt", 7});
+        ordinary.total_bytes = 7;
+        ordinary.largest_file_bytes = 7;
+        if (drained_plan.append(std::move(ordinary)) != LivePlanAppendResult::Drained) {
+            fs::remove_all(root, ec);
+            return 13;
+        }
+
+        CopyPlan reserved{};
+        reserved.destination_root = destination;
+        reserved.files.push_back({1, source / "fifth.txt", destination / "fifth.txt", 8});
+        reserved.total_bytes = 8;
+        reserved.largest_file_bytes = 8;
+        if (drained_plan.append(std::move(reserved), true) != LivePlanAppendResult::Appended) {
+            fs::remove_all(root, ec);
+            return 14;
+        }
+
+        const auto snapshot = drained_plan.snapshot();
+        if (snapshot.pending_files.size() != 1 || snapshot.pending_files[0].id != 4 ||
+            snapshot.total_files != 4 || snapshot.total_bytes != 24) {
+            fs::remove_all(root, ec);
+            return 15;
+        }
+    }
+
     LiveCopyPlan live_plan(make_plan(source, destination));
     JobExecutor executor;
     bool edited = false;
