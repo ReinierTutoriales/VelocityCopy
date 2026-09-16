@@ -450,7 +450,12 @@ void MainWindow::RefreshQueue() {
     auto items = QueueList().Items();
     items.Clear();
     for (const auto& file : queue_snapshot_) {
-        items.Append(box_value(hstring(file.source.wstring())));
+        TextBlock row;
+        row.Text(hstring(file.source.wstring()));
+        row.TextTrimming(TextTrimming::CharacterEllipsis);
+        row.HorizontalAlignment(HorizontalAlignment::Stretch);
+        row.Tag(box_value(file.id));
+        items.Append(row);
     }
 
     QueueCountText().Text(hstring(std::format(L"{}", view.pending_count)));
@@ -488,10 +493,7 @@ void MainWindow::OnQueueMoveUpClick(IInspectable const&, RoutedEventArgs const&)
     if (!live_plan_) {
         return;
     }
-    const auto ids = SelectedPendingIds();
-    for (const auto id : ids) {
-        (void)live_plan_->move_pending_file_up(id);
-    }
+    (void)live_plan_->move_pending_files_up(SelectedPendingIds());
     RefreshQueue();
 }
 
@@ -499,10 +501,7 @@ void MainWindow::OnQueueMoveDownClick(IInspectable const&, RoutedEventArgs const
     if (!live_plan_) {
         return;
     }
-    auto ids = SelectedPendingIds();
-    for (auto it = ids.rbegin(); it != ids.rend(); ++it) {
-        (void)live_plan_->move_pending_file_down(*it);
-    }
+    (void)live_plan_->move_pending_files_down(SelectedPendingIds());
     RefreshQueue();
 }
 
@@ -510,48 +509,31 @@ void MainWindow::OnQueueRemoveClick(IInspectable const&, RoutedEventArgs const&)
     if (!live_plan_) {
         return;
     }
-    const auto ids = SelectedPendingIds();
-    for (const auto id : ids) {
-        (void)live_plan_->remove_pending_file(id);
-    }
+    (void)live_plan_->remove_pending_files(SelectedPendingIds());
     RefreshQueue();
 }
 
 void MainWindow::OnQueueDragItemsCompleted(
     ListViewBase const&,
     DragItemsCompletedEventArgs const&) {
-    if (!live_plan_ || queue_snapshot_.empty()) {
+    if (!live_plan_) {
         return;
     }
 
     const auto items = QueueList().Items();
-    std::vector<bool> used(queue_snapshot_.size(), false);
     std::vector<std::uint64_t> ordered_ids;
     ordered_ids.reserve(items.Size());
 
-    for (std::uint32_t visual_index = 0; visual_index < items.Size(); ++visual_index) {
-        hstring source;
+    for (std::uint32_t index = 0; index < items.Size(); ++index) {
         try {
-            source = unbox_value<hstring>(items.GetAt(visual_index));
+            const auto row = items.GetAt(index).as<TextBlock>();
+            ordered_ids.push_back(unbox_value<std::uint64_t>(row.Tag()));
         } catch (...) {
-            continue;
-        }
-
-        for (std::size_t index = 0; index < queue_snapshot_.size(); ++index) {
-            if (used[index]) {
-                continue;
-            }
-            if (source == hstring(queue_snapshot_[index].source.wstring())) {
-                used[index] = true;
-                ordered_ids.push_back(queue_snapshot_[index].id);
-                break;
-            }
+            // A malformed visual item must not corrupt the live queue order.
         }
     }
 
-    for (std::size_t index = 0; index < ordered_ids.size(); ++index) {
-        (void)live_plan_->move_pending_file(ordered_ids[index], index);
-    }
+    (void)live_plan_->reorder_pending_files(ordered_ids);
     RefreshQueue();
 }
 
