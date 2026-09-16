@@ -153,7 +153,7 @@ velocitycopy::JobResult MainWindow::RunLivePlanSession(
             break;
         }
 
-        if (plan->remaining_files() != 0) {
+        if (plan->remaining_files() != 0 || plan->has_pending_directories()) {
             gate_lock.unlock();
             continue;
         }
@@ -240,7 +240,7 @@ void MainWindow::ResumeStoppedCopy() {
             return;
         }
     }
-    if (live_plan_->remaining_files() == 0) {
+    if (live_plan_->remaining_files() == 0 && !live_plan_->has_pending_directories()) {
         resume_requested_ = false;
         FinalizeStoppedSessionIfEmpty();
         return;
@@ -424,7 +424,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         if (live_plan_) active_destination_ = live_plan_->destination_root();
         SetExecutionButtonsStopped();
         RefreshQueue();
-        QueueButton().IsEnabled(live_plan_ && live_plan_->remaining_files() != 0);
+        QueueButton().IsEnabled(live_plan_ && (live_plan_->remaining_files() != 0 || live_plan_->has_pending_directories()));
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
 
@@ -449,7 +449,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         active_destination_ = live_plan_->destination_root();
         SetExecutionButtonsConflict();
         RefreshQueue();
-        QueueButton().IsEnabled(live_plan_->remaining_files() != 0);
+        QueueButton().IsEnabled(live_plan_->remaining_files() != 0 || live_plan_->has_pending_directories());
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
 
@@ -524,7 +524,8 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
 }
 
 void MainWindow::FinalizeStoppedSessionIfEmpty() {
-    if (!stopped_session_ || !live_plan_ || live_plan_->remaining_files() != 0) return;
+    if (!stopped_session_ || !live_plan_ || live_plan_->remaining_files() != 0 ||
+        live_plan_->has_pending_directories()) return;
     if (append_gate_) {
         std::lock_guard gate_lock(append_gate_->mutex);
         if (append_gate_->planning_count != 0) return;
