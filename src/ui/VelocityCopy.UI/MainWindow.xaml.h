@@ -70,6 +70,7 @@ private:
         std::shared_ptr<AppendGate> target_gate,
         bool reservation_already_held);
     void StartCopy(velocitycopy::CopyJob job);
+    void StartNextQueuedSession();
     void PublishLivePlan(std::shared_ptr<velocitycopy::LiveCopyPlan> plan);
     void RefreshQueue();
     [[nodiscard]] std::vector<std::uint64_t> SelectedPendingIds();
@@ -98,6 +99,7 @@ private:
     std::filesystem::path current_destination_folder_;
     std::filesystem::path active_destination_;
     std::deque<velocitycopy::CopyJob> deferred_same_destination_jobs_;
+    std::deque<velocitycopy::CopyJob> queued_sessions_;
     std::shared_ptr<velocitycopy::LiveCopyPlan> live_plan_;
     std::vector<velocitycopy::PlannedFile> queue_snapshot_;
     Microsoft::UI::Dispatching::DispatcherQueue dispatcher_{nullptr};
