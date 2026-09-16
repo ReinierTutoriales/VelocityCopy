@@ -33,15 +33,12 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
         dialog.DefaultButton(ContentDialogButton::Primary);
 
         const auto choice = co_await dialog.ShowAsync();
-        if (!conflict_session_ || !live_plan_) {
-            co_return;
-        }
+        if (!conflict_session_ || !live_plan_) co_return;
 
         switch (choice) {
         case ContentDialogResult::Primary:
             ResumeConflictCopy(conflict.conflict_file_id);
             co_return;
-
         case ContentDialogResult::Secondary:
             if (!live_plan_->remove_pending_file(conflict.conflict_file_id)) {
                 ShowError();
@@ -51,22 +48,29 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
             RefreshQueue();
             ResumeConflictCopy(0);
             co_return;
-
         case ContentDialogResult::None:
         default:
             CancelCurrentSession();
             co_return;
         }
     } catch (...) {
-        if (conflict_session_) {
-            CancelCurrentSession();
-        }
+        if (conflict_session_) CancelCurrentSession();
     }
 }
 
 void MainWindow::ResumeConflictCopy(const std::uint64_t replace_file_id) {
-    if (!conflict_session_ || !live_plan_) {
-        return;
+    if (!conflict_session_ || !live_plan_) return;
+
+    // Jobs accepted while the conflict session was transitioning belong to the
+    // same destination/session. Reserve and plan them before the copy resumes.
+    if (!deferred_interrupted_jobs_.empty() && append_gate_) {
+        auto deferred = std::move(deferred_interrupted_jobs_);
+        deferred_interrupted_jobs_.clear();
+        auto plan = live_plan_;
+        auto gate = append_gate_;
+        for (auto& job : deferred) {
+            EnqueueAppend(std::move(job), plan, nullptr, gate, false);
+        }
     }
 
     if (append_gate_) {
@@ -96,9 +100,7 @@ void MainWindow::ResumeConflictCopy(const std::uint64_t replace_file_id) {
     presenter_.reset();
     last_queue_completed_files_ = live_plan_->completed_files();
     execution_control_ = std::make_shared<velocitycopy::ExecutionControl>();
-    if (!append_gate_) {
-        append_gate_ = std::make_shared<AppendGate>();
-    }
+    if (!append_gate_) append_gate_ = std::make_shared<AppendGate>();
 
     auto plan = live_plan_;
     auto control = execution_control_;
@@ -110,26 +112,19 @@ void MainWindow::ResumeConflictCopy(const std::uint64_t replace_file_id) {
     auto dispatcher = dispatcher_;
     copy_thread_ = std::jthread(
         [this, weak, dispatcher, plan, control, gate, replace_file_id](std::stop_token stop_token) {
-            const auto result = RunLivePlanSession(
-                plan, control, gate, stop_token, false, replace_file_id);
+            const auto result = RunLivePlanSession(plan, control, gate, stop_token, false, replace_file_id);
             (void)dispatcher.TryEnqueue([weak, result]() {
-                if (auto self = weak.get()) {
-                    self->FinishCopy(result);
-                }
+                if (auto self = weak.get()) self->FinishCopy(result);
             });
         });
 }
 
 void MainWindow::FinalizeConflictSessionIfEmpty() {
-    if (!conflict_session_ || !live_plan_ || live_plan_->remaining_files() != 0) {
-        return;
-    }
+    if (!conflict_session_ || !live_plan_ || live_plan_->remaining_files() != 0) return;
 
     if (append_gate_) {
         std::lock_guard gate_lock(append_gate_->mutex);
-        if (append_gate_->planning_count != 0) {
-            return;
-        }
+        if (append_gate_->planning_count != 0) return;
         append_gate_->accepting = false;
         append_gate_->condition.notify_all();
     }
