@@ -34,6 +34,7 @@ enum class LivePlanAppendResult {
     DifferentDestination,
     DestinationCollision,
     SizeOverflow,
+    InternalFailure,
 };
 
 class LiveCopyPlan final {
