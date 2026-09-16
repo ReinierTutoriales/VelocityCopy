@@ -99,7 +99,13 @@ CopyResult CopyEngine::copy_file(
 
     COPYFILE2_EXTENDED_PARAMETERS parameters{};
     parameters.dwSize = sizeof(parameters);
-    parameters.dwCopyFlags = options.resume_from_pause ? COPY_FILE_RESUME_FROM_PAUSE : 0;
+    parameters.dwCopyFlags = 0;
+    if (options.resume_from_pause) {
+        parameters.dwCopyFlags |= COPY_FILE_RESUME_FROM_PAUSE;
+    }
+    if (options.existing_destination == ExistingDestinationPolicy::Fail) {
+        parameters.dwCopyFlags |= COPY_FILE_FAIL_IF_EXISTS;
+    }
     parameters.pProgressRoutine = copy_progress_routine;
     parameters.pvCallbackContext = &callback_context;
 
