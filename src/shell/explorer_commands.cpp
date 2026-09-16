@@ -265,14 +265,11 @@ private:
 
 } // namespace
 
-extern "C" __declspec(dllexport) HRESULT __stdcall DllCanUnloadNow() {
+STDAPI DllCanUnloadNow() {
     return g_object_count.load() == 0 ? S_OK : S_FALSE;
 }
 
-extern "C" __declspec(dllexport) HRESULT __stdcall DllGetClassObject(
-    REFCLSID clsid,
-    REFIID riid,
-    void** object) {
+STDAPI DllGetClassObject(REFCLSID clsid, REFIID riid, void** object) {
     CommandKind kind{};
     if (clsid == CLSID_VelocityCopyCopy) {
         kind = CommandKind::Copy;

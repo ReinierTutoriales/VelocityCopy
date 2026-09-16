@@ -4,18 +4,21 @@
 #include <cwchar>
 #include <iostream>
 
-extern "C" HRESULT __stdcall DllCanUnloadNow();
-extern "C" HRESULT __stdcall DllGetClassObject(REFCLSID, REFIID, void**);
-
 namespace {
+using DllCanUnloadNowFn = HRESULT(__stdcall*)();
+using DllGetClassObjectFn = HRESULT(__stdcall*)(REFCLSID, REFIID, void**);
+
 constexpr CLSID CLSID_VelocityCopyCopy =
     {0x7e1d27a7, 0xba17, 0x4eea, {0x9b, 0x93, 0x96, 0x7e, 0xe7, 0x77, 0xbd, 0x21}};
 constexpr CLSID CLSID_VelocityCopyPaste =
     {0xcbba1a7e, 0x35b4, 0x4708, {0x9d, 0x03, 0x94, 0x46, 0xd0, 0x3f, 0xc8, 0x43}};
 
-bool verify_command(REFCLSID clsid, const wchar_t* expected_title) {
+bool verify_command(
+    DllGetClassObjectFn get_class_object,
+    REFCLSID clsid,
+    const wchar_t* expected_title) {
     IClassFactory* factory = nullptr;
-    if (FAILED(DllGetClassObject(clsid, IID_IClassFactory, reinterpret_cast<void**>(&factory))) || factory == nullptr) {
+    if (FAILED(get_class_object(clsid, IID_IClassFactory, reinterpret_cast<void**>(&factory))) || factory == nullptr) {
         return false;
     }
 
@@ -38,16 +41,39 @@ bool verify_command(REFCLSID clsid, const wchar_t* expected_title) {
 }
 } // namespace
 
-int wmain() {
-    if (!verify_command(CLSID_VelocityCopyCopy, L"Copiar con VelocityCopy")) {
+int wmain(int argc, wchar_t* argv[]) {
+    if (argc != 2) {
+        return 10;
+    }
+
+    HMODULE module = LoadLibraryW(argv[1]);
+    if (module == nullptr) {
+        return 11;
+    }
+
+    const auto get_class_object = reinterpret_cast<DllGetClassObjectFn>(
+        GetProcAddress(module, "DllGetClassObject"));
+    const auto can_unload = reinterpret_cast<DllCanUnloadNowFn>(
+        GetProcAddress(module, "DllCanUnloadNow"));
+    if (get_class_object == nullptr || can_unload == nullptr) {
+        FreeLibrary(module);
+        return 12;
+    }
+
+    if (!verify_command(get_class_object, CLSID_VelocityCopyCopy, L"Copiar con VelocityCopy")) {
+        FreeLibrary(module);
         return 1;
     }
-    if (!verify_command(CLSID_VelocityCopyPaste, L"Pegar con VelocityCopy")) {
+    if (!verify_command(get_class_object, CLSID_VelocityCopyPaste, L"Pegar con VelocityCopy")) {
+        FreeLibrary(module);
         return 2;
     }
-    if (DllCanUnloadNow() != S_OK) {
+    if (can_unload() != S_OK) {
+        FreeLibrary(module);
         return 3;
     }
+
+    FreeLibrary(module);
     std::wcout << L"VelocityCopy shell DLL test passed.\n";
     return 0;
 }

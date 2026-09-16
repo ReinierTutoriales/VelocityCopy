@@ -1,0 +1,4 @@
+LIBRARY "VelocityCopy.Shell"
+EXPORTS
+    DllCanUnloadNow
+    DllGetClassObject
