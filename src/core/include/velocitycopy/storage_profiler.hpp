@@ -21,6 +21,8 @@ struct StorageProfile {
     std::uint32_t physical_sector_bytes{};
     bool remote{};
     bool sector_info_available{};
+    bool incurs_seek_penalty{};
+    bool seek_penalty_available{};
 };
 
 class StorageProfiler final {
