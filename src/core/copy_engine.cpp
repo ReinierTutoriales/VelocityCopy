@@ -18,6 +18,7 @@ COPYFILE2_MESSAGE_ACTION to_native_action(const CopyDecision decision) noexcept 
         return COPYFILE2_PROGRESS_PAUSE;
     case CopyDecision::Stop:
         return COPYFILE2_PROGRESS_STOP;
+    case CopyDecision::Skip:
     case CopyDecision::Cancel:
         return COPYFILE2_PROGRESS_CANCEL;
     case CopyDecision::Continue:
