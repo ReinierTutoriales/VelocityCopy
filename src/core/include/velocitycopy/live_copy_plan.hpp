@@ -48,7 +48,6 @@ public:
 private:
     [[nodiscard]] std::vector<PlannedFile>::iterator find_pending(std::uint64_t file_id) noexcept;
     [[nodiscard]] std::vector<PlannedFile>::iterator find_active(std::uint64_t file_id) noexcept;
-    void recompute_largest_file_locked() noexcept;
 
     std::vector<PlannedDirectory> directories_;
     std::vector<std::filesystem::path> source_roots_;
