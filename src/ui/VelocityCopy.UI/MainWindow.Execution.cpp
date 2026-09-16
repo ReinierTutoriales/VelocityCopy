@@ -30,6 +30,7 @@ void MainWindow::SetExecutionButtonsIdle() {
     StopButton().IsEnabled(false);
     CancelButton().IsEnabled(false);
     paused_ = false;
+    resume_requested_ = false;
     try {
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
         PauseButton().Content(box_value(loader.GetString(L"ActionPause")));
@@ -103,6 +104,19 @@ velocitycopy::JobResult MainWindow::RunLivePlanSession(
                     stop_token,
                     [&] { return gate->planning_count == 0 || !gate->accepting; });
             }
+
+            // Cancel has precedence over Stop. This closes the race where the
+            // user presses Cancel while Stop is waiting for an accepted planner.
+            if (stop_token.stop_requested() ||
+                cancel_requested_.load(std::memory_order_relaxed) ||
+                control->directive() == velocitycopy::ExecutionDirective::Cancel) {
+                control->request_cancel();
+                result = {
+                    false,
+                    true,
+                    static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED)),
+                    false};
+            }
             gate->accepting = false;
             gate->condition.notify_all();
             break;
@@ -115,7 +129,8 @@ velocitycopy::JobResult MainWindow::RunLivePlanSession(
                 [&] { return gate->planning_count == 0 || !gate->accepting; });
         }
 
-        if (stop_token.stop_requested()) {
+        if (stop_token.stop_requested() ||
+            cancel_requested_.load(std::memory_order_relaxed)) {
             gate->accepting = false;
             gate->condition.notify_all();
             control->request_cancel();
@@ -163,6 +178,7 @@ void MainWindow::StartCopy(velocitycopy::CopyJob job) {
     active_destination_ = job.destination;
     stopped_session_ = false;
     stop_requested_ = false;
+    resume_requested_ = false;
     cancel_requested_.store(false, std::memory_order_relaxed);
     presenter_.reset();
     last_queue_completed_files_ = 0;
@@ -233,11 +249,22 @@ void MainWindow::ResumeStoppedCopy() {
         return;
     }
 
+    if (append_gate_) {
+        std::lock_guard gate_lock(append_gate_->mutex);
+        if (append_gate_->planning_count != 0) {
+            resume_requested_ = true;
+            PauseButton().IsEnabled(false);
+            return;
+        }
+    }
+
     if (live_plan_->remaining_files() == 0) {
+        resume_requested_ = false;
         FinalizeStoppedSessionIfEmpty();
         return;
     }
 
+    resume_requested_ = false;
     stopped_session_ = false;
     stop_requested_ = false;
     cancel_requested_.store(false, std::memory_order_relaxed);
@@ -338,6 +365,7 @@ void MainWindow::OnStopClick(IInspectable const&, RoutedEventArgs const&) {
 
     // Do not cancel the append planner here. Work accepted before Stop remains
     // part of the session and RunLivePlanSession waits for its reservations.
+    resume_requested_ = false;
     stop_requested_ = true;
     execution_control_->request_stop();
     PauseButton().IsEnabled(false);
@@ -346,6 +374,7 @@ void MainWindow::OnStopClick(IInspectable const&, RoutedEventArgs const&) {
 
 void MainWindow::OnCancelClick(IInspectable const&, RoutedEventArgs const&) {
     cancel_requested_.store(true, std::memory_order_relaxed);
+    resume_requested_ = false;
     deferred_same_destination_jobs_.clear();
     deferred_after_stop_jobs_.clear();
     queued_sessions_.clear();
@@ -396,9 +425,20 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
     }
 }
 
-void MainWindow::FinishCopy(const velocitycopy::JobResult& result) {
+void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
+    auto result = original_result;
     auto deferred_initial = std::move(deferred_same_destination_jobs_);
     deferred_same_destination_jobs_.clear();
+
+    // A Cancel pressed after the worker produced a stopped result but before the
+    // UI callback runs must not resurrect the stopped session.
+    if (result.stopped && cancel_requested_.load(std::memory_order_relaxed)) {
+        result = {
+            false,
+            true,
+            static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED)),
+            false};
+    }
 
     execution_control_.reset();
     paused_ = false;
@@ -429,6 +469,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& result) {
         return;
     }
 
+    resume_requested_ = false;
     stop_requested_ = false;
     stopped_session_ = false;
     if (append_gate_) {
@@ -497,6 +538,7 @@ void MainWindow::FinalizeStoppedSessionIfEmpty() {
         append_gate_->condition.notify_all();
     }
 
+    resume_requested_ = false;
     stopped_session_ = false;
     stop_requested_ = false;
     live_plan_.reset();
