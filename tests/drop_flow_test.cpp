@@ -8,16 +8,21 @@ namespace fs = std::filesystem;
 
 int wmain() {
     velocitycopy::DropFlowController flow;
+
+    const std::vector<velocitycopy::DropItem> folder_items{
+        {fs::path(L"C:\\Library\\Novela"), velocitycopy::DropItemKind::Directory},
+    };
+    flow.begin(folder_items);
+    if (flow.choose_destination(fs::path(L"C:\\Library\\Novela\\Sub")) != velocitycopy::DestinationValidation::InsideSource) {
+        return 1;
+    }
+
     const std::vector<velocitycopy::DropItem> items{
         {fs::path(L"C:\\Library\\Novela\\capitulo1.mkv"), velocitycopy::DropItemKind::File},
     };
 
     flow.begin(items);
     if (flow.stage() != velocitycopy::DropFlowStage::Destination || flow.empty()) {
-        return 1;
-    }
-
-    if (flow.choose_destination(fs::path(L"C:\\Library\\Novela")) != velocitycopy::DestinationValidation::InsideSource) {
         return 2;
     }
 
