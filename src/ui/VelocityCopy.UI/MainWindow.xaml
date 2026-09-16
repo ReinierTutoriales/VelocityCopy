@@ -86,8 +86,13 @@
                       Grid.Row="1"
                       Margin="0,6,0,0"
                       MaxHeight="190"
-                      SelectionMode="Multiple"
+                      SelectionMode="Extended"
                       IsItemClickEnabled="False"
+                      IsSwipeEnabled="True"
+                      CanDragItems="True"
+                      CanReorderItems="True"
+                      AllowDrop="True"
+                      DragItemsCompleted="OnQueueDragItemsCompleted"
                       HorizontalContentAlignment="Stretch" />
 
             <Grid Grid.Row="2" Margin="0,8,0,0">
