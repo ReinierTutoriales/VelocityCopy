@@ -33,6 +33,22 @@ velocitycopy::CopyPlan make_plan(
     return plan;
 }
 
+velocitycopy::CopyPlan make_edit_plan(
+    const std::filesystem::path& source,
+    const std::filesystem::path& destination) {
+    velocitycopy::CopyPlan plan{};
+    plan.source_roots.push_back(source);
+    plan.destination_root = destination;
+    plan.directories.push_back({destination});
+    for (std::uint64_t id = 1; id <= 5; ++id) {
+        const auto name = std::to_string(id) + ".txt";
+        plan.files.push_back({id, source / name, destination / name, 1});
+    }
+    plan.total_bytes = 5;
+    plan.largest_file_bytes = 1;
+    return plan;
+}
+
 } // namespace
 
 int main() {
@@ -111,7 +127,6 @@ int main() {
             return 6;
         }
 
-        // Completed destinations remain reserved for the lifetime of the session.
         const auto completed = appended_plan.acquire_next();
         if (!completed || completed->id != 1) {
             fs::remove_all(root, ec);
@@ -139,7 +154,6 @@ int main() {
             return 9;
         }
 
-        // Removing a pending item releases that destination for a future append.
         if (!appended_plan.remove_pending_file(5)) {
             fs::remove_all(root, ec);
             return 10;
@@ -162,6 +176,76 @@ int main() {
         }
     }
 
+    // Bulk queue manipulation is stable-id based and linear over the live queue.
+    {
+        LiveCopyPlan edit_plan(make_edit_plan(source, destination));
+        if (!edit_plan.reorder_pending_files({3, 1, 5})) {
+            fs::remove_all(root, ec);
+            return 13;
+        }
+        auto snapshot = edit_plan.snapshot();
+        if (snapshot.pending_files.size() != 5 ||
+            snapshot.pending_files[0].id != 3 || snapshot.pending_files[1].id != 2 ||
+            snapshot.pending_files[2].id != 1 || snapshot.pending_files[3].id != 4 ||
+            snapshot.pending_files[4].id != 5) {
+            fs::remove_all(root, ec);
+            return 14;
+        }
+
+        if (!edit_plan.move_pending_files_down({3, 1})) {
+            fs::remove_all(root, ec);
+            return 15;
+        }
+        snapshot = edit_plan.snapshot();
+        if (snapshot.pending_files[0].id != 2 || snapshot.pending_files[1].id != 3 ||
+            snapshot.pending_files[2].id != 4 || snapshot.pending_files[3].id != 1 ||
+            snapshot.pending_files[4].id != 5) {
+            fs::remove_all(root, ec);
+            return 16;
+        }
+
+        if (!edit_plan.move_pending_files_up({3, 1})) {
+            fs::remove_all(root, ec);
+            return 17;
+        }
+        snapshot = edit_plan.snapshot();
+        if (snapshot.pending_files[0].id != 3 || snapshot.pending_files[1].id != 2 ||
+            snapshot.pending_files[2].id != 1 || snapshot.pending_files[3].id != 4 ||
+            snapshot.pending_files[4].id != 5) {
+            fs::remove_all(root, ec);
+            return 18;
+        }
+
+        if (edit_plan.remove_pending_files({2, 4, 999}) != 2) {
+            fs::remove_all(root, ec);
+            return 19;
+        }
+        snapshot = edit_plan.snapshot();
+        if (snapshot.pending_files.size() != 3 || snapshot.total_files != 3 ||
+            snapshot.total_bytes != 3 || snapshot.pending_files[0].id != 3 ||
+            snapshot.pending_files[1].id != 1 || snapshot.pending_files[2].id != 5) {
+            fs::remove_all(root, ec);
+            return 20;
+        }
+
+        // Simulate a worker acquiring one of the rows while a pointer drag is
+        // in progress. The stale id is ignored; surviving ids still reorder.
+        const auto acquired = edit_plan.acquire_next();
+        if (!acquired || acquired->id != 3 ||
+            !edit_plan.reorder_pending_files({5, 3, 1})) {
+            fs::remove_all(root, ec);
+            return 21;
+        }
+        snapshot = edit_plan.snapshot();
+        if (snapshot.pending_files.size() != 2 || snapshot.pending_files[0].id != 5 ||
+            snapshot.pending_files[1].id != 1 || snapshot.active_files.size() != 1 ||
+            snapshot.active_files[0].id != 3) {
+            fs::remove_all(root, ec);
+            return 22;
+        }
+        edit_plan.release_active(3);
+    }
+
     // A drained plan is closed to ordinary callers; only a previously reserved
     // append may cross the drain boundary, preserving completion history.
     {
@@ -173,7 +257,7 @@ int main() {
         if (drained_plan.completed_files() != 3 || drained_plan.completed_bytes() != 16 ||
             drained_plan.remaining_files() != 0) {
             fs::remove_all(root, ec);
-            return 13;
+            return 23;
         }
 
         CopyPlan ordinary{};
@@ -183,7 +267,7 @@ int main() {
         ordinary.largest_file_bytes = 7;
         if (drained_plan.append(std::move(ordinary)) != LivePlanAppendResult::Drained) {
             fs::remove_all(root, ec);
-            return 14;
+            return 24;
         }
 
         CopyPlan reserved{};
@@ -193,7 +277,7 @@ int main() {
         reserved.largest_file_bytes = 8;
         if (drained_plan.append(std::move(reserved), true) != LivePlanAppendResult::Appended) {
             fs::remove_all(root, ec);
-            return 15;
+            return 25;
         }
 
         const auto snapshot = drained_plan.snapshot();
@@ -202,12 +286,10 @@ int main() {
             snapshot.completed_files != 3 || snapshot.completed_bytes != 16 ||
             drained_plan.remaining_files() != 1) {
             fs::remove_all(root, ec);
-            return 16;
+            return 26;
         }
     }
 
-    // Queue edits remain valid while the executor is live and totals follow the
-    // editable plan without counting removed work.
     LiveCopyPlan live_plan(make_plan(source, destination));
     JobExecutor executor;
     bool edited = false;
@@ -232,20 +314,20 @@ int main() {
 
     if (!result.success || result.cancelled || !edited || !saw_adjusted_totals) {
         fs::remove_all(root, ec);
-        return 17;
+        return 27;
     }
 
     if (!fs::exists(destination / "first.txt") ||
         !fs::exists(destination / "third.txt") ||
         fs::exists(destination / "second.txt")) {
         fs::remove_all(root, ec);
-        return 18;
+        return 28;
     }
 
     if (read_text(destination / "first.txt") != "first" ||
         read_text(destination / "third.txt") != "third") {
         fs::remove_all(root, ec);
-        return 19;
+        return 29;
     }
 
     const auto final_snapshot = live_plan.snapshot();
@@ -253,7 +335,7 @@ int main() {
         final_snapshot.total_files != 2 || final_snapshot.total_bytes != 10 ||
         final_snapshot.completed_files != 2 || final_snapshot.completed_bytes != 10) {
         fs::remove_all(root, ec);
-        return 20;
+        return 30;
     }
 
     fs::remove_all(root, ec);
