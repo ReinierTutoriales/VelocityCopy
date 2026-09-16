@@ -60,20 +60,26 @@ int wmain(int argc, wchar_t* argv[]) {
         return 12;
     }
 
-    if (!verify_command(get_class_object, CLSID_VelocityCopyCopy, L"Copiar con VelocityCopy")) {
+    SetThreadUILanguage(MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US));
+    if (!verify_command(get_class_object, CLSID_VelocityCopyCopy, L"Copy with VelocityCopy") ||
+        !verify_command(get_class_object, CLSID_VelocityCopyPaste, L"Paste with VelocityCopy")) {
         FreeLibrary(module);
         return 1;
     }
-    if (!verify_command(get_class_object, CLSID_VelocityCopyPaste, L"Pegar con VelocityCopy")) {
+
+    SetThreadUILanguage(MAKELANGID(LANG_SPANISH, SUBLANG_SPANISH_MODERN));
+    if (!verify_command(get_class_object, CLSID_VelocityCopyCopy, L"Copiar con VelocityCopy") ||
+        !verify_command(get_class_object, CLSID_VelocityCopyPaste, L"Pegar con VelocityCopy")) {
         FreeLibrary(module);
         return 2;
     }
+
     if (can_unload() != S_OK) {
         FreeLibrary(module);
         return 3;
     }
 
     FreeLibrary(module);
-    std::wcout << L"VelocityCopy shell DLL test passed.\n";
+    std::wcout << L"VelocityCopy shell DLL localization test passed.\n";
     return 0;
 }

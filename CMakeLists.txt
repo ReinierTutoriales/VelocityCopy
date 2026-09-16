@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.28)
 
-project(VelocityCopy VERSION 0.11.0 LANGUAGES CXX)
+project(VelocityCopy VERSION 0.12.0 LANGUAGES CXX)
 
 if(NOT WIN32)
     message(FATAL_ERROR "VelocityCopy currently targets Windows only.")
@@ -21,6 +21,7 @@ add_library(velocitycopy_core STATIC
     src/core/shell_session.cpp
     src/core/storage_profiler.cpp
     src/core/strategy_selector.cpp
+    src/core/ui_snapshot.cpp
 )
 
 target_include_directories(velocitycopy_core
@@ -50,8 +51,10 @@ target_link_libraries(VelocityCopyBenchmark PRIVATE velocitycopy_core)
 
 add_library(VelocityCopyShell SHARED
     src/shell/explorer_commands.cpp
+    src/shell/shell_strings.rc
     src/shell/VelocityCopyShell.def
 )
+target_include_directories(VelocityCopyShell PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/shell)
 target_link_libraries(VelocityCopyShell PRIVATE velocitycopy_core ole32)
 set_target_properties(VelocityCopyShell PROPERTIES OUTPUT_NAME "VelocityCopy.Shell")
 
@@ -90,6 +93,9 @@ target_link_libraries(VelocityCopyShellSessionTest PRIVATE velocitycopy_core)
 add_executable(VelocityCopyActivationTest tests/activation_test.cpp)
 target_link_libraries(VelocityCopyActivationTest PRIVATE velocitycopy_core)
 
+add_executable(VelocityCopyUiSnapshotTest tests/ui_snapshot_test.cpp)
+target_link_libraries(VelocityCopyUiSnapshotTest PRIVATE velocitycopy_core)
+
 add_executable(VelocityCopyShellDllTest tests/shell_dll_test.cpp)
 target_link_libraries(VelocityCopyShellDllTest PRIVATE ole32)
 add_dependencies(VelocityCopyShellDllTest VelocityCopyShell)
@@ -104,6 +110,7 @@ if(MSVC)
     target_compile_options(VelocityCopyIpcTest PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyShellSessionTest PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyActivationTest PRIVATE /W4 /permissive- /EHsc /utf-8)
+    target_compile_options(VelocityCopyUiSnapshotTest PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyShellDllTest PRIVATE /W4 /permissive- /EHsc /utf-8)
 endif()
 
@@ -116,4 +123,5 @@ add_test(NAME velocitycopy_shell_request COMMAND VelocityCopyShellRequestTest)
 add_test(NAME velocitycopy_ipc COMMAND VelocityCopyIpcTest)
 add_test(NAME velocitycopy_shell_session COMMAND VelocityCopyShellSessionTest)
 add_test(NAME velocitycopy_activation COMMAND VelocityCopyActivationTest)
+add_test(NAME velocitycopy_ui_snapshot COMMAND VelocityCopyUiSnapshotTest)
 add_test(NAME velocitycopy_shell_dll COMMAND VelocityCopyShellDllTest "$<TARGET_FILE:VelocityCopyShell>")

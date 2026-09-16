@@ -1,6 +1,7 @@
 #include "velocitycopy/ipc_transport.hpp"
 #include "velocitycopy/process_activation.hpp"
 #include "velocitycopy/shell_request.hpp"
+#include "resource.h"
 
 #include <windows.h>
 #include <shobjidl.h>
@@ -43,6 +44,19 @@ HRESULT duplicate_string(const wchar_t* text, PWSTR* result) noexcept {
     std::memcpy(memory, text, bytes);
     *result = memory;
     return S_OK;
+}
+
+HRESULT localized_string(
+    const UINT resource_id,
+    const wchar_t* fallback,
+    PWSTR* result) noexcept {
+    std::array<wchar_t, 128> buffer{};
+    const int length = LoadStringW(
+        g_module,
+        resource_id,
+        buffer.data(),
+        static_cast<int>(buffer.size()));
+    return duplicate_string(length > 0 ? buffer.data() : fallback, result);
 }
 
 std::filesystem::path velocitycopy_executable() noexcept {
@@ -140,9 +154,9 @@ public:
     }
 
     IFACEMETHODIMP GetTitle(IShellItemArray*, PWSTR* title) override {
-        return duplicate_string(
-            kind_ == CommandKind::Copy ? L"Copiar con VelocityCopy" : L"Pegar con VelocityCopy",
-            title);
+        return kind_ == CommandKind::Copy
+            ? localized_string(IDS_SHELL_COPY_WITH_VELOCITYCOPY, L"Copy with VelocityCopy", title)
+            : localized_string(IDS_SHELL_PASTE_WITH_VELOCITYCOPY, L"Paste with VelocityCopy", title);
     }
 
     IFACEMETHODIMP GetIcon(IShellItemArray*, PWSTR* icon) override {
