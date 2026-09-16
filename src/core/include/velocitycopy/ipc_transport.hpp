@@ -2,6 +2,7 @@
 
 #include "velocitycopy/shell_request.hpp"
 
+#include <atomic>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -36,12 +37,16 @@ public:
 
     [[nodiscard]] bool valid() const noexcept;
     [[nodiscard]] std::optional<ShellRequest> receive() noexcept;
+    void stop() noexcept;
+    [[nodiscard]] bool stopping() const noexcept;
 
 private:
     bool create_pipe() noexcept;
     void close_pipe() noexcept;
+    void wake_receiver() noexcept;
 
     void* pipe_{};
+    std::atomic_bool stopping_{false};
 };
 
 [[nodiscard]] bool send_shell_request(
