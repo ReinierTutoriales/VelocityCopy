@@ -145,6 +145,8 @@ CopyPlan JobPlanner::build(const CopyJob& job) const {
     }
 
     CopyPlan plan{};
+    plan.source_roots = job.sources;
+    plan.destination_root = job.destination;
     std::uint64_t next_file_id = 1;
 
     for (const auto& source : job.sources) {
