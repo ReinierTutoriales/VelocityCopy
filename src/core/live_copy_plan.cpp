@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cwctype>
 #include <limits>
+#include <unordered_set>
 #include <utility>
 
 namespace velocitycopy {
@@ -76,15 +77,14 @@ LivePlanAppendResult LiveCopyPlan::append(
             return LivePlanAppendResult::SizeOverflow;
         }
 
-        std::vector<std::wstring> incoming_keys;
+        std::unordered_set<std::wstring> incoming_keys;
         incoming_keys.reserve(plan.files.size());
         for (const auto& file : plan.files) {
             auto key = normalized_path_key(file.destination);
             if (key.empty() || reserved_destination_keys_.contains(key) ||
-                std::find(incoming_keys.begin(), incoming_keys.end(), key) != incoming_keys.end()) {
+                !incoming_keys.insert(std::move(key)).second) {
                 return LivePlanAppendResult::DestinationCollision;
             }
-            incoming_keys.push_back(std::move(key));
         }
 
         // directories_ and source_roots_ are immutable execution metadata.
@@ -93,10 +93,9 @@ LivePlanAppendResult LiveCopyPlan::append(
         // the executor's initial directory/strategy reads.
         pending_files_.reserve(pending_files_.size() + plan.files.size());
         reserved_destination_keys_.reserve(reserved_destination_keys_.size() + incoming_keys.size());
-        for (std::size_t index = 0; index < plan.files.size(); ++index) {
-            auto& file = plan.files[index];
+        for (auto& file : plan.files) {
             file.id = next_file_id_++;
-            reserved_destination_keys_.insert(std::move(incoming_keys[index]));
+            reserved_destination_keys_.insert(normalized_path_key(file.destination));
             pending_files_.push_back(std::move(file));
         }
 
@@ -194,12 +193,12 @@ void LiveCopyPlan::complete_active(const std::uint64_t file_id) noexcept {
         return;
     }
 
-    if (std::numeric_limits<std::uint64_t>::max() - completed_bytes_ < it->size) {
-        completed_bytes_ = std::numeric_limits<std::uint64_t>::max();
-    } else {
-        completed_bytes_ += it->size;
-    }
-    if (completed_files_ != std::numeric_limits<std::uint64_t>::max()) {
+    completed_bytes_ = std::min(
+        total_bytes_,
+        completed_bytes_ > total_bytes_ - std::min(total_bytes_, it->size)
+            ? total_bytes_
+            : completed_bytes_ + it->size);
+    if (completed_files_ < total_files_) {
         ++completed_files_;
     }
     active_files_.erase(it);
@@ -235,6 +234,11 @@ std::uint64_t LiveCopyPlan::completed_bytes() const noexcept {
 std::uint64_t LiveCopyPlan::completed_files() const noexcept {
     std::lock_guard lock(mutex_);
     return completed_files_;
+}
+
+std::uint64_t LiveCopyPlan::remaining_files() const noexcept {
+    std::lock_guard lock(mutex_);
+    return static_cast<std::uint64_t>(pending_files_.size() + active_files_.size());
 }
 
 std::uint64_t LiveCopyPlan::largest_file_bytes() const noexcept {
