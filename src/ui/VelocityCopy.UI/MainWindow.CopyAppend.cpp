@@ -38,9 +38,6 @@ void MainWindow::OnQueueOrStartCopyClick(IInspectable const&, RoutedEventArgs co
 }
 
 void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
-    // A stop request is a transition, not an idle state. New work for the same
-    // destination is preserved for the stopped session; another destination is
-    // serialized as a future session. Neither may replace the active jthread.
     if (stop_requested_) {
         if (same_destination(active_destination_, job.destination)) {
             deferred_after_stop_jobs_.push_back(std::move(job));
@@ -50,10 +47,20 @@ void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
         return;
     }
 
-    // A fully stopped session owns its LiveCopyPlan even though it has no
-    // ExecutionControl. Same-destination additions are planned directly into
-    // that conserved plan; other destinations remain future sessions.
     if (stopped_session_ && live_plan_ && append_gate_) {
+        if (!same_destination(active_destination_, job.destination)) {
+            queued_sessions_.push_back(std::move(job));
+            return;
+        }
+        EnqueueAppend(
+            std::move(job), live_plan_, nullptr, append_gate_, false);
+        return;
+    }
+
+    // A destination conflict is another conserved session state. New work for
+    // the same destination still belongs to that LiveCopyPlan; other destinations
+    // remain serialized behind it.
+    if (conflict_session_ && live_plan_ && append_gate_) {
         if (!same_destination(active_destination_, job.destination)) {
             queued_sessions_.push_back(std::move(job));
             return;
@@ -67,7 +74,6 @@ void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
     auto target_control = execution_control_;
     auto target_gate = append_gate_;
 
-    // No active or stopped session: this job owns the copy thread.
     if (!target_control || !target_gate) {
         StartCopy(std::move(job));
         return;
@@ -78,8 +84,6 @@ void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
         return;
     }
 
-    // The first job can still be in background planning. Reserve the session
-    // before queuing the append so an ultra-short initial job cannot close it.
     if (!target_plan) {
         bool reserved = false;
         {
@@ -127,7 +131,10 @@ void MainWindow::EnqueueAppend(
         }
 
         if (!reserved) {
-            if (stopped_session_ && same_destination(active_destination_, job.destination)) {
+            if ((stopped_session_ || conflict_session_) &&
+                same_destination(active_destination_, job.destination)) {
+                // A transition may briefly close the old gate. Preserve the
+                // same-destination job rather than starting it over the session.
                 deferred_after_stop_jobs_.push_back(std::move(job));
             } else {
                 queued_sessions_.push_back(std::move(job));
@@ -154,8 +161,12 @@ void MainWindow::EnqueueAppend(
                 (void)dispatcher.TryEnqueue([weak, target_gate]() {
                     if (auto self = weak.get(); self && self->append_gate_ == target_gate) {
                         self->ShowError();
-                        if (self->stopped_session_ && self->resume_requested_) {
+                        if (self->conflict_session_ && self->resume_requested_) {
+                            self->ResumeConflictCopy(self->conflict_replace_file_id_);
+                        } else if (self->stopped_session_ && self->resume_requested_) {
                             self->ResumeStoppedCopy();
+                        } else if (self->conflict_session_) {
+                            self->FinalizeConflictSessionIfEmpty();
                         } else {
                             self->FinalizeStoppedSessionIfEmpty();
                         }
@@ -169,8 +180,6 @@ void MainWindow::EnqueueAppend(
                 return;
             }
 
-            // Planning and directory creation stay off the UI thread. Empty
-            // folders from appended batches are therefore preserved too.
             for (const auto& directory : result.plan->directories) {
                 {
                     std::lock_guard gate_lock(target_gate->mutex);
@@ -196,7 +205,6 @@ void MainWindow::EnqueueAppend(
                 velocitycopy::LivePlanAppendResult::Drained;
             bool committed = false;
             {
-                // Gate -> plan is the single lock order for append commits.
                 std::lock_guard gate_lock(target_gate->mutex);
                 if (target_gate->accepting) {
                     append_result = target_plan->append(std::move(*result.plan), true);
@@ -229,7 +237,9 @@ void MainWindow::EnqueueAppend(
                     case velocitycopy::LivePlanAppendResult::Appended:
                         self->QueueButton().IsEnabled(true);
                         self->RefreshQueue();
-                        if (self->stopped_session_ && self->resume_requested_) {
+                        if (self->conflict_session_ && self->resume_requested_) {
+                            self->ResumeConflictCopy(self->conflict_replace_file_id_);
+                        } else if (self->stopped_session_ && self->resume_requested_) {
                             self->ResumeStoppedCopy();
                         }
                         return;
@@ -239,8 +249,12 @@ void MainWindow::EnqueueAppend(
                     case velocitycopy::LivePlanAppendResult::DestinationCollision:
                     case velocitycopy::LivePlanAppendResult::SizeOverflow:
                         self->ShowError();
-                        if (self->stopped_session_ && self->resume_requested_) {
+                        if (self->conflict_session_ && self->resume_requested_) {
+                            self->ResumeConflictCopy(self->conflict_replace_file_id_);
+                        } else if (self->stopped_session_ && self->resume_requested_) {
                             self->ResumeStoppedCopy();
+                        } else if (self->conflict_session_) {
+                            self->FinalizeConflictSessionIfEmpty();
                         } else {
                             self->FinalizeStoppedSessionIfEmpty();
                         }
