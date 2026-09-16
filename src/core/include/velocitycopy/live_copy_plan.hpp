@@ -20,6 +20,7 @@ struct LiveCopyPlanSnapshot {
 
 enum class LivePlanAppendResult {
     Appended,
+    Drained,
     DifferentDestination,
     DestinationCollision,
     SizeOverflow,
@@ -39,7 +40,8 @@ public:
 
     // Appends a separately planned batch to this live operation. File ids from
     // the incoming plan are remapped so callers may safely append plans that
-    // each start numbering at 1.
+    // each start numbering at 1. A drained plan is never reopened: callers
+    // should start a fresh execution instead.
     [[nodiscard]] LivePlanAppendResult append(CopyPlan plan) noexcept;
 
     [[nodiscard]] bool move_pending_file(std::uint64_t file_id, std::size_t new_index) noexcept;
