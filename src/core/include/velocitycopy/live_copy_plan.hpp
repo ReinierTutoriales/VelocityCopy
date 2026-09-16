@@ -13,7 +13,7 @@ namespace velocitycopy {
 
 struct LiveCopyPlanSnapshot {
     std::vector<PlannedFile> pending_files;
-    std::optional<PlannedFile> active_file;
+    std::vector<PlannedFile> active_files;
     std::uint64_t total_bytes{};
     std::uint64_t total_files{};
 };
@@ -33,6 +33,8 @@ public:
     [[nodiscard]] bool move_pending_file_down(std::uint64_t file_id) noexcept;
     [[nodiscard]] bool remove_pending_file(std::uint64_t file_id) noexcept;
 
+    // Each successful acquisition moves one pending file into the active set.
+    // Multiple callers may therefore hold distinct active files concurrently.
     [[nodiscard]] std::optional<PlannedFile> acquire_next() noexcept;
     void complete_active(std::uint64_t file_id) noexcept;
     void release_active(std::uint64_t file_id) noexcept;
@@ -42,11 +44,12 @@ public:
 
 private:
     [[nodiscard]] std::vector<PlannedFile>::iterator find_pending(std::uint64_t file_id) noexcept;
+    [[nodiscard]] std::vector<PlannedFile>::iterator find_active(std::uint64_t file_id) noexcept;
 
     std::vector<PlannedDirectory> directories_;
     mutable std::mutex mutex_;
     std::vector<PlannedFile> pending_files_;
-    std::optional<PlannedFile> active_file_;
+    std::vector<PlannedFile> active_files_;
     std::uint64_t total_bytes_{};
     std::uint64_t total_files_{};
 };
