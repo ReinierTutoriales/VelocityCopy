@@ -85,6 +85,7 @@ fire_and_forget MainWindow::HandleDropAsync(DataPackageView data_view) {
             co_return;
         }
 
+        ++shell_layout_generation_;
         dropped_items_ = std::move(items);
         flow_.begin(dropped_items_);
         DestinationStep().Visibility(Visibility::Visible);
