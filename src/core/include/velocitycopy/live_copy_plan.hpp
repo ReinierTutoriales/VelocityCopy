@@ -62,6 +62,7 @@ public:
     [[nodiscard]] std::uint64_t total_files() const noexcept;
     [[nodiscard]] std::uint64_t completed_bytes() const noexcept;
     [[nodiscard]] std::uint64_t completed_files() const noexcept;
+    [[nodiscard]] std::uint64_t remaining_files() const noexcept;
     [[nodiscard]] std::uint64_t largest_file_bytes() const noexcept;
 
 private:
