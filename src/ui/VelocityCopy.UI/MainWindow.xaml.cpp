@@ -382,9 +382,6 @@ void MainWindow::StartCopy(velocitycopy::CopyJob job) {
                 break;
             }
 
-            // Gate -> plan matches the append commit lock order. If a reserved
-            // append committed after the worker pool drained, continue the same
-            // logical session with the newly queued files.
             const auto snapshot = plan->snapshot();
             if (!snapshot.pending_files.empty()) {
                 gate_lock.unlock();
@@ -408,6 +405,16 @@ void MainWindow::StartCopy(velocitycopy::CopyJob job) {
             }
         });
     });
+}
+
+void MainWindow::StartNextQueuedSession() {
+    if (execution_control_ || queued_sessions_.empty()) {
+        return;
+    }
+
+    auto next = std::move(queued_sessions_.front());
+    queued_sessions_.pop_front();
+    StartCopy(std::move(next));
 }
 
 void MainWindow::PublishLivePlan(std::shared_ptr<velocitycopy::LiveCopyPlan> plan) {
@@ -602,6 +609,7 @@ void MainWindow::OnCancelClick(IInspectable const&, RoutedEventArgs const&) {
         append_gate_->condition.notify_all();
     }
     deferred_same_destination_jobs_.clear();
+    queued_sessions_.clear();
     append_planner_.cancel_pending();
     copy_thread_.request_stop();
     if (execution_control_) {
@@ -647,23 +655,39 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& result) {
         return;
     }
 
-    QueueButton().IsEnabled(false);
-    if (result.success) {
-        GlobalProgress().Value(100);
+    if (result.cancelled) {
+        queued_sessions_.clear();
+        QueueButton().IsEnabled(false);
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
-    } else if (!result.cancelled) {
-        ShowError();
+        return;
     }
 
-    // A planning failure can happen before PublishLivePlan had a chance to
-    // transfer deferred reservations. Preserve those user requests unless the
-    // user explicitly cancelled/stopped the session.
-    if (!result.cancelled) {
-        for (auto& job : deferred) {
-            QueueOrStartCopy(std::move(job));
-        }
+    // If initial planning failed before PublishLivePlan, preserve same-destination
+    // user requests by serializing them as future sessions instead of losing them.
+    while (!deferred.empty()) {
+        queued_sessions_.push_front(std::move(deferred.back()));
+        deferred.pop_back();
     }
+
+    if (!result.success) {
+        ShowError();
+        QueueButton().IsEnabled(false);
+        SpeedText().Text(L"—");
+        EtaText().Text(L"—");
+        return;
+    }
+
+    QueueButton().IsEnabled(false);
+    SpeedText().Text(L"—");
+    EtaText().Text(L"—");
+
+    if (queued_sessions_.empty()) {
+        GlobalProgress().Value(100);
+        return;
+    }
+
+    StartNextQueuedSession();
 }
 
 void MainWindow::ShowError() {
