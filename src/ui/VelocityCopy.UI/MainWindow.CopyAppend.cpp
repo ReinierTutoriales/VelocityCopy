@@ -42,13 +42,23 @@ void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
     auto target_control = execution_control_;
     auto target_gate = append_gate_;
 
-    // The first job may still be in its background planning phase. Preserve the
-    // user's FIFO intent instead of starting a second copy merely because the
-    // LiveCopyPlan has not been published to the UI yet.
+    // The first job may still be in its background planning phase. Reserve the
+    // active session immediately so an ultra-short first batch cannot close
+    // before this deferred job is transferred to the FIFO planning worker.
     if (!target_plan && target_control && target_gate &&
         same_destination(active_destination_, job.destination)) {
-        deferred_same_destination_jobs_.push_back(std::move(job));
-        return;
+        bool reserved = false;
+        {
+            std::lock_guard gate_lock(target_gate->mutex);
+            if (target_gate->accepting) {
+                ++target_gate->planning_count;
+                reserved = true;
+            }
+        }
+        if (reserved) {
+            deferred_same_destination_jobs_.push_back(std::move(job));
+            return;
+        }
     }
 
     if (!target_plan || !target_control || !target_gate ||
@@ -59,15 +69,36 @@ void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
         return;
     }
 
-    {
-        std::lock_guard gate_lock(target_gate->mutex);
-        if (!target_gate->accepting) {
+    EnqueueAppend(
+        std::move(job),
+        std::move(target_plan),
+        std::move(target_control),
+        std::move(target_gate),
+        false);
+}
+
+void MainWindow::EnqueueAppend(
+    velocitycopy::CopyJob job,
+    std::shared_ptr<velocitycopy::LiveCopyPlan> target_plan,
+    std::shared_ptr<velocitycopy::ExecutionControl> target_control,
+    std::shared_ptr<AppendGate> target_gate,
+    const bool reservation_already_held) {
+    if (!reservation_already_held) {
+        bool reserved = false;
+        {
+            std::lock_guard gate_lock(target_gate->mutex);
+            if (target_gate->accepting) {
+                ++target_gate->planning_count;
+                reserved = true;
+            }
+        }
+
+        if (!reserved) {
             active_destination_ = job.destination;
             deferred_same_destination_jobs_.clear();
             StartCopy(std::move(job));
             return;
         }
-        ++target_gate->planning_count;
     }
 
     auto weak = get_weak();
