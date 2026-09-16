@@ -1,6 +1,8 @@
 #include "velocitycopy/job_planner.hpp"
+#include "velocitycopy/destination_catalog.hpp"
 
 #include <algorithm>
+#include <limits>
 #include <system_error>
 
 namespace velocitycopy {
@@ -32,6 +34,35 @@ std::filesystem::path destination_root_for(
     }
 
     return destination / source.filename();
+}
+
+void checked_add(std::uint64_t& total, const std::uint64_t value, const std::filesystem::path& path) {
+    if (value > std::numeric_limits<std::uint64_t>::max() - total) {
+        throw std::filesystem::filesystem_error(
+            "Copy size exceeds supported range",
+            path,
+            std::make_error_code(std::errc::value_too_large));
+    }
+    total += value;
+}
+
+[[noreturn]] void throw_unsupported(const std::filesystem::path& path) {
+    throw std::filesystem::filesystem_error(
+        "Unsupported source type",
+        path,
+        std::make_error_code(std::errc::not_supported));
+}
+
+bool valid_relative_path(const std::filesystem::path& relative) {
+    if (relative.empty() || relative.is_absolute()) {
+        return false;
+    }
+    for (const auto& component : relative) {
+        if (component == L"..") {
+            return false;
+        }
+    }
+    return true;
 }
 
 } // namespace
@@ -104,6 +135,15 @@ bool CopyPlan::remove_file(const std::uint64_t file_id) noexcept {
 }
 
 CopyPlan JobPlanner::build(const CopyJob& job) const {
+    std::vector<std::filesystem::path> sources(job.sources.begin(), job.sources.end());
+    const auto validation = DestinationCatalog::validate(sources, job.destination);
+    if (validation != DestinationValidation::Valid) {
+        throw std::filesystem::filesystem_error(
+            "Invalid copy destination",
+            job.destination,
+            std::make_error_code(std::errc::invalid_argument));
+    }
+
     CopyPlan plan{};
     std::uint64_t next_file_id = 1;
 
@@ -112,6 +152,9 @@ CopyPlan JobPlanner::build(const CopyJob& job) const {
         const auto status = std::filesystem::symlink_status(source, ec);
         if (ec || !std::filesystem::exists(status)) {
             throw std::filesystem::filesystem_error("Source does not exist", source, ec);
+        }
+        if (std::filesystem::is_symlink(status)) {
+            throw_unsupported(source);
         }
 
         const auto root = destination_root_for(source, job.destination, job.layout, status);
@@ -122,32 +165,35 @@ CopyPlan JobPlanner::build(const CopyJob& job) const {
                 throw std::filesystem::filesystem_error("Unable to read file size", source, ec);
             }
             plan.files.push_back({next_file_id++, source, root, size});
-            plan.total_bytes += size;
+            checked_add(plan.total_bytes, size, source);
             continue;
         }
 
         if (!std::filesystem::is_directory(status)) {
-            continue;
+            throw_unsupported(source);
         }
 
         plan.directories.push_back({root});
 
-        std::filesystem::recursive_directory_iterator it(
-            source,
-            std::filesystem::directory_options::skip_permission_denied,
-            ec);
+        std::filesystem::recursive_directory_iterator it(source, std::filesystem::directory_options::none, ec);
         const std::filesystem::recursive_directory_iterator end;
+        if (ec) {
+            throw std::filesystem::filesystem_error("Unable to enumerate source", source, ec);
+        }
 
         for (; it != end; it.increment(ec)) {
             if (ec) {
-                ec.clear();
-                continue;
+                throw std::filesystem::filesystem_error("Unable to enumerate source", source, ec);
             }
 
             const auto& entry = *it;
-            const auto relative = std::filesystem::relative(entry.path(), source, ec);
-            if (ec) {
-                throw std::filesystem::filesystem_error("Unable to resolve relative path", entry.path(), source, ec);
+            const auto relative = entry.path().lexically_relative(source);
+            if (!valid_relative_path(relative)) {
+                throw std::filesystem::filesystem_error(
+                    "Unable to resolve relative path",
+                    entry.path(),
+                    source,
+                    std::make_error_code(std::errc::invalid_argument));
             }
 
             const auto target = root / relative;
@@ -157,8 +203,7 @@ CopyPlan JobPlanner::build(const CopyJob& job) const {
             }
 
             if (std::filesystem::is_symlink(entry_status)) {
-                it.disable_recursion_pending();
-                continue;
+                throw_unsupported(entry.path());
             }
 
             if (std::filesystem::is_directory(entry_status)) {
@@ -172,8 +217,11 @@ CopyPlan JobPlanner::build(const CopyJob& job) const {
                     throw std::filesystem::filesystem_error("Unable to read file size", entry.path(), ec);
                 }
                 plan.files.push_back({next_file_id++, entry.path(), target, size});
-                plan.total_bytes += size;
+                checked_add(plan.total_bytes, size, entry.path());
+                continue;
             }
+
+            throw_unsupported(entry.path());
         }
     }
 

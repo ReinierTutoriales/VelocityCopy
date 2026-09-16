@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.28)
 
-project(VelocityCopy VERSION 0.16.0 LANGUAGES CXX)
+project(VelocityCopy VERSION 0.17.0 LANGUAGES CXX)
 
 if(NOT WIN32)
     message(FATAL_ERROR "VelocityCopy currently targets Windows only.")
@@ -29,21 +29,9 @@ add_library(velocitycopy_core STATIC
     src/core/ui_snapshot.cpp
 )
 
-target_include_directories(velocitycopy_core
-    PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/core/include
-)
+target_include_directories(velocitycopy_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/core/include)
 
-target_compile_definitions(velocitycopy_core
-    PUBLIC
-        UNICODE
-        _UNICODE
-        WIN32_LEAN_AND_MEAN
-        NOMINMAX
-        _WIN32_WINNT=0x0A00
-        WINVER=0x0A00
-)
-
+target_compile_definitions(velocitycopy_core PUBLIC UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0A00 WINVER=0x0A00)
 target_link_libraries(velocitycopy_core PUBLIC shell32)
 
 if(MSVC)
@@ -56,11 +44,7 @@ target_link_libraries(VelocityCopy PRIVATE velocitycopy_core)
 add_executable(VelocityCopyBenchmark tools/benchmark.cpp)
 target_link_libraries(VelocityCopyBenchmark PRIVATE velocitycopy_core)
 
-add_library(VelocityCopyShell SHARED
-    src/shell/explorer_commands.cpp
-    src/shell/shell_strings.rc
-    src/shell/VelocityCopyShell.def
-)
+add_library(VelocityCopyShell SHARED src/shell/explorer_commands.cpp src/shell/shell_strings.rc src/shell/VelocityCopyShell.def)
 target_include_directories(VelocityCopyShell PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/shell)
 target_link_libraries(VelocityCopyShell PRIVATE velocitycopy_core ole32)
 set_target_properties(VelocityCopyShell PROPERTIES OUTPUT_NAME "VelocityCopy.Shell")
@@ -73,87 +57,38 @@ endif()
 
 enable_testing()
 
-add_executable(VelocityCopySmokeTest tests/smoke_test.cpp)
-target_link_libraries(VelocityCopySmokeTest PRIVATE velocitycopy_core)
+function(add_velocitycopy_test target source name)
+    add_executable(${target} ${source})
+    target_link_libraries(${target} PRIVATE velocitycopy_core)
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /W4 /permissive- /EHsc /utf-8)
+    endif()
+    add_test(NAME ${name} COMMAND ${target})
+endfunction()
 
-add_executable(VelocityCopyQueueTest tests/queue_test.cpp)
-target_link_libraries(VelocityCopyQueueTest PRIVATE velocitycopy_core)
-
-add_executable(VelocityCopyPlanEditTest tests/plan_edit_test.cpp)
-target_link_libraries(VelocityCopyPlanEditTest PRIVATE velocitycopy_core)
-
-add_executable(VelocityCopyDropLayoutTest tests/drop_layout_test.cpp)
-target_link_libraries(VelocityCopyDropLayoutTest PRIVATE velocitycopy_core)
-
-add_executable(VelocityCopyDropMenuModelTest tests/drop_menu_model_test.cpp)
-target_link_libraries(VelocityCopyDropMenuModelTest PRIVATE velocitycopy_core)
-
-add_executable(VelocityCopyDropFlowTest tests/drop_flow_test.cpp)
-target_link_libraries(VelocityCopyDropFlowTest PRIVATE velocitycopy_core)
-
-add_executable(VelocityCopyDestinationCatalogTest tests/destination_catalog_test.cpp)
-target_link_libraries(VelocityCopyDestinationCatalogTest PRIVATE velocitycopy_core)
-
-add_executable(VelocityCopyDestinationBrowserTest tests/destination_browser_test.cpp)
-target_link_libraries(VelocityCopyDestinationBrowserTest PRIVATE velocitycopy_core)
-
-add_executable(VelocityCopyDestinationNavigationWorkerTest tests/destination_navigation_worker_test.cpp)
-target_link_libraries(VelocityCopyDestinationNavigationWorkerTest PRIVATE velocitycopy_core)
-
-add_executable(VelocityCopyStrategyTest tests/strategy_selector_test.cpp)
-target_link_libraries(VelocityCopyStrategyTest PRIVATE velocitycopy_core)
-
-add_executable(VelocityCopyShellRequestTest tests/shell_request_test.cpp)
-target_link_libraries(VelocityCopyShellRequestTest PRIVATE velocitycopy_core)
-
-add_executable(VelocityCopyIpcTest tests/ipc_test.cpp)
-target_link_libraries(VelocityCopyIpcTest PRIVATE velocitycopy_core)
-
-add_executable(VelocityCopyShellSessionTest tests/shell_session_test.cpp)
-target_link_libraries(VelocityCopyShellSessionTest PRIVATE velocitycopy_core)
-
-add_executable(VelocityCopyActivationTest tests/activation_test.cpp)
-target_link_libraries(VelocityCopyActivationTest PRIVATE velocitycopy_core)
-
-add_executable(VelocityCopyUiSnapshotTest tests/ui_snapshot_test.cpp)
-target_link_libraries(VelocityCopyUiSnapshotTest PRIVATE velocitycopy_core)
+add_velocitycopy_test(VelocityCopySmokeTest tests/smoke_test.cpp velocitycopy_smoke)
+add_velocitycopy_test(VelocityCopyQueueTest tests/queue_test.cpp velocitycopy_queue)
+add_velocitycopy_test(VelocityCopyPlanEditTest tests/plan_edit_test.cpp velocitycopy_plan_edit)
+add_velocitycopy_test(VelocityCopyDropLayoutTest tests/drop_layout_test.cpp velocitycopy_drop_layout)
+add_velocitycopy_test(VelocityCopyDropMenuModelTest tests/drop_menu_model_test.cpp velocitycopy_drop_menu_model)
+add_velocitycopy_test(VelocityCopyDropFlowTest tests/drop_flow_test.cpp velocitycopy_drop_flow)
+add_velocitycopy_test(VelocityCopyDropFlowMultiselectTest tests/drop_flow_multiselect_test.cpp velocitycopy_drop_flow_multiselect)
+add_velocitycopy_test(VelocityCopyDestinationCatalogTest tests/destination_catalog_test.cpp velocitycopy_destination_catalog)
+add_velocitycopy_test(VelocityCopyDestinationBrowserTest tests/destination_browser_test.cpp velocitycopy_destination_browser)
+add_velocitycopy_test(VelocityCopyDestinationNavigationWorkerTest tests/destination_navigation_worker_test.cpp velocitycopy_destination_navigation_worker)
+add_velocitycopy_test(VelocityCopyStrategyTest tests/strategy_selector_test.cpp velocitycopy_strategy)
+add_velocitycopy_test(VelocityCopyShellRequestTest tests/shell_request_test.cpp velocitycopy_shell_request)
+add_velocitycopy_test(VelocityCopyIpcTest tests/ipc_test.cpp velocitycopy_ipc)
+add_velocitycopy_test(VelocityCopyShellSessionTest tests/shell_session_test.cpp velocitycopy_shell_session)
+add_velocitycopy_test(VelocityCopyActivationTest tests/activation_test.cpp velocitycopy_activation)
+add_velocitycopy_test(VelocityCopyUiSnapshotTest tests/ui_snapshot_test.cpp velocitycopy_ui_snapshot)
+add_velocitycopy_test(VelocityCopyCallbackBoundaryTest tests/copy_engine_callback_test.cpp velocitycopy_callback_boundary)
+add_velocitycopy_test(VelocityCopyPlannerSafetyTest tests/planner_safety_test.cpp velocitycopy_planner_safety)
 
 add_executable(VelocityCopyShellDllTest tests/shell_dll_test.cpp)
 target_link_libraries(VelocityCopyShellDllTest PRIVATE ole32)
 add_dependencies(VelocityCopyShellDllTest VelocityCopyShell)
-
 if(MSVC)
-    target_compile_options(VelocityCopySmokeTest PRIVATE /W4 /permissive- /EHsc /utf-8)
-    target_compile_options(VelocityCopyQueueTest PRIVATE /W4 /permissive- /EHsc /utf-8)
-    target_compile_options(VelocityCopyPlanEditTest PRIVATE /W4 /permissive- /EHsc /utf-8)
-    target_compile_options(VelocityCopyDropLayoutTest PRIVATE /W4 /permissive- /EHsc /utf-8)
-    target_compile_options(VelocityCopyDropMenuModelTest PRIVATE /W4 /permissive- /EHsc /utf-8)
-    target_compile_options(VelocityCopyDropFlowTest PRIVATE /W4 /permissive- /EHsc /utf-8)
-    target_compile_options(VelocityCopyDestinationCatalogTest PRIVATE /W4 /permissive- /EHsc /utf-8)
-    target_compile_options(VelocityCopyDestinationBrowserTest PRIVATE /W4 /permissive- /EHsc /utf-8)
-    target_compile_options(VelocityCopyDestinationNavigationWorkerTest PRIVATE /W4 /permissive- /EHsc /utf-8)
-    target_compile_options(VelocityCopyStrategyTest PRIVATE /W4 /permissive- /EHsc /utf-8)
-    target_compile_options(VelocityCopyShellRequestTest PRIVATE /W4 /permissive- /EHsc /utf-8)
-    target_compile_options(VelocityCopyIpcTest PRIVATE /W4 /permissive- /EHsc /utf-8)
-    target_compile_options(VelocityCopyShellSessionTest PRIVATE /W4 /permissive- /EHsc /utf-8)
-    target_compile_options(VelocityCopyActivationTest PRIVATE /W4 /permissive- /EHsc /utf-8)
-    target_compile_options(VelocityCopyUiSnapshotTest PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyShellDllTest PRIVATE /W4 /permissive- /EHsc /utf-8)
 endif()
-
-add_test(NAME velocitycopy_smoke COMMAND VelocityCopySmokeTest)
-add_test(NAME velocitycopy_queue COMMAND VelocityCopyQueueTest)
-add_test(NAME velocitycopy_plan_edit COMMAND VelocityCopyPlanEditTest)
-add_test(NAME velocitycopy_drop_layout COMMAND VelocityCopyDropLayoutTest)
-add_test(NAME velocitycopy_drop_menu_model COMMAND VelocityCopyDropMenuModelTest)
-add_test(NAME velocitycopy_drop_flow COMMAND VelocityCopyDropFlowTest)
-add_test(NAME velocitycopy_destination_catalog COMMAND VelocityCopyDestinationCatalogTest)
-add_test(NAME velocitycopy_destination_browser COMMAND VelocityCopyDestinationBrowserTest)
-add_test(NAME velocitycopy_destination_navigation_worker COMMAND VelocityCopyDestinationNavigationWorkerTest)
-add_test(NAME velocitycopy_strategy COMMAND VelocityCopyStrategyTest)
-add_test(NAME velocitycopy_shell_request COMMAND VelocityCopyShellRequestTest)
-add_test(NAME velocitycopy_ipc COMMAND VelocityCopyIpcTest)
-add_test(NAME velocitycopy_shell_session COMMAND VelocityCopyShellSessionTest)
-add_test(NAME velocitycopy_activation COMMAND VelocityCopyActivationTest)
-add_test(NAME velocitycopy_ui_snapshot COMMAND VelocityCopyUiSnapshotTest)
 add_test(NAME velocitycopy_shell_dll COMMAND VelocityCopyShellDllTest "$<TARGET_FILE:VelocityCopyShell>")
