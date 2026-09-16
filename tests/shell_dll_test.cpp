@@ -32,6 +32,16 @@ bool verify_command(
         return false;
     }
 
+    IObjectWithSite* site = nullptr;
+    const HRESULT site_hr = command->QueryInterface(
+        __uuidof(IObjectWithSite),
+        reinterpret_cast<void**>(&site));
+    if (FAILED(site_hr) || site == nullptr) {
+        command->Release();
+        return false;
+    }
+    site->Release();
+
     PWSTR title = nullptr;
     const HRESULT title_hr = command->GetTitle(nullptr, &title);
     const bool ok = SUCCEEDED(title_hr) && title != nullptr && std::wcscmp(title, expected_title) == 0;
@@ -80,6 +90,6 @@ int wmain(int argc, wchar_t* argv[]) {
     }
 
     FreeLibrary(module);
-    std::wcout << L"VelocityCopy shell DLL localization test passed.\n";
+    std::wcout << L"VelocityCopy shell DLL localization and site contract test passed.\n";
     return 0;
 }
