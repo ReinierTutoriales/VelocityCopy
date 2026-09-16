@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cwctype>
 #include <limits>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 
@@ -174,6 +175,51 @@ bool LiveCopyPlan::move_pending_file_down(const std::uint64_t file_id) noexcept 
     }
     std::iter_swap(it, it + 1);
     return true;
+}
+
+bool LiveCopyPlan::reorder_pending_files(
+    const std::vector<std::uint64_t>& ordered_file_ids) noexcept {
+    try {
+        if (ordered_file_ids.size() < 2) {
+            return false;
+        }
+
+        std::unordered_map<std::uint64_t, std::size_t> rank;
+        rank.reserve(ordered_file_ids.size());
+        for (std::size_t index = 0; index < ordered_file_ids.size(); ++index) {
+            if (!rank.emplace(ordered_file_ids[index], index).second) {
+                return false;
+            }
+        }
+
+        std::lock_guard lock(mutex_);
+        std::vector<std::size_t> positions;
+        std::vector<PlannedFile> matched;
+        positions.reserve(ordered_file_ids.size());
+        matched.reserve(ordered_file_ids.size());
+
+        for (std::size_t index = 0; index < pending_files_.size(); ++index) {
+            if (rank.contains(pending_files_[index].id)) {
+                positions.push_back(index);
+                matched.push_back(std::move(pending_files_[index]));
+            }
+        }
+
+        if (matched.size() < 2) {
+            return false;
+        }
+
+        std::sort(matched.begin(), matched.end(), [&](const PlannedFile& left, const PlannedFile& right) {
+            return rank.at(left.id) < rank.at(right.id);
+        });
+
+        for (std::size_t index = 0; index < positions.size(); ++index) {
+            pending_files_[positions[index]] = std::move(matched[index]);
+        }
+        return true;
+    } catch (...) {
+        return false;
+    }
 }
 
 bool LiveCopyPlan::remove_pending_file(const std::uint64_t file_id) noexcept {
