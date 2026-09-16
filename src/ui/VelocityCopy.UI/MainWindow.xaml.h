@@ -5,6 +5,7 @@
 #include "velocitycopy/destination_catalog.hpp"
 #include "velocitycopy/destination_navigation_worker.hpp"
 #include "velocitycopy/drop_flow.hpp"
+#include "velocitycopy/execution_control.hpp"
 #include "velocitycopy/job_executor.hpp"
 #include "velocitycopy/job_planner.hpp"
 #include "velocitycopy/live_copy_plan.hpp"
@@ -28,6 +29,8 @@ struct MainWindow : MainWindowT<MainWindow> {
     void OnDirectClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnBackClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnStartCopyClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
+    void OnPauseClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
+    void OnStopClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnCancelClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnQueueClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnQueueMoveUpClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
@@ -51,6 +54,8 @@ private:
     void ResizeWindow(int height_epx);
     void ApplySnapshot(const velocitycopy::UiSnapshot& snapshot);
     void FinishCopy(const velocitycopy::JobResult& result);
+    void SetExecutionButtonsRunning();
+    void SetExecutionButtonsIdle();
     void ShowError();
     static hstring PreviewText(const velocitycopy::DropChoicePreview& preview);
     static hstring FormatCapacity(const velocitycopy::DestinationCapacity& capacity);
@@ -66,11 +71,13 @@ private:
     std::vector<velocitycopy::DropItem> dropped_items_;
     std::filesystem::path current_destination_folder_;
     std::shared_ptr<velocitycopy::LiveCopyPlan> live_plan_;
+    std::shared_ptr<velocitycopy::ExecutionControl> execution_control_;
     std::vector<velocitycopy::PlannedFile> queue_snapshot_;
     Microsoft::UI::Dispatching::DispatcherQueue dispatcher_{nullptr};
     std::atomic_bool cancel_requested_{false};
     std::uint64_t next_job_id_{1};
     std::uint64_t last_queue_completed_files_{};
+    bool paused_{};
     std::jthread copy_thread_;
 };
 }
