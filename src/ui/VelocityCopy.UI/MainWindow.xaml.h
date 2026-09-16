@@ -123,6 +123,7 @@ private:
     bool initial_size_applied_{};
     std::uint64_t next_job_id_{1};
     std::uint64_t last_queue_completed_files_{};
+    std::uint64_t shell_layout_generation_{};
     std::jthread copy_thread_;
 };
 }
