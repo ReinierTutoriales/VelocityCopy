@@ -37,10 +37,15 @@ struct JobResult {
     bool cancelled{};
     std::int32_t native_code{};
     bool stopped{};
+    bool destination_conflict{};
+    std::uint64_t conflict_file_id{};
+    std::filesystem::path conflict_source;
+    std::filesystem::path conflict_destination;
 };
 
 struct JobExecutionOptions {
     std::uint32_t worker_count{1};
+    ExistingDestinationPolicy existing_destination{ExistingDestinationPolicy::Fail};
 };
 
 class JobExecutor final {
