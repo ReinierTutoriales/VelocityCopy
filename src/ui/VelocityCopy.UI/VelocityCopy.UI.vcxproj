@@ -93,10 +93,15 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\..\..\Logo\VelocityCopy.png"><Link>Assets\VelocityCopy.png</Link></Image>
+    <Content Include="..\..\..\build\$(Configuration)\VelocityCopy.Shell.dll">
+      <Link>VelocityCopy.Shell.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <DeploymentContent>true</DeploymentContent>
+    </Content>
   </ItemGroup>
   <Target Name="BuildVelocityCopyCore" BeforeTargets="Link">
     <Exec Command="cmake -S &quot;$(ProjectDir)..\..\..&quot; -B &quot;$(ProjectDir)..\..\..\build&quot; -A x64" />
-    <Exec Command="cmake --build &quot;$(ProjectDir)..\..\..\build&quot; --config $(Configuration) --target velocitycopy_core" />
+    <Exec Command="cmake --build &quot;$(ProjectDir)..\..\..\build&quot; --config $(Configuration) --target velocitycopy_core VelocityCopyShell" />
   </Target>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
