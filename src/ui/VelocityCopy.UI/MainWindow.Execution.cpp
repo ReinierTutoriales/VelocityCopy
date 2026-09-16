@@ -12,6 +12,7 @@ void MainWindow::SetExecutionButtonsPlanning() {
     StopButton().IsEnabled(false);
     CancelButton().IsEnabled(true);
     current_file_id_ = 0;
+    current_file_skippable_ = false;
     paused_ = false;
 }
 
@@ -21,6 +22,7 @@ void MainWindow::SetExecutionButtonsRunning() {
     StopButton().IsEnabled(true);
     CancelButton().IsEnabled(true);
     current_file_id_ = 0;
+    current_file_skippable_ = false;
     paused_ = false;
     try {
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
@@ -35,6 +37,7 @@ void MainWindow::SetExecutionButtonsIdle() {
     StopButton().IsEnabled(false);
     CancelButton().IsEnabled(false);
     current_file_id_ = 0;
+    current_file_skippable_ = false;
     paused_ = false;
     resume_requested_ = false;
     try {
@@ -50,6 +53,7 @@ void MainWindow::SetExecutionButtonsStopped() {
     StopButton().IsEnabled(false);
     CancelButton().IsEnabled(true);
     current_file_id_ = 0;
+    current_file_skippable_ = false;
     paused_ = false;
     try {
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
@@ -184,6 +188,7 @@ void MainWindow::StartCopy(velocitycopy::CopyJob job) {
     stop_requested_ = false;
     resume_requested_ = false;
     current_file_id_ = 0;
+    current_file_skippable_ = false;
     cancel_requested_.store(false, std::memory_order_relaxed);
     presenter_.reset();
     last_queue_completed_files_ = 0;
@@ -273,6 +278,7 @@ void MainWindow::ResumeStoppedCopy() {
     stopped_session_ = false;
     stop_requested_ = false;
     current_file_id_ = 0;
+    current_file_skippable_ = false;
     cancel_requested_.store(false, std::memory_order_relaxed);
     presenter_.reset();
     last_queue_completed_files_ = live_plan_->completed_files();
@@ -343,7 +349,7 @@ void MainWindow::OnPauseClick(IInspectable const&, RoutedEventArgs const&) {
     if (paused_) {
         execution_control_->resume();
         paused_ = false;
-        SkipButton().IsEnabled(current_file_id_ != 0 && !stop_requested_);
+        SkipButton().IsEnabled(current_file_id_ != 0 && current_file_skippable_ && !stop_requested_);
     } else {
         execution_control_->request_pause();
         paused_ = true;
@@ -361,10 +367,12 @@ void MainWindow::OnPauseClick(IInspectable const&, RoutedEventArgs const&) {
 }
 
 void MainWindow::OnSkipClick(IInspectable const&, RoutedEventArgs const&) {
-    if (!execution_control_ || paused_ || stopped_session_ || stop_requested_ || current_file_id_ == 0) {
+    if (!execution_control_ || paused_ || stopped_session_ || stop_requested_ ||
+        current_file_id_ == 0 || !current_file_skippable_) {
         return;
     }
     execution_control_->request_skip(current_file_id_);
+    current_file_skippable_ = false;
     SkipButton().IsEnabled(false);
 }
 
@@ -375,6 +383,7 @@ void MainWindow::OnStopClick(IInspectable const&, RoutedEventArgs const&) {
 
     resume_requested_ = false;
     stop_requested_ = true;
+    current_file_skippable_ = false;
     SkipButton().IsEnabled(false);
     execution_control_->request_stop();
     PauseButton().IsEnabled(false);
@@ -385,6 +394,7 @@ void MainWindow::OnCancelClick(IInspectable const&, RoutedEventArgs const&) {
     cancel_requested_.store(true, std::memory_order_relaxed);
     resume_requested_ = false;
     current_file_id_ = 0;
+    current_file_skippable_ = false;
     SkipButton().IsEnabled(false);
     deferred_same_destination_jobs_.clear();
     deferred_after_stop_jobs_.clear();
@@ -422,8 +432,10 @@ void MainWindow::OnCancelClick(IInspectable const&, RoutedEventArgs const&) {
 void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
     GlobalProgress().Value(snapshot.fraction * 100.0);
     current_file_id_ = snapshot.current_file_id;
+    current_file_skippable_ = snapshot.current_file_skippable;
     SkipButton().IsEnabled(
-        execution_control_ && current_file_id_ != 0 && !paused_ && !stopped_session_ && !stop_requested_);
+        execution_control_ && current_file_id_ != 0 && current_file_skippable_ &&
+        !paused_ && !stopped_session_ && !stop_requested_);
 
     if (!snapshot.current_source.empty()) {
         CurrentItemText().Text(hstring(snapshot.current_source.filename().wstring()));
@@ -453,6 +465,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
 
     execution_control_.reset();
     current_file_id_ = 0;
+    current_file_skippable_ = false;
     SkipButton().IsEnabled(false);
     paused_ = false;
 
@@ -555,6 +568,7 @@ void MainWindow::FinalizeStoppedSessionIfEmpty() {
     stopped_session_ = false;
     stop_requested_ = false;
     current_file_id_ = 0;
+    current_file_skippable_ = false;
     live_plan_.reset();
     append_gate_.reset();
     active_destination_.clear();
