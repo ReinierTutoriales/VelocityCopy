@@ -33,6 +33,10 @@
   <data name="StopButton.Content" xml:space="preserve"><value>Detener</value></data>
   <data name="CancelButton.Content" xml:space="preserve"><value>Cancelar</value></data>
   <data name="QueueButton.Content" xml:space="preserve"><value>Cola</value></data>
+  <data name="QueueTitle.Text" xml:space="preserve"><value>Archivos pendientes</value></data>
+  <data name="QueueMoveUpButton.Content" xml:space="preserve"><value>Subir</value></data>
+  <data name="QueueMoveDownButton.Content" xml:space="preserve"><value>Bajar</value></data>
+  <data name="QueueRemoveButton.Content" xml:space="preserve"><value>Eliminar</value></data>
   <data name="DropOverlayText.Text" xml:space="preserve"><value>Suelta para copiar</value></data>
   <data name="DestinationTitle.Text" xml:space="preserve"><value>¿Dónde quieres copiar?</value></data>
   <data name="DestinationBackButton.Content" xml:space="preserve"><value>Atrás</value></data>
