@@ -7,6 +7,8 @@ namespace velocitycopy {
 
 LiveCopyPlan::LiveCopyPlan(CopyPlan plan)
     : directories_(std::move(plan.directories)),
+      source_roots_(std::move(plan.source_roots)),
+      destination_root_(std::move(plan.destination_root)),
       pending_files_(std::move(plan.files)),
       total_bytes_(plan.total_bytes),
       total_files_(pending_files_.size()) {
@@ -14,6 +16,14 @@ LiveCopyPlan::LiveCopyPlan(CopyPlan plan)
 
 const std::vector<PlannedDirectory>& LiveCopyPlan::directories() const noexcept {
     return directories_;
+}
+
+const std::vector<std::filesystem::path>& LiveCopyPlan::source_roots() const noexcept {
+    return source_roots_;
+}
+
+const std::filesystem::path& LiveCopyPlan::destination_root() const noexcept {
+    return destination_root_;
 }
 
 LiveCopyPlanSnapshot LiveCopyPlan::snapshot() const {
