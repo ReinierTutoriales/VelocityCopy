@@ -15,6 +15,9 @@
   <data name="ActionSkip" xml:space="preserve"><value>Saltar</value></data>
   <data name="ActionStop" xml:space="preserve"><value>Detener</value></data>
   <data name="ActionCancel" xml:space="preserve"><value>Cancelar</value></data>
+  <data name="ActionReplace" xml:space="preserve"><value>Reemplazar</value></data>
+  <data name="ConflictTitle" xml:space="preserve"><value>El archivo ya existe</value></data>
+  <data name="ConflictMessage" xml:space="preserve"><value>Ya existe un archivo con el mismo nombre en el destino. Elige qué hacer con este archivo.</value></data>
   <data name="ActionMoveUp" xml:space="preserve"><value>Subir</value></data>
   <data name="ActionMoveDown" xml:space="preserve"><value>Bajar</value></data>
   <data name="ActionRemove" xml:space="preserve"><value>Eliminar</value></data>
