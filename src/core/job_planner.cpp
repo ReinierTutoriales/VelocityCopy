@@ -1,9 +1,14 @@
 #include "velocitycopy/job_planner.hpp"
 #include "velocitycopy/destination_catalog.hpp"
 
+#include <windows.h>
+
 #include <algorithm>
+#include <array>
+#include <cwctype>
 #include <limits>
 #include <system_error>
+#include <unordered_set>
 
 namespace velocitycopy {
 namespace {
@@ -35,6 +40,86 @@ std::filesystem::path destination_root_for(
 
     return destination / source.filename();
 }
+
+std::wstring normalized_path_key(const std::filesystem::path& input) {
+    if (input.empty()) {
+        return {};
+    }
+
+    std::array<wchar_t, 32768> buffer{};
+    const DWORD length = GetFullPathNameW(
+        input.c_str(),
+        static_cast<DWORD>(buffer.size()),
+        buffer.data(),
+        nullptr);
+    if (length == 0 || length >= buffer.size()) {
+        return {};
+    }
+
+    std::wstring result(buffer.data(), length);
+    while (result.size() > 3 && (result.back() == L'\\' || result.back() == L'/')) {
+        result.pop_back();
+    }
+    std::transform(result.begin(), result.end(), result.begin(), [](const wchar_t value) {
+        return static_cast<wchar_t>(std::towlower(value));
+    });
+    return result;
+}
+
+[[noreturn]] void throw_collision(const std::filesystem::path& path) {
+    throw std::filesystem::filesystem_error(
+        "Multiple copy entries resolve to the same destination",
+        path,
+        std::make_error_code(std::errc::file_exists));
+}
+
+class OutputRegistry final {
+public:
+    void add_directory(const std::filesystem::path& path) {
+        auto cursor = path;
+        while (!cursor.empty()) {
+            const auto key = normalized_path_key(cursor);
+            if (key.empty()) {
+                throw std::filesystem::filesystem_error(
+                    "Unable to normalize destination path",
+                    cursor,
+                    std::make_error_code(std::errc::invalid_argument));
+            }
+            if (files_.contains(key)) {
+                throw_collision(cursor);
+            }
+            directories_.insert(key);
+
+            const auto parent = cursor.parent_path();
+            if (parent.empty() || parent == cursor) {
+                break;
+            }
+            cursor = parent;
+        }
+    }
+
+    void add_file(const std::filesystem::path& path) {
+        const auto parent = path.parent_path();
+        if (!parent.empty()) {
+            add_directory(parent);
+        }
+
+        const auto key = normalized_path_key(path);
+        if (key.empty()) {
+            throw std::filesystem::filesystem_error(
+                "Unable to normalize destination path",
+                path,
+                std::make_error_code(std::errc::invalid_argument));
+        }
+        if (directories_.contains(key) || !files_.insert(key).second) {
+            throw_collision(path);
+        }
+    }
+
+private:
+    std::unordered_set<std::wstring> files_;
+    std::unordered_set<std::wstring> directories_;
+};
 
 void checked_add(std::uint64_t& total, const std::uint64_t value, const std::filesystem::path& path) {
     if (value > std::numeric_limits<std::uint64_t>::max() - total) {
@@ -153,10 +238,24 @@ CopyPlan JobPlanner::build(const CopyJob& job) const {
             std::make_error_code(std::errc::invalid_argument));
     }
 
+    std::unordered_set<std::wstring> source_keys;
+    source_keys.reserve(job.sources.size());
+    for (const auto& source : job.sources) {
+        const auto key = normalized_path_key(source);
+        if (key.empty() || !source_keys.insert(key).second) {
+            throw std::filesystem::filesystem_error(
+                "Duplicate or invalid copy source",
+                source,
+                std::make_error_code(std::errc::invalid_argument));
+        }
+    }
+
     CopyPlan plan{};
     plan.source_roots = job.sources;
     plan.destination_root = job.destination;
     std::uint64_t next_file_id = 1;
+    OutputRegistry outputs;
+    std::unordered_set<std::wstring> preserved_roots;
 
     for (const auto& source : job.sources) {
         std::error_code ec;
@@ -169,12 +268,19 @@ CopyPlan JobPlanner::build(const CopyJob& job) const {
         }
 
         const auto root = destination_root_for(source, job.destination, job.layout, status);
+        if (job.layout == DestinationLayout::PreserveSourceFolder) {
+            const auto root_key = normalized_path_key(root);
+            if (root_key.empty() || !preserved_roots.insert(root_key).second) {
+                throw_collision(root);
+            }
+        }
 
         if (std::filesystem::is_regular_file(status)) {
             const auto size = std::filesystem::file_size(source, ec);
             if (ec) {
                 throw std::filesystem::filesystem_error("Unable to read file size", source, ec);
             }
+            outputs.add_file(root);
             PlannedFile file{next_file_id++, source, root, size};
             account_file(plan, file);
             plan.files.push_back(std::move(file));
@@ -185,6 +291,7 @@ CopyPlan JobPlanner::build(const CopyJob& job) const {
             throw_unsupported(source);
         }
 
+        outputs.add_directory(root);
         plan.directories.push_back({root});
 
         std::filesystem::recursive_directory_iterator it(source, std::filesystem::directory_options::none, ec);
@@ -219,6 +326,7 @@ CopyPlan JobPlanner::build(const CopyJob& job) const {
             }
 
             if (std::filesystem::is_directory(entry_status)) {
+                outputs.add_directory(target);
                 plan.directories.push_back({target});
                 continue;
             }
@@ -228,6 +336,7 @@ CopyPlan JobPlanner::build(const CopyJob& job) const {
                 if (ec) {
                     throw std::filesystem::filesystem_error("Unable to read file size", entry.path(), ec);
                 }
+                outputs.add_file(target);
                 PlannedFile file{next_file_id++, entry.path(), target, size};
                 account_file(plan, file);
                 plan.files.push_back(std::move(file));
