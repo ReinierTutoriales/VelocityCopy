@@ -93,6 +93,11 @@ fire_and_forget MainWindow::HandleDropAsync(DataPackageView data_view) {
 }
 
 void MainWindow::LoadDestinations() {
+    destination_navigation_.cancel();
+    current_destination_folder_.clear();
+    DestinationBrowserHeader().Visibility(Visibility::Collapsed);
+    ChooseCurrentFolderButton().Visibility(Visibility::Collapsed);
+
     auto children = DestinationItems().Children();
     children.Clear();
 
@@ -116,9 +121,72 @@ void MainWindow::OnDestinationClick(IInspectable const& sender, RoutedEventArgs 
     try {
         const auto button = sender.as<Button>();
         const auto value = unbox_value<hstring>(button.Tag());
-        SelectDestination(std::filesystem::path(value.c_str()));
+        NavigateDestination(std::filesystem::path(value.c_str()));
     } catch (...) {
         ShowError();
+    }
+}
+
+void MainWindow::OnDestinationFolderClick(IInspectable const& sender, RoutedEventArgs const&) {
+    OnDestinationClick(sender, nullptr);
+}
+
+void MainWindow::NavigateDestination(std::filesystem::path folder) {
+    if (folder.empty()) {
+        return;
+    }
+
+    auto weak = get_weak();
+    auto dispatcher = dispatcher_;
+    destination_navigation_.navigate(
+        std::move(folder),
+        true,
+        [weak, dispatcher](velocitycopy::DestinationNavigationResult result) mutable {
+            dispatcher.TryEnqueue([weak, result = std::move(result)]() mutable {
+                if (auto self = weak.get()) {
+                    self->ApplyDestinationNavigation(std::move(result));
+                }
+            });
+        });
+}
+
+void MainWindow::ApplyDestinationNavigation(velocitycopy::DestinationNavigationResult result) {
+    current_destination_folder_ = std::move(result.folder);
+    DestinationBrowserHeader().Visibility(Visibility::Visible);
+    ChooseCurrentFolderButton().Visibility(Visibility::Visible);
+    DestinationPathText().Text(hstring(current_destination_folder_.wstring()));
+    DestinationCapacityText().Text(FormatCapacity(result.capacity));
+
+    auto children = DestinationItems().Children();
+    children.Clear();
+    for (const auto& entry : result.children) {
+        Button button;
+        button.HorizontalAlignment(HorizontalAlignment::Stretch);
+        button.HorizontalContentAlignment(HorizontalAlignment::Left);
+        button.Content(box_value(hstring(entry.name.wstring())));
+        button.Tag(box_value(hstring(entry.path.wstring())));
+        button.Click({this, &MainWindow::OnDestinationFolderClick});
+        children.Append(button);
+    }
+}
+
+void MainWindow::OnDestinationBackClick(IInspectable const&, RoutedEventArgs const&) {
+    if (current_destination_folder_.empty()) {
+        LoadDestinations();
+        return;
+    }
+
+    const auto parent = current_destination_folder_.parent_path();
+    if (parent.empty() || parent == current_destination_folder_) {
+        LoadDestinations();
+    } else {
+        NavigateDestination(parent);
+    }
+}
+
+void MainWindow::OnChooseCurrentFolderClick(IInspectable const&, RoutedEventArgs const&) {
+    if (!current_destination_folder_.empty()) {
+        SelectDestination(current_destination_folder_);
     }
 }
 
@@ -262,6 +330,17 @@ hstring MainWindow::PreviewText(const velocitycopy::DropChoicePreview& preview) 
         text += std::to_wstring(preview.hidden_items);
     }
     return hstring(text);
+}
+
+hstring MainWindow::FormatCapacity(const velocitycopy::DestinationCapacity& capacity) {
+    if (!capacity.available || capacity.total_bytes == 0) {
+        return {};
+    }
+    constexpr double gib = 1024.0 * 1024.0 * 1024.0;
+    return hstring(std::format(
+        L"{:.1f} / {:.1f} GiB",
+        static_cast<double>(capacity.free_bytes) / gib,
+        static_cast<double>(capacity.total_bytes) / gib));
 }
 
 hstring MainWindow::FormatSpeed(double bytes_per_second) {
