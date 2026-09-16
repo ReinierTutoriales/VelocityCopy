@@ -40,8 +40,20 @@ void MainWindow::OnQueueOrStartCopyClick(IInspectable const&, RoutedEventArgs co
 void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
     auto target_plan = live_plan_;
     auto target_control = execution_control_;
+
+    // The first job may still be in its background planning phase. Preserve the
+    // user's FIFO intent instead of starting a second copy merely because the
+    // LiveCopyPlan has not been published to the UI yet.
+    if (!target_plan && target_control &&
+        same_destination(active_destination_, job.destination)) {
+        deferred_same_destination_jobs_.push_back(std::move(job));
+        return;
+    }
+
     if (!target_plan || !target_control ||
         !same_destination(target_plan->destination_root(), job.destination)) {
+        active_destination_ = job.destination;
+        deferred_same_destination_jobs_.clear();
         StartCopy(std::move(job));
         return;
     }
@@ -102,10 +114,12 @@ void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
                         // The previous operation crossed the drain boundary while
                         // this batch was being planned. Start it normally rather
                         // than leaving files stranded in a dead live plan.
+                        self->active_destination_ = job.destination;
                         self->StartCopy(std::move(job));
                         return;
 
                     case velocitycopy::LivePlanAppendResult::DifferentDestination:
+                        self->active_destination_ = job.destination;
                         self->StartCopy(std::move(job));
                         return;
 
