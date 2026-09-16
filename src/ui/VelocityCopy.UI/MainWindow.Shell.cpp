@@ -51,12 +51,14 @@ fire_and_forget MainWindow::BeginShellLayoutAsync(velocitycopy::CopyJob job) {
     co_await winrt::resume_background();
 
     std::vector<velocitycopy::DropItem> items;
+    bool classification_failed = false;
     try {
         items.reserve(sources.size());
         for (auto& source : sources) {
             const DWORD attributes = GetFileAttributesW(source.c_str());
             if (attributes == INVALID_FILE_ATTRIBUTES) {
-                continue;
+                classification_failed = true;
+                break;
             }
             const auto kind = (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0
                 ? velocitycopy::DropItemKind::Directory
@@ -64,6 +66,10 @@ fire_and_forget MainWindow::BeginShellLayoutAsync(velocitycopy::CopyJob job) {
             items.push_back({std::move(source), kind});
         }
     } catch (...) {
+        classification_failed = true;
+    }
+
+    if (classification_failed || items.size() != sources.size()) {
         items.clear();
     }
 
