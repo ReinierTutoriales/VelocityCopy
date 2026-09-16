@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.28)
 
-project(VelocityCopy VERSION 0.19.0 LANGUAGES CXX)
+project(VelocityCopy VERSION 0.20.0 LANGUAGES CXX)
 
 if(NOT WIN32)
     message(FATAL_ERROR "VelocityCopy currently targets Windows only.")
@@ -40,8 +40,8 @@ if(MSVC)
     target_compile_options(velocitycopy_core PRIVATE /W4 /permissive- /EHsc /utf-8)
 endif()
 
-add_executable(VelocityCopy src/app/main.cpp)
-target_link_libraries(VelocityCopy PRIVATE velocitycopy_core)
+add_executable(VelocityCopyCli src/app/main.cpp)
+target_link_libraries(VelocityCopyCli PRIVATE velocitycopy_core)
 
 add_executable(VelocityCopyBenchmark tools/benchmark.cpp)
 target_link_libraries(VelocityCopyBenchmark PRIVATE velocitycopy_core)
@@ -52,7 +52,7 @@ target_link_libraries(VelocityCopyShell PRIVATE velocitycopy_core ole32)
 set_target_properties(VelocityCopyShell PROPERTIES OUTPUT_NAME "VelocityCopy.Shell")
 
 if(MSVC)
-    target_compile_options(VelocityCopy PRIVATE /W4 /permissive- /EHsc /utf-8)
+    target_compile_options(VelocityCopyCli PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyBenchmark PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyShell PRIVATE /W4 /permissive- /EHsc /utf-8)
 endif()
