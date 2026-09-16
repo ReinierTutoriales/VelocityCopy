@@ -53,8 +53,8 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <Button x:Name="PauseButton" x:Uid="PauseButton" IsEnabled="False" Margin="0,0,6,0" />
-            <Button x:Name="StopButton" x:Uid="StopButton" Grid.Column="1" IsEnabled="False" Margin="0,0,6,0" />
+            <Button x:Name="PauseButton" x:Uid="PauseButton" Click="OnPauseClick" IsEnabled="False" Margin="0,0,6,0" />
+            <Button x:Name="StopButton" x:Uid="StopButton" Grid.Column="1" Click="OnStopClick" IsEnabled="False" Margin="0,0,6,0" />
             <Button x:Name="CancelButton" x:Uid="CancelButton" Grid.Column="2" Click="OnCancelClick" IsEnabled="False" />
             <Button x:Name="QueueButton" x:Uid="QueueButton" Grid.Column="4" Click="OnQueueClick" IsEnabled="False" />
         </Grid>
