@@ -32,10 +32,15 @@ void MainWindow::ResizeWindow(const int height_epx) {
         auto window_native = this->m_inner.as<::IWindowNative>();
         if (SUCCEEDED(window_native->get_WindowHandle(&hwnd)) && hwnd != nullptr) {
             const auto dpi = GetDpiForWindow(hwnd);
-            const int width = MulDiv(460, static_cast<int>(dpi), 96);
+            RECT rect{};
+            const bool have_rect = GetWindowRect(hwnd, &rect) != FALSE;
+            const int initial_width = MulDiv(460, static_cast<int>(dpi), 96);
+            const int current_width = have_rect ? rect.right - rect.left : initial_width;
+            const int width = initial_size_applied_ ? current_width : initial_width;
             const int height = MulDiv(height_epx, static_cast<int>(dpi), 96);
             SetWindowPos(hwnd, nullptr, 0, 0, width, height,
                          SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+            initial_size_applied_ = true;
         }
     } catch (...) {
     }
