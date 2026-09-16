@@ -10,6 +10,7 @@
 #include "velocitycopy/job_planner.hpp"
 #include "velocitycopy/job_planning_worker.hpp"
 #include "velocitycopy/live_copy_plan.hpp"
+#include "velocitycopy/queue_archive.hpp"
 #include "velocitycopy/shell_request.hpp"
 #include "velocitycopy/shell_session.hpp"
 #include "velocitycopy/ui_snapshot.hpp"
@@ -42,6 +43,8 @@ struct MainWindow : MainWindowT<MainWindow> {
     void OnStopClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnCancelClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnQueueClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
+    void OnSaveQueueClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
+    void OnLoadQueueClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnQueueMoveUpClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnQueueMoveDownClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnQueueRemoveClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
@@ -61,6 +64,8 @@ private:
     winrt::fire_and_forget BeginShellLayoutAsync(velocitycopy::CopyJob job);
     winrt::fire_and_forget BrowseAsync();
     winrt::fire_and_forget ShowConflictDialogAsync(velocitycopy::JobResult conflict);
+    winrt::fire_and_forget SaveQueueAsync();
+    winrt::fire_and_forget LoadQueueAsync();
     void LoadDestinations();
     void NavigateDestination(std::filesystem::path folder);
     void ApplyDestinationNavigation(velocitycopy::DestinationNavigationResult result);
@@ -73,6 +78,7 @@ private:
         std::shared_ptr<AppendGate> target_gate,
         bool reservation_already_held);
     void StartCopy(velocitycopy::CopyJob job);
+    void StartCopyPlan(velocitycopy::CopyPlan plan);
     void ResumeStoppedCopy();
     void ResumeConflictCopy(std::uint64_t replace_file_id);
     void CancelCurrentSession();
@@ -86,6 +92,7 @@ private:
         std::uint64_t replace_file_id = 0);
     void PublishLivePlan(std::shared_ptr<velocitycopy::LiveCopyPlan> plan);
     void RefreshQueue();
+    void RefreshQueueCommandState();
     [[nodiscard]] std::vector<std::uint64_t> SelectedPendingIds();
     void ResizeWindow(int height_epx);
     void SetExecutionButtonsPlanning();
@@ -109,6 +116,7 @@ private:
     velocitycopy::JobPlanner planner_;
     velocitycopy::JobPlanningWorker append_planner_;
     velocitycopy::JobExecutor executor_;
+    velocitycopy::QueueArchiveStore queue_archive_store_;
     std::shared_ptr<velocitycopy::ExecutionControl> execution_control_;
     std::shared_ptr<AppendGate> append_gate_;
     velocitycopy::ShellSession shell_session_;
