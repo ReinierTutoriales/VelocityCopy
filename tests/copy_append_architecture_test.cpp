@@ -30,8 +30,10 @@ int main() {
     const auto header = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.h");
     const auto window = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
     const auto append = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.CopyAppend.cpp");
+    const auto project = read_all(root / "src/ui/VelocityCopy.UI/VelocityCopy.UI.vcxproj");
 
-    if (shell.empty() || xaml.empty() || header.empty() || window.empty() || append.empty()) {
+    if (shell.empty() || xaml.empty() || header.empty() || window.empty() ||
+        append.empty() || project.empty()) {
         return 1;
     }
 
@@ -81,11 +83,31 @@ int main() {
         return 6;
     }
 
-    // Queue UI materialization must remain bounded even when pending_count is huge.
+    // Queue UI materialization remains bounded even when pending_count is huge.
     if (!contains(window, "kVisibleQueueItems = 256") ||
         !contains(window, "queue_view(kVisibleQueueItems)") ||
         !contains(window, "view.pending_count")) {
         return 7;
+    }
+
+    // Visual queue identity is the immutable file_id, never the displayed path.
+    // Drag and multi-select commands must use one bulk core operation rather
+    // than repeated O(n) per-item mutations.
+    if (!contains(window, "row.Tag(box_value(file.id))") ||
+        !contains(window, "unbox_value<std::uint64_t>(row.Tag())") ||
+        !contains(window, "reorder_pending_files(ordered_ids)") ||
+        !contains(window, "move_pending_files_up(SelectedPendingIds())") ||
+        !contains(window, "move_pending_files_down(SelectedPendingIds())") ||
+        !contains(window, "remove_pending_files(SelectedPendingIds())") ||
+        contains(window, "source == hstring(queue_snapshot_")) {
+        return 8;
+    }
+
+    // The old queue-drag translation unit is intentionally gone. Keeping a
+    // placeholder or compiling it again would recreate a parallel production path.
+    if (std::filesystem::exists(root / "src/ui/VelocityCopy.UI/MainWindow.QueueDrag.cpp") ||
+        contains(project, "MainWindow.QueueDrag.cpp")) {
+        return 9;
     }
 
     return 0;
