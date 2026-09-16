@@ -55,6 +55,12 @@ std::optional<velocitycopy::ShellRequest> inherited_shell_request() noexcept {
     return request;
 }
 
+bool is_stage_only_activation(const std::optional<velocitycopy::ShellRequest>& request) noexcept {
+    return request &&
+        request->action == velocitycopy::ShellAction::CopySelection &&
+        velocitycopy::shell_request_valid(*request);
+}
+
 } // namespace
 
 App::App() {
@@ -92,7 +98,9 @@ void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
 
     auto main_window = winrt::make<MainWindow>();
     window_ = main_window;
-    window_.Activate();
+    if (!is_stage_only_activation(initial_request)) {
+        window_.Activate();
+    }
 
     auto deliver = [weak = winrt::weak_ref<winrt::VelocityCopyUI::MainWindow>{main_window}](
                        const velocitycopy::ShellRequest& request) {
