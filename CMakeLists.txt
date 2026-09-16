@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.28)
 
-project(VelocityCopy VERSION 0.5.0 LANGUAGES CXX)
+project(VelocityCopy VERSION 0.6.0 LANGUAGES CXX)
 
 if(NOT WIN32)
     message(FATAL_ERROR "VelocityCopy currently targets Windows only.")
@@ -15,6 +15,8 @@ add_library(velocitycopy_core STATIC
     src/core/job_executor.cpp
     src/core/job_planner.cpp
     src/core/job_queue.cpp
+    src/core/storage_profiler.cpp
+    src/core/strategy_selector.cpp
 )
 
 target_include_directories(velocitycopy_core
@@ -36,14 +38,15 @@ if(MSVC)
     target_compile_options(velocitycopy_core PRIVATE /W4 /permissive- /EHsc /utf-8)
 endif()
 
-add_executable(VelocityCopy
-    src/app/main.cpp
-)
-
+add_executable(VelocityCopy src/app/main.cpp)
 target_link_libraries(VelocityCopy PRIVATE velocitycopy_core)
+
+add_executable(VelocityCopyBenchmark tools/benchmark.cpp)
+target_link_libraries(VelocityCopyBenchmark PRIVATE velocitycopy_core)
 
 if(MSVC)
     target_compile_options(VelocityCopy PRIVATE /W4 /permissive- /EHsc /utf-8)
+    target_compile_options(VelocityCopyBenchmark PRIVATE /W4 /permissive- /EHsc /utf-8)
 endif()
 
 enable_testing()
@@ -60,14 +63,19 @@ target_link_libraries(VelocityCopyPlanEditTest PRIVATE velocitycopy_core)
 add_executable(VelocityCopyDropLayoutTest tests/drop_layout_test.cpp)
 target_link_libraries(VelocityCopyDropLayoutTest PRIVATE velocitycopy_core)
 
+add_executable(VelocityCopyStrategyTest tests/strategy_selector_test.cpp)
+target_link_libraries(VelocityCopyStrategyTest PRIVATE velocitycopy_core)
+
 if(MSVC)
     target_compile_options(VelocityCopySmokeTest PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyQueueTest PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyPlanEditTest PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyDropLayoutTest PRIVATE /W4 /permissive- /EHsc /utf-8)
+    target_compile_options(VelocityCopyStrategyTest PRIVATE /W4 /permissive- /EHsc /utf-8)
 endif()
 
 add_test(NAME velocitycopy_smoke COMMAND VelocityCopySmokeTest)
 add_test(NAME velocitycopy_queue COMMAND VelocityCopyQueueTest)
 add_test(NAME velocitycopy_plan_edit COMMAND VelocityCopyPlanEditTest)
 add_test(NAME velocitycopy_drop_layout COMMAND VelocityCopyDropLayoutTest)
+add_test(NAME velocitycopy_strategy COMMAND VelocityCopyStrategyTest)
