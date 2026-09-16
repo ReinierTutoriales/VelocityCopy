@@ -20,6 +20,7 @@ struct JobProgress {
     std::uint64_t total_files{};
     std::uint64_t completed_files{};
     std::uint64_t current_file_id{};
+    bool current_file_skippable{};
     std::filesystem::path current_source;
     std::filesystem::path current_destination;
 };
