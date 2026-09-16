@@ -25,7 +25,9 @@ add_library(velocitycopy_core STATIC
     src/core/job_planning_worker.cpp
     src/core/job_queue.cpp
     src/core/live_copy_plan.cpp
+    src/core/live_copy_plan_export.cpp
     src/core/process_activation.cpp
+    src/core/queue_archive.cpp
     src/core/shell_session.cpp
     src/core/storage_profiler.cpp
     src/core/strategy_selector.cpp
@@ -78,6 +80,7 @@ add_velocitycopy_test(VelocityCopyExecutorAppendTest tests/job_executor_append_t
 add_velocitycopy_test(VelocityCopyExecutionControlTest tests/execution_control_test.cpp velocitycopy_execution_control)
 add_velocitycopy_test(VelocityCopySkipTest tests/skip_test.cpp velocitycopy_skip)
 add_velocitycopy_test(VelocityCopyExistingDestinationTest tests/existing_destination_test.cpp velocitycopy_existing_destination)
+add_velocitycopy_test(VelocityCopyQueueArchiveTest tests/queue_archive_test.cpp velocitycopy_queue_archive)
 add_velocitycopy_test(VelocityCopyDropLayoutTest tests/drop_layout_test.cpp velocitycopy_drop_layout)
 add_velocitycopy_test(VelocityCopyDropMenuModelTest tests/drop_menu_model_test.cpp velocitycopy_drop_menu_model)
 add_velocitycopy_test(VelocityCopyDropFlowTest tests/drop_flow_test.cpp velocitycopy_drop_flow)
