@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.28)
 
-project(VelocityCopy VERSION 0.18.0 LANGUAGES CXX)
+project(VelocityCopy VERSION 0.19.0 LANGUAGES CXX)
 
 if(NOT WIN32)
     message(FATAL_ERROR "VelocityCopy currently targets Windows only.")
@@ -17,6 +17,7 @@ add_library(velocitycopy_core STATIC
     src/core/destination_navigation_worker.cpp
     src/core/drop_flow.cpp
     src/core/drop_menu_model.cpp
+    src/core/execution_control.cpp
     src/core/ipc_protocol.cpp
     src/core/ipc_transport.cpp
     src/core/job_executor.cpp
@@ -71,6 +72,7 @@ add_velocitycopy_test(VelocityCopySmokeTest tests/smoke_test.cpp velocitycopy_sm
 add_velocitycopy_test(VelocityCopyQueueTest tests/queue_test.cpp velocitycopy_queue)
 add_velocitycopy_test(VelocityCopyPlanEditTest tests/plan_edit_test.cpp velocitycopy_plan_edit)
 add_velocitycopy_test(VelocityCopyLivePlanTest tests/live_copy_plan_test.cpp velocitycopy_live_plan)
+add_velocitycopy_test(VelocityCopyExecutionControlTest tests/execution_control_test.cpp velocitycopy_execution_control)
 add_velocitycopy_test(VelocityCopyDropLayoutTest tests/drop_layout_test.cpp velocitycopy_drop_layout)
 add_velocitycopy_test(VelocityCopyDropMenuModelTest tests/drop_menu_model_test.cpp velocitycopy_drop_menu_model)
 add_velocitycopy_test(VelocityCopyDropFlowTest tests/drop_flow_test.cpp velocitycopy_drop_flow)
