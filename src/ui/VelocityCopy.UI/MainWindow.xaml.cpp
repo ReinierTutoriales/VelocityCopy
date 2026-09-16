@@ -23,14 +23,17 @@ MainWindow::MainWindow() {
 
     ExtendsContentIntoTitleBar(true);
     SetTitleBar(TitleBarDragRegion());
+    ResizeWindow(156);
+}
 
+void MainWindow::ResizeWindow(const int height_epx) {
     try {
         HWND hwnd{};
         auto window_native = this->m_inner.as<::IWindowNative>();
         if (SUCCEEDED(window_native->get_WindowHandle(&hwnd)) && hwnd != nullptr) {
             const auto dpi = GetDpiForWindow(hwnd);
             const int width = MulDiv(460, static_cast<int>(dpi), 96);
-            const int height = MulDiv(156, static_cast<int>(dpi), 96);
+            const int height = MulDiv(height_epx, static_cast<int>(dpi), 96);
             SetWindowPos(hwnd, nullptr, 0, 0, width, height,
                          SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
         }
@@ -260,6 +263,13 @@ void MainWindow::OnStartCopyClick(IInspectable const&, RoutedEventArgs const&) {
 void MainWindow::StartCopy(velocitycopy::CopyJob job) {
     cancel_requested_.store(false, std::memory_order_relaxed);
     presenter_.reset();
+    last_queue_completed_files_ = 0;
+    live_plan_.reset();
+    queue_snapshot_.clear();
+    QueueList().Items().Clear();
+    QueueButton().IsEnabled(false);
+    QueuePanel().Visibility(Visibility::Collapsed);
+    ResizeWindow(156);
     GlobalProgress().Value(0);
     CancelButton().IsEnabled(true);
     CurrentItemText().Text(job.display_name.empty() ? hstring(L"…") : hstring(job.display_name));
@@ -268,7 +278,25 @@ void MainWindow::StartCopy(velocitycopy::CopyJob job) {
     auto dispatcher = dispatcher_;
 
     copy_thread_ = std::jthread([this, weak, dispatcher, job = std::move(job)](std::stop_token stop_token) mutable {
-        const auto result = executor_.execute(job, [this, weak, dispatcher, &stop_token](const velocitycopy::JobProgress& progress) {
+        std::shared_ptr<velocitycopy::LiveCopyPlan> plan;
+        try {
+            plan = std::make_shared<velocitycopy::LiveCopyPlan>(planner_.build(job));
+        } catch (...) {
+            dispatcher.TryEnqueue([weak]() {
+                if (auto self = weak.get()) {
+                    self->FinishCopy({false, false, static_cast<std::int32_t>(E_FAIL)});
+                }
+            });
+            return;
+        }
+
+        dispatcher.TryEnqueue([weak, plan]() {
+            if (auto self = weak.get()) {
+                self->PublishLivePlan(plan);
+            }
+        });
+
+        const auto result = executor_.execute(*plan, [this, weak, dispatcher, &stop_token](const velocitycopy::JobProgress& progress) {
             if (stop_token.stop_requested() || cancel_requested_.load(std::memory_order_relaxed)) {
                 return velocitycopy::JobDecision::Cancel;
             }
@@ -292,6 +320,92 @@ void MainWindow::StartCopy(velocitycopy::CopyJob job) {
     });
 }
 
+void MainWindow::PublishLivePlan(std::shared_ptr<velocitycopy::LiveCopyPlan> plan) {
+    live_plan_ = std::move(plan);
+    QueueButton().IsEnabled(true);
+    RefreshQueue();
+}
+
+void MainWindow::RefreshQueue() {
+    if (!live_plan_) {
+        return;
+    }
+
+    const auto snapshot = live_plan_->snapshot();
+    queue_snapshot_ = snapshot.pending_files;
+
+    auto items = QueueList().Items();
+    items.Clear();
+    for (const auto& file : queue_snapshot_) {
+        items.Append(box_value(hstring(file.source.wstring())));
+    }
+
+    QueueCountText().Text(hstring(std::format(L"{}", queue_snapshot_.size())));
+}
+
+std::vector<std::uint64_t> MainWindow::SelectedPendingIds() const {
+    std::vector<std::uint64_t> ids;
+    const auto selected = QueueList().SelectedItems();
+
+    for (const auto& file : queue_snapshot_) {
+        const auto source = file.source.wstring();
+        for (const auto& selected_item : selected) {
+            try {
+                if (unbox_value<hstring>(selected_item) == hstring(source)) {
+                    ids.push_back(file.id);
+                    break;
+                }
+            } catch (...) {
+            }
+        }
+    }
+    return ids;
+}
+
+void MainWindow::OnQueueClick(IInspectable const&, RoutedEventArgs const&) {
+    const bool expanding = QueuePanel().Visibility() != Visibility::Visible;
+    QueuePanel().Visibility(expanding ? Visibility::Visible : Visibility::Collapsed);
+    if (expanding) {
+        RefreshQueue();
+        ResizeWindow(380);
+    } else {
+        ResizeWindow(156);
+    }
+}
+
+void MainWindow::OnQueueMoveUpClick(IInspectable const&, RoutedEventArgs const&) {
+    if (!live_plan_) {
+        return;
+    }
+    const auto ids = SelectedPendingIds();
+    for (const auto id : ids) {
+        live_plan_->move_pending_file_up(id);
+    }
+    RefreshQueue();
+}
+
+void MainWindow::OnQueueMoveDownClick(IInspectable const&, RoutedEventArgs const&) {
+    if (!live_plan_) {
+        return;
+    }
+    auto ids = SelectedPendingIds();
+    for (auto it = ids.rbegin(); it != ids.rend(); ++it) {
+        live_plan_->move_pending_file_down(*it);
+    }
+    RefreshQueue();
+}
+
+void MainWindow::OnQueueRemoveClick(IInspectable const&, RoutedEventArgs const&) {
+    if (!live_plan_) {
+        return;
+    }
+    const auto ids = SelectedPendingIds();
+    for (const auto id : ids) {
+        live_plan_->remove_pending_file(id);
+    }
+    RefreshQueue();
+}
+
 void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
     GlobalProgress().Value(snapshot.fraction * 100.0);
     if (!snapshot.current_source.empty()) {
@@ -299,10 +413,18 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
     }
     SpeedText().Text(FormatSpeed(snapshot.bytes_per_second));
     EtaText().Text(FormatEta(snapshot.eta_seconds));
+
+    if (QueuePanel().Visibility() == Visibility::Visible &&
+        snapshot.completed_files != last_queue_completed_files_) {
+        last_queue_completed_files_ = snapshot.completed_files;
+        RefreshQueue();
+    }
 }
 
 void MainWindow::FinishCopy(const velocitycopy::JobResult& result) {
     CancelButton().IsEnabled(false);
+    RefreshQueue();
+    QueueButton().IsEnabled(false);
     if (result.success) {
         GlobalProgress().Value(100);
         SpeedText().Text(L"—");
