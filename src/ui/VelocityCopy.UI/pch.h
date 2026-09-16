@@ -15,6 +15,7 @@
 #include <winrt/Microsoft.UI.Dispatching.h>
 #include <winrt/Microsoft.UI.Windowing.h>
 #include <winrt/Microsoft.UI.Xaml.h>
+#include <winrt/Microsoft.UI.Xaml.Automation.h>
 #include <winrt/Microsoft.UI.Xaml.Controls.h>
 #include <winrt/Microsoft.UI.Xaml.Data.h>
 #include <winrt/Microsoft.UI.Xaml.Input.h>
@@ -27,6 +28,7 @@
 #include <cmath>
 #include <filesystem>
 #include <format>
+#include <limits>
 #include <optional>
 #include <string>
 #include <thread>
