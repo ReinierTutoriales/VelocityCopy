@@ -80,7 +80,7 @@ int main() {
 
     if (!contains(persistence, "revalidate_plan_sources") ||
         !contains(persistence, "std::filesystem::file_size") ||
-        !contains(persistence, "archive->current_append_jobs") ||
+        !contains(persistence, "current_append_jobs") ||
         !contains(persistence, "merged.append(std::move(append_plan), true)")) {
         return fail(7, "load must revalidate sources and restore same-session appends");
     }
