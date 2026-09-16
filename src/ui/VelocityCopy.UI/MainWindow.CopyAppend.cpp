@@ -39,7 +39,9 @@ void MainWindow::OnQueueOrStartCopyClick(IInspectable const&, RoutedEventArgs co
 
 void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
     auto target_plan = live_plan_;
-    if (!target_plan || !same_destination(target_plan->destination_root(), job.destination)) {
+    auto target_control = execution_control_;
+    if (!target_plan || !target_control ||
+        !same_destination(target_plan->destination_root(), job.destination)) {
         StartCopy(std::move(job));
         return;
     }
@@ -49,7 +51,7 @@ void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
 
     (void)append_planner_.enqueue(
         std::move(job),
-        [weak, dispatcher, target_plan](velocitycopy::JobPlanningResult result) mutable {
+        [weak, dispatcher, target_plan, target_control](velocitycopy::JobPlanningResult result) mutable {
             if (!result.plan) {
                 (void)dispatcher.TryEnqueue([weak]() {
                     if (auto self = weak.get()) {
@@ -78,10 +80,14 @@ void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
             (void)dispatcher.TryEnqueue([
                 weak,
                 target_plan,
+                target_control,
                 job = std::move(result.job),
                 append_result]() mutable {
                 if (auto self = weak.get()) {
-                    if (self->live_plan_ != target_plan) {
+                    // The active execution may have changed while this batch was
+                    // being planned. Never append into a stale/stopped session.
+                    if (self->live_plan_ != target_plan ||
+                        self->execution_control_ != target_control) {
                         self->QueueOrStartCopy(std::move(job));
                         return;
                     }
