@@ -15,6 +15,7 @@ namespace winrt::VelocityCopyUI::implementation {
 MainWindow::MainWindow() {
     InitializeComponent();
     dispatcher_ = Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
+    ConfigureQueuePersistenceMenu();
 
     try {
         SystemBackdrop(Microsoft::UI::Xaml::Media::MicaBackdrop{});
