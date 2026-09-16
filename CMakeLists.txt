@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.28)
 
-project(VelocityCopy VERSION 0.10.0 LANGUAGES CXX)
+project(VelocityCopy VERSION 0.10.1 LANGUAGES CXX)
 
 if(NOT WIN32)
     message(FATAL_ERROR "VelocityCopy currently targets Windows only.")
@@ -52,6 +52,7 @@ target_link_libraries(VelocityCopyBenchmark PRIVATE velocitycopy_core)
 
 add_library(VelocityCopyShell SHARED
     src/shell/explorer_commands.cpp
+    src/shell/VelocityCopyShell.def
 )
 target_link_libraries(VelocityCopyShell PRIVATE velocitycopy_core ole32)
 set_target_properties(VelocityCopyShell PROPERTIES OUTPUT_NAME "VelocityCopy.Shell")
@@ -90,7 +91,8 @@ add_executable(VelocityCopyShellSessionTest tests/shell_session_test.cpp)
 target_link_libraries(VelocityCopyShellSessionTest PRIVATE velocitycopy_core)
 
 add_executable(VelocityCopyShellDllTest tests/shell_dll_test.cpp)
-target_link_libraries(VelocityCopyShellDllTest PRIVATE VelocityCopyShell ole32)
+target_link_libraries(VelocityCopyShellDllTest PRIVATE ole32)
+add_dependencies(VelocityCopyShellDllTest VelocityCopyShell)
 
 if(MSVC)
     target_compile_options(VelocityCopySmokeTest PRIVATE /W4 /permissive- /EHsc /utf-8)
@@ -112,4 +114,4 @@ add_test(NAME velocitycopy_strategy COMMAND VelocityCopyStrategyTest)
 add_test(NAME velocitycopy_shell_request COMMAND VelocityCopyShellRequestTest)
 add_test(NAME velocitycopy_ipc COMMAND VelocityCopyIpcTest)
 add_test(NAME velocitycopy_shell_session COMMAND VelocityCopyShellSessionTest)
-add_test(NAME velocitycopy_shell_dll COMMAND VelocityCopyShellDllTest)
+add_test(NAME velocitycopy_shell_dll COMMAND VelocityCopyShellDllTest "$<TARGET_FILE:VelocityCopyShell>")
