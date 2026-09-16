@@ -118,6 +118,7 @@ private:
     bool paused_{};
     bool stopped_session_{};
     bool stop_requested_{};
+    bool resume_requested_{};
     bool initial_size_applied_{};
     std::uint64_t next_job_id_{1};
     std::uint64_t last_queue_completed_files_{};
