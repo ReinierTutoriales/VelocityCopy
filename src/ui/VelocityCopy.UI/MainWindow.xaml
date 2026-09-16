@@ -89,17 +89,58 @@
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
-                            <TextBlock x:Uid="DestinationTitle" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10" />
-                            <ScrollViewer Grid.Row="1" MaxHeight="240" VerticalScrollBarVisibility="Auto">
+
+                            <TextBlock x:Uid="DestinationTitle"
+                                       FontSize="18"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,8" />
+
+                            <Grid x:Name="DestinationBrowserHeader"
+                                  Grid.Row="1"
+                                  Visibility="Collapsed"
+                                  Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Button x:Name="DestinationBackButton"
+                                        x:Uid="DestinationBackButton"
+                                        Click="OnDestinationBackClick"
+                                        Margin="0,0,6,0" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock x:Name="DestinationPathText"
+                                               TextTrimming="CharacterEllipsis"
+                                               FontWeight="SemiBold" />
+                                    <TextBlock x:Name="DestinationCapacityText"
+                                               Opacity="0.65"
+                                               FontSize="12" />
+                                </StackPanel>
+                            </Grid>
+
+                            <ScrollViewer Grid.Row="2"
+                                          MaxHeight="240"
+                                          VerticalScrollBarVisibility="Auto">
                                 <StackPanel x:Name="DestinationItems" Spacing="4" />
                             </ScrollViewer>
-                            <Grid Grid.Row="2" Margin="0,10,0,0">
+
+                            <Grid Grid.Row="3" Margin="0,10,0,0">
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <Button x:Name="BrowseButton" x:Uid="BrowseButton" Grid.Column="1" Click="OnBrowseClick" />
+                                <Button x:Name="BrowseButton"
+                                        x:Uid="BrowseButton"
+                                        Click="OnBrowseClick" />
+                                <Button x:Name="ChooseCurrentFolderButton"
+                                        x:Uid="ChooseCurrentFolderButton"
+                                        Grid.Column="2"
+                                        Visibility="Collapsed"
+                                        Click="OnChooseCurrentFolderClick"
+                                        Margin="0,0,6,0" />
                             </Grid>
                         </Grid>
 
