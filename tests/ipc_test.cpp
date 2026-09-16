@@ -1,10 +1,13 @@
 #include "velocitycopy/ipc_protocol.hpp"
 #include "velocitycopy/ipc_transport.hpp"
 
+#include <atomic>
 #include <chrono>
 #include <filesystem>
 #include <iostream>
 #include <thread>
+
+using namespace std::chrono_literals;
 
 int wmain() {
     using namespace velocitycopy;
@@ -59,6 +62,27 @@ int wmain() {
         received->destination != request.destination || received->action != request.action ||
         received->layout != request.layout) {
         return 7;
+    }
+
+    // Shutdown contract: stop() must wake a thread blocked in ConnectNamedPipe
+    // without polling or detaching the receiver thread.
+    std::atomic_bool stop_receiver_returned{false};
+    std::optional<ShellRequest> stop_result;
+    std::jthread stop_receiver([&] {
+        stop_result = server.receive();
+        stop_receiver_returned.store(true, std::memory_order_release);
+    });
+
+    std::this_thread::sleep_for(25ms);
+    if (stop_receiver_returned.load(std::memory_order_acquire)) {
+        stop_receiver.join();
+        return 8;
+    }
+
+    server.stop();
+    stop_receiver.join();
+    if (!server.stopping() || !stop_receiver_returned.load(std::memory_order_acquire) || stop_result) {
+        return 9;
     }
 
     std::wcout << L"VelocityCopy IPC test passed.\n";
