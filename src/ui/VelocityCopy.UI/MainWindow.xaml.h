@@ -66,6 +66,7 @@ private:
     winrt::fire_and_forget ShowConflictDialogAsync(velocitycopy::JobResult conflict);
     winrt::fire_and_forget SaveQueueAsync();
     winrt::fire_and_forget LoadQueueAsync();
+    void ConfigureQueuePersistenceMenu();
     void LoadDestinations();
     void NavigateDestination(std::filesystem::path folder);
     void ApplyDestinationNavigation(velocitycopy::DestinationNavigationResult result);
@@ -130,6 +131,9 @@ private:
     std::shared_ptr<velocitycopy::LiveCopyPlan> live_plan_;
     std::vector<velocitycopy::PlannedFile> queue_snapshot_;
     Microsoft::UI::Dispatching::DispatcherQueue dispatcher_{nullptr};
+    Microsoft::UI::Xaml::Controls::Button queue_options_button_{nullptr};
+    Microsoft::UI::Xaml::Controls::MenuFlyoutItem save_queue_menu_item_{nullptr};
+    Microsoft::UI::Xaml::Controls::MenuFlyoutItem load_queue_menu_item_{nullptr};
     std::atomic_bool cancel_requested_{false};
     bool paused_{};
     bool stopped_session_{};
