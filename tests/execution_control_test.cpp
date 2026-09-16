@@ -15,9 +15,20 @@ int main() {
         return 1;
     }
 
+    control.request_skip(11);
+    control.request_skip(22);
+    if (!control.consume_skip(11) || control.consume_skip(11) ||
+        !control.consume_skip(22) || control.consume_skip(33)) {
+        return 2;
+    }
+
     control.request_pause();
     if (control.directive() != ExecutionDirective::Pause) {
-        return 2;
+        return 3;
+    }
+    control.request_skip(44);
+    if (!control.consume_skip(44)) {
+        return 4;
     }
 
     std::atomic_bool returned{false};
@@ -31,14 +42,14 @@ int main() {
     if (returned.load(std::memory_order_acquire)) {
         control.resume();
         waiter.join();
-        return 3;
+        return 5;
     }
 
     control.resume();
     waiter.join();
     if (!returned.load(std::memory_order_acquire) ||
         result.load(std::memory_order_relaxed) != ExecutionDirective::Run) {
-        return 4;
+        return 6;
     }
 
     control.request_pause();
@@ -49,17 +60,23 @@ int main() {
     control.request_stop();
     stopper.join();
     if (result.load(std::memory_order_relaxed) != ExecutionDirective::Stop) {
-        return 5;
+        return 7;
     }
 
+    // Stop/Cancel reject new skip requests, and Cancel clears queued requests.
+    control.request_skip(55);
+    if (control.consume_skip(55)) {
+        return 8;
+    }
     control.reset();
+    control.request_skip(66);
     control.request_cancel();
-    if (control.directive() != ExecutionDirective::Cancel) {
-        return 6;
+    if (control.directive() != ExecutionDirective::Cancel || control.consume_skip(66)) {
+        return 9;
     }
     control.request_stop();
     if (control.directive() != ExecutionDirective::Cancel) {
-        return 7;
+        return 10;
     }
 
     // Multi-worker contract: all paused workers remain blocked until resume,
@@ -82,7 +99,7 @@ int main() {
             for (auto& thread : waiters) {
                 thread.join();
             }
-            return 8;
+            return 11;
         }
     }
 
@@ -92,13 +109,14 @@ int main() {
     }
     for (const auto& value : multi_results) {
         if (value.load(std::memory_order_acquire) != ExecutionDirective::Run) {
-            return 9;
+            return 12;
         }
     }
 
+    control.request_skip(77);
     control.reset();
-    if (control.directive() != ExecutionDirective::Run) {
-        return 10;
+    if (control.directive() != ExecutionDirective::Run || control.consume_skip(77)) {
+        return 13;
     }
     return 0;
 }
