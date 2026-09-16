@@ -75,13 +75,15 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <Button x:Name="PauseButton" x:Uid="PauseButton" Click="OnPauseClick" IsEnabled="False" Margin="0,0,6,0" />
-            <Button x:Name="StopButton" x:Uid="StopButton" Grid.Column="1" Click="OnStopClick" IsEnabled="False" Margin="0,0,6,0" />
-            <Button x:Name="CancelButton" x:Uid="CancelButton" Grid.Column="2" Click="OnCancelClick" IsEnabled="False" />
-            <Button x:Name="QueueButton" x:Uid="QueueButton" Grid.Column="4" Click="OnQueueClick" IsEnabled="False" />
+            <Button x:Name="SkipButton" x:Uid="SkipButton" Grid.Column="1" Click="OnSkipClick" IsEnabled="False" Margin="0,0,6,0" />
+            <Button x:Name="StopButton" x:Uid="StopButton" Grid.Column="2" Click="OnStopClick" IsEnabled="False" Margin="0,0,6,0" />
+            <Button x:Name="CancelButton" x:Uid="CancelButton" Grid.Column="3" Click="OnCancelClick" IsEnabled="False" />
+            <Button x:Name="QueueButton" x:Uid="QueueButton" Grid.Column="5" Click="OnQueueClick" IsEnabled="False" />
         </Grid>
 
         <Grid x:Name="QueuePanel"
