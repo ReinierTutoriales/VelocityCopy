@@ -12,6 +12,20 @@ struct CallbackContext {
     bool callback_failed{};
 };
 
+COPYFILE2_MESSAGE_ACTION to_native_action(const CopyDecision decision) noexcept {
+    switch (decision) {
+    case CopyDecision::Pause:
+        return COPYFILE2_PROGRESS_PAUSE;
+    case CopyDecision::Stop:
+        return COPYFILE2_PROGRESS_STOP;
+    case CopyDecision::Cancel:
+        return COPYFILE2_PROGRESS_CANCEL;
+    case CopyDecision::Continue:
+    default:
+        return COPYFILE2_PROGRESS_CONTINUE;
+    }
+}
+
 COPYFILE2_MESSAGE_ACTION CALLBACK copy_progress_routine(
     const COPYFILE2_MESSAGE* message,
     void* context) noexcept {
@@ -49,9 +63,7 @@ COPYFILE2_MESSAGE_ACTION CALLBACK copy_progress_routine(
     }
 
     try {
-        return (*callback_context->callback)(progress) == CopyDecision::Cancel
-            ? COPYFILE2_PROGRESS_CANCEL
-            : COPYFILE2_PROGRESS_CONTINUE;
+        return to_native_action((*callback_context->callback)(progress));
     } catch (...) {
         callback_context->callback_failed = true;
         return COPYFILE2_PROGRESS_CANCEL;
@@ -63,6 +75,14 @@ COPYFILE2_MESSAGE_ACTION CALLBACK copy_progress_routine(
 CopyResult CopyEngine::copy_file(
     const std::filesystem::path& source,
     const std::filesystem::path& destination,
+    const ProgressCallback& progress) const noexcept {
+    return copy_file(source, destination, CopyOptions{}, progress);
+}
+
+CopyResult CopyEngine::copy_file(
+    const std::filesystem::path& source,
+    const std::filesystem::path& destination,
+    const CopyOptions& options,
     const ProgressCallback& progress) const noexcept {
     std::error_code directory_error;
     const auto parent = destination.parent_path();
@@ -78,7 +98,7 @@ CopyResult CopyEngine::copy_file(
 
     COPYFILE2_EXTENDED_PARAMETERS parameters{};
     parameters.dwSize = sizeof(parameters);
-    parameters.dwCopyFlags = 0;
+    parameters.dwCopyFlags = options.resume_from_pause ? COPY_FILE_RESUME_FROM_PAUSE : 0;
     parameters.pProgressRoutine = copy_progress_routine;
     parameters.pvCallbackContext = &callback_context;
 
