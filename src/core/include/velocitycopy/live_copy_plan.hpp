@@ -26,6 +26,8 @@ public:
     LiveCopyPlan& operator=(const LiveCopyPlan&) = delete;
 
     [[nodiscard]] const std::vector<PlannedDirectory>& directories() const noexcept;
+    [[nodiscard]] const std::vector<std::filesystem::path>& source_roots() const noexcept;
+    [[nodiscard]] const std::filesystem::path& destination_root() const noexcept;
     [[nodiscard]] LiveCopyPlanSnapshot snapshot() const;
 
     [[nodiscard]] bool move_pending_file(std::uint64_t file_id, std::size_t new_index) noexcept;
@@ -47,6 +49,8 @@ private:
     [[nodiscard]] std::vector<PlannedFile>::iterator find_active(std::uint64_t file_id) noexcept;
 
     std::vector<PlannedDirectory> directories_;
+    std::vector<std::filesystem::path> source_roots_;
+    std::filesystem::path destination_root_;
     mutable std::mutex mutex_;
     std::vector<PlannedFile> pending_files_;
     std::vector<PlannedFile> active_files_;
