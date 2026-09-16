@@ -129,6 +129,17 @@ std::vector<PlannedFile>::iterator LiveCopyPlan::find_active(const std::uint64_t
     });
 }
 
+void LiveCopyPlan::recompute_largest_file_bytes_locked() noexcept {
+    std::uint64_t largest = 0;
+    for (const auto& file : pending_files_) {
+        largest = std::max(largest, file.size);
+    }
+    for (const auto& file : active_files_) {
+        largest = std::max(largest, file.size);
+    }
+    largest_file_bytes_ = largest;
+}
+
 bool LiveCopyPlan::move_pending_file(const std::uint64_t file_id, const std::size_t new_index) noexcept {
     std::lock_guard lock(mutex_);
     auto it = find_pending(file_id);
@@ -214,8 +225,6 @@ bool LiveCopyPlan::reorder_pending_files(const std::vector<std::uint64_t>& order
         for (std::size_t index = 0; index < pending_files_.size(); ++index) {
             if (rank.contains(pending_files_[index].id)) {
                 positions.push_back(index);
-                // Copy before mutation so allocation/copy failures leave the
-                // live queue byte-for-byte unchanged.
                 matched.push_back(pending_files_[index]);
             }
         }
@@ -252,15 +261,15 @@ std::size_t LiveCopyPlan::remove_pending_files(const std::vector<std::uint64_t>&
         std::vector<RemovalInfo> removals;
         removals.reserve(std::min(selected.size(), pending_files_.size()));
         std::uint64_t removed_bytes = 0;
+        bool removed_largest = false;
         for (const auto& file : pending_files_) {
             if (!selected.contains(file.id)) continue;
             removals.push_back({file.size, normalized_path_key(file.destination)});
             removed_bytes += file.size;
+            removed_largest = removed_largest || file.size == largest_file_bytes_;
         }
         if (removals.empty()) return 0;
 
-        // All potentially-allocating preparation is complete. Mutation starts
-        // only after the full removal set and normalized keys are available.
         for (const auto& removal : removals) {
             reserved_destination_keys_.erase(removal.destination_key);
         }
@@ -270,6 +279,9 @@ std::size_t LiveCopyPlan::remove_pending_files(const std::vector<std::uint64_t>&
         std::erase_if(pending_files_, [&](const PlannedFile& file) {
             return selected.contains(file.id);
         });
+        if (removed_largest) {
+            recompute_largest_file_bytes_locked();
+        }
         return removals.size();
     } catch (...) {
         return 0;
@@ -302,6 +314,31 @@ void LiveCopyPlan::release_active(const std::uint64_t file_id) noexcept {
     PlannedFile file = std::move(*it);
     active_files_.erase(it);
     pending_files_.insert(pending_files_.begin(), std::move(file));
+}
+
+bool LiveCopyPlan::skip_active(const std::uint64_t file_id) noexcept {
+    try {
+        std::lock_guard lock(mutex_);
+        auto it = find_active(file_id);
+        if (it == active_files_.end()) return false;
+
+        const auto skipped_size = it->size;
+        const bool skipped_largest = skipped_size == largest_file_bytes_;
+        const auto destination_key = normalized_path_key(it->destination);
+
+        reserved_destination_keys_.erase(destination_key);
+        total_bytes_ -= std::min(total_bytes_, skipped_size);
+        if (total_files_ != 0) {
+            --total_files_;
+        }
+        active_files_.erase(it);
+        if (skipped_largest) {
+            recompute_largest_file_bytes_locked();
+        }
+        return true;
+    } catch (...) {
+        return false;
+    }
 }
 
 std::uint64_t LiveCopyPlan::total_bytes() const noexcept {
