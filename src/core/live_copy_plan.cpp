@@ -58,6 +58,9 @@ LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan) noexcept {
     try {
         std::lock_guard lock(mutex_);
 
+        if (pending_files_.empty() && active_files_.empty()) {
+            return LivePlanAppendResult::Drained;
+        }
         if (normalized_path_key(plan.destination_root) != normalized_path_key(destination_root_)) {
             return LivePlanAppendResult::DifferentDestination;
         }
