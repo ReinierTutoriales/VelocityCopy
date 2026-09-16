@@ -23,6 +23,7 @@
 #include <winrt/Microsoft.Windows.ApplicationModel.Resources.h>
 #include <winrt/Microsoft.Windows.Storage.Pickers.h>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cmath>
