@@ -1,5 +1,6 @@
 #include "velocitycopy/job_planner.hpp"
 
+#include <algorithm>
 #include <system_error>
 
 namespace velocitycopy {
@@ -18,8 +19,76 @@ std::filesystem::path destination_root_for(
 
 } // namespace
 
+bool CopyPlan::move_file(const std::uint64_t file_id, const std::size_t new_index) noexcept {
+    if (new_index >= files.size()) {
+        return false;
+    }
+
+    const auto it = std::find_if(files.begin(), files.end(), [file_id](const PlannedFile& file) {
+        return file.id == file_id;
+    });
+    if (it == files.end()) {
+        return false;
+    }
+
+    const auto current_index = static_cast<std::size_t>(std::distance(files.begin(), it));
+    if (current_index == new_index) {
+        return true;
+    }
+
+    if (current_index < new_index) {
+        std::rotate(it, it + 1, files.begin() + static_cast<std::ptrdiff_t>(new_index + 1));
+    } else {
+        std::rotate(files.begin() + static_cast<std::ptrdiff_t>(new_index), it, it + 1);
+    }
+
+    return true;
+}
+
+bool CopyPlan::move_file_up(const std::uint64_t file_id) noexcept {
+    const auto it = std::find_if(files.begin(), files.end(), [file_id](const PlannedFile& file) {
+        return file.id == file_id;
+    });
+    if (it == files.end() || it == files.begin()) {
+        return false;
+    }
+
+    const auto index = static_cast<std::size_t>(std::distance(files.begin(), it));
+    return move_file(file_id, index - 1);
+}
+
+bool CopyPlan::move_file_down(const std::uint64_t file_id) noexcept {
+    const auto it = std::find_if(files.begin(), files.end(), [file_id](const PlannedFile& file) {
+        return file.id == file_id;
+    });
+    if (it == files.end()) {
+        return false;
+    }
+
+    const auto index = static_cast<std::size_t>(std::distance(files.begin(), it));
+    if (index + 1 >= files.size()) {
+        return false;
+    }
+
+    return move_file(file_id, index + 1);
+}
+
+bool CopyPlan::remove_file(const std::uint64_t file_id) noexcept {
+    const auto it = std::find_if(files.begin(), files.end(), [file_id](const PlannedFile& file) {
+        return file.id == file_id;
+    });
+    if (it == files.end()) {
+        return false;
+    }
+
+    total_bytes -= it->size;
+    files.erase(it);
+    return true;
+}
+
 CopyPlan JobPlanner::build(const CopyJob& job) const {
     CopyPlan plan{};
+    std::uint64_t next_file_id = 1;
 
     for (const auto& source : job.sources) {
         std::error_code ec;
@@ -35,7 +104,7 @@ CopyPlan JobPlanner::build(const CopyJob& job) const {
             if (ec) {
                 throw std::filesystem::filesystem_error("Unable to read file size", source, ec);
             }
-            plan.files.push_back({source, root, size});
+            plan.files.push_back({next_file_id++, source, root, size});
             plan.total_bytes += size;
             continue;
         }
@@ -85,7 +154,7 @@ CopyPlan JobPlanner::build(const CopyJob& job) const {
                 if (ec) {
                     throw std::filesystem::filesystem_error("Unable to read file size", entry.path(), ec);
                 }
-                plan.files.push_back({entry.path(), target, size});
+                plan.files.push_back({next_file_id++, entry.path(), target, size});
                 plan.total_bytes += size;
             }
         }

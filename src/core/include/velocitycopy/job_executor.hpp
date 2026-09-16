@@ -38,6 +38,10 @@ public:
         const CopyJob& job,
         const JobProgressCallback& progress = {}) const noexcept;
 
+    [[nodiscard]] JobResult execute(
+        const CopyPlan& plan,
+        const JobProgressCallback& progress = {}) const noexcept;
+
 private:
     CopyEngine engine_;
     JobPlanner planner_;
