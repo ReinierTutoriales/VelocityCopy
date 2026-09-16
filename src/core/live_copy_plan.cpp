@@ -86,15 +86,10 @@ LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan) noexcept {
             }
         }
 
-        source_roots_.insert(
-            source_roots_.end(),
-            std::make_move_iterator(plan.source_roots.begin()),
-            std::make_move_iterator(plan.source_roots.end()));
-        directories_.insert(
-            directories_.end(),
-            std::make_move_iterator(plan.directories.begin()),
-            std::make_move_iterator(plan.directories.end()));
-
+        // directories_ and source_roots_ are immutable execution metadata.
+        // Appended batches have their directories prepared by the background
+        // planning worker before this atomic queue merge, avoiding races with
+        // the executor's initial directory/strategy reads.
         pending_files_.reserve(pending_files_.size() + plan.files.size());
         for (auto& file : plan.files) {
             file.id = next_file_id_++;
@@ -218,6 +213,7 @@ std::uint64_t LiveCopyPlan::total_files() const noexcept {
 }
 
 std::uint64_t LiveCopyPlan::largest_file_bytes() const noexcept {
+    std::lock_guard lock(mutex_);
     return largest_file_bytes_;
 }
 
