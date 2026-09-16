@@ -64,7 +64,6 @@ public:
     void complete_active(std::uint64_t file_id) noexcept;
     void release_active(std::uint64_t file_id) noexcept;
     [[nodiscard]] bool skip_active(std::uint64_t file_id) noexcept;
-    [[nodiscard]] bool is_active(std::uint64_t file_id) const noexcept;
 
     [[nodiscard]] std::uint64_t total_bytes() const noexcept;
     [[nodiscard]] std::uint64_t total_files() const noexcept;
