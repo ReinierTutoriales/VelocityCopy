@@ -25,7 +25,7 @@ void MainWindow::HandleShellRequest(const velocitycopy::ShellRequest& request) {
     }
 
     if (dispatch.job) {
-        StartCopy(*dispatch.job);
+        QueueOrStartCopy(*dispatch.job);
     }
 }
 
