@@ -43,10 +43,12 @@ public:
 
     [[nodiscard]] std::uint64_t total_bytes() const noexcept;
     [[nodiscard]] std::uint64_t total_files() const noexcept;
+    [[nodiscard]] std::uint64_t largest_file_bytes() const noexcept;
 
 private:
     [[nodiscard]] std::vector<PlannedFile>::iterator find_pending(std::uint64_t file_id) noexcept;
     [[nodiscard]] std::vector<PlannedFile>::iterator find_active(std::uint64_t file_id) noexcept;
+    void recompute_largest_file_locked() noexcept;
 
     std::vector<PlannedDirectory> directories_;
     std::vector<std::filesystem::path> source_roots_;
@@ -56,6 +58,7 @@ private:
     std::vector<PlannedFile> active_files_;
     std::uint64_t total_bytes_{};
     std::uint64_t total_files_{};
+    std::uint64_t largest_file_bytes_{};
 };
 
 } // namespace velocitycopy
