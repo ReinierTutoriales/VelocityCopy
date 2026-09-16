@@ -23,7 +23,8 @@ struct ConcurrentProgressState {
 
     void update_active(const PlannedFile& file, const std::uint64_t transferred) {
         std::lock_guard lock(mutex);
-        active_bytes[file.id] = std::min(transferred, file.size);
+        auto& current = active_bytes[file.id];
+        current = std::max(current, std::min(transferred, file.size));
     }
 
     void complete(const PlannedFile& file) {
@@ -271,6 +272,9 @@ JobResult JobExecutor::execute(
                 return true;
             }
 
+            // Serialize snapshot creation with callback delivery so concurrent
+            // workers cannot publish an older aggregate after a newer one.
+            std::lock_guard callback_lock(callback_mutex);
             const auto [transferred, completed] = progress_state.totals();
             JobProgress aggregate{};
             aggregate.total_bytes = plan.total_bytes();
@@ -280,7 +284,6 @@ JobResult JobExecutor::execute(
             aggregate.current_source = file.source;
             aggregate.current_destination = file.destination;
 
-            std::lock_guard callback_lock(callback_mutex);
             if (progress(aggregate) == JobDecision::Cancel) {
                 control.request_cancel();
                 return false;
