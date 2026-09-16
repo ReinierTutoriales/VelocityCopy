@@ -117,7 +117,7 @@ private:
     std::filesystem::path current_destination_folder_;
     std::filesystem::path active_destination_;
     std::deque<velocitycopy::CopyJob> deferred_same_destination_jobs_;
-    std::deque<velocitycopy::CopyJob> deferred_after_stop_jobs_;
+    std::deque<velocitycopy::CopyJob> deferred_interrupted_jobs_;
     std::deque<velocitycopy::CopyJob> queued_sessions_;
     std::shared_ptr<velocitycopy::LiveCopyPlan> live_plan_;
     std::vector<velocitycopy::PlannedFile> queue_snapshot_;
