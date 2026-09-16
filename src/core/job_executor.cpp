@@ -245,8 +245,9 @@ JobExecutionOptions JobExecutor::recommend_options(const CopyJob& job, const Cop
 }
 
 JobExecutionOptions JobExecutor::recommend_options(const LiveCopyPlan& plan) const noexcept {
+    const auto source_roots = plan.source_roots();
     return recommend_for_roots(
-        storage_profiler_, strategy_selector_, plan.source_roots(),
+        storage_profiler_, strategy_selector_, source_roots,
         plan.destination_root(), workload_from_live_plan(plan));
 }
 
@@ -256,7 +257,8 @@ JobResult JobExecutor::execute(
     const JobExecutionOptions& options,
     const JobProgressCallback& progress) const noexcept {
     try {
-        for (const auto& directory : plan.directories()) {
+        const auto directories = plan.directories();
+        for (const auto& directory : directories) {
             std::error_code ec;
             std::filesystem::create_directories(directory.destination, ec);
             if (ec) return {false, false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()))};
@@ -406,37 +408,26 @@ JobResult JobExecutor::execute(
                             }
 
                             progress_state.release(file_id);
-                            const bool cancelled = result.native_code == static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED));
-                            if (cancelled && skip_allowed) remove_partial_destination(file->destination);
-                            plan.release_active(file_id);
-                            if (!cancelled) result_state.record_error(result.native_code, &*file);
+                            const auto failure_code = result.native_code;
+                            result_state.record_error(failure_code, &*file);
                             control.request_cancel();
-                            worker_results[worker_index] = {false, cancelled, result.native_code, false};
+                            plan.release_active(file_id);
+                            worker_results[worker_index] = {
+                                false, false, failure_code, false,
+                                is_destination_conflict(failure_code),
+                                is_destination_conflict(failure_code) ? file_id : 0,
+                                is_destination_conflict(failure_code) ? file->source : std::filesystem::path{},
+                                is_destination_conflict(failure_code) ? file->destination : std::filesystem::path{},
+                            };
                             return;
                         }
 
-                        if (skipped) {
-                            if (!emit_progress(*file, false, false)) {
-                                worker_results[worker_index] = {false, true, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED)), false};
-                                return;
-                            }
-                            continue;
-                        }
+                        if (skipped) continue;
 
                         progress_state.complete(*file);
                         plan.complete_active(file_id);
                         if (!emit_progress(*file, false, false)) {
                             worker_results[worker_index] = {false, true, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED)), false};
-                            return;
-                        }
-
-                        if (options.replace_file_id == file_id) {
-                            worker_results[worker_index] = {true, false, S_OK, false};
-                            return;
-                        }
-
-                        if (control.directive() == ExecutionDirective::Stop) {
-                            worker_results[worker_index] = {false, false, S_OK, true};
                             return;
                         }
                     }
@@ -454,19 +445,11 @@ JobResult JobExecutor::execute(
             });
         }
 
-        for (auto& worker : workers) worker.join();
+        workers.clear();
 
         if (result_state.error() != S_OK) return result_state.failure_result();
-
-        bool stopped = false;
-        bool cancelled = false;
-        for (const auto& result : worker_results) {
-            stopped = stopped || result.stopped;
-            cancelled = cancelled || result.cancelled;
-        }
-        if (stopped || control.directive() == ExecutionDirective::Stop) return {false, false, S_OK, true};
-        if (cancelled || control.directive() == ExecutionDirective::Cancel) {
-            return {false, true, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED)), false};
+        for (const auto& worker_result : worker_results) {
+            if (!worker_result.success) return worker_result;
         }
         return {true, false, S_OK};
     } catch (const std::filesystem::filesystem_error& error) {

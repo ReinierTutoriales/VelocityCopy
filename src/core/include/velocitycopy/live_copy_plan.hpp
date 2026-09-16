@@ -43,8 +43,8 @@ public:
     LiveCopyPlan(const LiveCopyPlan&) = delete;
     LiveCopyPlan& operator=(const LiveCopyPlan&) = delete;
 
-    [[nodiscard]] const std::vector<PlannedDirectory>& directories() const noexcept;
-    [[nodiscard]] const std::vector<std::filesystem::path>& source_roots() const noexcept;
+    [[nodiscard]] std::vector<PlannedDirectory> directories() const;
+    [[nodiscard]] std::vector<std::filesystem::path> source_roots() const;
     [[nodiscard]] const std::filesystem::path& destination_root() const noexcept;
     [[nodiscard]] LiveCopyPlanSnapshot snapshot() const;
     [[nodiscard]] LiveQueueView queue_view(std::size_t max_items) const;
