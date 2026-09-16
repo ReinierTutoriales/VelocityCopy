@@ -43,11 +43,13 @@ LiveCopyPlan::LiveCopyPlan(CopyPlan plan)
     }
 }
 
-const std::vector<PlannedDirectory>& LiveCopyPlan::directories() const noexcept {
+std::vector<PlannedDirectory> LiveCopyPlan::directories() const {
+    std::lock_guard lock(mutex_);
     return directories_;
 }
 
-const std::vector<std::filesystem::path>& LiveCopyPlan::source_roots() const noexcept {
+std::vector<std::filesystem::path> LiveCopyPlan::source_roots() const {
+    std::lock_guard lock(mutex_);
     return source_roots_;
 }
 
@@ -91,26 +93,29 @@ LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan, const bool allow_draine
             return LivePlanAppendResult::SizeOverflow;
         }
 
-        std::unordered_set<std::wstring> incoming_keys;
+        std::vector<std::wstring> incoming_keys;
         incoming_keys.reserve(plan.files.size());
+        std::unordered_set<std::wstring> unique_incoming;
+        unique_incoming.reserve(plan.files.size());
         for (const auto& file : plan.files) {
             auto key = normalized_path_key(file.destination);
             if (key.empty() || reserved_destination_keys_.contains(key) ||
-                !incoming_keys.insert(std::move(key)).second) {
+                !unique_incoming.insert(key).second) {
                 return LivePlanAppendResult::DestinationCollision;
             }
+            incoming_keys.push_back(std::move(key));
         }
 
-        // Complete every allocation that can throw before mutating observable state.
-        // append() is a transactional operation: a rejected/failed append must leave
-        // the live plan unchanged.
         pending_files_.reserve(pending_files_.size() + plan.files.size());
-        reserved_destination_keys_.reserve(reserved_destination_keys_.size() + incoming_keys.size());
         directories_.reserve(directories_.size() + plan.directories.size());
         source_roots_.reserve(source_roots_.size() + plan.source_roots.size());
 
-        // The structural portions of CopyPlan are part of the same live session.
-        // They must survive export/reload just like the pending files do.
+        auto staged_destination_keys = reserved_destination_keys_;
+        staged_destination_keys.reserve(staged_destination_keys.size() + incoming_keys.size());
+        for (const auto& key : incoming_keys) {
+            staged_destination_keys.insert(key);
+        }
+
         directories_.insert(
             directories_.end(),
             std::make_move_iterator(plan.directories.begin()),
@@ -120,11 +125,14 @@ LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan, const bool allow_draine
             std::make_move_iterator(plan.source_roots.begin()),
             std::make_move_iterator(plan.source_roots.end()));
 
+        std::uint64_t assigned_id = next_file_id_;
         for (auto& file : plan.files) {
-            file.id = next_file_id_++;
-            reserved_destination_keys_.insert(normalized_path_key(file.destination));
+            file.id = assigned_id++;
             pending_files_.push_back(std::move(file));
         }
+
+        reserved_destination_keys_.swap(staged_destination_keys);
+        next_file_id_ = assigned_id;
         total_bytes_ += plan.total_bytes;
         total_files_ += static_cast<std::uint64_t>(plan.files.size());
         largest_file_bytes_ = std::max(largest_file_bytes_, plan.largest_file_bytes);
