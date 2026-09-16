@@ -40,6 +40,16 @@ int wmain() {
 
     QueueArchive archive{};
     archive.current_plan = live.export_remaining_plan();
+
+    CopyJob append{};
+    append.id = 555;
+    append.sources = {root / L"append" / L"uno-extra.txt"};
+    append.destination = root / L"destino";
+    append.layout = DestinationLayout::ContentsOnly;
+    append.state = JobState::Running;
+    append.display_name = L"Añadido a sesión";
+    archive.current_append_jobs.push_back(append);
+
     CopyJob future{};
     future.id = 999;
     future.sources = {root / L"futuro" / L"A", root / L"futuro" / L"B"};
@@ -63,7 +73,10 @@ int wmain() {
     QueueArchiveStore store;
     if (!store.save(archive_path, archive)) return 4;
     auto loaded = store.load(archive_path);
-    if (!loaded || !loaded->current_plan || loaded->queued_jobs.size() != 1) return 5;
+    if (!loaded || !loaded->current_plan ||
+        loaded->current_append_jobs.size() != 1 || loaded->queued_jobs.size() != 1) {
+        return 5;
+    }
 
     const auto& restored = *loaded->current_plan;
     if (restored.destination_root != archive.current_plan->destination_root ||
@@ -75,26 +88,37 @@ int wmain() {
         return 6;
     }
 
+    const auto& restored_append = loaded->current_append_jobs.front();
+    if (restored_append.id != 0 || restored_append.state != JobState::Pending ||
+        restored_append.sources != append.sources || restored_append.destination != append.destination ||
+        restored_append.layout != append.layout || restored_append.display_name != append.display_name) {
+        return 7;
+    }
+
     const auto& restored_job = loaded->queued_jobs.front();
     if (restored_job.id != 0 || restored_job.state != JobState::Pending ||
         restored_job.sources != future.sources || restored_job.destination != future.destination ||
         restored_job.layout != future.layout || restored_job.display_name != future.display_name) {
-        return 7;
+        return 8;
     }
 
     // Saving again must atomically replace the previous archive.
+    archive.current_append_jobs.clear();
     archive.queued_jobs.clear();
     archive.current_plan.reset();
-    if (!store.save(archive_path, archive)) return 8;
+    if (!store.save(archive_path, archive)) return 9;
     loaded = store.load(archive_path);
-    if (!loaded || loaded->current_plan || !loaded->queued_jobs.empty()) return 9;
+    if (!loaded || loaded->current_plan || !loaded->current_append_jobs.empty() ||
+        !loaded->queued_jobs.empty()) {
+        return 10;
+    }
 
     // Corrupt or unknown formats must be rejected without partial recovery.
     {
         std::ofstream corrupt(archive_path, std::ios::binary | std::ios::trunc);
         corrupt << "not-a-velocitycopy-queue";
     }
-    if (store.load(archive_path)) return 10;
+    if (store.load(archive_path)) return 11;
 
     fs::remove_all(root, ec);
     return 0;
