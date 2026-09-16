@@ -20,6 +20,9 @@ StrategyRecommendation StrategySelector::choose(
         (workload.file_count != 0 && workload.total_bytes / workload.file_count <= small_file_average);
     const bool very_large_file = workload.largest_file_bytes >= one_gib;
     const bool local_fixed = source.kind == StorageKind::Fixed && destination.kind == StorageKind::Fixed && !network;
+    const bool known_nonrotational =
+        source.seek_penalty_available && destination.seek_penalty_available &&
+        !source.incurs_seek_penalty && !destination.incurs_seek_penalty;
 
     if (network) {
         recommendation.copy_flags = COPY_FILE_REQUEST_COMPRESSED_TRAFFIC;
@@ -32,14 +35,16 @@ StrategyRecommendation StrategySelector::choose(
         recommendation.copy_flags = COPY_FILE_NO_BUFFERING;
         recommendation.suggested_buffer_bytes = 4u * 1024u * 1024u;
         recommendation.suggested_queue_depth = 1;
-        recommendation.async_iocp_candidate = true;
+        recommendation.async_iocp_candidate = known_nonrotational;
         return recommendation;
     }
 
-    if (!many_small_files && local_fixed) {
+    if (local_fixed && known_nonrotational) {
         recommendation.async_iocp_candidate = true;
-        recommendation.suggested_buffer_bytes = 2u * 1024u * 1024u;
-        recommendation.suggested_queue_depth = 4;
+        recommendation.suggested_buffer_bytes = many_small_files
+            ? 512u * 1024u
+            : 2u * 1024u * 1024u;
+        recommendation.suggested_queue_depth = many_small_files ? 2u : 4u;
     }
 
     return recommendation;
