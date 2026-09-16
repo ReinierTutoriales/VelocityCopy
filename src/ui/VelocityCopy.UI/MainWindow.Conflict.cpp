@@ -61,8 +61,6 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
 void MainWindow::ResumeConflictCopy(const std::uint64_t replace_file_id) {
     if (!conflict_session_ || !live_plan_) return;
 
-    // Jobs accepted while the conflict session was transitioning belong to the
-    // same destination/session. Reserve and plan them before the copy resumes.
     if (!deferred_interrupted_jobs_.empty() && append_gate_) {
         auto deferred = std::move(deferred_interrupted_jobs_);
         deferred_interrupted_jobs_.clear();
@@ -82,7 +80,7 @@ void MainWindow::ResumeConflictCopy(const std::uint64_t replace_file_id) {
         }
     }
 
-    if (live_plan_->remaining_files() == 0) {
+    if (live_plan_->remaining_files() == 0 && !live_plan_->has_pending_directories()) {
         resume_requested_ = false;
         conflict_replace_file_id_ = 0;
         FinalizeConflictSessionIfEmpty();
@@ -120,7 +118,8 @@ void MainWindow::ResumeConflictCopy(const std::uint64_t replace_file_id) {
 }
 
 void MainWindow::FinalizeConflictSessionIfEmpty() {
-    if (!conflict_session_ || !live_plan_ || live_plan_->remaining_files() != 0) return;
+    if (!conflict_session_ || !live_plan_ || live_plan_->remaining_files() != 0 ||
+        live_plan_->has_pending_directories()) return;
 
     if (append_gate_) {
         std::lock_guard gate_lock(append_gate_->mutex);
