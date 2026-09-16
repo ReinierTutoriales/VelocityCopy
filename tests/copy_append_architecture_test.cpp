@@ -35,8 +35,8 @@ int main() {
         return 1;
     }
 
-    // Explorer and drag/drop must share the same queue-aware production route.
-    // The obsolete direct-start handler must not survive as a parallel path.
+    // Explorer and drag/drop share the same queue-aware production route. The
+    // obsolete direct-start handler must not survive as a parallel path.
     if (!contains(shell, "QueueOrStartCopy(*dispatch.job)") ||
         !contains(xaml, "Click=\"OnQueueOrStartCopyClick\"") ||
         contains(xaml, "OnStartCopyClick") ||
@@ -45,8 +45,8 @@ int main() {
         return 2;
     }
 
-    // Planning stays off the UI thread and an accepted same-destination batch
-    // reserves the active session before enumeration begins.
+    // Same-destination work is planned off the UI thread and reserves the
+    // active session before enumeration, including the drain-boundary append.
     if (!contains(append, "append_planner_.enqueue") ||
         !contains(append, "planning_count") ||
         !contains(append, "target_plan->append(std::move(*result.plan), true)") ||
@@ -54,13 +54,38 @@ int main() {
         return 3;
     }
 
-    // If the worker pool drains while a reserved append is still planning, the
-    // same copy session waits without polling and resumes the same LiveCopyPlan.
+    // The copy thread waits without polling while reserved planning is active
+    // and checks remaining work in O(1) instead of copying a full plan snapshot.
     if (!contains(window, "gate->condition.wait") ||
         !contains(window, "gate->planning_count") ||
-        !contains(window, "snapshot.pending_files.empty()") ||
-        !contains(window, "EnqueueAppend(")) {
+        !contains(window, "plan->remaining_files()") ||
+        contains(window, "snapshot.pending_files.empty()")) {
         return 4;
+    }
+
+    // A second destination never replaces the active jthread. It is serialized
+    // as a future session and advanced only after the current session succeeds.
+    if (!contains(header, "queued_sessions_") ||
+        !contains(append, "queued_sessions_.push_back") ||
+        !contains(window, "StartNextQueuedSession()") ||
+        !contains(window, "queued_sessions_.pop_front()")) {
+        return 5;
+    }
+
+    // Cancel clears future sessions, while Stop does not. This preserves the
+    // distinction between abort-all and stop-current-session semantics.
+    const auto cancel_pos = window.find("void MainWindow::OnCancelClick");
+    const auto finish_pos = window.find("void MainWindow::ApplySnapshot", cancel_pos);
+    if (cancel_pos == std::string::npos || finish_pos == std::string::npos ||
+        window.substr(cancel_pos, finish_pos - cancel_pos).find("queued_sessions_.clear()") == std::string::npos) {
+        return 6;
+    }
+
+    // Queue UI materialization must remain bounded even when pending_count is huge.
+    if (!contains(window, "kVisibleQueueItems = 256") ||
+        !contains(window, "queue_view(kVisibleQueueItems)") ||
+        !contains(window, "view.pending_count")) {
+        return 7;
     }
 
     return 0;
