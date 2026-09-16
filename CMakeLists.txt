@@ -44,3 +44,17 @@ target_link_libraries(VelocityCopy PRIVATE velocitycopy_core)
 if(MSVC)
     target_compile_options(VelocityCopy PRIVATE /W4 /permissive- /EHsc /utf-8)
 endif()
+
+enable_testing()
+
+add_executable(VelocityCopySmokeTest
+    tests/smoke_test.cpp
+)
+
+target_link_libraries(VelocityCopySmokeTest PRIVATE velocitycopy_core)
+
+if(MSVC)
+    target_compile_options(VelocityCopySmokeTest PRIVATE /W4 /permissive- /EHsc /utf-8)
+endif()
+
+add_test(NAME velocitycopy_smoke COMMAND VelocityCopySmokeTest)
