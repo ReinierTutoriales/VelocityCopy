@@ -30,6 +30,7 @@
   <data name="ShellPaste" xml:space="preserve"><value>Pegar con VelocityCopy</value></data>
   <data name="CurrentItemText.Text" xml:space="preserve"><value>Suelta archivos o carpetas para comenzar</value></data>
   <data name="PauseButton.Content" xml:space="preserve"><value>Pausar</value></data>
+  <data name="SkipButton.Content" xml:space="preserve"><value>Saltar</value></data>
   <data name="StopButton.Content" xml:space="preserve"><value>Detener</value></data>
   <data name="CancelButton.Content" xml:space="preserve"><value>Cancelar</value></data>
   <data name="QueueButton.Content" xml:space="preserve"><value>Cola</value></data>
