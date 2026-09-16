@@ -13,6 +13,7 @@ int wmain() {
     const auto base = fs::temp_directory_path() / L"VelocityCopyCallbackBoundaryTest";
     const auto source = base / L"source.bin";
     const auto destination = base / L"destination.bin";
+    const auto skipped_destination = base / L"skipped.bin";
 
     std::error_code ec;
     fs::remove_all(base, ec);
@@ -30,14 +31,29 @@ int wmain() {
     }
 
     velocitycopy::CopyEngine engine;
-    const auto result = engine.copy_file(source, destination, [](const velocitycopy::CopyProgress&) -> velocitycopy::CopyDecision {
+    const auto callback_failure = engine.copy_file(source, destination, [](const velocitycopy::CopyProgress&) -> velocitycopy::CopyDecision {
         throw std::runtime_error("intentional callback failure");
     });
 
+    if (callback_failure.success || callback_failure.native_code != static_cast<std::int32_t>(E_FAIL)) {
+        fs::remove_all(base, ec);
+        return 2;
+    }
+
+    bool skip_called = false;
+    const auto skipped = engine.copy_file(
+        source,
+        skipped_destination,
+        [&](const velocitycopy::CopyProgress&) {
+            skip_called = true;
+            return velocitycopy::CopyDecision::Skip;
+        });
+
     fs::remove_all(base, ec);
 
-    if (result.success || result.native_code != static_cast<std::int32_t>(E_FAIL)) {
-        return 2;
+    if (!skip_called || skipped.success ||
+        skipped.native_code != static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED))) {
+        return 3;
     }
 
     std::wcout << L"VelocityCopy callback boundary test passed.\n";
