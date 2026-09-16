@@ -6,15 +6,6 @@ using namespace Microsoft::UI::Xaml;
 using namespace Microsoft::UI::Xaml::Controls;
 
 namespace winrt::VelocityCopyUI::implementation {
-namespace {
-
-bool is_idle_for_load(const MainWindow& window) {
-    return !window.execution_control_ && !window.live_plan_ &&
-           !window.stopped_session_ && !window.conflict_session_ &&
-           !window.stop_requested_ && window.queued_sessions_.empty();
-}
-
-} // namespace
 
 void MainWindow::ConfigureQueuePersistenceMenu() {
     try {
@@ -27,7 +18,7 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
         queue_options_button_.Margin(Thickness{6.0, 0.0, 0.0, 0.0});
 
         FontIcon icon;
-        icon.Glyph(hstring(1, static_cast<wchar_t>(0xE712)));
+        icon.Glyph(L"\xE712");
         queue_options_button_.Content(icon);
 
         MenuFlyout menu;
@@ -137,15 +128,20 @@ fire_and_forget MainWindow::SaveQueueAsync() {
         auto weak = get_weak();
         co_await resume_background();
 
-        velocitycopy::QueueArchive archive{};
-        if (current_plan) {
-            archive.current_plan = current_plan->export_remaining_plan();
-            if (archive.current_plan->files.empty()) {
-                archive.current_plan.reset();
+        bool saved = false;
+        try {
+            velocitycopy::QueueArchive archive{};
+            if (current_plan) {
+                archive.current_plan = current_plan->export_remaining_plan();
+                if (archive.current_plan->files.empty()) {
+                    archive.current_plan.reset();
+                }
             }
+            archive.queued_jobs = std::move(queued);
+            saved = velocitycopy::QueueArchiveStore{}.save(path, archive);
+        } catch (...) {
+            saved = false;
         }
-        archive.queued_jobs = std::move(queued);
-        const bool saved = velocitycopy::QueueArchiveStore{}.save(path, archive);
 
         (void)dispatcher.TryEnqueue([weak, saved]() {
             if (auto self = weak.get(); self && !saved) {
