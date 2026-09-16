@@ -46,9 +46,13 @@ StorageProfile StorageProfiler::inspect(const std::filesystem::path& path) const
         profile.remote = drive_type == DRIVE_REMOTE;
     }
 
-    const DWORD flags = std::filesystem::is_directory(existing)
-        ? FILE_FLAG_BACKUP_SEMANTICS
-        : FILE_ATTRIBUTE_NORMAL;
+    std::error_code directory_error;
+    const bool is_directory = std::filesystem::is_directory(existing, directory_error);
+    if (directory_error) {
+        return profile;
+    }
+
+    const DWORD flags = is_directory ? FILE_FLAG_BACKUP_SEMANTICS : FILE_ATTRIBUTE_NORMAL;
 
     const HANDLE handle = CreateFileW(
         existing.c_str(),
