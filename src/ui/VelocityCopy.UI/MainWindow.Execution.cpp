@@ -8,15 +8,19 @@ namespace winrt::VelocityCopyUI::implementation {
 
 void MainWindow::SetExecutionButtonsPlanning() {
     PauseButton().IsEnabled(false);
+    SkipButton().IsEnabled(false);
     StopButton().IsEnabled(false);
     CancelButton().IsEnabled(true);
+    current_file_id_ = 0;
     paused_ = false;
 }
 
 void MainWindow::SetExecutionButtonsRunning() {
     PauseButton().IsEnabled(true);
+    SkipButton().IsEnabled(false);
     StopButton().IsEnabled(true);
     CancelButton().IsEnabled(true);
+    current_file_id_ = 0;
     paused_ = false;
     try {
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
@@ -27,8 +31,10 @@ void MainWindow::SetExecutionButtonsRunning() {
 
 void MainWindow::SetExecutionButtonsIdle() {
     PauseButton().IsEnabled(false);
+    SkipButton().IsEnabled(false);
     StopButton().IsEnabled(false);
     CancelButton().IsEnabled(false);
+    current_file_id_ = 0;
     paused_ = false;
     resume_requested_ = false;
     try {
@@ -40,8 +46,10 @@ void MainWindow::SetExecutionButtonsIdle() {
 
 void MainWindow::SetExecutionButtonsStopped() {
     PauseButton().IsEnabled(true);
+    SkipButton().IsEnabled(false);
     StopButton().IsEnabled(false);
     CancelButton().IsEnabled(true);
+    current_file_id_ = 0;
     paused_ = false;
     try {
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
@@ -96,8 +104,6 @@ velocitycopy::JobResult MainWindow::RunLivePlanSession(
 
         std::unique_lock gate_lock(gate->mutex);
         if (result.stopped) {
-            // Stop freezes the session only after work accepted before Stop has
-            // finished planning and atomically committed into LiveCopyPlan.
             if (gate->planning_count != 0 && gate->accepting) {
                 (void)gate->condition.wait(
                     gate_lock,
@@ -105,8 +111,6 @@ velocitycopy::JobResult MainWindow::RunLivePlanSession(
                     [&] { return gate->planning_count == 0 || !gate->accepting; });
             }
 
-            // Cancel has precedence over Stop. This closes the race where the
-            // user presses Cancel while Stop is waiting for an accepted planner.
             if (stop_token.stop_requested() ||
                 cancel_requested_.load(std::memory_order_relaxed) ||
                 control->directive() == velocitycopy::ExecutionDirective::Cancel) {
@@ -179,6 +183,7 @@ void MainWindow::StartCopy(velocitycopy::CopyJob job) {
     stopped_session_ = false;
     stop_requested_ = false;
     resume_requested_ = false;
+    current_file_id_ = 0;
     cancel_requested_.store(false, std::memory_order_relaxed);
     presenter_.reset();
     last_queue_completed_files_ = 0;
@@ -267,6 +272,7 @@ void MainWindow::ResumeStoppedCopy() {
     resume_requested_ = false;
     stopped_session_ = false;
     stop_requested_ = false;
+    current_file_id_ = 0;
     cancel_requested_.store(false, std::memory_order_relaxed);
     presenter_.reset();
     last_queue_completed_files_ = live_plan_->completed_files();
@@ -334,28 +340,32 @@ void MainWindow::OnPauseClick(IInspectable const&, RoutedEventArgs const&) {
         return;
     }
 
+    if (paused_) {
+        execution_control_->resume();
+        paused_ = false;
+        SkipButton().IsEnabled(current_file_id_ != 0 && !stop_requested_);
+    } else {
+        execution_control_->request_pause();
+        paused_ = true;
+        SkipButton().IsEnabled(false);
+        SpeedText().Text(L"—");
+        EtaText().Text(L"—");
+    }
+
     try {
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-        if (paused_) {
-            execution_control_->resume();
-            paused_ = false;
-            PauseButton().Content(box_value(loader.GetString(L"ActionPause")));
-        } else {
-            execution_control_->request_pause();
-            paused_ = true;
-            PauseButton().Content(box_value(loader.GetString(L"ActionResume")));
-            SpeedText().Text(L"—");
-            EtaText().Text(L"—");
-        }
+        PauseButton().Content(box_value(loader.GetString(paused_ ? L"ActionResume" : L"ActionPause")));
     } catch (...) {
-        if (paused_) {
-            execution_control_->resume();
-            paused_ = false;
-        } else {
-            execution_control_->request_pause();
-            paused_ = true;
-        }
+        // Localization failure must never mutate the execution state.
     }
+}
+
+void MainWindow::OnSkipClick(IInspectable const&, RoutedEventArgs const&) {
+    if (!execution_control_ || paused_ || stopped_session_ || stop_requested_ || current_file_id_ == 0) {
+        return;
+    }
+    execution_control_->request_skip(current_file_id_);
+    SkipButton().IsEnabled(false);
 }
 
 void MainWindow::OnStopClick(IInspectable const&, RoutedEventArgs const&) {
@@ -363,10 +373,9 @@ void MainWindow::OnStopClick(IInspectable const&, RoutedEventArgs const&) {
         return;
     }
 
-    // Do not cancel the append planner here. Work accepted before Stop remains
-    // part of the session and RunLivePlanSession waits for its reservations.
     resume_requested_ = false;
     stop_requested_ = true;
+    SkipButton().IsEnabled(false);
     execution_control_->request_stop();
     PauseButton().IsEnabled(false);
     StopButton().IsEnabled(false);
@@ -375,6 +384,8 @@ void MainWindow::OnStopClick(IInspectable const&, RoutedEventArgs const&) {
 void MainWindow::OnCancelClick(IInspectable const&, RoutedEventArgs const&) {
     cancel_requested_.store(true, std::memory_order_relaxed);
     resume_requested_ = false;
+    current_file_id_ = 0;
+    SkipButton().IsEnabled(false);
     deferred_same_destination_jobs_.clear();
     deferred_after_stop_jobs_.clear();
     queued_sessions_.clear();
@@ -392,8 +403,6 @@ void MainWindow::OnCancelClick(IInspectable const&, RoutedEventArgs const&) {
         return;
     }
 
-    // A stopped session has no executor thread. Cancel must therefore dispose
-    // it synchronously instead of waiting for a FinishCopy callback that cannot occur.
     if (stopped_session_) {
         stopped_session_ = false;
         stop_requested_ = false;
@@ -412,6 +421,10 @@ void MainWindow::OnCancelClick(IInspectable const&, RoutedEventArgs const&) {
 
 void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
     GlobalProgress().Value(snapshot.fraction * 100.0);
+    current_file_id_ = snapshot.current_file_id;
+    SkipButton().IsEnabled(
+        execution_control_ && current_file_id_ != 0 && !paused_ && !stopped_session_ && !stop_requested_);
+
     if (!snapshot.current_source.empty()) {
         CurrentItemText().Text(hstring(snapshot.current_source.filename().wstring()));
     }
@@ -430,8 +443,6 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     auto deferred_initial = std::move(deferred_same_destination_jobs_);
     deferred_same_destination_jobs_.clear();
 
-    // A Cancel pressed after the worker produced a stopped result but before the
-    // UI callback runs must not resurrect the stopped session.
     if (result.stopped && cancel_requested_.load(std::memory_order_relaxed)) {
         result = {
             false,
@@ -441,6 +452,8 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     }
 
     execution_control_.reset();
+    current_file_id_ = 0;
+    SkipButton().IsEnabled(false);
     paused_ = false;
 
     if (result.stopped) {
@@ -541,6 +554,7 @@ void MainWindow::FinalizeStoppedSessionIfEmpty() {
     resume_requested_ = false;
     stopped_session_ = false;
     stop_requested_ = false;
+    current_file_id_ = 0;
     live_plan_.reset();
     append_gate_.reset();
     active_destination_.clear();
