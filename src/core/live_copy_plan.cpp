@@ -11,7 +11,8 @@ LiveCopyPlan::LiveCopyPlan(CopyPlan plan)
       destination_root_(std::move(plan.destination_root)),
       pending_files_(std::move(plan.files)),
       total_bytes_(plan.total_bytes),
-      total_files_(pending_files_.size()) {
+      total_files_(pending_files_.size()),
+      largest_file_bytes_(plan.largest_file_bytes) {
 }
 
 const std::vector<PlannedDirectory>& LiveCopyPlan::directories() const noexcept {
@@ -141,6 +142,10 @@ std::uint64_t LiveCopyPlan::total_bytes() const noexcept {
 std::uint64_t LiveCopyPlan::total_files() const noexcept {
     std::lock_guard lock(mutex_);
     return total_files_;
+}
+
+std::uint64_t LiveCopyPlan::largest_file_bytes() const noexcept {
+    return largest_file_bytes_;
 }
 
 } // namespace velocitycopy
