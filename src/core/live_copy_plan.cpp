@@ -58,6 +58,22 @@ LiveCopyPlanSnapshot LiveCopyPlan::snapshot() const {
     };
 }
 
+LiveQueueView LiveCopyPlan::queue_view(const std::size_t max_items) const {
+    std::lock_guard lock(mutex_);
+    const auto count = std::min(max_items, pending_files_.size());
+
+    LiveQueueView view{};
+    view.pending_files.reserve(count);
+    view.pending_files.insert(
+        view.pending_files.end(),
+        pending_files_.begin(),
+        pending_files_.begin() + static_cast<std::ptrdiff_t>(count));
+    view.pending_count = static_cast<std::uint64_t>(pending_files_.size());
+    view.active_count = static_cast<std::uint64_t>(active_files_.size());
+    view.completed_files = completed_files_;
+    return view;
+}
+
 LivePlanAppendResult LiveCopyPlan::append(
     CopyPlan plan,
     const bool allow_drained) noexcept {
@@ -193,11 +209,10 @@ void LiveCopyPlan::complete_active(const std::uint64_t file_id) noexcept {
         return;
     }
 
-    completed_bytes_ = std::min(
-        total_bytes_,
-        completed_bytes_ > total_bytes_ - std::min(total_bytes_, it->size)
-            ? total_bytes_
-            : completed_bytes_ + it->size);
+    const auto remaining_bytes = total_bytes_ > completed_bytes_
+        ? total_bytes_ - completed_bytes_
+        : 0;
+    completed_bytes_ += std::min(it->size, remaining_bytes);
     if (completed_files_ < total_files_) {
         ++completed_files_;
     }
