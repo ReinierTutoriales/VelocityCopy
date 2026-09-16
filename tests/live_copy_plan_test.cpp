@@ -49,7 +49,7 @@ int main() {
     write_text(source / "second.txt", "second");
     write_text(source / "third.txt", "third");
 
-    // Contract: the live plan supports more than one active file at a time.
+    // Multi-active state, persisted completion counters and bounded queue view.
     {
         LiveCopyPlan concurrent_plan(make_plan(source, destination));
         const auto first = concurrent_plan.acquire_next();
@@ -62,29 +62,31 @@ int main() {
         auto snapshot = concurrent_plan.snapshot();
         if (snapshot.active_files.size() != 2 || snapshot.pending_files.size() != 1 ||
             snapshot.active_files[0].id != 1 || snapshot.active_files[1].id != 2 ||
-            snapshot.pending_files[0].id != 3) {
+            snapshot.pending_files[0].id != 3 || concurrent_plan.remaining_files() != 3) {
             fs::remove_all(root, ec);
             return 2;
         }
 
         concurrent_plan.complete_active(first->id);
         snapshot = concurrent_plan.snapshot();
-        if (snapshot.active_files.size() != 1 || snapshot.active_files[0].id != 2) {
+        if (snapshot.active_files.size() != 1 || snapshot.active_files[0].id != 2 ||
+            snapshot.completed_files != 1 || snapshot.completed_bytes != 5 ||
+            concurrent_plan.completed_files() != 1 || concurrent_plan.completed_bytes() != 5) {
             fs::remove_all(root, ec);
             return 3;
         }
 
         concurrent_plan.release_active(second->id);
-        snapshot = concurrent_plan.snapshot();
-        if (!snapshot.active_files.empty() || snapshot.pending_files.size() != 2 ||
-            snapshot.pending_files[0].id != 2 || snapshot.pending_files[1].id != 3) {
+        const auto view = concurrent_plan.queue_view(1);
+        if (view.pending_files.size() != 1 || view.pending_files[0].id != 2 ||
+            view.pending_count != 2 || view.active_count != 0 || view.completed_files != 1 ||
+            concurrent_plan.remaining_files() != 2) {
             fs::remove_all(root, ec);
             return 4;
         }
     }
 
-    // Contract: a separately planned batch for the same destination becomes
-    // part of the same live queue and receives unique ids.
+    // Same-destination append, unique ids, collision memory and removal release.
     {
         LiveCopyPlan appended_plan(make_plan(source, destination));
         CopyPlan extra{};
@@ -101,7 +103,7 @@ int main() {
             return 5;
         }
 
-        const auto snapshot = appended_plan.snapshot();
+        auto snapshot = appended_plan.snapshot();
         if (snapshot.pending_files.size() != 5 || snapshot.total_files != 5 ||
             snapshot.total_bytes != 31 || snapshot.pending_files[3].id != 4 ||
             snapshot.pending_files[4].id != 5 || appended_plan.largest_file_bytes() != 8) {
@@ -109,31 +111,69 @@ int main() {
             return 6;
         }
 
-        CopyPlan collision{};
-        collision.destination_root = destination;
-        collision.files.push_back({1, source / "duplicate.txt", destination / "fifth.txt", 1});
-        collision.total_bytes = 1;
-        collision.largest_file_bytes = 1;
-        if (appended_plan.append(std::move(collision)) != LivePlanAppendResult::DestinationCollision) {
+        // Completed destinations remain reserved for the lifetime of the session.
+        const auto completed = appended_plan.acquire_next();
+        if (!completed || completed->id != 1) {
             fs::remove_all(root, ec);
             return 7;
+        }
+        appended_plan.complete_active(completed->id);
+
+        CopyPlan completed_collision{};
+        completed_collision.destination_root = destination;
+        completed_collision.files.push_back({1, source / "replacement.txt", destination / "first.txt", 1});
+        completed_collision.total_bytes = 1;
+        completed_collision.largest_file_bytes = 1;
+        if (appended_plan.append(std::move(completed_collision)) != LivePlanAppendResult::DestinationCollision) {
+            fs::remove_all(root, ec);
+            return 8;
+        }
+
+        CopyPlan pending_collision{};
+        pending_collision.destination_root = destination;
+        pending_collision.files.push_back({1, source / "duplicate.txt", destination / "fifth.txt", 1});
+        pending_collision.total_bytes = 1;
+        pending_collision.largest_file_bytes = 1;
+        if (appended_plan.append(std::move(pending_collision)) != LivePlanAppendResult::DestinationCollision) {
+            fs::remove_all(root, ec);
+            return 9;
+        }
+
+        // Removing a pending item releases that destination for a future append.
+        if (!appended_plan.remove_pending_file(5)) {
+            fs::remove_all(root, ec);
+            return 10;
+        }
+        CopyPlan reuse_removed{};
+        reuse_removed.destination_root = destination;
+        reuse_removed.files.push_back({1, source / "replacement-fifth.txt", destination / "fifth.txt", 2});
+        reuse_removed.total_bytes = 2;
+        reuse_removed.largest_file_bytes = 2;
+        if (appended_plan.append(std::move(reuse_removed)) != LivePlanAppendResult::Appended) {
+            fs::remove_all(root, ec);
+            return 11;
         }
 
         CopyPlan other_destination{};
         other_destination.destination_root = root / "other";
         if (appended_plan.append(std::move(other_destination)) != LivePlanAppendResult::DifferentDestination) {
             fs::remove_all(root, ec);
-            return 8;
+            return 12;
         }
     }
 
-    // Contract: a fully drained plan is closed to ordinary callers. Only a
-    // batch that was reserved by the active session before the drain boundary
-    // may reopen that same live plan.
+    // A drained plan is closed to ordinary callers; only a previously reserved
+    // append may cross the drain boundary, preserving completion history.
     {
         LiveCopyPlan drained_plan(make_plan(source, destination));
         while (auto file = drained_plan.acquire_next()) {
             drained_plan.complete_active(file->id);
+        }
+
+        if (drained_plan.completed_files() != 3 || drained_plan.completed_bytes() != 16 ||
+            drained_plan.remaining_files() != 0) {
+            fs::remove_all(root, ec);
+            return 13;
         }
 
         CopyPlan ordinary{};
@@ -143,7 +183,7 @@ int main() {
         ordinary.largest_file_bytes = 7;
         if (drained_plan.append(std::move(ordinary)) != LivePlanAppendResult::Drained) {
             fs::remove_all(root, ec);
-            return 13;
+            return 14;
         }
 
         CopyPlan reserved{};
@@ -153,17 +193,21 @@ int main() {
         reserved.largest_file_bytes = 8;
         if (drained_plan.append(std::move(reserved), true) != LivePlanAppendResult::Appended) {
             fs::remove_all(root, ec);
-            return 14;
+            return 15;
         }
 
         const auto snapshot = drained_plan.snapshot();
         if (snapshot.pending_files.size() != 1 || snapshot.pending_files[0].id != 4 ||
-            snapshot.total_files != 4 || snapshot.total_bytes != 24) {
+            snapshot.total_files != 4 || snapshot.total_bytes != 24 ||
+            snapshot.completed_files != 3 || snapshot.completed_bytes != 16 ||
+            drained_plan.remaining_files() != 1) {
             fs::remove_all(root, ec);
-            return 15;
+            return 16;
         }
     }
 
+    // Queue edits remain valid while the executor is live and totals follow the
+    // editable plan without counting removed work.
     LiveCopyPlan live_plan(make_plan(source, destination));
     JobExecutor executor;
     bool edited = false;
@@ -188,27 +232,28 @@ int main() {
 
     if (!result.success || result.cancelled || !edited || !saw_adjusted_totals) {
         fs::remove_all(root, ec);
-        return 9;
+        return 17;
     }
 
     if (!fs::exists(destination / "first.txt") ||
         !fs::exists(destination / "third.txt") ||
         fs::exists(destination / "second.txt")) {
         fs::remove_all(root, ec);
-        return 10;
+        return 18;
     }
 
     if (read_text(destination / "first.txt") != "first" ||
         read_text(destination / "third.txt") != "third") {
         fs::remove_all(root, ec);
-        return 11;
+        return 19;
     }
 
     const auto final_snapshot = live_plan.snapshot();
     if (!final_snapshot.active_files.empty() || !final_snapshot.pending_files.empty() ||
-        final_snapshot.total_files != 2 || final_snapshot.total_bytes != 10) {
+        final_snapshot.total_files != 2 || final_snapshot.total_bytes != 10 ||
+        final_snapshot.completed_files != 2 || final_snapshot.completed_bytes != 10) {
         fs::remove_all(root, ec);
-        return 12;
+        return 20;
     }
 
     fs::remove_all(root, ec);
