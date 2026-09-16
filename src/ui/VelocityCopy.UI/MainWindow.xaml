@@ -9,6 +9,31 @@
           DragLeave="OnDragLeave"
           Drop="OnDrop"
           Padding="{StaticResource ContentGutterThickness}">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="WindowWidthStates">
+                <VisualState x:Name="CompactState">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="0" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="RootGrid.Padding" Value="{StaticResource ContentGutterCompactThickness}" />
+                        <Setter Target="QueueList.MaxHeight" Value="{StaticResource QueueMaxHeightCompact}" />
+                        <Setter Target="DropFlowContent.Width" Value="{StaticResource DropFlyoutWidthCompact}" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="ComfortableState">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="520" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="RootGrid.Padding" Value="{StaticResource ContentGutterThickness}" />
+                        <Setter Target="QueueList.MaxHeight" Value="{StaticResource QueueMaxHeightComfortable}" />
+                        <Setter Target="DropFlowContent.Width" Value="{StaticResource DropFlyoutWidthComfortable}" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -45,7 +70,7 @@
             <TextBlock x:Name="EtaText" Grid.Column="1" Text="—" Opacity="0.75" />
         </Grid>
 
-        <Grid Grid.Row="4" Margin="0,8,0,0">
+        <Grid x:Name="ActionStrip" Grid.Row="4" Margin="0,8,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
@@ -85,7 +110,7 @@
             <ListView x:Name="QueueList"
                       Grid.Row="1"
                       Margin="0,6,0,0"
-                      MaxHeight="190"
+                      MaxHeight="{StaticResource QueueMaxHeightCompact}"
                       SelectionMode="Extended"
                       IsItemClickEnabled="False"
                       IsSwipeEnabled="True"
@@ -143,7 +168,7 @@
         <Button x:Name="FlyoutAnchor" Visibility="Collapsed">
             <Button.Flyout>
                 <Flyout x:Name="DropFlowFlyout" Placement="Bottom">
-                    <Grid Width="408" MinHeight="176">
+                    <Grid x:Name="DropFlowContent" Width="{StaticResource DropFlyoutWidthCompact}" MinHeight="176">
                         <Grid x:Name="DestinationStep">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
