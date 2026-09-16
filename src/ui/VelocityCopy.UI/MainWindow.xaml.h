@@ -60,6 +60,7 @@ private:
     winrt::fire_and_forget HandleDropAsync(Windows::ApplicationModel::DataTransfer::DataPackageView data_view);
     winrt::fire_and_forget BeginShellLayoutAsync(velocitycopy::CopyJob job);
     winrt::fire_and_forget BrowseAsync();
+    winrt::fire_and_forget ShowConflictDialogAsync(velocitycopy::JobResult conflict);
     void LoadDestinations();
     void NavigateDestination(std::filesystem::path folder);
     void ApplyDestinationNavigation(velocitycopy::DestinationNavigationResult result);
@@ -73,13 +74,15 @@ private:
         bool reservation_already_held);
     void StartCopy(velocitycopy::CopyJob job);
     void ResumeStoppedCopy();
+    void ResumeConflictCopy(std::uint64_t replace_file_id);
     void StartNextQueuedSession();
     [[nodiscard]] velocitycopy::JobResult RunLivePlanSession(
         std::shared_ptr<velocitycopy::LiveCopyPlan> plan,
         std::shared_ptr<velocitycopy::ExecutionControl> control,
         std::shared_ptr<AppendGate> gate,
         std::stop_token stop_token,
-        bool publish_plan);
+        bool publish_plan,
+        std::uint64_t replace_file_id = 0);
     void PublishLivePlan(std::shared_ptr<velocitycopy::LiveCopyPlan> plan);
     void RefreshQueue();
     [[nodiscard]] std::vector<std::uint64_t> SelectedPendingIds();
@@ -88,7 +91,9 @@ private:
     void SetExecutionButtonsRunning();
     void SetExecutionButtonsIdle();
     void SetExecutionButtonsStopped();
+    void SetExecutionButtonsConflict();
     void FinalizeStoppedSessionIfEmpty();
+    void FinalizeConflictSessionIfEmpty();
     void ApplySnapshot(const velocitycopy::UiSnapshot& snapshot);
     void FinishCopy(const velocitycopy::JobResult& result);
     void ShowError();
@@ -119,6 +124,7 @@ private:
     std::atomic_bool cancel_requested_{false};
     bool paused_{};
     bool stopped_session_{};
+    bool conflict_session_{};
     bool stop_requested_{};
     bool resume_requested_{};
     bool initial_size_applied_{};
@@ -127,6 +133,7 @@ private:
     std::uint64_t last_queue_completed_files_{};
     std::uint64_t shell_layout_generation_{};
     std::uint64_t current_file_id_{};
+    std::uint64_t conflict_replace_file_id_{};
     std::jthread copy_thread_;
 };
 }
