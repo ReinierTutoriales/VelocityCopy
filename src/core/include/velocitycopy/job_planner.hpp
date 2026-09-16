@@ -26,6 +26,7 @@ struct CopyPlan {
     std::vector<std::filesystem::path> source_roots;
     std::filesystem::path destination_root;
     std::uint64_t total_bytes{};
+    std::uint64_t largest_file_bytes{};
 
     [[nodiscard]] bool move_file(std::uint64_t file_id, std::size_t new_index) noexcept;
     [[nodiscard]] bool move_file_up(std::uint64_t file_id) noexcept;
