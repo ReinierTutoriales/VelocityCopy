@@ -243,6 +243,7 @@ void MainWindow::EnqueueAppend(
                     case velocitycopy::LivePlanAppendResult::DifferentDestination:
                     case velocitycopy::LivePlanAppendResult::DestinationCollision:
                     case velocitycopy::LivePlanAppendResult::SizeOverflow:
+                    case velocitycopy::LivePlanAppendResult::InternalFailure:
                         self->ShowError();
                         if (self->conflict_session_ && self->resume_requested_) {
                             self->ResumeConflictCopy(self->conflict_replace_file_id_);
