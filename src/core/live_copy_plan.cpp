@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cwctype>
 #include <limits>
-#include <unordered_set>
 #include <utility>
 
 namespace velocitycopy {
@@ -27,8 +26,10 @@ LiveCopyPlan::LiveCopyPlan(CopyPlan plan)
       total_bytes_(plan.total_bytes),
       total_files_(pending_files_.size()),
       largest_file_bytes_(plan.largest_file_bytes) {
+    reserved_destination_keys_.reserve(pending_files_.size());
     for (const auto& file : pending_files_) {
         next_file_id_ = std::max(next_file_id_, file.id + 1);
+        reserved_destination_keys_.insert(normalized_path_key(file.destination));
     }
 }
 
@@ -51,6 +52,8 @@ LiveCopyPlanSnapshot LiveCopyPlan::snapshot() const {
         active_files_,
         total_bytes_,
         total_files_,
+        completed_bytes_,
+        completed_files_,
     };
 }
 
@@ -73,19 +76,15 @@ LivePlanAppendResult LiveCopyPlan::append(
             return LivePlanAppendResult::SizeOverflow;
         }
 
-        std::unordered_set<std::wstring> occupied;
-        occupied.reserve(pending_files_.size() + active_files_.size() + plan.files.size());
-        for (const auto& file : pending_files_) {
-            occupied.insert(normalized_path_key(file.destination));
-        }
-        for (const auto& file : active_files_) {
-            occupied.insert(normalized_path_key(file.destination));
-        }
+        std::vector<std::wstring> incoming_keys;
+        incoming_keys.reserve(plan.files.size());
         for (const auto& file : plan.files) {
-            const auto key = normalized_path_key(file.destination);
-            if (key.empty() || !occupied.insert(key).second) {
+            auto key = normalized_path_key(file.destination);
+            if (key.empty() || reserved_destination_keys_.contains(key) ||
+                std::find(incoming_keys.begin(), incoming_keys.end(), key) != incoming_keys.end()) {
                 return LivePlanAppendResult::DestinationCollision;
             }
+            incoming_keys.push_back(std::move(key));
         }
 
         // directories_ and source_roots_ are immutable execution metadata.
@@ -93,8 +92,11 @@ LivePlanAppendResult LiveCopyPlan::append(
         // planning worker before this atomic queue merge, avoiding races with
         // the executor's initial directory/strategy reads.
         pending_files_.reserve(pending_files_.size() + plan.files.size());
-        for (auto& file : plan.files) {
+        reserved_destination_keys_.reserve(reserved_destination_keys_.size() + incoming_keys.size());
+        for (std::size_t index = 0; index < plan.files.size(); ++index) {
+            auto& file = plan.files[index];
             file.id = next_file_id_++;
+            reserved_destination_keys_.insert(std::move(incoming_keys[index]));
             pending_files_.push_back(std::move(file));
         }
 
@@ -168,6 +170,7 @@ bool LiveCopyPlan::remove_pending_file(const std::uint64_t file_id) noexcept {
 
     total_bytes_ -= it->size;
     --total_files_;
+    reserved_destination_keys_.erase(normalized_path_key(it->destination));
     pending_files_.erase(it);
     return true;
 }
@@ -187,9 +190,19 @@ std::optional<PlannedFile> LiveCopyPlan::acquire_next() noexcept {
 void LiveCopyPlan::complete_active(const std::uint64_t file_id) noexcept {
     std::lock_guard lock(mutex_);
     auto it = find_active(file_id);
-    if (it != active_files_.end()) {
-        active_files_.erase(it);
+    if (it == active_files_.end()) {
+        return;
     }
+
+    if (std::numeric_limits<std::uint64_t>::max() - completed_bytes_ < it->size) {
+        completed_bytes_ = std::numeric_limits<std::uint64_t>::max();
+    } else {
+        completed_bytes_ += it->size;
+    }
+    if (completed_files_ != std::numeric_limits<std::uint64_t>::max()) {
+        ++completed_files_;
+    }
+    active_files_.erase(it);
 }
 
 void LiveCopyPlan::release_active(const std::uint64_t file_id) noexcept {
@@ -212,6 +225,16 @@ std::uint64_t LiveCopyPlan::total_bytes() const noexcept {
 std::uint64_t LiveCopyPlan::total_files() const noexcept {
     std::lock_guard lock(mutex_);
     return total_files_;
+}
+
+std::uint64_t LiveCopyPlan::completed_bytes() const noexcept {
+    std::lock_guard lock(mutex_);
+    return completed_bytes_;
+}
+
+std::uint64_t LiveCopyPlan::completed_files() const noexcept {
+    std::lock_guard lock(mutex_);
+    return completed_files_;
 }
 
 std::uint64_t LiveCopyPlan::largest_file_bytes() const noexcept {
