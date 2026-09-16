@@ -15,12 +15,8 @@ bool revalidate_plan_sources(velocitycopy::CopyPlan& plan) noexcept {
         for (auto& file : plan.files) {
             std::error_code ec;
             const auto size = std::filesystem::file_size(file.source, ec);
-            if (ec) {
-                return false;
-            }
-            if (std::numeric_limits<std::uint64_t>::max() - plan.total_bytes < size) {
-                return false;
-            }
+            if (ec) return false;
+            if (std::numeric_limits<std::uint64_t>::max() - plan.total_bytes < size) return false;
             file.size = size;
             plan.total_bytes += size;
             plan.largest_file_bytes = (std::max)(plan.largest_file_bytes, size);
@@ -31,40 +27,21 @@ bool revalidate_plan_sources(velocitycopy::CopyPlan& plan) noexcept {
     }
 }
 
-bool create_append_directories(const velocitycopy::CopyPlan& plan) noexcept {
-    for (const auto& directory : plan.directories) {
-        std::error_code ec;
-        std::filesystem::create_directories(directory.destination, ec);
-        if (ec) {
-            return false;
-        }
-    }
-    return true;
-}
-
 bool merge_current_append_jobs(velocitycopy::QueueArchive& archive) {
-    if (archive.current_append_jobs.empty()) {
-        return true;
-    }
+    if (archive.current_append_jobs.empty()) return true;
 
     velocitycopy::JobPlanner planner;
     std::size_t first_append = 0;
     if (!archive.current_plan) {
-        auto first_plan = planner.build(archive.current_append_jobs.front());
-        archive.current_plan = std::move(first_plan);
+        archive.current_plan = planner.build(archive.current_append_jobs.front());
         first_append = 1;
     }
 
     velocitycopy::LiveCopyPlan merged(std::move(*archive.current_plan));
     for (std::size_t index = first_append; index < archive.current_append_jobs.size(); ++index) {
         auto append_plan = planner.build(archive.current_append_jobs[index]);
-        if (!create_append_directories(append_plan)) {
-            return false;
-        }
         const auto append_result = merged.append(std::move(append_plan), true);
-        if (append_result != velocitycopy::LivePlanAppendResult::Appended) {
-            return false;
-        }
+        if (append_result != velocitycopy::LivePlanAppendResult::Appended) return false;
     }
     archive.current_plan = merged.export_remaining_plan();
     archive.current_append_jobs.clear();
@@ -97,14 +74,12 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
             save_queue_menu_item_.Text(loader.GetString(L"ActionSaveQueue"));
             load_queue_menu_item_.Text(loader.GetString(L"ActionLoadQueue"));
             ToolTipService::SetToolTip(queue_options_button_, box_value(options_label));
-            Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(
-                queue_options_button_, options_label);
+            Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(queue_options_button_, options_label);
         } catch (...) {
             save_queue_menu_item_.Text(L"Save queue");
             load_queue_menu_item_.Text(L"Load queue");
             ToolTipService::SetToolTip(queue_options_button_, box_value(L"Queue options"));
-            Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(
-                queue_options_button_, L"Queue options");
+            Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(queue_options_button_, L"Queue options");
         }
 
         save_queue_menu_item_.Click({this, &MainWindow::OnSaveQueueClick});
@@ -121,9 +96,7 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
 }
 
 void MainWindow::RefreshQueueCommandState() {
-    if (!save_queue_menu_item_ || !load_queue_menu_item_) {
-        return;
-    }
+    if (!save_queue_menu_item_ || !load_queue_menu_item_) return;
 
     bool planning = false;
     if (append_gate_) {
@@ -159,16 +132,12 @@ fire_and_forget MainWindow::SaveQueueAsync() {
         Microsoft::Windows::Storage::Pickers::FileSavePicker picker(AppWindow().Id());
         picker.SuggestedFileName(L"VelocityCopy Queue.vcq");
         auto result = co_await picker.PickSaveFileAsync();
-        if (result) {
-            selected_path = std::filesystem::path(result.Path().c_str());
-        }
+        if (result) selected_path = std::filesystem::path(result.Path().c_str());
     } catch (...) {
         ShowError();
         co_return;
     }
-    if (!selected_path) {
-        co_return;
-    }
+    if (!selected_path) co_return;
 
     bool planning = false;
     if (append_gate_) {
@@ -182,28 +151,15 @@ fire_and_forget MainWindow::SaveQueueAsync() {
 
     auto current_plan = live_plan_;
     std::vector<velocitycopy::CopyJob> current_append_jobs;
-    current_append_jobs.reserve(
-        deferred_same_destination_jobs_.size() + deferred_interrupted_jobs_.size());
-    current_append_jobs.insert(
-        current_append_jobs.end(),
-        deferred_same_destination_jobs_.begin(),
-        deferred_same_destination_jobs_.end());
-    current_append_jobs.insert(
-        current_append_jobs.end(),
-        deferred_interrupted_jobs_.begin(),
-        deferred_interrupted_jobs_.end());
+    current_append_jobs.reserve(deferred_same_destination_jobs_.size() + deferred_interrupted_jobs_.size());
+    current_append_jobs.insert(current_append_jobs.end(), deferred_same_destination_jobs_.begin(), deferred_same_destination_jobs_.end());
+    current_append_jobs.insert(current_append_jobs.end(), deferred_interrupted_jobs_.begin(), deferred_interrupted_jobs_.end());
+    std::vector<velocitycopy::CopyJob> queued(queued_sessions_.begin(), queued_sessions_.end());
 
-    std::vector<velocitycopy::CopyJob> queued(
-        queued_sessions_.begin(), queued_sessions_.end());
-
-    if (!current_plan && current_append_jobs.empty() && queued.empty()) {
-        co_return;
-    }
+    if (!current_plan && current_append_jobs.empty() && queued.empty()) co_return;
 
     auto path = std::move(*selected_path);
-    if (path.extension().empty()) {
-        path += L".vcq";
-    }
+    if (path.extension().empty()) path += L".vcq";
 
     auto dispatcher = dispatcher_;
     auto weak = get_weak();
@@ -226,9 +182,7 @@ fire_and_forget MainWindow::SaveQueueAsync() {
     }
 
     (void)dispatcher.TryEnqueue([weak, saved]() {
-        if (auto self = weak.get(); self && !saved) {
-            self->ShowError();
-        }
+        if (auto self = weak.get(); self && !saved) self->ShowError();
     });
 }
 
@@ -246,16 +200,12 @@ fire_and_forget MainWindow::LoadQueueAsync() {
         Microsoft::Windows::Storage::Pickers::FileOpenPicker picker(AppWindow().Id());
         picker.FileTypeFilter().Append(L".vcq");
         auto result = co_await picker.PickSingleFileAsync();
-        if (result) {
-            selected_path = std::filesystem::path(result.Path().c_str());
-        }
+        if (result) selected_path = std::filesystem::path(result.Path().c_str());
     } catch (...) {
         ShowError();
         co_return;
     }
-    if (!selected_path) {
-        co_return;
-    }
+    if (!selected_path) co_return;
 
     auto dispatcher = dispatcher_;
     auto weak = get_weak();
@@ -265,12 +215,8 @@ fire_and_forget MainWindow::LoadQueueAsync() {
     auto archive = velocitycopy::QueueArchiveStore{}.load(path);
     if (archive) {
         try {
-            if (archive->current_plan && !revalidate_plan_sources(*archive->current_plan)) {
-                archive.reset();
-            }
-            if (archive && !merge_current_append_jobs(*archive)) {
-                archive.reset();
-            }
+            if (archive->current_plan && !revalidate_plan_sources(*archive->current_plan)) archive.reset();
+            if (archive && !merge_current_append_jobs(*archive)) archive.reset();
         } catch (...) {
             archive.reset();
         }
@@ -278,16 +224,13 @@ fire_and_forget MainWindow::LoadQueueAsync() {
 
     (void)dispatcher.TryEnqueue([weak, archive = std::move(archive)]() mutable {
         auto self = weak.get();
-        if (!self) {
-            return;
-        }
+        if (!self) return;
         if (!archive) {
             self->ShowError();
             return;
         }
         if (self->execution_control_ || self->live_plan_ || self->stopped_session_ ||
-            self->conflict_session_ || self->stop_requested_ ||
-            !self->queued_sessions_.empty()) {
+            self->conflict_session_ || self->stop_requested_ || !self->queued_sessions_.empty()) {
             self->ShowError();
             return;
         }
@@ -343,16 +286,12 @@ void MainWindow::StartCopyPlan(velocitycopy::CopyPlan plan) {
     auto gate = append_gate_;
     auto weak = get_weak();
     auto dispatcher = dispatcher_;
-    copy_thread_ = std::jthread(
-        [this, weak, dispatcher, live, control, gate](std::stop_token stop_token) {
-            const auto result = RunLivePlanSession(
-                live, control, gate, stop_token, false, 0);
-            (void)dispatcher.TryEnqueue([weak, result]() {
-                if (auto self = weak.get()) {
-                    self->FinishCopy(result);
-                }
-            });
+    copy_thread_ = std::jthread([this, weak, dispatcher, live, control, gate](std::stop_token stop_token) {
+        const auto result = RunLivePlanSession(live, control, gate, stop_token, false, 0);
+        (void)dispatcher.TryEnqueue([weak, result]() {
+            if (auto self = weak.get()) self->FinishCopy(result);
         });
+    });
     RefreshQueueCommandState();
 }
 
