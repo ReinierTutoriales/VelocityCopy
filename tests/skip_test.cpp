@@ -78,9 +78,9 @@ int wmain() {
         }
     }
 
-    // Pre-existing destination: the active item must be advertised as unsafe
-    // to skip. Even if a skip request is injected directly, the executor must
-    // not consume it as a destructive Skip or delete the destination.
+    // Pre-existing destination: this test explicitly authorizes replacement so
+    // it can isolate the Skip-safety contract. Even then, the active item is
+    // not skippable because aborting it could destroy pre-existing user data.
     {
         const auto destination = root / L"existing";
         write_text(destination / L"a.txt", "ORIGINAL");
@@ -89,8 +89,10 @@ int wmain() {
         control.request_skip(1);
 
         bool saw_protected = false;
+        JobExecutionOptions options{1};
+        options.existing_destination = ExistingDestinationPolicy::Replace;
         const auto result = executor.execute(
-            plan, control, JobExecutionOptions{1},
+            plan, control, options,
             [&](const JobProgress& progress) {
                 if (progress.current_file_id == 1) {
                     saw_protected = true;
