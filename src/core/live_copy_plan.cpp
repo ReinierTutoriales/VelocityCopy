@@ -1,9 +1,23 @@
 #include "velocitycopy/live_copy_plan.hpp"
 
 #include <algorithm>
+#include <cwctype>
+#include <limits>
+#include <unordered_set>
 #include <utility>
 
 namespace velocitycopy {
+namespace {
+
+std::wstring normalized_path_key(const std::filesystem::path& path) {
+    auto value = path.lexically_normal().wstring();
+    std::transform(value.begin(), value.end(), value.begin(), [](const wchar_t ch) {
+        return static_cast<wchar_t>(std::towlower(ch));
+    });
+    return value;
+}
+
+} // namespace
 
 LiveCopyPlan::LiveCopyPlan(CopyPlan plan)
     : directories_(std::move(plan.directories)),
@@ -13,6 +27,9 @@ LiveCopyPlan::LiveCopyPlan(CopyPlan plan)
       total_bytes_(plan.total_bytes),
       total_files_(pending_files_.size()),
       largest_file_bytes_(plan.largest_file_bytes) {
+    for (const auto& file : pending_files_) {
+        next_file_id_ = std::max(next_file_id_, file.id + 1);
+    }
 }
 
 const std::vector<PlannedDirectory>& LiveCopyPlan::directories() const noexcept {
@@ -35,6 +52,59 @@ LiveCopyPlanSnapshot LiveCopyPlan::snapshot() const {
         total_bytes_,
         total_files_,
     };
+}
+
+LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan) noexcept {
+    try {
+        std::lock_guard lock(mutex_);
+
+        if (normalized_path_key(plan.destination_root) != normalized_path_key(destination_root_)) {
+            return LivePlanAppendResult::DifferentDestination;
+        }
+        if (plan.total_bytes > std::numeric_limits<std::uint64_t>::max() - total_bytes_) {
+            return LivePlanAppendResult::SizeOverflow;
+        }
+        if (plan.files.size() > std::numeric_limits<std::uint64_t>::max() - total_files_) {
+            return LivePlanAppendResult::SizeOverflow;
+        }
+
+        std::unordered_set<std::wstring> occupied;
+        occupied.reserve(pending_files_.size() + active_files_.size() + plan.files.size());
+        for (const auto& file : pending_files_) {
+            occupied.insert(normalized_path_key(file.destination));
+        }
+        for (const auto& file : active_files_) {
+            occupied.insert(normalized_path_key(file.destination));
+        }
+        for (const auto& file : plan.files) {
+            const auto key = normalized_path_key(file.destination);
+            if (key.empty() || !occupied.insert(key).second) {
+                return LivePlanAppendResult::DestinationCollision;
+            }
+        }
+
+        source_roots_.insert(
+            source_roots_.end(),
+            std::make_move_iterator(plan.source_roots.begin()),
+            std::make_move_iterator(plan.source_roots.end()));
+        directories_.insert(
+            directories_.end(),
+            std::make_move_iterator(plan.directories.begin()),
+            std::make_move_iterator(plan.directories.end()));
+
+        pending_files_.reserve(pending_files_.size() + plan.files.size());
+        for (auto& file : plan.files) {
+            file.id = next_file_id_++;
+            pending_files_.push_back(std::move(file));
+        }
+
+        total_bytes_ += plan.total_bytes;
+        total_files_ += static_cast<std::uint64_t>(plan.files.size());
+        largest_file_bytes_ = std::max(largest_file_bytes_, plan.largest_file_bytes);
+        return LivePlanAppendResult::Appended;
+    } catch (...) {
+        return LivePlanAppendResult::DestinationCollision;
+    }
 }
 
 std::vector<PlannedFile>::iterator LiveCopyPlan::find_pending(const std::uint64_t file_id) noexcept {
