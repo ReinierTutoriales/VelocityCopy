@@ -13,10 +13,16 @@ struct CopyProgress {
 
 enum class CopyDecision {
     Continue,
+    Pause,
+    Stop,
     Cancel,
 };
 
 using ProgressCallback = std::function<CopyDecision(const CopyProgress&)>;
+
+struct CopyOptions {
+    bool resume_from_pause{};
+};
 
 struct CopyResult {
     bool success{};
@@ -28,6 +34,12 @@ public:
     [[nodiscard]] CopyResult copy_file(
         const std::filesystem::path& source,
         const std::filesystem::path& destination,
+        const ProgressCallback& progress = {}) const noexcept;
+
+    [[nodiscard]] CopyResult copy_file(
+        const std::filesystem::path& source,
+        const std::filesystem::path& destination,
+        const CopyOptions& options,
         const ProgressCallback& progress = {}) const noexcept;
 };
 
