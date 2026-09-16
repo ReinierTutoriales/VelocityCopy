@@ -1,4 +1,3 @@
-LIBRARY "VelocityCopy.Shell"
 EXPORTS
-    DllCanUnloadNow
-    DllGetClassObject
+    DllCanUnloadNow PRIVATE
+    DllGetClassObject PRIVATE
