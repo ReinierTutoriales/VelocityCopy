@@ -38,6 +38,7 @@ struct MainWindow : MainWindowT<MainWindow> {
     void OnBackClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnQueueOrStartCopyClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnPauseClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
+    void OnSkipClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnStopClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnCancelClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnQueueClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
@@ -124,6 +125,7 @@ private:
     std::uint64_t next_job_id_{1};
     std::uint64_t last_queue_completed_files_{};
     std::uint64_t shell_layout_generation_{};
+    std::uint64_t current_file_id_{};
     std::jthread copy_thread_;
 };
 }
