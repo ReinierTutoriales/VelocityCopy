@@ -396,6 +396,7 @@ JobResult JobExecutor::execute(
                                 const auto next = control.wait_while_paused();
                                 if (next == ExecutionDirective::Cancel) {
                                     progress_state.release(file_id);
+                                    if (skip_allowed) remove_partial_destination(file->destination);
                                     plan.release_active(file_id);
                                     worker_results[worker_index] = {false, true, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED)), false};
                                     return;
@@ -405,8 +406,9 @@ JobResult JobExecutor::execute(
                             }
 
                             progress_state.release(file_id);
-                            plan.release_active(file_id);
                             const bool cancelled = result.native_code == static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED));
+                            if (cancelled && skip_allowed) remove_partial_destination(file->destination);
+                            plan.release_active(file_id);
                             if (!cancelled) result_state.record_error(result.native_code, &*file);
                             control.request_cancel();
                             worker_results[worker_index] = {false, cancelled, result.native_code, false};
@@ -428,9 +430,6 @@ JobResult JobExecutor::execute(
                             return;
                         }
 
-                        // A one-shot replacement is a transaction boundary. Yield
-                        // immediately so the session loop can restore adaptive N
-                        // and so authorization can never bleed into another file.
                         if (options.replace_file_id == file_id) {
                             worker_results[worker_index] = {true, false, S_OK, false};
                             return;
