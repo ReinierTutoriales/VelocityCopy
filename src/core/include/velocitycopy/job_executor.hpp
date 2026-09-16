@@ -70,6 +70,9 @@ public:
         const CopyJob& job,
         const CopyPlan& plan) const noexcept;
 
+    [[nodiscard]] JobExecutionOptions recommend_options(
+        const LiveCopyPlan& plan) const noexcept;
+
 private:
     CopyEngine engine_;
     JobPlanner planner_;
