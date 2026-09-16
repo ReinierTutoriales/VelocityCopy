@@ -45,6 +45,7 @@ fire_and_forget MainWindow::BeginShellLayoutAsync(velocitycopy::CopyJob job) {
     auto lifetime = get_strong();
     auto weak = get_weak();
     auto dispatcher = dispatcher_;
+    const auto generation = ++shell_layout_generation_;
     const auto destination = job.destination;
     auto sources = std::move(job.sources);
 
@@ -75,9 +76,14 @@ fire_and_forget MainWindow::BeginShellLayoutAsync(velocitycopy::CopyJob job) {
 
     (void)dispatcher.TryEnqueue([
         weak,
+        generation,
         destination,
         items = std::move(items)]() mutable {
         if (auto self = weak.get()) {
+            if (self->shell_layout_generation_ != generation) {
+                return;
+            }
+
             self->Activate();
             if (items.empty()) {
                 self->ShowError();
