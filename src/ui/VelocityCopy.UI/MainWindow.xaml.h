@@ -122,6 +122,7 @@ private:
     bool stop_requested_{};
     bool resume_requested_{};
     bool initial_size_applied_{};
+    bool current_file_skippable_{};
     std::uint64_t next_job_id_{1};
     std::uint64_t last_queue_completed_files_{};
     std::uint64_t shell_layout_generation_{};
