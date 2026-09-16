@@ -52,8 +52,7 @@ void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
             queued_sessions_.push_back(std::move(job));
             return;
         }
-        EnqueueAppend(
-            std::move(job), live_plan_, nullptr, append_gate_, false);
+        EnqueueAppend(std::move(job), live_plan_, nullptr, append_gate_, false);
         return;
     }
 
@@ -62,8 +61,7 @@ void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
             queued_sessions_.push_back(std::move(job));
             return;
         }
-        EnqueueAppend(
-            std::move(job), live_plan_, nullptr, append_gate_, false);
+        EnqueueAppend(std::move(job), live_plan_, nullptr, append_gate_, false);
         return;
     }
 
@@ -90,20 +88,12 @@ void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
                 reserved = true;
             }
         }
-        if (reserved) {
-            deferred_same_destination_jobs_.push_back(std::move(job));
-        } else {
-            queued_sessions_.push_back(std::move(job));
-        }
+        if (reserved) deferred_same_destination_jobs_.push_back(std::move(job));
+        else queued_sessions_.push_back(std::move(job));
         return;
     }
 
-    EnqueueAppend(
-        std::move(job),
-        std::move(target_plan),
-        std::move(target_control),
-        std::move(target_gate),
-        false);
+    EnqueueAppend(std::move(job), std::move(target_plan), std::move(target_control), std::move(target_gate), false);
 }
 
 void MainWindow::EnqueueAppend(
@@ -126,45 +116,37 @@ void MainWindow::EnqueueAppend(
                 reserved = true;
             }
         }
-
         if (!reserved) {
-            if ((stopped_session_ || conflict_session_) &&
-                same_destination(active_destination_, job.destination)) {
+            if ((stopped_session_ || conflict_session_) && same_destination(active_destination_, job.destination))
                 deferred_interrupted_jobs_.push_back(std::move(job));
-            } else {
+            else
                 queued_sessions_.push_back(std::move(job));
-            }
             return;
         }
     }
 
     auto weak = get_weak();
     auto dispatcher = dispatcher_;
-
     (void)append_planner_.enqueue(
         std::move(job),
         [weak, dispatcher, target_plan, target_control, target_gate](velocitycopy::JobPlanningResult result) mutable {
             auto release_reservation = [&]() {
                 std::lock_guard gate_lock(target_gate->mutex);
-                if (target_gate->planning_count != 0) {
-                    --target_gate->planning_count;
-                }
+                if (target_gate->planning_count != 0) --target_gate->planning_count;
                 target_gate->condition.notify_all();
             };
-
             auto notify_failure = [weak, dispatcher, target_gate]() {
                 (void)dispatcher.TryEnqueue([weak, target_gate]() {
                     if (auto self = weak.get(); self && self->append_gate_ == target_gate) {
                         self->ShowError();
-                        if (self->conflict_session_ && self->resume_requested_) {
+                        if (self->conflict_session_ && self->resume_requested_)
                             self->ResumeConflictCopy(self->conflict_replace_file_id_);
-                        } else if (self->stopped_session_ && self->resume_requested_) {
+                        else if (self->stopped_session_ && self->resume_requested_)
                             self->ResumeStoppedCopy();
-                        } else if (self->conflict_session_) {
+                        else if (self->conflict_session_)
                             self->FinalizeConflictSessionIfEmpty();
-                        } else {
+                        else
                             self->FinalizeStoppedSessionIfEmpty();
-                        }
                     }
                 });
             };
@@ -175,29 +157,7 @@ void MainWindow::EnqueueAppend(
                 return;
             }
 
-            for (const auto& directory : result.plan->directories) {
-                {
-                    std::lock_guard gate_lock(target_gate->mutex);
-                    if (!target_gate->accepting) {
-                        if (target_gate->planning_count != 0) {
-                            --target_gate->planning_count;
-                        }
-                        target_gate->condition.notify_all();
-                        return;
-                    }
-                }
-
-                std::error_code ec;
-                std::filesystem::create_directories(directory.destination, ec);
-                if (ec) {
-                    release_reservation();
-                    notify_failure();
-                    return;
-                }
-            }
-
-            velocitycopy::LivePlanAppendResult append_result =
-                velocitycopy::LivePlanAppendResult::Drained;
+            velocitycopy::LivePlanAppendResult append_result = velocitycopy::LivePlanAppendResult::Drained;
             bool committed = false;
             {
                 std::lock_guard gate_lock(target_gate->mutex);
@@ -205,55 +165,38 @@ void MainWindow::EnqueueAppend(
                     append_result = target_plan->append(std::move(*result.plan), true);
                     committed = true;
                 }
-                if (target_gate->planning_count != 0) {
-                    --target_gate->planning_count;
-                }
+                if (target_gate->planning_count != 0) --target_gate->planning_count;
                 target_gate->condition.notify_all();
             }
+            if (!committed) return;
 
-            if (!committed) {
-                return;
-            }
-
-            (void)dispatcher.TryEnqueue([
-                weak,
-                target_plan,
-                target_control,
-                target_gate,
-                append_result]() mutable {
+            (void)dispatcher.TryEnqueue([weak, target_plan, target_control, target_gate, append_result]() mutable {
                 if (auto self = weak.get()) {
-                    if (self->live_plan_ != target_plan ||
-                        self->execution_control_ != target_control ||
-                        self->append_gate_ != target_gate) {
+                    if (self->live_plan_ != target_plan || self->execution_control_ != target_control || self->append_gate_ != target_gate)
                         return;
-                    }
-
                     switch (append_result) {
                     case velocitycopy::LivePlanAppendResult::Appended:
                         self->QueueButton().IsEnabled(true);
                         self->RefreshQueue();
-                        if (self->conflict_session_ && self->resume_requested_) {
+                        if (self->conflict_session_ && self->resume_requested_)
                             self->ResumeConflictCopy(self->conflict_replace_file_id_);
-                        } else if (self->stopped_session_ && self->resume_requested_) {
+                        else if (self->stopped_session_ && self->resume_requested_)
                             self->ResumeStoppedCopy();
-                        }
                         return;
-
                     case velocitycopy::LivePlanAppendResult::Drained:
                     case velocitycopy::LivePlanAppendResult::DifferentDestination:
                     case velocitycopy::LivePlanAppendResult::DestinationCollision:
                     case velocitycopy::LivePlanAppendResult::SizeOverflow:
                     case velocitycopy::LivePlanAppendResult::InternalFailure:
                         self->ShowError();
-                        if (self->conflict_session_ && self->resume_requested_) {
+                        if (self->conflict_session_ && self->resume_requested_)
                             self->ResumeConflictCopy(self->conflict_replace_file_id_);
-                        } else if (self->stopped_session_ && self->resume_requested_) {
+                        else if (self->stopped_session_ && self->resume_requested_)
                             self->ResumeStoppedCopy();
-                        } else if (self->conflict_session_) {
+                        else if (self->conflict_session_)
                             self->FinalizeConflictSessionIfEmpty();
-                        } else {
+                        else
                             self->FinalizeStoppedSessionIfEmpty();
-                        }
                         return;
                     }
                 }
