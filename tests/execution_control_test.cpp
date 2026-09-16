@@ -1,5 +1,6 @@
 #include "velocitycopy/execution_control.hpp"
 
+#include <array>
 #include <atomic>
 #include <cassert>
 #include <chrono>
@@ -43,6 +44,31 @@ int main() {
     assert(control.directive() == velocitycopy::ExecutionDirective::Cancel);
     control.request_stop();
     assert(control.directive() == velocitycopy::ExecutionDirective::Cancel);
+
+    // Contract for the future worker pool: all paused workers must wake together.
+    control.reset();
+    control.request_pause();
+    std::array<std::atomic<velocitycopy::ExecutionDirective>, 4> multi_results{};
+    std::array<std::jthread, 4> waiters;
+    for (std::size_t index = 0; index < waiters.size(); ++index) {
+        multi_results[index].store(velocitycopy::ExecutionDirective::Pause, std::memory_order_relaxed);
+        waiters[index] = std::jthread([&, index] {
+            multi_results[index].store(control.wait_while_paused(), std::memory_order_release);
+        });
+    }
+
+    std::this_thread::sleep_for(25ms);
+    for (const auto& value : multi_results) {
+        assert(value.load(std::memory_order_acquire) == velocitycopy::ExecutionDirective::Pause);
+    }
+
+    control.resume();
+    for (auto& thread : waiters) {
+        thread.join();
+    }
+    for (const auto& value : multi_results) {
+        assert(value.load(std::memory_order_acquire) == velocitycopy::ExecutionDirective::Run);
+    }
 
     control.reset();
     assert(control.directive() == velocitycopy::ExecutionDirective::Run);
