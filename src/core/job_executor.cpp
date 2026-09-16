@@ -15,6 +15,11 @@ namespace {
 
 constexpr std::uint32_t kMaxCopyWorkers = 4;
 
+void remove_partial_destination(const std::filesystem::path& destination) noexcept {
+    std::error_code ec;
+    (void)std::filesystem::remove(destination, ec);
+}
+
 struct ConcurrentProgressState {
     mutable std::mutex mutex;
     std::uint64_t completed_bytes{};
@@ -175,6 +180,7 @@ JobResult JobExecutor::execute(
                     aggregate.transferred_bytes = completed_bytes + file_progress.transferred_bytes;
                     aggregate.total_files = plan.files.size();
                     aggregate.completed_files = completed_files;
+                    aggregate.current_file_id = file.id;
                     aggregate.current_source = file.source;
                     aggregate.current_destination = file.destination;
 
@@ -197,6 +203,7 @@ JobResult JobExecutor::execute(
                 aggregate.transferred_bytes = completed_bytes;
                 aggregate.total_files = plan.files.size();
                 aggregate.completed_files = completed_files;
+                aggregate.current_file_id = 0;
                 aggregate.current_source = file.source;
                 aggregate.current_destination = file.destination;
 
@@ -283,13 +290,11 @@ JobResult JobExecutor::execute(
         std::vector<std::jthread> workers;
         workers.reserve(worker_count);
 
-        auto emit_progress = [&](const PlannedFile& file) -> bool {
+        auto emit_progress = [&](const PlannedFile& file, const bool file_is_active) -> bool {
             if (!progress) {
                 return true;
             }
 
-            // Serialize snapshot creation with callback delivery so concurrent
-            // workers cannot publish an older aggregate after a newer one.
             std::lock_guard callback_lock(callback_mutex);
             const auto [transferred, completed] = progress_state.totals();
             JobProgress aggregate{};
@@ -297,6 +302,7 @@ JobResult JobExecutor::execute(
             aggregate.transferred_bytes = std::min(transferred, aggregate.total_bytes);
             aggregate.total_files = plan.total_files();
             aggregate.completed_files = std::min(completed, aggregate.total_files);
+            aggregate.current_file_id = file_is_active ? file.id : 0;
             aggregate.current_source = file.source;
             aggregate.current_destination = file.destination;
 
@@ -354,14 +360,40 @@ JobResult JobExecutor::execute(
                             }
                         }
 
+                        if (control.consume_skip(file_id)) {
+                            progress_state.release(file_id);
+                            if (!plan.skip_active(file_id)) {
+                                result_state.record_error(static_cast<std::int32_t>(E_FAIL));
+                                control.request_cancel();
+                                worker_results[worker_index] = {false, false, static_cast<std::int32_t>(E_FAIL), false};
+                                return;
+                            }
+                            if (!emit_progress(*file, false)) {
+                                worker_results[worker_index] = {
+                                    false,
+                                    true,
+                                    static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED)),
+                                    false};
+                                return;
+                            }
+                            continue;
+                        }
+
                         bool resume_from_pause = false;
+                        bool skipped = false;
                         for (;;) {
+                            bool skip_requested = false;
                             const auto result = engine_.copy_file(
                                 file->source,
                                 file->destination,
                                 CopyOptions{resume_from_pause},
                                 [&](const CopyProgress& file_progress) {
                                     progress_state.update_active(*file, file_progress.transferred_bytes);
+
+                                    if (control.consume_skip(file_id)) {
+                                        skip_requested = true;
+                                        return CopyDecision::Skip;
+                                    }
 
                                     const auto current = control.directive();
                                     if (current == ExecutionDirective::Pause) {
@@ -371,12 +403,25 @@ JobResult JobExecutor::execute(
                                         return CopyDecision::Cancel;
                                     }
 
-                                    return emit_progress(*file)
+                                    return emit_progress(*file, true)
                                         ? CopyDecision::Continue
                                         : CopyDecision::Cancel;
                                 });
 
                             if (result.success) {
+                                break;
+                            }
+
+                            if (skip_requested) {
+                                progress_state.release(file_id);
+                                remove_partial_destination(file->destination);
+                                if (!plan.skip_active(file_id)) {
+                                    result_state.record_error(static_cast<std::int32_t>(E_FAIL));
+                                    control.request_cancel();
+                                    worker_results[worker_index] = {false, false, static_cast<std::int32_t>(E_FAIL), false};
+                                    return;
+                                }
+                                skipped = true;
                                 break;
                             }
 
@@ -409,9 +454,21 @@ JobResult JobExecutor::execute(
                             return;
                         }
 
+                        if (skipped) {
+                            if (!emit_progress(*file, false)) {
+                                worker_results[worker_index] = {
+                                    false,
+                                    true,
+                                    static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED)),
+                                    false};
+                                return;
+                            }
+                            continue;
+                        }
+
                         progress_state.complete(*file);
                         plan.complete_active(file_id);
-                        if (!emit_progress(*file)) {
+                        if (!emit_progress(*file, false)) {
                             worker_results[worker_index] = {
                                 false,
                                 true,
