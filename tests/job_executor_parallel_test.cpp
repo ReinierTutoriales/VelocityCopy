@@ -1,6 +1,7 @@
 #include "velocitycopy/job_executor.hpp"
 #include "velocitycopy/live_copy_plan.hpp"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <filesystem>
