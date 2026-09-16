@@ -75,6 +75,7 @@ private:
     void StartCopy(velocitycopy::CopyJob job);
     void ResumeStoppedCopy();
     void ResumeConflictCopy(std::uint64_t replace_file_id);
+    void CancelCurrentSession();
     void StartNextQueuedSession();
     [[nodiscard]] velocitycopy::JobResult RunLivePlanSession(
         std::shared_ptr<velocitycopy::LiveCopyPlan> plan,
