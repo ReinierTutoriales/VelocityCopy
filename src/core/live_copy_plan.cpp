@@ -101,8 +101,25 @@ LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan, const bool allow_draine
             }
         }
 
+        // Complete every allocation that can throw before mutating observable state.
+        // append() is a transactional operation: a rejected/failed append must leave
+        // the live plan unchanged.
         pending_files_.reserve(pending_files_.size() + plan.files.size());
         reserved_destination_keys_.reserve(reserved_destination_keys_.size() + incoming_keys.size());
+        directories_.reserve(directories_.size() + plan.directories.size());
+        source_roots_.reserve(source_roots_.size() + plan.source_roots.size());
+
+        // The structural portions of CopyPlan are part of the same live session.
+        // They must survive export/reload just like the pending files do.
+        directories_.insert(
+            directories_.end(),
+            std::make_move_iterator(plan.directories.begin()),
+            std::make_move_iterator(plan.directories.end()));
+        source_roots_.insert(
+            source_roots_.end(),
+            std::make_move_iterator(plan.source_roots.begin()),
+            std::make_move_iterator(plan.source_roots.end()));
+
         for (auto& file : plan.files) {
             file.id = next_file_id_++;
             reserved_destination_keys_.insert(normalized_path_key(file.destination));
