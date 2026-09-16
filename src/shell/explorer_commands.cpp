@@ -67,7 +67,7 @@ std::filesystem::path velocitycopy_executable() noexcept {
             return {};
         }
         auto path = std::filesystem::path(std::wstring_view(buffer.data(), length));
-        return path.parent_path() / L"VelocityCopy.exe";
+        return path.parent_path() / L"VelocityCopy.WinUI.exe";
     } catch (...) {
         return {};
     }
