@@ -228,8 +228,6 @@ int main() {
             return 20;
         }
 
-        // Simulate a worker acquiring one of the rows while a pointer drag is
-        // in progress. The stale id is ignored; surviving ids still reorder.
         const auto acquired = edit_plan.acquire_next();
         if (!acquired || acquired->id != 3 ||
             !edit_plan.reorder_pending_files({5, 3, 1})) {
@@ -290,27 +288,35 @@ int main() {
         }
     }
 
+    // This scenario tests live queue edits, not adaptive parallelism. Force a
+    // single worker so file 2/3 remain pending when the first completion arrives.
+    // Parallel acquisition itself is covered by velocitycopy_parallel_executor.
     LiveCopyPlan live_plan(make_plan(source, destination));
     JobExecutor executor;
+    ExecutionControl edit_control;
     bool edited = false;
     bool saw_adjusted_totals = false;
 
-    const auto result = executor.execute(live_plan, [&](const JobProgress& progress) {
-        if (!edited && progress.completed_files == 1) {
-            if (!live_plan.move_pending_file(3, 0)) {
-                return JobDecision::Cancel;
+    const auto result = executor.execute(
+        live_plan,
+        edit_control,
+        JobExecutionOptions{1},
+        [&](const JobProgress& progress) {
+            if (!edited && progress.completed_files == 1) {
+                if (!live_plan.move_pending_file(3, 0)) {
+                    return JobDecision::Cancel;
+                }
+                if (!live_plan.remove_pending_file(2)) {
+                    return JobDecision::Cancel;
+                }
+                edited = true;
             }
-            if (!live_plan.remove_pending_file(2)) {
-                return JobDecision::Cancel;
-            }
-            edited = true;
-        }
 
-        if (edited && progress.total_files == 2 && progress.total_bytes == 10) {
-            saw_adjusted_totals = true;
-        }
-        return JobDecision::Continue;
-    });
+            if (edited && progress.total_files == 2 && progress.total_bytes == 10) {
+                saw_adjusted_totals = true;
+            }
+            return JobDecision::Continue;
+        });
 
     if (!result.success || result.cancelled || !edited || !saw_adjusted_totals) {
         fs::remove_all(root, ec);
