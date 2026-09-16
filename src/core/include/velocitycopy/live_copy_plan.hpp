@@ -18,6 +18,13 @@ struct LiveCopyPlanSnapshot {
     std::uint64_t total_files{};
 };
 
+enum class LivePlanAppendResult {
+    Appended,
+    DifferentDestination,
+    DestinationCollision,
+    SizeOverflow,
+};
+
 class LiveCopyPlan final {
 public:
     explicit LiveCopyPlan(CopyPlan plan);
@@ -29,6 +36,11 @@ public:
     [[nodiscard]] const std::vector<std::filesystem::path>& source_roots() const noexcept;
     [[nodiscard]] const std::filesystem::path& destination_root() const noexcept;
     [[nodiscard]] LiveCopyPlanSnapshot snapshot() const;
+
+    // Appends a separately planned batch to this live operation. File ids from
+    // the incoming plan are remapped so callers may safely append plans that
+    // each start numbering at 1.
+    [[nodiscard]] LivePlanAppendResult append(CopyPlan plan) noexcept;
 
     [[nodiscard]] bool move_pending_file(std::uint64_t file_id, std::size_t new_index) noexcept;
     [[nodiscard]] bool move_pending_file_up(std::uint64_t file_id) noexcept;
@@ -58,6 +70,7 @@ private:
     std::uint64_t total_bytes_{};
     std::uint64_t total_files_{};
     std::uint64_t largest_file_bytes_{};
+    std::uint64_t next_file_id_{1};
 };
 
 } // namespace velocitycopy
