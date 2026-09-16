@@ -183,6 +183,32 @@ int wmain() {
         }
     }
 
+    // Targeted Skip removes exactly the requested file from the logical job,
+    // does not create its destination, and continues copying the rest.
+    {
+        const auto destination = root / L"skip";
+        LiveCopyPlan live(initial_plan(source, destination));
+        ExecutionControl control;
+        control.request_skip(1);
+        bool saw_adjusted_totals = false;
+        const auto result = executor.execute(
+            live, control, JobExecutionOptions{1},
+            [&](const JobProgress& progress) {
+                if (progress.total_files == 1 && progress.total_bytes == 1) {
+                    saw_adjusted_totals = true;
+                }
+                return JobDecision::Continue;
+            });
+
+        if (!result.success || result.cancelled || result.stopped || !saw_adjusted_totals ||
+            fs::exists(destination / L"a.txt") || !fs::exists(destination / L"b.txt") ||
+            live.total_files() != 1 || live.total_bytes() != 1 ||
+            live.completed_files() != 1 || live.completed_bytes() != 1 ||
+            live.remaining_files() != 0) {
+            fs::remove_all(root, ec); return 8;
+        }
+    }
+
     fs::remove_all(root, ec);
     return 0;
 }
