@@ -49,10 +49,6 @@ public:
     [[nodiscard]] LiveCopyPlanSnapshot snapshot() const;
     [[nodiscard]] LiveQueueView queue_view(std::size_t max_items) const;
 
-    // Appends a separately planned batch to this live operation. File ids from
-    // the incoming plan are remapped so callers may safely append plans that
-    // each start numbering at 1. A drained plan is only reopened when the UI
-    // session has already reserved the append before the last worker drained.
     [[nodiscard]] LivePlanAppendResult append(CopyPlan plan, bool allow_drained = false) noexcept;
 
     [[nodiscard]] bool move_pending_file(std::uint64_t file_id, std::size_t new_index) noexcept;
@@ -60,20 +56,15 @@ public:
     [[nodiscard]] bool move_pending_file_down(std::uint64_t file_id) noexcept;
     [[nodiscard]] bool move_pending_files_up(const std::vector<std::uint64_t>& file_ids) noexcept;
     [[nodiscard]] bool move_pending_files_down(const std::vector<std::uint64_t>& file_ids) noexcept;
-    // Reorders the currently-pending members named by ordered_file_ids in one
-    // O(n + k) pass. Missing ids (for example a file acquired by a worker while
-    // the user was dragging) are ignored. Non-mentioned files keep both their
-    // relative order and their positions outside the reordered subset.
     [[nodiscard]] bool reorder_pending_files(const std::vector<std::uint64_t>& ordered_file_ids) noexcept;
     [[nodiscard]] bool remove_pending_file(std::uint64_t file_id) noexcept;
     [[nodiscard]] std::size_t remove_pending_files(const std::vector<std::uint64_t>& file_ids) noexcept;
 
-    // Each successful acquisition moves one pending file into the active set.
-    // Multiple callers may therefore hold distinct active files concurrently.
     [[nodiscard]] std::optional<PlannedFile> acquire_next() noexcept;
     void complete_active(std::uint64_t file_id) noexcept;
     void release_active(std::uint64_t file_id) noexcept;
     [[nodiscard]] bool skip_active(std::uint64_t file_id) noexcept;
+    [[nodiscard]] bool is_active(std::uint64_t file_id) const noexcept;
 
     [[nodiscard]] std::uint64_t total_bytes() const noexcept;
     [[nodiscard]] std::uint64_t total_files() const noexcept;
