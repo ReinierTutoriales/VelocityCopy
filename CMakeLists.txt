@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.28)
 
-project(VelocityCopy VERSION 0.6.0 LANGUAGES CXX)
+project(VelocityCopy VERSION 0.7.0 LANGUAGES CXX)
 
 if(NOT WIN32)
     message(FATAL_ERROR "VelocityCopy currently targets Windows only.")
@@ -66,12 +66,16 @@ target_link_libraries(VelocityCopyDropLayoutTest PRIVATE velocitycopy_core)
 add_executable(VelocityCopyStrategyTest tests/strategy_selector_test.cpp)
 target_link_libraries(VelocityCopyStrategyTest PRIVATE velocitycopy_core)
 
+add_executable(VelocityCopyShellRequestTest tests/shell_request_test.cpp)
+target_link_libraries(VelocityCopyShellRequestTest PRIVATE velocitycopy_core)
+
 if(MSVC)
     target_compile_options(VelocityCopySmokeTest PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyQueueTest PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyPlanEditTest PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyDropLayoutTest PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyStrategyTest PRIVATE /W4 /permissive- /EHsc /utf-8)
+    target_compile_options(VelocityCopyShellRequestTest PRIVATE /W4 /permissive- /EHsc /utf-8)
 endif()
 
 add_test(NAME velocitycopy_smoke COMMAND VelocityCopySmokeTest)
@@ -79,3 +83,4 @@ add_test(NAME velocitycopy_queue COMMAND VelocityCopyQueueTest)
 add_test(NAME velocitycopy_plan_edit COMMAND VelocityCopyPlanEditTest)
 add_test(NAME velocitycopy_drop_layout COMMAND VelocityCopyDropLayoutTest)
 add_test(NAME velocitycopy_strategy COMMAND VelocityCopyStrategyTest)
+add_test(NAME velocitycopy_shell_request COMMAND VelocityCopyShellRequestTest)
