@@ -39,6 +39,7 @@ int fail(const int code, const char* message) {
 
 int main() {
     const std::filesystem::path root{VELOCITYCOPY_SOURCE_DIR};
+    const auto app = read_all(root / "src/ui/VelocityCopy.UI/App.xaml.cpp");
     const auto shell = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Shell.cpp");
     const auto xaml = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml");
     const auto header = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.h");
@@ -47,13 +48,18 @@ int main() {
     const auto execution = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Execution.cpp");
     const auto queue = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Queue.cpp");
     const auto project = read_all(root / "src/ui/VelocityCopy.UI/VelocityCopy.UI.vcxproj");
+    const auto manifest = read_all(root / "src/ui/VelocityCopy.UI/Package.appxmanifest");
+    const auto explorer = read_all(root / "src/shell/explorer_commands.cpp");
+    const auto cli = read_all(root / "src/app/main.cpp");
+    const auto cmake = read_all(root / "CMakeLists.txt");
 
-    if (shell.empty() || xaml.empty() || header.empty() || window.empty() ||
-        append.empty() || execution.empty() || queue.empty() || project.empty()) {
+    if (app.empty() || shell.empty() || xaml.empty() || header.empty() || window.empty() ||
+        append.empty() || execution.empty() || queue.empty() || project.empty() ||
+        manifest.empty() || explorer.empty() || cli.empty() || cmake.empty()) {
         return fail(1, "required production source missing");
     }
 
-    if (!contains(shell, "QueueOrStartCopy(*dispatch.job)") ||
+    if (!contains(shell, "QueueOrStartCopy(std::move(*dispatch.job))") ||
         !contains(xaml, "OnQueueOrStartCopyClick") ||
         contains(xaml, "OnStartCopyClick") || contains(header, "OnStartCopyClick") ||
         contains(window, "OnStartCopyClick")) {
@@ -68,8 +74,6 @@ int main() {
         return fail(3, "same-destination append pipeline missing");
     }
 
-    // One function definition plus Start and Resume callers. The old executor
-    // loop must not survive in MainWindow.xaml.cpp.
     if (count_occurrences(execution, "RunLivePlanSession(") < 3 ||
         !contains(execution, "ResumeStoppedCopy()") ||
         !contains(execution, "stop_token, true") ||
@@ -139,9 +143,52 @@ int main() {
 
     if (!contains(project, "MainWindow.Execution.cpp") ||
         !contains(project, "MainWindow.Queue.cpp") ||
+        !contains(project, "MainWindow.Shell.cpp") ||
         std::filesystem::exists(root / "src/ui/VelocityCopy.UI/MainWindow.QueueDrag.cpp") ||
         contains(project, "MainWindow.QueueDrag.cpp")) {
         return fail(13, "WinUI translation-unit cutover incomplete");
+    }
+
+    // Explorer CopySelection may cold-start a hidden primary solely to stage
+    // sources. The same WinUI process owns SingleInstance + IPC; no legacy
+    // shell runtime is allowed to compete for activation.
+    if (!contains(app, "SingleInstance") ||
+        !contains(app, "ShellIpcServer") ||
+        !contains(app, "is_stage_only_activation") ||
+        !contains(app, "send_shell_request(*initial_request, 1000)") ||
+        !contains(app, "if (!is_stage_only_activation(initial_request))") ||
+        contains(cli, "--shell-runtime")) {
+        return fail(14, "WinUI must be the sole Explorer activation host");
+    }
+
+    // Paste from Explorer knows the destination, but layout remains a user
+    // decision. Source kind discovery must stay off the UI thread and must be
+    // all-or-nothing so a vanished item cannot produce a silent partial copy.
+    if (!contains(shell, "ShellAction::PasteToFolder") ||
+        !contains(shell, "BeginShellLayoutAsync") ||
+        !contains(shell, "resume_background()") ||
+        !contains(shell, "GetFileAttributesW") ||
+        !contains(shell, "classification_failed") ||
+        !contains(shell, "items.size() != sources.size()") ||
+        !contains(shell, "flow_.begin") ||
+        !contains(shell, "SelectDestination(destination)") ||
+        !contains(shell, "DropFlowFlyout().ShowAt")) {
+        return fail(15, "Explorer Paste must enter the shared layout flow safely");
+    }
+
+    if (!contains(explorer, "VelocityCopy.WinUI.exe") ||
+        contains(explorer, "parent_path() / L\"VelocityCopy.exe\"") ||
+        !contains(explorer, "send_shell_request(request, 25)") ||
+        !contains(explorer, "launch_velocitycopy_with_request")) {
+        return fail(16, "Explorer DLL must dispatch to the WinUI executable");
+    }
+
+    if (!contains(manifest, "Version=\"0.20.0.0\"") ||
+        !contains(cmake, "project(VelocityCopy VERSION 0.20.0") ||
+        !contains(manifest, "VelocityCopy.Shell.dll") ||
+        !contains(manifest, "windows.fileExplorerContextMenus") ||
+        !contains(manifest, "Executable=\"$targetnametoken$.exe\"")) {
+        return fail(17, "package/Explorer registration version contract drifted");
     }
 
     return 0;
