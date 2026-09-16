@@ -14,8 +14,10 @@
 #include "velocitycopy/shell_session.hpp"
 #include "velocitycopy/ui_snapshot.hpp"
 
+#include <condition_variable>
 #include <deque>
 #include <memory>
+#include <mutex>
 
 namespace winrt::VelocityCopyUI::implementation {
 struct MainWindow : MainWindowT<MainWindow> {
@@ -47,6 +49,13 @@ struct MainWindow : MainWindowT<MainWindow> {
         Microsoft::UI::Xaml::Controls::DragItemsCompletedEventArgs const&);
 
 private:
+    struct AppendGate {
+        std::mutex mutex;
+        std::condition_variable_any condition;
+        bool accepting{true};
+        std::size_t planning_count{};
+    };
+
     winrt::fire_and_forget HandleDropAsync(Windows::ApplicationModel::DataTransfer::DataPackageView data_view);
     winrt::fire_and_forget BrowseAsync();
     void LoadDestinations();
@@ -76,6 +85,7 @@ private:
     velocitycopy::JobPlanningWorker append_planner_;
     velocitycopy::JobExecutor executor_;
     std::shared_ptr<velocitycopy::ExecutionControl> execution_control_;
+    std::shared_ptr<AppendGate> append_gate_;
     velocitycopy::ShellSession shell_session_;
     velocitycopy::ProgressPresenter presenter_{100};
     std::vector<velocitycopy::DropItem> dropped_items_;
