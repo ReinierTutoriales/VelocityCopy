@@ -73,6 +73,7 @@ public:
     [[nodiscard]] std::optional<PlannedFile> acquire_next() noexcept;
     void complete_active(std::uint64_t file_id) noexcept;
     void release_active(std::uint64_t file_id) noexcept;
+    [[nodiscard]] bool skip_active(std::uint64_t file_id) noexcept;
 
     [[nodiscard]] std::uint64_t total_bytes() const noexcept;
     [[nodiscard]] std::uint64_t total_files() const noexcept;
@@ -84,6 +85,7 @@ public:
 private:
     [[nodiscard]] std::vector<PlannedFile>::iterator find_pending(std::uint64_t file_id) noexcept;
     [[nodiscard]] std::vector<PlannedFile>::iterator find_active(std::uint64_t file_id) noexcept;
+    void recompute_largest_file_bytes_locked() noexcept;
 
     std::vector<PlannedDirectory> directories_;
     std::vector<std::filesystem::path> source_roots_;
