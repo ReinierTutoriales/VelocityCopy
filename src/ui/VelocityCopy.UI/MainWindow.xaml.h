@@ -70,13 +70,23 @@ private:
         std::shared_ptr<AppendGate> target_gate,
         bool reservation_already_held);
     void StartCopy(velocitycopy::CopyJob job);
+    void ResumeStoppedCopy();
     void StartNextQueuedSession();
+    [[nodiscard]] velocitycopy::JobResult RunLivePlanSession(
+        std::shared_ptr<velocitycopy::LiveCopyPlan> plan,
+        std::shared_ptr<velocitycopy::ExecutionControl> control,
+        std::shared_ptr<AppendGate> gate,
+        std::stop_token stop_token,
+        bool publish_plan);
     void PublishLivePlan(std::shared_ptr<velocitycopy::LiveCopyPlan> plan);
     void RefreshQueue();
     [[nodiscard]] std::vector<std::uint64_t> SelectedPendingIds();
     void ResizeWindow(int height_epx);
+    void SetExecutionButtonsPlanning();
     void SetExecutionButtonsRunning();
     void SetExecutionButtonsIdle();
+    void SetExecutionButtonsStopped();
+    void FinalizeStoppedSessionIfEmpty();
     void ApplySnapshot(const velocitycopy::UiSnapshot& snapshot);
     void FinishCopy(const velocitycopy::JobResult& result);
     void ShowError();
@@ -99,12 +109,15 @@ private:
     std::filesystem::path current_destination_folder_;
     std::filesystem::path active_destination_;
     std::deque<velocitycopy::CopyJob> deferred_same_destination_jobs_;
+    std::deque<velocitycopy::CopyJob> deferred_after_stop_jobs_;
     std::deque<velocitycopy::CopyJob> queued_sessions_;
     std::shared_ptr<velocitycopy::LiveCopyPlan> live_plan_;
     std::vector<velocitycopy::PlannedFile> queue_snapshot_;
     Microsoft::UI::Dispatching::DispatcherQueue dispatcher_{nullptr};
     std::atomic_bool cancel_requested_{false};
     bool paused_{};
+    bool stopped_session_{};
+    bool stop_requested_{};
     bool initial_size_applied_{};
     std::uint64_t next_job_id_{1};
     std::uint64_t last_queue_completed_files_{};
