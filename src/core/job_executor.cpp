@@ -26,6 +26,11 @@ bool destination_is_safe_to_discard(const std::filesystem::path& destination) no
     return !ec && !existed;
 }
 
+bool is_destination_conflict(const std::int32_t code) noexcept {
+    return code == static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_FILE_EXISTS)) ||
+           code == static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_ALREADY_EXISTS));
+}
+
 struct ConcurrentProgressState {
     mutable std::mutex mutex;
     std::uint64_t completed_bytes{};
@@ -80,17 +85,42 @@ struct ConcurrentProgressState {
 struct ConcurrentResultState {
     mutable std::mutex mutex;
     std::int32_t first_error{S_OK};
+    bool destination_conflict{};
+    std::uint64_t conflict_file_id{};
+    std::filesystem::path conflict_source;
+    std::filesystem::path conflict_destination;
 
-    void record_error(const std::int32_t code) {
+    void record_error(const std::int32_t code, const PlannedFile* file = nullptr) {
         std::lock_guard lock(mutex);
-        if (first_error == S_OK) {
-            first_error = code;
+        if (first_error != S_OK) {
+            return;
+        }
+        first_error = code;
+        if (file != nullptr && is_destination_conflict(code)) {
+            destination_conflict = true;
+            conflict_file_id = file->id;
+            conflict_source = file->source;
+            conflict_destination = file->destination;
         }
     }
 
     [[nodiscard]] std::int32_t error() const {
         std::lock_guard lock(mutex);
         return first_error;
+    }
+
+    [[nodiscard]] JobResult failure_result() const {
+        std::lock_guard lock(mutex);
+        return {
+            false,
+            false,
+            first_error,
+            false,
+            destination_conflict,
+            conflict_file_id,
+            conflict_source,
+            conflict_destination,
+        };
     }
 };
 
@@ -197,8 +227,19 @@ JobResult JobExecutor::execute(
                 });
 
             if (!result.success) {
-                const bool cancelled = result.native_code == static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED));
-                return {false, cancelled, result.native_code};
+                const bool cancelled = result.native_code ==
+                    static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED));
+                const bool conflict = is_destination_conflict(result.native_code);
+                return {
+                    false,
+                    cancelled,
+                    result.native_code,
+                    false,
+                    conflict,
+                    conflict ? file.id : 0,
+                    conflict ? file.source : std::filesystem::path{},
+                    conflict ? file.destination : std::filesystem::path{},
+                };
             }
 
             completed_bytes += file.size;
@@ -373,7 +414,9 @@ JobResult JobExecutor::execute(
                         }
 
                         const bool skip_allowed = destination_is_safe_to_discard(file->destination);
-                        if (skip_allowed && control.consume_skip(file_id)) {
+                        if (!skip_allowed) {
+                            (void)control.consume_skip(file_id);
+                        } else if (control.consume_skip(file_id)) {
                             progress_state.release(file_id);
                             if (!plan.skip_active(file_id)) {
                                 result_state.record_error(static_cast<std::int32_t>(E_FAIL));
@@ -396,10 +439,13 @@ JobResult JobExecutor::execute(
                         bool skipped = false;
                         for (;;) {
                             bool skip_requested = false;
+                            const auto existing_policy = options.replace_file_id == file_id
+                                ? ExistingDestinationPolicy::Replace
+                                : options.existing_destination;
                             const auto result = engine_.copy_file(
                                 file->source,
                                 file->destination,
-                                CopyOptions{resume_from_pause},
+                                CopyOptions{resume_from_pause, existing_policy},
                                 [&](const CopyProgress& file_progress) {
                                     progress_state.update_active(*file, file_progress.transferred_bytes);
 
@@ -459,7 +505,7 @@ JobResult JobExecutor::execute(
                             const bool cancelled = result.native_code ==
                                 static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED));
                             if (!cancelled) {
-                                result_state.record_error(result.native_code);
+                                result_state.record_error(result.native_code, &*file);
                             }
                             control.request_cancel();
                             worker_results[worker_index] = {false, cancelled, result.native_code, false};
@@ -512,9 +558,8 @@ JobResult JobExecutor::execute(
             worker.join();
         }
 
-        const auto first_error = result_state.error();
-        if (first_error != S_OK) {
-            return {false, false, first_error, false};
+        if (result_state.error() != S_OK) {
+            return result_state.failure_result();
         }
 
         bool stopped = false;
