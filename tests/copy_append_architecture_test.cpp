@@ -149,9 +149,6 @@ int main() {
         return fail(13, "WinUI translation-unit cutover incomplete");
     }
 
-    // Explorer CopySelection may cold-start a hidden primary solely to stage
-    // sources. The same WinUI process owns SingleInstance + IPC; no legacy
-    // shell runtime is allowed to compete for activation.
     if (!contains(app, "SingleInstance") ||
         !contains(app, "ShellIpcServer") ||
         !contains(app, "is_stage_only_activation") ||
@@ -161,9 +158,6 @@ int main() {
         return fail(14, "WinUI must be the sole Explorer activation host");
     }
 
-    // Paste from Explorer knows the destination, but layout remains a user
-    // decision. Source kind discovery must stay off the UI thread and must be
-    // all-or-nothing so a vanished item cannot produce a silent partial copy.
     if (!contains(shell, "ShellAction::PasteToFolder") ||
         !contains(shell, "BeginShellLayoutAsync") ||
         !contains(shell, "resume_background()") ||
@@ -176,11 +170,18 @@ int main() {
         return fail(15, "Explorer Paste must enter the shared layout flow safely");
     }
 
+    if (!contains(header, "shell_layout_generation_") ||
+        !contains(shell, "++shell_layout_generation_") ||
+        !contains(shell, "shell_layout_generation_ != generation") ||
+        !contains(window, "++shell_layout_generation_")) {
+        return fail(16, "stale Explorer layout completions must be suppressed");
+    }
+
     if (!contains(explorer, "VelocityCopy.WinUI.exe") ||
         contains(explorer, "parent_path() / L\"VelocityCopy.exe\"") ||
         !contains(explorer, "send_shell_request(request, 25)") ||
         !contains(explorer, "launch_velocitycopy_with_request")) {
-        return fail(16, "Explorer DLL must dispatch to the WinUI executable");
+        return fail(17, "Explorer DLL must dispatch to the WinUI executable");
     }
 
     if (!contains(manifest, "Version=\"0.20.0.0\"") ||
@@ -188,7 +189,7 @@ int main() {
         !contains(manifest, "VelocityCopy.Shell.dll") ||
         !contains(manifest, "windows.fileExplorerContextMenus") ||
         !contains(manifest, "Executable=\"$targetnametoken$.exe\"")) {
-        return fail(17, "package/Explorer registration version contract drifted");
+        return fail(18, "package/Explorer registration version contract drifted");
     }
 
     return 0;
