@@ -382,8 +382,7 @@ void MainWindow::StartCopy(velocitycopy::CopyJob job) {
                 break;
             }
 
-            const auto snapshot = plan->snapshot();
-            if (!snapshot.pending_files.empty()) {
+            if (plan->remaining_files() != 0) {
                 gate_lock.unlock();
                 continue;
             }
@@ -444,8 +443,9 @@ void MainWindow::RefreshQueue() {
         return;
     }
 
-    const auto snapshot = live_plan_->snapshot();
-    queue_snapshot_ = snapshot.pending_files;
+    constexpr std::size_t kVisibleQueueItems = 256;
+    auto view = live_plan_->queue_view(kVisibleQueueItems);
+    queue_snapshot_ = std::move(view.pending_files);
 
     auto items = QueueList().Items();
     items.Clear();
@@ -453,7 +453,7 @@ void MainWindow::RefreshQueue() {
         items.Append(box_value(hstring(file.source.wstring())));
     }
 
-    QueueCountText().Text(hstring(std::format(L"{}", queue_snapshot_.size())));
+    QueueCountText().Text(hstring(std::format(L"{}", view.pending_count)));
 }
 
 std::vector<std::uint64_t> MainWindow::SelectedPendingIds() {
@@ -649,7 +649,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& result) {
     active_destination_.clear();
 
     if (result.stopped) {
-        QueueButton().IsEnabled(live_plan_ && !live_plan_->snapshot().pending_files.empty());
+        QueueButton().IsEnabled(live_plan_ && live_plan_->remaining_files() != 0);
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
         return;
@@ -663,8 +663,6 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& result) {
         return;
     }
 
-    // If initial planning failed before PublishLivePlan, preserve same-destination
-    // user requests by serializing them as future sessions instead of losing them.
     while (!deferred.empty()) {
         queued_sessions_.push_front(std::move(deferred.back()));
         deferred.pop_back();
