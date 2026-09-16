@@ -1,9 +1,11 @@
 #include "velocitycopy/ipc_transport.hpp"
+#include "velocitycopy/process_activation.hpp"
 #include "velocitycopy/shell_request.hpp"
 
 #include <windows.h>
 #include <shobjidl.h>
 
+#include <array>
 #include <atomic>
 #include <cstring>
 #include <cwchar>
@@ -20,6 +22,7 @@ constexpr CLSID CLSID_VelocityCopyPaste =
     {0xcbba1a7e, 0x35b4, 0x4708, {0x9d, 0x03, 0x94, 0x46, 0xd0, 0x3f, 0xc8, 0x43}};
 
 std::atomic<long> g_object_count{0};
+HINSTANCE g_module{};
 
 enum class CommandKind {
     Copy,
@@ -40,6 +43,20 @@ HRESULT duplicate_string(const wchar_t* text, PWSTR* result) noexcept {
     std::memcpy(memory, text, bytes);
     *result = memory;
     return S_OK;
+}
+
+std::filesystem::path velocitycopy_executable() noexcept {
+    try {
+        std::array<wchar_t, 32768> buffer{};
+        const DWORD length = GetModuleFileNameW(g_module, buffer.data(), static_cast<DWORD>(buffer.size()));
+        if (length == 0 || length >= buffer.size()) {
+            return {};
+        }
+        auto path = std::filesystem::path(std::wstring_view(buffer.data(), length));
+        return path.parent_path() / L"VelocityCopy.exe";
+    } catch (...) {
+        return {};
+    }
 }
 
 HRESULT shell_item_paths(IShellItemArray* items, std::vector<std::filesystem::path>& paths) noexcept {
@@ -77,6 +94,14 @@ HRESULT shell_item_paths(IShellItemArray* items, std::vector<std::filesystem::pa
     } catch (...) {
         return E_OUTOFMEMORY;
     }
+}
+
+bool dispatch_request(const velocitycopy::ShellRequest& request) noexcept {
+    if (velocitycopy::send_shell_request(request, 25)) {
+        return true;
+    }
+    const auto executable = velocitycopy_executable();
+    return !executable.empty() && velocitycopy::launch_velocitycopy_with_request(executable, request);
 }
 
 class ExplorerCommand final : public IExplorerCommand {
@@ -174,10 +199,7 @@ public:
             request.destination = paths.front();
         }
 
-        if (!velocitycopy::send_shell_request(request, 50)) {
-            return HRESULT_FROM_WIN32(ERROR_PIPE_NOT_CONNECTED);
-        }
-        return S_OK;
+        return dispatch_request(request) ? S_OK : HRESULT_FROM_WIN32(ERROR_OPEN_FAILED);
     }
 
     IFACEMETHODIMP GetFlags(EXPCMDFLAGS* flags) override {
@@ -290,6 +312,7 @@ STDAPI DllGetClassObject(REFCLSID clsid, REFIID riid, void** object) {
 
 BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID) {
     if (reason == DLL_PROCESS_ATTACH) {
+        g_module = instance;
         DisableThreadLibraryCalls(instance);
     }
     return TRUE;
