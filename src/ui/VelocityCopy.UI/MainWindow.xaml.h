@@ -63,6 +63,12 @@ private:
     void ApplyDestinationNavigation(velocitycopy::DestinationNavigationResult result);
     void SelectDestination(std::filesystem::path destination);
     void QueueOrStartCopy(velocitycopy::CopyJob job);
+    void EnqueueAppend(
+        velocitycopy::CopyJob job,
+        std::shared_ptr<velocitycopy::LiveCopyPlan> target_plan,
+        std::shared_ptr<velocitycopy::ExecutionControl> target_control,
+        std::shared_ptr<AppendGate> target_gate,
+        bool reservation_already_held);
     void StartCopy(velocitycopy::CopyJob job);
     void PublishLivePlan(std::shared_ptr<velocitycopy::LiveCopyPlan> plan);
     void RefreshQueue();
