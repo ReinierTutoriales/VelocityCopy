@@ -20,7 +20,7 @@ LiveCopyPlanSnapshot LiveCopyPlan::snapshot() const {
     std::lock_guard lock(mutex_);
     return {
         pending_files_,
-        active_file_,
+        active_files_,
         total_bytes_,
         total_files_,
     };
@@ -28,6 +28,12 @@ LiveCopyPlanSnapshot LiveCopyPlan::snapshot() const {
 
 std::vector<PlannedFile>::iterator LiveCopyPlan::find_pending(const std::uint64_t file_id) noexcept {
     return std::find_if(pending_files_.begin(), pending_files_.end(), [file_id](const PlannedFile& file) {
+        return file.id == file_id;
+    });
+}
+
+std::vector<PlannedFile>::iterator LiveCopyPlan::find_active(const std::uint64_t file_id) noexcept {
+    return std::find_if(active_files_.begin(), active_files_.end(), [file_id](const PlannedFile& file) {
         return file.id == file_id;
     });
 }
@@ -87,29 +93,34 @@ bool LiveCopyPlan::remove_pending_file(const std::uint64_t file_id) noexcept {
 
 std::optional<PlannedFile> LiveCopyPlan::acquire_next() noexcept {
     std::lock_guard lock(mutex_);
-    if (active_file_ || pending_files_.empty()) {
+    if (pending_files_.empty()) {
         return std::nullopt;
     }
 
-    active_file_ = std::move(pending_files_.front());
+    PlannedFile file = std::move(pending_files_.front());
     pending_files_.erase(pending_files_.begin());
-    return active_file_;
+    active_files_.push_back(file);
+    return file;
 }
 
 void LiveCopyPlan::complete_active(const std::uint64_t file_id) noexcept {
     std::lock_guard lock(mutex_);
-    if (active_file_ && active_file_->id == file_id) {
-        active_file_.reset();
+    auto it = find_active(file_id);
+    if (it != active_files_.end()) {
+        active_files_.erase(it);
     }
 }
 
 void LiveCopyPlan::release_active(const std::uint64_t file_id) noexcept {
     std::lock_guard lock(mutex_);
-    if (!active_file_ || active_file_->id != file_id) {
+    auto it = find_active(file_id);
+    if (it == active_files_.end()) {
         return;
     }
-    pending_files_.insert(pending_files_.begin(), std::move(*active_file_));
-    active_file_.reset();
+
+    PlannedFile file = std::move(*it);
+    active_files_.erase(it);
+    pending_files_.insert(pending_files_.begin(), std::move(file));
 }
 
 std::uint64_t LiveCopyPlan::total_bytes() const noexcept {
