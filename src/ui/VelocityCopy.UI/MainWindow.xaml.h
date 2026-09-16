@@ -81,6 +81,7 @@ private:
     Microsoft::UI::Dispatching::DispatcherQueue dispatcher_{nullptr};
     std::atomic_bool cancel_requested_{false};
     bool paused_{};
+    bool initial_size_applied_{};
     std::uint64_t next_job_id_{1};
     std::uint64_t last_queue_completed_files_{};
     std::jthread copy_thread_;
