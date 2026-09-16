@@ -21,6 +21,13 @@ struct LiveCopyPlanSnapshot {
     std::uint64_t completed_files{};
 };
 
+struct LiveQueueView {
+    std::vector<PlannedFile> pending_files;
+    std::uint64_t pending_count{};
+    std::uint64_t active_count{};
+    std::uint64_t completed_files{};
+};
+
 enum class LivePlanAppendResult {
     Appended,
     Drained,
@@ -40,6 +47,7 @@ public:
     [[nodiscard]] const std::vector<std::filesystem::path>& source_roots() const noexcept;
     [[nodiscard]] const std::filesystem::path& destination_root() const noexcept;
     [[nodiscard]] LiveCopyPlanSnapshot snapshot() const;
+    [[nodiscard]] LiveQueueView queue_view(std::size_t max_items) const;
 
     // Appends a separately planned batch to this live operation. File ids from
     // the incoming plan are remapped so callers may safely append plans that
