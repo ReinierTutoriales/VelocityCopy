@@ -4,6 +4,7 @@
 #include "resource.h"
 
 #include <windows.h>
+#include <servprov.h>
 #include <shobjidl.h>
 
 #include <array>
@@ -110,6 +111,36 @@ HRESULT shell_item_paths(IShellItemArray* items, std::vector<std::filesystem::pa
     }
 }
 
+HRESULT site_folder_paths(IUnknown* site, std::vector<std::filesystem::path>& paths) noexcept {
+    if (site == nullptr) {
+        return E_FAIL;
+    }
+
+    IServiceProvider* provider = nullptr;
+    HRESULT hr = site->QueryInterface(IID_PPV_ARGS(&provider));
+    if (FAILED(hr) || provider == nullptr) {
+        return FAILED(hr) ? hr : E_NOINTERFACE;
+    }
+
+    IFolderView* folder_view = nullptr;
+    hr = provider->QueryService(SID_SFolderView, IID_PPV_ARGS(&folder_view));
+    provider->Release();
+    if (FAILED(hr) || folder_view == nullptr) {
+        return FAILED(hr) ? hr : E_NOINTERFACE;
+    }
+
+    IShellItemArray* folder_items = nullptr;
+    hr = folder_view->GetFolder(IID_PPV_ARGS(&folder_items));
+    folder_view->Release();
+    if (FAILED(hr) || folder_items == nullptr) {
+        return FAILED(hr) ? hr : E_FAIL;
+    }
+
+    hr = shell_item_paths(folder_items, paths);
+    folder_items->Release();
+    return hr;
+}
+
 bool dispatch_request(const velocitycopy::ShellRequest& request) noexcept {
     if (velocitycopy::send_shell_request(request, 25)) {
         return true;
@@ -118,13 +149,16 @@ bool dispatch_request(const velocitycopy::ShellRequest& request) noexcept {
     return !executable.empty() && velocitycopy::launch_velocitycopy_with_request(executable, request);
 }
 
-class ExplorerCommand final : public IExplorerCommand {
+class ExplorerCommand final : public IExplorerCommand, public IObjectWithSite {
 public:
     explicit ExplorerCommand(CommandKind kind) noexcept : kind_(kind) {
         ++g_object_count;
     }
 
     ~ExplorerCommand() {
+        if (site_ != nullptr) {
+            site_->Release();
+        }
         --g_object_count;
     }
 
@@ -135,10 +169,13 @@ public:
         *object = nullptr;
         if (riid == IID_IUnknown || riid == __uuidof(IExplorerCommand)) {
             *object = static_cast<IExplorerCommand*>(this);
-            AddRef();
-            return S_OK;
+        } else if (riid == __uuidof(IObjectWithSite)) {
+            *object = static_cast<IObjectWithSite*>(this);
+        } else {
+            return E_NOINTERFACE;
         }
-        return E_NOINTERFACE;
+        AddRef();
+        return S_OK;
     }
 
     IFACEMETHODIMP_(ULONG) AddRef() override {
@@ -151,6 +188,25 @@ public:
             delete this;
         }
         return remaining;
+    }
+
+    IFACEMETHODIMP SetSite(IUnknown* site) override {
+        if (site != nullptr) {
+            site->AddRef();
+        }
+        if (site_ != nullptr) {
+            site_->Release();
+        }
+        site_ = site;
+        return S_OK;
+    }
+
+    IFACEMETHODIMP GetSite(REFIID riid, void** object) override {
+        if (object == nullptr) {
+            return E_POINTER;
+        }
+        *object = nullptr;
+        return site_ != nullptr ? site_->QueryInterface(riid, object) : E_FAIL;
     }
 
     IFACEMETHODIMP GetTitle(IShellItemArray*, PWSTR* title) override {
@@ -187,21 +243,33 @@ public:
         if (state == nullptr) {
             return E_POINTER;
         }
-        if (items == nullptr) {
-            *state = ECS_DISABLED;
+
+        if (items != nullptr) {
+            DWORD count = 0;
+            const HRESULT hr = items->GetCount(&count);
+            *state = SUCCEEDED(hr) && count != 0 ? ECS_ENABLED : ECS_DISABLED;
             return S_OK;
         }
-        DWORD count = 0;
-        const HRESULT hr = items->GetCount(&count);
-        *state = SUCCEEDED(hr) && count != 0 ? ECS_ENABLED : ECS_DISABLED;
+
+        if (kind_ == CommandKind::Paste) {
+            std::vector<std::filesystem::path> paths;
+            *state = SUCCEEDED(site_folder_paths(site_, paths)) && !paths.empty()
+                ? ECS_ENABLED
+                : ECS_DISABLED;
+            return S_OK;
+        }
+
+        *state = ECS_DISABLED;
         return S_OK;
     }
 
     IFACEMETHODIMP Invoke(IShellItemArray* items, IBindCtx*) override {
         std::vector<std::filesystem::path> paths;
-        HRESULT hr = shell_item_paths(items, paths);
-        if (FAILED(hr)) {
-            return hr;
+        HRESULT hr = items != nullptr
+            ? shell_item_paths(items, paths)
+            : (kind_ == CommandKind::Paste ? site_folder_paths(site_, paths) : E_INVALIDARG);
+        if (FAILED(hr) || paths.empty()) {
+            return FAILED(hr) ? hr : E_INVALIDARG;
         }
 
         velocitycopy::ShellRequest request{};
@@ -235,6 +303,7 @@ public:
 private:
     std::atomic<ULONG> ref_count_{1};
     CommandKind kind_;
+    IUnknown* site_{};
 };
 
 class CommandFactory final : public IClassFactory {
