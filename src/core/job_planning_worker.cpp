@@ -44,7 +44,6 @@ void JobPlanningWorker::run(const std::stop_token stop_token) noexcept {
 
         JobPlanningResult result{};
         result.request_id = request.id;
-        result.job = request.job;
         try {
             result.plan = planner_.build(request.job);
         } catch (const std::filesystem::filesystem_error& error) {
@@ -54,6 +53,7 @@ void JobPlanningWorker::run(const std::stop_token stop_token) noexcept {
         } catch (...) {
             result.error_code = static_cast<std::int32_t>(E_FAIL);
         }
+        result.job = std::move(request.job);
 
         if (request.callback) {
             try {
