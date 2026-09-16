@@ -1,0 +1,152 @@
+<Window
+    x:Class="VelocityCopyUI.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid x:Name="RootGrid"
+          AllowDrop="True"
+          DragOver="OnDragOver"
+          DragLeave="OnDragLeave"
+          Drop="OnDrop"
+          Padding="{StaticResource ContentGutterThickness}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid x:Name="TitleBarDragRegion" Grid.Row="0" Height="28">
+            <TextBlock Text="VelocityCopy" FontWeight="SemiBold" VerticalAlignment="Center" />
+        </Grid>
+
+        <TextBlock x:Name="CurrentItemText"
+                   Grid.Row="1"
+                   x:Uid="CurrentItemText"
+                   Margin="0,8,0,4"
+                   TextTrimming="CharacterEllipsis"
+                   FontWeight="SemiBold" />
+
+        <ProgressBar x:Name="GlobalProgress"
+                     Grid.Row="2"
+                     Minimum="0"
+                     Maximum="100"
+                     Value="0"
+                     Height="{StaticResource ProgressBarHeight}" />
+
+        <Grid Grid.Row="3" Margin="0,6,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Name="SpeedText" Text="—" Opacity="0.75" />
+            <TextBlock x:Name="EtaText" Grid.Column="1" Text="—" Opacity="0.75" />
+        </Grid>
+
+        <Grid Grid.Row="4" Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Button x:Name="PauseButton" x:Uid="PauseButton" IsEnabled="False" Margin="0,0,6,0" />
+            <Button x:Name="StopButton" x:Uid="StopButton" Grid.Column="1" IsEnabled="False" Margin="0,0,6,0" />
+            <Button x:Name="CancelButton" x:Uid="CancelButton" Grid.Column="2" Click="OnCancelClick" IsEnabled="False" />
+            <Button x:Name="QueueButton" x:Uid="QueueButton" Grid.Column="4" IsEnabled="False" />
+        </Grid>
+
+        <InfoBar x:Name="ErrorBar"
+                 Grid.RowSpan="5"
+                 IsOpen="False"
+                 Severity="Error"
+                 IsClosable="True"
+                 VerticalAlignment="Top"
+                 Margin="0,32,0,0" />
+
+        <Border x:Name="DragOverlay"
+                Grid.RowSpan="5"
+                Visibility="Collapsed"
+                Background="{ThemeResource AccentFillColorDefaultBrush}"
+                Opacity="0.12"
+                CornerRadius="8"
+                IsHitTestVisible="False">
+            <TextBlock x:Uid="DropOverlayText"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       FontSize="18"
+                       FontWeight="SemiBold" />
+        </Border>
+
+        <Button x:Name="FlyoutAnchor" Visibility="Collapsed">
+            <Button.Flyout>
+                <Flyout x:Name="DropFlowFlyout" Placement="Bottom">
+                    <Grid Width="408" MinHeight="176">
+                        <Grid x:Name="DestinationStep">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock x:Uid="DestinationTitle" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10" />
+                            <ScrollViewer Grid.Row="1" MaxHeight="240" VerticalScrollBarVisibility="Auto">
+                                <StackPanel x:Name="DestinationItems" Spacing="4" />
+                            </ScrollViewer>
+                            <Grid Grid.Row="2" Margin="0,10,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Button x:Name="BrowseButton" x:Uid="BrowseButton" Grid.Column="1" Click="OnBrowseClick" />
+                            </Grid>
+                        </Grid>
+
+                        <Grid x:Name="LayoutStep" Visibility="Collapsed">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock x:Uid="LayoutTitle" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,8" />
+                            <TextBlock x:Name="SelectedDestinationText" Grid.Row="1" TextTrimming="CharacterEllipsis" Opacity="0.7" Margin="0,0,0,8" />
+
+                            <StackPanel Grid.Row="2" Spacing="6">
+                                <ToggleButton x:Name="PreserveToggle"
+                                              HorizontalAlignment="Stretch"
+                                              HorizontalContentAlignment="Stretch"
+                                              Click="OnPreserveClick">
+                                    <StackPanel Margin="4">
+                                        <TextBlock x:Uid="PreserveTitle" FontWeight="SemiBold" />
+                                        <TextBlock x:Name="PreservePreview" TextTrimming="CharacterEllipsis" Opacity="0.7" />
+                                    </StackPanel>
+                                </ToggleButton>
+                                <ToggleButton x:Name="DirectToggle"
+                                              HorizontalAlignment="Stretch"
+                                              HorizontalContentAlignment="Stretch"
+                                              Click="OnDirectClick">
+                                    <StackPanel Margin="4">
+                                        <TextBlock x:Uid="DirectTitle" FontWeight="SemiBold" />
+                                        <TextBlock x:Name="DirectPreview" TextTrimming="CharacterEllipsis" Opacity="0.7" />
+                                    </StackPanel>
+                                </ToggleButton>
+                            </StackPanel>
+
+                            <Grid Grid.Row="3" Margin="0,10,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Button x:Name="BackButton" x:Uid="BackButton" Click="OnBackClick" />
+                                <Button x:Name="StartCopyButton" x:Uid="StartCopyButton" Grid.Column="2" Click="OnStartCopyClick" IsEnabled="False" Style="{StaticResource AccentButtonStyle}" />
+                            </Grid>
+                        </Grid>
+                    </Grid>
+                </Flyout>
+            </Button.Flyout>
+        </Button>
+    </Grid>
+</Window>

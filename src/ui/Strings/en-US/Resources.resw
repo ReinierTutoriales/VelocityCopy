@@ -4,7 +4,6 @@
   <resheader name="version"><value>2.0</value></resheader>
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
-
   <data name="AppDisplayName" xml:space="preserve"><value>VelocityCopy</value></data>
   <data name="StatusPreparing" xml:space="preserve"><value>Preparing copy…</value></data>
   <data name="StatusCopying" xml:space="preserve"><value>Copying</value></data>
@@ -29,4 +28,17 @@
   <data name="ActionStartCopy" xml:space="preserve"><value>Copy</value></data>
   <data name="ShellCopy" xml:space="preserve"><value>Copy with VelocityCopy</value></data>
   <data name="ShellPaste" xml:space="preserve"><value>Paste with VelocityCopy</value></data>
+  <data name="CurrentItemText.Text" xml:space="preserve"><value>Drop files or folders to begin</value></data>
+  <data name="PauseButton.Content" xml:space="preserve"><value>Pause</value></data>
+  <data name="StopButton.Content" xml:space="preserve"><value>Stop</value></data>
+  <data name="CancelButton.Content" xml:space="preserve"><value>Cancel</value></data>
+  <data name="QueueButton.Content" xml:space="preserve"><value>Queue</value></data>
+  <data name="DropOverlayText.Text" xml:space="preserve"><value>Drop to copy</value></data>
+  <data name="DestinationTitle.Text" xml:space="preserve"><value>Where do you want to copy?</value></data>
+  <data name="BrowseButton.Content" xml:space="preserve"><value>Browse…</value></data>
+  <data name="LayoutTitle.Text" xml:space="preserve"><value>How do you want to copy it?</value></data>
+  <data name="PreserveTitle.Text" xml:space="preserve"><value>In folder</value></data>
+  <data name="DirectTitle.Text" xml:space="preserve"><value>In root</value></data>
+  <data name="BackButton.Content" xml:space="preserve"><value>Back</value></data>
+  <data name="StartCopyButton.Content" xml:space="preserve"><value>Copy</value></data>
 </root>
