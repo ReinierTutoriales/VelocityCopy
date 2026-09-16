@@ -40,7 +40,7 @@ void MainWindow::OnQueueOrStartCopyClick(IInspectable const&, RoutedEventArgs co
 void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
     if (stop_requested_) {
         if (same_destination(active_destination_, job.destination)) {
-            deferred_after_stop_jobs_.push_back(std::move(job));
+            deferred_interrupted_jobs_.push_back(std::move(job));
         } else {
             queued_sessions_.push_back(std::move(job));
         }
@@ -57,9 +57,6 @@ void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
         return;
     }
 
-    // A destination conflict is another conserved session state. New work for
-    // the same destination still belongs to that LiveCopyPlan; other destinations
-    // remain serialized behind it.
     if (conflict_session_ && live_plan_ && append_gate_) {
         if (!same_destination(active_destination_, job.destination)) {
             queued_sessions_.push_back(std::move(job));
@@ -133,9 +130,7 @@ void MainWindow::EnqueueAppend(
         if (!reserved) {
             if ((stopped_session_ || conflict_session_) &&
                 same_destination(active_destination_, job.destination)) {
-                // A transition may briefly close the old gate. Preserve the
-                // same-destination job rather than starting it over the session.
-                deferred_after_stop_jobs_.push_back(std::move(job));
+                deferred_interrupted_jobs_.push_back(std::move(job));
             } else {
                 queued_sessions_.push_back(std::move(job));
             }
