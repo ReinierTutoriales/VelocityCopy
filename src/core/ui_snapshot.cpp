@@ -53,6 +53,7 @@ std::optional<UiSnapshot> ProgressPresenter::observe(
     snapshot.total_files = progress.total_files;
     snapshot.completed_files = std::min(progress.completed_files, progress.total_files);
     snapshot.current_file_id = progress.current_file_id;
+    snapshot.current_file_skippable = progress.current_file_skippable;
     snapshot.bytes_per_second = smoothed_bytes_per_second_;
     snapshot.current_source = progress.current_source;
     snapshot.current_destination = progress.current_destination;
