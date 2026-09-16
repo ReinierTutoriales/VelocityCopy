@@ -117,7 +117,6 @@ private:
     velocitycopy::JobPlanner planner_;
     velocitycopy::JobPlanningWorker append_planner_;
     velocitycopy::JobExecutor executor_;
-    velocitycopy::QueueArchiveStore queue_archive_store_;
     std::shared_ptr<velocitycopy::ExecutionControl> execution_control_;
     std::shared_ptr<AppendGate> append_gate_;
     velocitycopy::ShellSession shell_session_;
