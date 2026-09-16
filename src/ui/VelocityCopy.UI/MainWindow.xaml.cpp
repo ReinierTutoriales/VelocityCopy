@@ -281,6 +281,7 @@ void MainWindow::StartCopy(velocitycopy::CopyJob job) {
     last_queue_completed_files_ = 0;
     live_plan_.reset();
     execution_control_ = std::make_shared<velocitycopy::ExecutionControl>();
+    append_gate_ = std::make_shared<AppendGate>();
     queue_snapshot_.clear();
     QueueList().Items().Clear();
     QueueButton().IsEnabled(false);
@@ -294,12 +295,18 @@ void MainWindow::StartCopy(velocitycopy::CopyJob job) {
     auto weak = get_weak();
     auto dispatcher = dispatcher_;
     auto control = execution_control_;
+    auto gate = append_gate_;
 
-    copy_thread_ = std::jthread([this, weak, dispatcher, control, job = std::move(job)](std::stop_token stop_token) mutable {
+    copy_thread_ = std::jthread([this, weak, dispatcher, control, gate, job = std::move(job)](std::stop_token stop_token) mutable {
         std::shared_ptr<velocitycopy::LiveCopyPlan> plan;
         try {
             plan = std::make_shared<velocitycopy::LiveCopyPlan>(planner_.build(job));
         } catch (...) {
+            {
+                std::lock_guard gate_lock(gate->mutex);
+                gate->accepting = false;
+                gate->condition.notify_all();
+            }
             (void)dispatcher.TryEnqueue([weak]() {
                 if (auto self = weak.get()) {
                     self->FinishCopy({false, false, static_cast<std::int32_t>(E_FAIL), false});
@@ -314,26 +321,86 @@ void MainWindow::StartCopy(velocitycopy::CopyJob job) {
             }
         });
 
-        const auto result = executor_.execute(*plan, *control, [this, weak, dispatcher, control, &stop_token](const velocitycopy::JobProgress& progress) {
-            if (stop_token.stop_requested()) {
-                control->request_cancel();
-                return velocitycopy::JobDecision::Cancel;
-            }
-            if (cancel_requested_.load(std::memory_order_relaxed)) {
-                control->request_cancel();
-                return velocitycopy::JobDecision::Cancel;
+        velocitycopy::JobResult result{true, false, S_OK, false};
+        for (;;) {
+            result = executor_.execute(*plan, *control, [this, weak, dispatcher, control, &stop_token](const velocitycopy::JobProgress& progress) {
+                if (stop_token.stop_requested()) {
+                    control->request_cancel();
+                    return velocitycopy::JobDecision::Cancel;
+                }
+                if (cancel_requested_.load(std::memory_order_relaxed)) {
+                    control->request_cancel();
+                    return velocitycopy::JobDecision::Cancel;
+                }
+
+                if (auto snapshot = presenter_.observe(progress, GetTickCount64())) {
+                    const auto value = *snapshot;
+                    (void)dispatcher.TryEnqueue([weak, value]() {
+                        if (auto self = weak.get()) {
+                            self->ApplySnapshot(value);
+                        }
+                    });
+                }
+                return velocitycopy::JobDecision::Continue;
+            });
+
+            if (!result.success || result.cancelled || result.stopped) {
+                break;
             }
 
-            if (auto snapshot = presenter_.observe(progress, GetTickCount64())) {
-                const auto value = *snapshot;
-                (void)dispatcher.TryEnqueue([weak, value]() {
-                    if (auto self = weak.get()) {
-                        self->ApplySnapshot(value);
-                    }
-                });
+            std::unique_lock gate_lock(gate->mutex);
+            if (gate->planning_count != 0 && gate->accepting) {
+                (void)gate->condition.wait(
+                    gate_lock,
+                    stop_token,
+                    [&] { return gate->planning_count == 0 || !gate->accepting; });
             }
-            return velocitycopy::JobDecision::Continue;
-        });
+
+            if (stop_token.stop_requested()) {
+                gate->accepting = false;
+                gate->condition.notify_all();
+                control->request_cancel();
+                result = {
+                    false,
+                    true,
+                    static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED)),
+                    false};
+                break;
+            }
+
+            if (!gate->accepting) {
+                const auto directive = control->directive();
+                if (directive == velocitycopy::ExecutionDirective::Cancel) {
+                    result = {
+                        false,
+                        true,
+                        static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED)),
+                        false};
+                } else if (directive == velocitycopy::ExecutionDirective::Stop) {
+                    result = {false, false, S_OK, true};
+                }
+                break;
+            }
+
+            // Gate -> plan matches the append commit lock order. If a reserved
+            // append committed after the worker pool drained, continue the same
+            // logical session with the newly queued files.
+            const auto snapshot = plan->snapshot();
+            if (!snapshot.pending_files.empty()) {
+                gate_lock.unlock();
+                continue;
+            }
+
+            gate->accepting = false;
+            gate->condition.notify_all();
+            break;
+        }
+
+        {
+            std::lock_guard gate_lock(gate->mutex);
+            gate->accepting = false;
+            gate->condition.notify_all();
+        }
 
         (void)dispatcher.TryEnqueue([weak, result]() {
             if (auto self = weak.get()) {
@@ -350,8 +417,18 @@ void MainWindow::PublishLivePlan(std::shared_ptr<velocitycopy::LiveCopyPlan> pla
 
     auto deferred = std::move(deferred_same_destination_jobs_);
     deferred_same_destination_jobs_.clear();
+    auto target_plan = live_plan_;
+    auto target_control = execution_control_;
+    auto target_gate = append_gate_;
     for (auto& job : deferred) {
-        QueueOrStartCopy(std::move(job));
+        if (target_plan && target_control && target_gate) {
+            EnqueueAppend(
+                std::move(job),
+                target_plan,
+                target_control,
+                target_gate,
+                true);
+        }
     }
 }
 
@@ -504,6 +581,14 @@ void MainWindow::OnStopClick(IInspectable const&, RoutedEventArgs const&) {
     if (!execution_control_) {
         return;
     }
+
+    if (append_gate_) {
+        std::lock_guard gate_lock(append_gate_->mutex);
+        append_gate_->accepting = false;
+        append_gate_->condition.notify_all();
+    }
+    deferred_same_destination_jobs_.clear();
+    append_planner_.cancel_pending();
     execution_control_->request_stop();
     PauseButton().IsEnabled(false);
     StopButton().IsEnabled(false);
@@ -511,6 +596,14 @@ void MainWindow::OnStopClick(IInspectable const&, RoutedEventArgs const&) {
 
 void MainWindow::OnCancelClick(IInspectable const&, RoutedEventArgs const&) {
     cancel_requested_.store(true, std::memory_order_relaxed);
+    if (append_gate_) {
+        std::lock_guard gate_lock(append_gate_->mutex);
+        append_gate_->accepting = false;
+        append_gate_->condition.notify_all();
+    }
+    deferred_same_destination_jobs_.clear();
+    append_planner_.cancel_pending();
+    copy_thread_.request_stop();
     if (execution_control_) {
         execution_control_->request_cancel();
     }
@@ -535,9 +628,16 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& result) {
     auto deferred = std::move(deferred_same_destination_jobs_);
     deferred_same_destination_jobs_.clear();
 
+    if (append_gate_) {
+        std::lock_guard gate_lock(append_gate_->mutex);
+        append_gate_->accepting = false;
+        append_gate_->condition.notify_all();
+    }
+
     SetExecutionButtonsIdle();
     RefreshQueue();
     execution_control_.reset();
+    append_gate_.reset();
     active_destination_.clear();
 
     if (result.stopped) {
@@ -557,7 +657,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& result) {
     }
 
     // A planning failure can happen before PublishLivePlan had a chance to
-    // drain same-destination requests. Preserve those user requests unless the
+    // transfer deferred reservations. Preserve those user requests unless the
     // user explicitly cancelled/stopped the session.
     if (!result.cancelled) {
         for (auto& job : deferred) {
