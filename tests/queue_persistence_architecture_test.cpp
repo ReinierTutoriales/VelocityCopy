@@ -46,7 +46,8 @@ int main() {
         return fail(2, "archive must preserve current session and future sessions separately");
     }
 
-    if (!contains(archive_cpp, "VCQUEUE1") || !contains(archive_cpp, "kFormatVersion = 1") ||
+    if (!contains(archive_cpp, "kMagic{'V','C','Q','U','E','U','E','1'}") ||
+        !contains(archive_cpp, "kFormatVersion = 1") ||
         !contains(archive_cpp, "kMaxEntries") || !contains(archive_cpp, "TempFileGuard") ||
         !contains(archive_cpp, "MOVEFILE_REPLACE_EXISTING") ||
         !contains(archive_cpp, "MOVEFILE_WRITE_THROUGH") || !contains(archive_cpp, "stream.peek()")) {
