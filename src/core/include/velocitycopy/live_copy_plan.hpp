@@ -48,6 +48,7 @@ public:
     [[nodiscard]] const std::filesystem::path& destination_root() const noexcept;
     [[nodiscard]] LiveCopyPlanSnapshot snapshot() const;
     [[nodiscard]] LiveQueueView queue_view(std::size_t max_items) const;
+    [[nodiscard]] CopyPlan export_remaining_plan() const;
 
     [[nodiscard]] LivePlanAppendResult append(CopyPlan plan, bool allow_drained = false) noexcept;
 
