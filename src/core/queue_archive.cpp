@@ -155,7 +155,8 @@ bool write_job(std::ofstream& stream, const CopyJob& job) {
 bool read_job(std::ifstream& stream, CopyJob& job) {
     if (!read_path(stream, job.destination)) return false;
     std::uint8_t layout{};
-    if (!read_value(stream, layout) || layout > static_cast<std::uint8_t>(DestinationLayout::ContentsOnly)) {
+    if (!read_value(stream, layout) ||
+        layout > static_cast<std::uint8_t>(DestinationLayout::ContentsOnly)) {
         return false;
     }
     job.layout = static_cast<DestinationLayout>(layout);
@@ -173,11 +174,49 @@ bool read_job(std::ifstream& stream, CopyJob& job) {
     return true;
 }
 
+bool write_jobs(std::ofstream& stream, const std::vector<CopyJob>& jobs) {
+    if (jobs.size() > kMaxEntries) return false;
+    const auto count = static_cast<std::uint64_t>(jobs.size());
+    if (!write_value(stream, count)) return false;
+    for (const auto& job : jobs) {
+        if (!write_job(stream, job)) return false;
+    }
+    return true;
+}
+
+bool read_jobs(std::ifstream& stream, std::vector<CopyJob>& jobs) {
+    std::uint64_t count{};
+    if (!read_value(stream, count) || count > kMaxEntries) return false;
+    jobs.reserve(static_cast<std::size_t>(count));
+    for (std::uint64_t i = 0; i < count; ++i) {
+        CopyJob job{};
+        if (!read_job(stream, job)) return false;
+        jobs.push_back(std::move(job));
+    }
+    return true;
+}
+
 std::filesystem::path temp_path_for(const std::filesystem::path& path) {
     auto temp = path;
     temp += L".tmp";
     return temp;
 }
+
+class TempFileGuard final {
+public:
+    explicit TempFileGuard(std::filesystem::path path) : path_(std::move(path)) {}
+    ~TempFileGuard() {
+        if (!committed_) {
+            std::error_code ec;
+            std::filesystem::remove(path_, ec);
+        }
+    }
+    void commit() noexcept { committed_ = true; }
+
+private:
+    std::filesystem::path path_;
+    bool committed_{};
+};
 
 } // namespace
 
@@ -193,6 +232,7 @@ bool QueueArchiveStore::save(
         }
 
         const auto temp = temp_path_for(path);
+        TempFileGuard temp_guard(temp);
         std::ofstream stream(temp, std::ios::binary | std::ios::trunc);
         if (!stream) return false;
 
@@ -203,12 +243,9 @@ bool QueueArchiveStore::save(
             return false;
         }
         if (archive.current_plan && !write_plan(stream, *archive.current_plan)) return false;
-
-        if (archive.queued_jobs.size() > kMaxEntries) return false;
-        const auto jobs = static_cast<std::uint64_t>(archive.queued_jobs.size());
-        if (!write_value(stream, jobs)) return false;
-        for (const auto& job : archive.queued_jobs) {
-            if (!write_job(stream, job)) return false;
+        if (!write_jobs(stream, archive.current_append_jobs) ||
+            !write_jobs(stream, archive.queued_jobs)) {
+            return false;
         }
 
         stream.flush();
@@ -217,10 +254,9 @@ bool QueueArchiveStore::save(
 
         const auto flags = MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH;
         if (!MoveFileExW(temp.c_str(), path.c_str(), flags)) {
-            std::error_code ec;
-            std::filesystem::remove(temp, ec);
             return false;
         }
+        temp_guard.commit();
         return true;
     } catch (...) {
         return false;
@@ -249,13 +285,9 @@ std::optional<QueueArchive> QueueArchiveStore::load(
             archive.current_plan = std::move(plan);
         }
 
-        std::uint64_t jobs{};
-        if (!read_value(stream, jobs) || jobs > kMaxEntries) return std::nullopt;
-        archive.queued_jobs.reserve(static_cast<std::size_t>(jobs));
-        for (std::uint64_t i = 0; i < jobs; ++i) {
-            CopyJob job{};
-            if (!read_job(stream, job)) return std::nullopt;
-            archive.queued_jobs.push_back(std::move(job));
+        if (!read_jobs(stream, archive.current_append_jobs) ||
+            !read_jobs(stream, archive.queued_jobs)) {
+            return std::nullopt;
         }
 
         if (stream.peek() != std::ifstream::traits_type::eof()) {
