@@ -10,8 +10,19 @@ JobResult JobExecutor::execute(
     const CopyJob& job,
     const JobProgressCallback& progress) const noexcept {
     try {
-        const auto plan = planner_.build(job);
+        return execute(planner_.build(job), progress);
+    } catch (const std::filesystem::filesystem_error& error) {
+        const auto code = error.code().value();
+        return {false, false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(code == 0 ? ERROR_INVALID_DATA : code))};
+    } catch (...) {
+        return {false, false, static_cast<std::int32_t>(E_FAIL)};
+    }
+}
 
+JobResult JobExecutor::execute(
+    const CopyPlan& plan,
+    const JobProgressCallback& progress) const noexcept {
+    try {
         for (const auto& directory : plan.directories) {
             std::error_code ec;
             std::filesystem::create_directories(directory.destination, ec);
