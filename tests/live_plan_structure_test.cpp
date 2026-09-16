@@ -1,6 +1,7 @@
 #include "velocitycopy/live_copy_plan.hpp"
 
 #include <filesystem>
+#include <limits>
 
 int main() {
     namespace fs = std::filesystem;
@@ -63,6 +64,31 @@ int main() {
         after_reject.directories.size() != before_reject.directories.size() ||
         after_reject.files.size() != before_reject.files.size() ||
         after_reject.total_bytes != before_reject.total_bytes) return 8;
+
+    CopyPlan exhausted_initial{};
+    exhausted_initial.destination_root = destination;
+    exhausted_initial.files.push_back({
+        std::numeric_limits<std::uint64_t>::max(),
+        source_a / L"max.txt",
+        destination / L"max.txt",
+        1});
+    exhausted_initial.total_bytes = 1;
+    exhausted_initial.largest_file_bytes = 1;
+    LiveCopyPlan exhausted(std::move(exhausted_initial));
+    const auto before_exhausted_append = exhausted.export_remaining_plan();
+
+    CopyPlan cannot_assign_id{};
+    cannot_assign_id.destination_root = destination;
+    cannot_assign_id.files.push_back({1, source_b / L"next.txt", destination / L"next.txt", 1});
+    cannot_assign_id.total_bytes = 1;
+    cannot_assign_id.largest_file_bytes = 1;
+    if (exhausted.append(std::move(cannot_assign_id), true) != LivePlanAppendResult::InternalFailure) return 9;
+
+    const auto after_exhausted_append = exhausted.export_remaining_plan();
+    if (after_exhausted_append.files.size() != before_exhausted_append.files.size() ||
+        after_exhausted_append.total_bytes != before_exhausted_append.total_bytes ||
+        after_exhausted_append.directories.size() != before_exhausted_append.directories.size() ||
+        after_exhausted_append.source_roots != before_exhausted_append.source_roots) return 10;
 
     return 0;
 }
