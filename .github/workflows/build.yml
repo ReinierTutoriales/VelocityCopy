@@ -17,8 +17,11 @@ jobs:
       - name: Configure x64 Release
         run: cmake -S . -B build -A x64
 
-      - name: Build
+      - name: Build core
         run: cmake --build build --config Release --parallel
 
-      - name: Test
+      - name: Test core
         run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Build WinUI 3 x64 Release
+        run: msbuild src/ui/VelocityCopy.UI/VelocityCopy.UI.vcxproj /restore /m /p:Configuration=Release /p:Platform=x64 /p:AppxPackageSigningEnabled=false
