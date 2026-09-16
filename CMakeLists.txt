@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.28)
 
-project(VelocityCopy VERSION 0.8.0 LANGUAGES CXX)
+project(VelocityCopy VERSION 0.9.0 LANGUAGES CXX)
 
 if(NOT WIN32)
     message(FATAL_ERROR "VelocityCopy currently targets Windows only.")
@@ -17,6 +17,7 @@ add_library(velocitycopy_core STATIC
     src/core/job_executor.cpp
     src/core/job_planner.cpp
     src/core/job_queue.cpp
+    src/core/shell_session.cpp
     src/core/storage_profiler.cpp
     src/core/strategy_selector.cpp
 )
@@ -78,6 +79,9 @@ target_link_libraries(VelocityCopyShellRequestTest PRIVATE velocitycopy_core)
 add_executable(VelocityCopyIpcTest tests/ipc_test.cpp)
 target_link_libraries(VelocityCopyIpcTest PRIVATE velocitycopy_core)
 
+add_executable(VelocityCopyShellSessionTest tests/shell_session_test.cpp)
+target_link_libraries(VelocityCopyShellSessionTest PRIVATE velocitycopy_core)
+
 if(MSVC)
     target_compile_options(VelocityCopySmokeTest PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyQueueTest PRIVATE /W4 /permissive- /EHsc /utf-8)
@@ -86,6 +90,7 @@ if(MSVC)
     target_compile_options(VelocityCopyStrategyTest PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyShellRequestTest PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyIpcTest PRIVATE /W4 /permissive- /EHsc /utf-8)
+    target_compile_options(VelocityCopyShellSessionTest PRIVATE /W4 /permissive- /EHsc /utf-8)
 endif()
 
 add_test(NAME velocitycopy_smoke COMMAND VelocityCopySmokeTest)
@@ -95,3 +100,4 @@ add_test(NAME velocitycopy_drop_layout COMMAND VelocityCopyDropLayoutTest)
 add_test(NAME velocitycopy_strategy COMMAND VelocityCopyStrategyTest)
 add_test(NAME velocitycopy_shell_request COMMAND VelocityCopyShellRequestTest)
 add_test(NAME velocitycopy_ipc COMMAND VelocityCopyIpcTest)
+add_test(NAME velocitycopy_shell_session COMMAND VelocityCopyShellSessionTest)
