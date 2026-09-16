@@ -15,6 +15,7 @@ enum class CopyDecision {
     Continue,
     Pause,
     Stop,
+    Skip,
     Cancel,
 };
 
