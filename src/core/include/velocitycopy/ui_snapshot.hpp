@@ -14,6 +14,7 @@ struct UiSnapshot {
     std::uint64_t transferred_bytes{};
     std::uint64_t total_files{};
     std::uint64_t completed_files{};
+    std::uint64_t current_file_id{};
     double fraction{};
     double bytes_per_second{};
     double eta_seconds{};
