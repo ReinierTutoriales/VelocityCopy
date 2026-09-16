@@ -15,6 +15,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <Grid x:Name="TitleBarDragRegion" Grid.Row="0" Height="28">
@@ -55,11 +56,65 @@
             <Button x:Name="PauseButton" x:Uid="PauseButton" IsEnabled="False" Margin="0,0,6,0" />
             <Button x:Name="StopButton" x:Uid="StopButton" Grid.Column="1" IsEnabled="False" Margin="0,0,6,0" />
             <Button x:Name="CancelButton" x:Uid="CancelButton" Grid.Column="2" Click="OnCancelClick" IsEnabled="False" />
-            <Button x:Name="QueueButton" x:Uid="QueueButton" Grid.Column="4" IsEnabled="False" />
+            <Button x:Name="QueueButton" x:Uid="QueueButton" Grid.Column="4" Click="OnQueueClick" IsEnabled="False" />
+        </Grid>
+
+        <Grid x:Name="QueuePanel"
+              Grid.Row="5"
+              Visibility="Collapsed"
+              Margin="0,10,0,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="QueueTitle"
+                           x:Uid="QueueTitle"
+                           FontWeight="SemiBold" />
+                <TextBlock x:Name="QueueCountText"
+                           Grid.Column="1"
+                           Opacity="0.65" />
+            </Grid>
+
+            <ListView x:Name="QueueList"
+                      Grid.Row="1"
+                      Margin="0,6,0,0"
+                      MaxHeight="190"
+                      SelectionMode="Multiple"
+                      IsItemClickEnabled="False"
+                      HorizontalContentAlignment="Stretch" />
+
+            <Grid Grid.Row="2" Margin="0,8,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Button x:Name="QueueMoveUpButton"
+                        x:Uid="QueueMoveUpButton"
+                        Click="OnQueueMoveUpClick"
+                        Margin="0,0,6,0" />
+                <Button x:Name="QueueMoveDownButton"
+                        x:Uid="QueueMoveDownButton"
+                        Grid.Column="1"
+                        Click="OnQueueMoveDownClick"
+                        Margin="0,0,6,0" />
+                <Button x:Name="QueueRemoveButton"
+                        x:Uid="QueueRemoveButton"
+                        Grid.Column="2"
+                        Click="OnQueueRemoveClick" />
+            </Grid>
         </Grid>
 
         <InfoBar x:Name="ErrorBar"
-                 Grid.RowSpan="5"
+                 Grid.RowSpan="6"
                  IsOpen="False"
                  Severity="Error"
                  IsClosable="True"
@@ -67,7 +122,7 @@
                  Margin="0,32,0,0" />
 
         <Border x:Name="DragOverlay"
-                Grid.RowSpan="5"
+                Grid.RowSpan="6"
                 Visibility="Collapsed"
                 Background="{ThemeResource AccentFillColorDefaultBrush}"
                 Opacity="0.12"
