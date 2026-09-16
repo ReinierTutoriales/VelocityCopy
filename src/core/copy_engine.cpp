@@ -9,16 +9,17 @@ namespace {
 
 struct CallbackContext {
     const ProgressCallback* callback{};
+    bool callback_failed{};
 };
 
 COPYFILE2_MESSAGE_ACTION CALLBACK copy_progress_routine(
     const COPYFILE2_MESSAGE* message,
-    void* context) {
+    void* context) noexcept {
     if (message == nullptr || context == nullptr) {
         return COPYFILE2_PROGRESS_CONTINUE;
     }
 
-    const auto* callback_context = static_cast<CallbackContext*>(context);
+    auto* callback_context = static_cast<CallbackContext*>(context);
     if (callback_context->callback == nullptr || !(*callback_context->callback)) {
         return COPYFILE2_PROGRESS_CONTINUE;
     }
@@ -47,9 +48,14 @@ COPYFILE2_MESSAGE_ACTION CALLBACK copy_progress_routine(
         return COPYFILE2_PROGRESS_CONTINUE;
     }
 
-    return (*callback_context->callback)(progress) == CopyDecision::Cancel
-        ? COPYFILE2_PROGRESS_CANCEL
-        : COPYFILE2_PROGRESS_CONTINUE;
+    try {
+        return (*callback_context->callback)(progress) == CopyDecision::Cancel
+            ? COPYFILE2_PROGRESS_CANCEL
+            : COPYFILE2_PROGRESS_CONTINUE;
+    } catch (...) {
+        callback_context->callback_failed = true;
+        return COPYFILE2_PROGRESS_CANCEL;
+    }
 }
 
 } // namespace
@@ -68,7 +74,7 @@ CopyResult CopyEngine::copy_file(
         }
     }
 
-    CallbackContext callback_context{&progress};
+    CallbackContext callback_context{&progress, false};
 
     COPYFILE2_EXTENDED_PARAMETERS parameters{};
     parameters.dwSize = sizeof(parameters);
@@ -80,6 +86,10 @@ CopyResult CopyEngine::copy_file(
         source.c_str(),
         destination.c_str(),
         &parameters);
+
+    if (callback_context.callback_failed) {
+        return {false, static_cast<std::int32_t>(E_FAIL)};
+    }
 
     return {
         SUCCEEDED(result),
