@@ -260,31 +260,53 @@ void MainWindow::OnStartCopyClick(IInspectable const&, RoutedEventArgs const&) {
     StartCopy(std::move(*job));
 }
 
+void MainWindow::SetExecutionButtonsRunning() {
+    PauseButton().IsEnabled(true);
+    StopButton().IsEnabled(true);
+    CancelButton().IsEnabled(true);
+}
+
+void MainWindow::SetExecutionButtonsIdle() {
+    PauseButton().IsEnabled(false);
+    StopButton().IsEnabled(false);
+    CancelButton().IsEnabled(false);
+    paused_ = false;
+
+    try {
+        Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
+        PauseButton().Content(box_value(loader.GetString(L"ActionPause")));
+    } catch (...) {
+    }
+}
+
 void MainWindow::StartCopy(velocitycopy::CopyJob job) {
     cancel_requested_.store(false, std::memory_order_relaxed);
     presenter_.reset();
     last_queue_completed_files_ = 0;
     live_plan_.reset();
+    execution_control_ = std::make_shared<velocitycopy::ExecutionControl>();
     queue_snapshot_.clear();
     QueueList().Items().Clear();
     QueueButton().IsEnabled(false);
     QueuePanel().Visibility(Visibility::Collapsed);
     ResizeWindow(156);
     GlobalProgress().Value(0);
-    CancelButton().IsEnabled(true);
+    paused_ = false;
+    SetExecutionButtonsRunning();
     CurrentItemText().Text(job.display_name.empty() ? hstring(L"…") : hstring(job.display_name));
 
     auto weak = get_weak();
     auto dispatcher = dispatcher_;
+    auto control = execution_control_;
 
-    copy_thread_ = std::jthread([this, weak, dispatcher, job = std::move(job)](std::stop_token stop_token) mutable {
+    copy_thread_ = std::jthread([this, weak, dispatcher, control, job = std::move(job)](std::stop_token stop_token) mutable {
         std::shared_ptr<velocitycopy::LiveCopyPlan> plan;
         try {
             plan = std::make_shared<velocitycopy::LiveCopyPlan>(planner_.build(job));
         } catch (...) {
             dispatcher.TryEnqueue([weak]() {
                 if (auto self = weak.get()) {
-                    self->FinishCopy({false, false, static_cast<std::int32_t>(E_FAIL)});
+                    self->FinishCopy({false, false, static_cast<std::int32_t>(E_FAIL), false});
                 }
             });
             return;
@@ -296,8 +318,13 @@ void MainWindow::StartCopy(velocitycopy::CopyJob job) {
             }
         });
 
-        const auto result = executor_.execute(*plan, [this, weak, dispatcher, &stop_token](const velocitycopy::JobProgress& progress) {
-            if (stop_token.stop_requested() || cancel_requested_.load(std::memory_order_relaxed)) {
+        const auto result = executor_.execute(*plan, *control, [this, weak, dispatcher, control, &stop_token](const velocitycopy::JobProgress& progress) {
+            if (stop_token.stop_requested()) {
+                control->request_cancel();
+                return velocitycopy::JobDecision::Cancel;
+            }
+            if (cancel_requested_.load(std::memory_order_relaxed)) {
+                control->request_cancel();
                 return velocitycopy::JobDecision::Cancel;
             }
 
@@ -345,18 +372,12 @@ void MainWindow::RefreshQueue() {
 
 std::vector<std::uint64_t> MainWindow::SelectedPendingIds() const {
     std::vector<std::uint64_t> ids;
-    const auto selected = QueueList().SelectedItems();
-
-    for (const auto& file : queue_snapshot_) {
-        const auto source = file.source.wstring();
-        for (const auto& selected_item : selected) {
-            try {
-                if (unbox_value<hstring>(selected_item) == hstring(source)) {
-                    ids.push_back(file.id);
-                    break;
-                }
-            } catch (...) {
-            }
+    const auto ranges = QueueList().SelectedRanges();
+    for (const auto& range : ranges) {
+        const auto first = static_cast<std::size_t>(range.FirstIndex);
+        const auto last = static_cast<std::size_t>(range.LastIndex);
+        for (std::size_t index = first; index <= last && index < queue_snapshot_.size(); ++index) {
+            ids.push_back(queue_snapshot_[index].id);
         }
     }
     return ids;
@@ -406,6 +427,89 @@ void MainWindow::OnQueueRemoveClick(IInspectable const&, RoutedEventArgs const&)
     RefreshQueue();
 }
 
+void MainWindow::OnQueueDragItemsCompleted(
+    ListViewBase const&,
+    DragItemsCompletedEventArgs const&) {
+    if (!live_plan_ || queue_snapshot_.empty()) {
+        return;
+    }
+
+    const auto items = QueueList().Items();
+    std::vector<bool> used(queue_snapshot_.size(), false);
+    std::vector<std::uint64_t> ordered_ids;
+    ordered_ids.reserve(items.Size());
+
+    for (std::uint32_t visual_index = 0; visual_index < items.Size(); ++visual_index) {
+        hstring source;
+        try {
+            source = unbox_value<hstring>(items.GetAt(visual_index));
+        } catch (...) {
+            continue;
+        }
+
+        for (std::size_t index = 0; index < queue_snapshot_.size(); ++index) {
+            if (used[index]) {
+                continue;
+            }
+            if (source == hstring(queue_snapshot_[index].source.wstring())) {
+                used[index] = true;
+                ordered_ids.push_back(queue_snapshot_[index].id);
+                break;
+            }
+        }
+    }
+
+    for (std::size_t index = 0; index < ordered_ids.size(); ++index) {
+        live_plan_->move_pending_file(ordered_ids[index], index);
+    }
+    RefreshQueue();
+}
+
+void MainWindow::OnPauseClick(IInspectable const&, RoutedEventArgs const&) {
+    if (!execution_control_) {
+        return;
+    }
+
+    try {
+        Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
+        if (paused_) {
+            execution_control_->resume();
+            paused_ = false;
+            PauseButton().Content(box_value(loader.GetString(L"ActionPause")));
+        } else {
+            execution_control_->request_pause();
+            paused_ = true;
+            PauseButton().Content(box_value(loader.GetString(L"ActionResume")));
+            SpeedText().Text(L"—");
+            EtaText().Text(L"—");
+        }
+    } catch (...) {
+        if (paused_) {
+            execution_control_->resume();
+            paused_ = false;
+        } else {
+            execution_control_->request_pause();
+            paused_ = true;
+        }
+    }
+}
+
+void MainWindow::OnStopClick(IInspectable const&, RoutedEventArgs const&) {
+    if (!execution_control_) {
+        return;
+    }
+    execution_control_->request_stop();
+    PauseButton().IsEnabled(false);
+    StopButton().IsEnabled(false);
+}
+
+void MainWindow::OnCancelClick(IInspectable const&, RoutedEventArgs const&) {
+    cancel_requested_.store(true, std::memory_order_relaxed);
+    if (execution_control_) {
+        execution_control_->request_cancel();
+    }
+}
+
 void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
     GlobalProgress().Value(snapshot.fraction * 100.0);
     if (!snapshot.current_source.empty()) {
@@ -422,8 +526,17 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
 }
 
 void MainWindow::FinishCopy(const velocitycopy::JobResult& result) {
-    CancelButton().IsEnabled(false);
+    SetExecutionButtonsIdle();
     RefreshQueue();
+    execution_control_.reset();
+
+    if (result.stopped) {
+        QueueButton().IsEnabled(live_plan_ && !live_plan_->snapshot().pending_files.empty());
+        SpeedText().Text(L"—");
+        EtaText().Text(L"—");
+        return;
+    }
+
     QueueButton().IsEnabled(false);
     if (result.success) {
         GlobalProgress().Value(100);
@@ -432,10 +545,6 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& result) {
     } else if (!result.cancelled) {
         ShowError();
     }
-}
-
-void MainWindow::OnCancelClick(IInspectable const&, RoutedEventArgs const&) {
-    cancel_requested_.store(true, std::memory_order_relaxed);
 }
 
 void MainWindow::ShowError() {
