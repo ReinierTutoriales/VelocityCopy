@@ -9,6 +9,8 @@
 #include "velocitycopy/job_executor.hpp"
 #include "velocitycopy/job_planner.hpp"
 #include "velocitycopy/live_copy_plan.hpp"
+#include "velocitycopy/shell_request.hpp"
+#include "velocitycopy/shell_session.hpp"
 #include "velocitycopy/ui_snapshot.hpp"
 
 #include <memory>
@@ -16,6 +18,8 @@
 namespace winrt::VelocityCopyUI::implementation {
 struct MainWindow : MainWindowT<MainWindow> {
     MainWindow();
+
+    void HandleShellRequest(const velocitycopy::ShellRequest& request);
 
     void OnDragOver(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
     void OnDragLeave(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
@@ -54,8 +58,6 @@ private:
     void ResizeWindow(int height_epx);
     void ApplySnapshot(const velocitycopy::UiSnapshot& snapshot);
     void FinishCopy(const velocitycopy::JobResult& result);
-    void SetExecutionButtonsRunning();
-    void SetExecutionButtonsIdle();
     void ShowError();
     static hstring PreviewText(const velocitycopy::DropChoicePreview& preview);
     static hstring FormatCapacity(const velocitycopy::DestinationCapacity& capacity);
@@ -67,17 +69,17 @@ private:
     velocitycopy::DestinationNavigationWorker destination_navigation_;
     velocitycopy::JobPlanner planner_;
     velocitycopy::JobExecutor executor_;
+    velocitycopy::ExecutionControl execution_control_;
+    velocitycopy::ShellSession shell_session_;
     velocitycopy::ProgressPresenter presenter_{100};
     std::vector<velocitycopy::DropItem> dropped_items_;
     std::filesystem::path current_destination_folder_;
     std::shared_ptr<velocitycopy::LiveCopyPlan> live_plan_;
-    std::shared_ptr<velocitycopy::ExecutionControl> execution_control_;
     std::vector<velocitycopy::PlannedFile> queue_snapshot_;
     Microsoft::UI::Dispatching::DispatcherQueue dispatcher_{nullptr};
     std::atomic_bool cancel_requested_{false};
     std::uint64_t next_job_id_{1};
     std::uint64_t last_queue_completed_files_{};
-    bool paused_{};
     std::jthread copy_thread_;
 };
 }
