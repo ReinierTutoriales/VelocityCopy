@@ -2,12 +2,14 @@
 
 #include <windows.h>
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <fstream>
 #include <limits>
 #include <string>
 #include <type_traits>
+#include <utility>
 
 namespace velocitycopy {
 namespace {
