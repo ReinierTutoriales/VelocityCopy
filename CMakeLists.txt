@@ -22,6 +22,7 @@ add_library(velocitycopy_core STATIC
     src/core/ipc_transport.cpp
     src/core/job_executor.cpp
     src/core/job_planner.cpp
+    src/core/job_planning_worker.cpp
     src/core/job_queue.cpp
     src/core/live_copy_plan.cpp
     src/core/process_activation.cpp
