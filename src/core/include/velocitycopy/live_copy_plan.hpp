@@ -28,6 +28,11 @@ struct LiveQueueView {
     std::uint64_t completed_files{};
 };
 
+struct LiveDirectoryBatch {
+    std::size_t through_index{};
+    std::vector<PlannedDirectory> directories;
+};
+
 enum class LivePlanAppendResult {
     Appended,
     Drained,
@@ -45,6 +50,9 @@ public:
     LiveCopyPlan& operator=(const LiveCopyPlan&) = delete;
 
     [[nodiscard]] std::vector<PlannedDirectory> directories() const;
+    [[nodiscard]] LiveDirectoryBatch pending_directories() const;
+    void mark_directories_materialized(std::size_t through_index) noexcept;
+    [[nodiscard]] bool has_pending_directories() const noexcept;
     [[nodiscard]] std::vector<std::filesystem::path> source_roots() const;
     [[nodiscard]] const std::filesystem::path& destination_root() const noexcept;
     [[nodiscard]] LiveCopyPlanSnapshot snapshot() const;
@@ -80,6 +88,7 @@ private:
     void recompute_largest_file_bytes_locked() noexcept;
 
     std::vector<PlannedDirectory> directories_;
+    std::size_t materialized_directory_count_{};
     std::vector<std::filesystem::path> source_roots_;
     std::filesystem::path destination_root_;
     mutable std::mutex mutex_;
