@@ -21,6 +21,12 @@ struct ConcurrentProgressState {
     std::uint64_t completed_files{};
     std::unordered_map<std::uint64_t, std::uint64_t> active_bytes;
 
+    ConcurrentProgressState(
+        const std::uint64_t initial_completed_bytes,
+        const std::uint64_t initial_completed_files) noexcept
+        : completed_bytes(initial_completed_bytes),
+          completed_files(initial_completed_files) {}
+
     void update_active(const PlannedFile& file, const std::uint64_t transferred) {
         std::lock_guard lock(mutex);
         auto& current = active_bytes[file.id];
@@ -30,8 +36,14 @@ struct ConcurrentProgressState {
     void complete(const PlannedFile& file) {
         std::lock_guard lock(mutex);
         active_bytes.erase(file.id);
-        completed_bytes += file.size;
-        ++completed_files;
+        if (std::numeric_limits<std::uint64_t>::max() - completed_bytes < file.size) {
+            completed_bytes = std::numeric_limits<std::uint64_t>::max();
+        } else {
+            completed_bytes += file.size;
+        }
+        if (completed_files != std::numeric_limits<std::uint64_t>::max()) {
+            ++completed_files;
+        }
     }
 
     void release(const std::uint64_t file_id) {
@@ -80,9 +92,11 @@ WorkloadProfile workload_from_plan(const CopyPlan& plan) noexcept {
 }
 
 WorkloadProfile workload_from_live_plan(const LiveCopyPlan& plan) noexcept {
+    const auto total_bytes = plan.total_bytes();
+    const auto completed_bytes = plan.completed_bytes();
     return {
-        plan.total_bytes(),
-        plan.total_files(),
+        completed_bytes < total_bytes ? total_bytes - completed_bytes : 0,
+        plan.remaining_files(),
         plan.largest_file_bytes(),
     };
 }
@@ -250,17 +264,19 @@ JobResult JobExecutor::execute(
             }
         }
 
-        const auto total_files = plan.total_files();
-        if (total_files == 0) {
+        const auto remaining_files = plan.remaining_files();
+        if (remaining_files == 0) {
             return {true, false, S_OK};
         }
 
         const auto worker_count = std::clamp<std::uint32_t>(
             options.worker_count,
             1,
-            static_cast<std::uint32_t>(std::min<std::uint64_t>(total_files, kMaxCopyWorkers)));
+            static_cast<std::uint32_t>(std::min<std::uint64_t>(remaining_files, kMaxCopyWorkers)));
 
-        ConcurrentProgressState progress_state;
+        ConcurrentProgressState progress_state{
+            plan.completed_bytes(),
+            plan.completed_files()};
         ConcurrentResultState result_state;
         std::mutex callback_mutex;
         std::vector<JobResult> worker_results(worker_count, {true, false, S_OK, false});
@@ -280,7 +296,7 @@ JobResult JobExecutor::execute(
             aggregate.total_bytes = plan.total_bytes();
             aggregate.transferred_bytes = std::min(transferred, aggregate.total_bytes);
             aggregate.total_files = plan.total_files();
-            aggregate.completed_files = completed;
+            aggregate.completed_files = std::min(completed, aggregate.total_files);
             aggregate.current_source = file.source;
             aggregate.current_destination = file.destination;
 
