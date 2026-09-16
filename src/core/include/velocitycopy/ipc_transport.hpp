@@ -42,6 +42,7 @@ public:
 
 private:
     bool create_pipe() noexcept;
+    bool recreate_pipe_or_stop() noexcept;
     void close_pipe() noexcept;
     void wake_receiver() noexcept;
 
