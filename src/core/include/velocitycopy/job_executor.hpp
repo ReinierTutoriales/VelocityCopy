@@ -3,6 +3,7 @@
 #include "velocitycopy/copy_engine.hpp"
 #include "velocitycopy/copy_job.hpp"
 #include "velocitycopy/job_planner.hpp"
+#include "velocitycopy/live_copy_plan.hpp"
 
 #include <cstdint>
 #include <filesystem>
@@ -40,6 +41,10 @@ public:
 
     [[nodiscard]] JobResult execute(
         const CopyPlan& plan,
+        const JobProgressCallback& progress = {}) const noexcept;
+
+    [[nodiscard]] JobResult execute(
+        LiveCopyPlan& plan,
         const JobProgressCallback& progress = {}) const noexcept;
 
 private:
