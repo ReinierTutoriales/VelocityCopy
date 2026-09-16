@@ -146,7 +146,7 @@ void MainWindow::NavigateDestination(std::filesystem::path folder) {
 
     auto weak = get_weak();
     auto dispatcher = dispatcher_;
-    destination_navigation_.navigate(
+    (void)destination_navigation_.navigate(
         std::move(folder),
         true,
         [weak, dispatcher](velocitycopy::DestinationNavigationResult result) mutable {
@@ -255,16 +255,6 @@ void MainWindow::OnBackClick(IInspectable const&, RoutedEventArgs const&) {
     }
 }
 
-void MainWindow::OnStartCopyClick(IInspectable const&, RoutedEventArgs const&) {
-    auto job = flow_.make_job(next_job_id_++);
-    if (!job) {
-        ShowError();
-        return;
-    }
-    DropFlowFlyout().Hide();
-    StartCopy(std::move(*job));
-}
-
 void MainWindow::SetExecutionButtonsRunning() {
     PauseButton().IsEnabled(true);
     StopButton().IsEnabled(true);
@@ -285,6 +275,7 @@ void MainWindow::SetExecutionButtonsIdle() {
 }
 
 void MainWindow::StartCopy(velocitycopy::CopyJob job) {
+    active_destination_ = job.destination;
     cancel_requested_.store(false, std::memory_order_relaxed);
     presenter_.reset();
     last_queue_completed_files_ = 0;
@@ -356,6 +347,12 @@ void MainWindow::PublishLivePlan(std::shared_ptr<velocitycopy::LiveCopyPlan> pla
     live_plan_ = std::move(plan);
     QueueButton().IsEnabled(true);
     RefreshQueue();
+
+    auto deferred = std::move(deferred_same_destination_jobs_);
+    deferred_same_destination_jobs_.clear();
+    for (auto& job : deferred) {
+        QueueOrStartCopy(std::move(job));
+    }
 }
 
 void MainWindow::RefreshQueue() {
@@ -535,9 +532,13 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
 }
 
 void MainWindow::FinishCopy(const velocitycopy::JobResult& result) {
+    auto deferred = std::move(deferred_same_destination_jobs_);
+    deferred_same_destination_jobs_.clear();
+
     SetExecutionButtonsIdle();
     RefreshQueue();
     execution_control_.reset();
+    active_destination_.clear();
 
     if (result.stopped) {
         QueueButton().IsEnabled(live_plan_ && !live_plan_->snapshot().pending_files.empty());
@@ -553,6 +554,15 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& result) {
         EtaText().Text(L"—");
     } else if (!result.cancelled) {
         ShowError();
+    }
+
+    // A planning failure can happen before PublishLivePlan had a chance to
+    // drain same-destination requests. Preserve those user requests unless the
+    // user explicitly cancelled/stopped the session.
+    if (!result.cancelled) {
+        for (auto& job : deferred) {
+            QueueOrStartCopy(std::move(job));
+        }
     }
 }
 
