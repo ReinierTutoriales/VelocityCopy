@@ -12,6 +12,7 @@ void MainWindow::RefreshQueue() {
         queue_snapshot_.clear();
         QueueList().Items().Clear();
         QueueCountText().Text(L"0");
+        RefreshQueueCommandState();
         return;
     }
 
@@ -31,6 +32,7 @@ void MainWindow::RefreshQueue() {
     }
 
     QueueCountText().Text(hstring(std::format(L"{}", view.pending_count)));
+    RefreshQueueCommandState();
 }
 
 std::vector<std::uint64_t> MainWindow::SelectedPendingIds() {
@@ -84,6 +86,7 @@ void MainWindow::OnQueueRemoveClick(IInspectable const&, RoutedEventArgs const&)
     (void)live_plan_->remove_pending_files(SelectedPendingIds());
     RefreshQueue();
     FinalizeStoppedSessionIfEmpty();
+    FinalizeConflictSessionIfEmpty();
 }
 
 void MainWindow::OnQueueDragItemsCompleted(
