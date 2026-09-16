@@ -45,8 +45,8 @@ int main() {
         !contains(append, "deferred_after_stop_jobs_") ||
         !contains(append, "stopped_session_")) return 3;
 
-    // Start and Resume must share one production executor loop. The old loop
-    // must not survive inside MainWindow.xaml.cpp.
+    // Start and Resume share one production executor loop. The old loop must not
+    // survive inside MainWindow.xaml.cpp.
     if (!contains(execution, "RunLivePlanSession(") ||
         !contains(execution, "ResumeStoppedCopy()") ||
         !contains(execution, "RunLivePlanSession(\n                plan, control, gate, stop_token, true)") ||
@@ -64,24 +64,40 @@ int main() {
         contains(stop_body, "append_planner_.cancel_pending()") ||
         contains(stop_body, "queued_sessions_.clear()")) return 6;
 
-    // A fully stopped session has no ExecutionControl; Cancel must be able to
-    // dispose it synchronously, and Resume is exposed through the Pause button.
+    // Cancel has precedence over a stopped result, including the race while Stop
+    // waits for already-accepted append planning to finish.
+    if (!contains(execution, "control->directive() == velocitycopy::ExecutionDirective::Cancel") ||
+        !contains(execution, "result.stopped && cancel_requested_.load") ||
+        !contains(execution, "execution_control_->request_cancel()")) return 7;
+
+    // A stopped session has no ExecutionControl. Resume uses the same LiveCopyPlan;
+    // if append planning is still active the user's intent is remembered and the
+    // button is disabled until the final reservation commits.
     if (!contains(execution, "if (stopped_session_) {\n        ResumeStoppedCopy();") ||
-        !contains(execution, "if (stopped_session_) {\n        stopped_session_ = false;") ||
+        !contains(execution, "resume_requested_ = true") ||
+        !contains(execution, "PauseButton().IsEnabled(false)") ||
+        !contains(execution, "last_queue_completed_files_ = live_plan_->completed_files()") ||
         !contains(execution, "SetExecutionButtonsStopped()") ||
-        !contains(execution, "loader.GetString(L\"ActionResume\")")) return 7;
+        !contains(execution, "loader.GetString(L\"ActionResume\")") ||
+        !contains(header, "bool resume_requested_{}")) return 8;
+
+    // The final append callback consumes that remembered Resume request. Failure
+    // also releases the reservation and resumes the pre-existing pending work.
+    if (!contains(append, "stopped_session_ && self->resume_requested_") ||
+        !contains(append, "self->ResumeStoppedCopy()") ||
+        !contains(append, "release_reservation()")) return 9;
 
     // Initial planning cannot be paused/stopped because no LiveCopyPlan exists.
     if (!contains(execution, "SetExecutionButtonsPlanning()") ||
         !contains(execution, "PauseButton().IsEnabled(false)") ||
-        !contains(execution, "StopButton().IsEnabled(false)")) return 8;
+        !contains(execution, "StopButton().IsEnabled(false)")) return 10;
 
     // Different destinations remain serialized; a stopped session blocks the
     // future-session queue until resumed, emptied, or cancelled.
     if (!contains(header, "queued_sessions_") ||
         !contains(append, "queued_sessions_.push_back") ||
         !contains(execution, "stopped_session_ || stop_requested_") ||
-        !contains(execution, "StartNextQueuedSession()")) return 9;
+        !contains(execution, "StartNextQueuedSession()")) return 11;
 
     // Queue implementation is isolated, bounded, stable-id based, and bulk.
     if (!contains(queue, "kVisibleQueueItems = 256") ||
@@ -91,12 +107,12 @@ int main() {
         !contains(queue, "move_pending_files_up(SelectedPendingIds())") ||
         !contains(queue, "move_pending_files_down(SelectedPendingIds())") ||
         !contains(queue, "remove_pending_files(SelectedPendingIds())") ||
-        !contains(queue, "FinalizeStoppedSessionIfEmpty()")) return 10;
+        !contains(queue, "FinalizeStoppedSessionIfEmpty()")) return 12;
 
     if (!contains(project, "MainWindow.Execution.cpp") ||
         !contains(project, "MainWindow.Queue.cpp") ||
         std::filesystem::exists(root / "src/ui/VelocityCopy.UI/MainWindow.QueueDrag.cpp") ||
-        contains(project, "MainWindow.QueueDrag.cpp")) return 11;
+        contains(project, "MainWindow.QueueDrag.cpp")) return 13;
 
     return 0;
 }
