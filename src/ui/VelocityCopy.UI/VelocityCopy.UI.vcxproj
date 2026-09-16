@@ -81,6 +81,7 @@
     <ClCompile Include="pch.cpp"><PrecompiledHeader>Create</PrecompiledHeader></ClCompile>
     <ClCompile Include="App.xaml.cpp"><DependentUpon>App.xaml</DependentUpon></ClCompile>
     <ClCompile Include="MainWindow.xaml.cpp"><DependentUpon>MainWindow.xaml</DependentUpon></ClCompile>
+    <ClCompile Include="MainWindow.CopyAppend.cpp" />
     <ClCompile Include="MainWindow.QueueDrag.cpp" />
     <ClCompile Include="MainWindow.Shell.cpp" />
     <ClCompile Include="$(GeneratedFilesDir)module.g.cpp" />
