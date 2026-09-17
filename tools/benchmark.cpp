@@ -1,5 +1,6 @@
 #include "velocitycopy/job_executor.hpp"
 #include "velocitycopy/job_planner.hpp"
+#include "velocitycopy/live_copy_plan.hpp"
 #include "velocitycopy/storage_profiler.hpp"
 #include "velocitycopy/strategy_selector.hpp"
 
@@ -26,8 +27,13 @@ const wchar_t* storage_name(const velocitycopy::StorageKind kind) noexcept {
 
 const wchar_t* strategy_name(const velocitycopy::CopyStrategyKind kind) noexcept {
     return kind == velocitycopy::CopyStrategyKind::WindowsCopyFile2NoBuffering
-        ? L"CopyFile2 (unbuffered candidate)"
+        ? L"CopyFile2 (unbuffered candidate only)"
         : L"CopyFile2 (buffered baseline)";
+}
+
+const wchar_t* seek_name(const velocitycopy::StorageProfile& profile) noexcept {
+    if (!profile.seek_penalty_available) return L"unknown";
+    return profile.incurs_seek_penalty ? L"rotational/seek penalty" : L"nonrotational";
 }
 
 } // namespace
@@ -68,18 +74,28 @@ int wmain(int argc, wchar_t* argv[]) {
     const auto recommendation = selector.choose(source_profile, destination_profile, workload);
 
     std::wcout << L"Source: " << storage_name(source_profile.kind)
+               << L" | " << seek_name(source_profile)
                << L" | sector " << source_profile.logical_sector_bytes << L"/"
                << source_profile.physical_sector_bytes << L"\n";
     std::wcout << L"Destination: " << storage_name(destination_profile.kind)
+               << L" | " << seek_name(destination_profile)
                << L" | sector " << destination_profile.logical_sector_bytes << L"/"
                << destination_profile.physical_sector_bytes << L"\n";
-    std::wcout << L"Recommendation: " << strategy_name(recommendation.strategy)
-               << L" | QD " << recommendation.suggested_queue_depth
+    std::wcout << L"Strategy candidate: " << strategy_name(recommendation.strategy)
+               << L" | suggested QD " << recommendation.suggested_queue_depth
                << L" | async candidate " << (recommendation.async_iocp_candidate ? L"yes" : L"no") << L"\n";
 
+    const auto total_bytes = plan.total_bytes;
+    velocitycopy::LiveCopyPlan live_plan(std::move(plan));
     velocitycopy::JobExecutor executor;
+    velocitycopy::ExecutionControl control;
+    const auto execution_options = executor.recommend_options(live_plan);
+
+    std::wcout << L"Production execution: CopyFile2 buffered baseline"
+               << L" | workers " << execution_options.worker_count << L"\n";
+
     const auto start = std::chrono::steady_clock::now();
-    const auto result = executor.execute(plan);
+    const auto result = executor.execute(live_plan, control, execution_options);
     const auto end = std::chrono::steady_clock::now();
 
     if (!result.success) {
@@ -89,7 +105,7 @@ int wmain(int argc, wchar_t* argv[]) {
     }
 
     const std::chrono::duration<double> elapsed = end - start;
-    const double mib = static_cast<double>(plan.total_bytes) / (1024.0 * 1024.0);
+    const double mib = static_cast<double>(total_bytes) / (1024.0 * 1024.0);
     const double mib_per_second = elapsed.count() > 0.0 ? mib / elapsed.count() : 0.0;
 
     std::wcout << std::fixed << std::setprecision(2)
