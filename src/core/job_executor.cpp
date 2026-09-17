@@ -85,7 +85,14 @@ std::int32_t remove_empty_source_directories(
                 }
             }
 
-            std::sort(directories.rbegin(), directories.rend());
+            std::sort(directories.begin(), directories.end(), [](const auto& left, const auto& right) {
+                const auto left_depth = static_cast<std::size_t>(std::distance(left.begin(), left.end()));
+                const auto right_depth = static_cast<std::size_t>(std::distance(right.begin(), right.end()));
+                if (left_depth != right_depth) {
+                    return left_depth > right_depth;
+                }
+                return left.native() > right.native();
+            });
             for (const auto& directory : directories) {
                 ec.clear();
                 (void)std::filesystem::remove(directory, ec);
