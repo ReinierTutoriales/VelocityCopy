@@ -33,7 +33,9 @@ public:
     [[nodiscard]] bool choose_layout(DestinationLayout layout) noexcept;
     [[nodiscard]] bool back() noexcept;
 
-    [[nodiscard]] std::optional<CopyJob> make_job(std::uint64_t job_id = 0) const;
+    [[nodiscard]] std::optional<CopyJob> make_job(
+        std::uint64_t job_id = 0,
+        FileOperation operation = FileOperation::Copy) const;
 
 private:
     std::vector<DropItem> items_;
