@@ -4,6 +4,8 @@
 #include "velocitycopy/storage_profiler.hpp"
 #include "velocitycopy/strategy_selector.hpp"
 
+#include <windows.h>
+
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
@@ -27,13 +29,19 @@ const wchar_t* storage_name(const velocitycopy::StorageKind kind) noexcept {
 
 const wchar_t* strategy_name(const velocitycopy::CopyStrategyKind kind) noexcept {
     return kind == velocitycopy::CopyStrategyKind::WindowsCopyFile2NoBuffering
-        ? L"CopyFile2 (unbuffered candidate only)"
-        : L"CopyFile2 (buffered baseline)";
+        ? L"CopyFile2 (unbuffered)"
+        : L"CopyFile2 (buffered)";
 }
 
 const wchar_t* seek_name(const velocitycopy::StorageProfile& profile) noexcept {
     if (!profile.seek_penalty_available) return L"unknown";
     return profile.incurs_seek_penalty ? L"rotational/seek penalty" : L"nonrotational";
+}
+
+velocitycopy::CopyStrategyKind executed_strategy(const std::uint32_t copy_flags) noexcept {
+    return (copy_flags & COPY_FILE_NO_BUFFERING) != 0
+        ? velocitycopy::CopyStrategyKind::WindowsCopyFile2NoBuffering
+        : velocitycopy::CopyStrategyKind::WindowsCopyFile2;
 }
 
 } // namespace
@@ -90,9 +98,14 @@ int wmain(int argc, wchar_t* argv[]) {
     velocitycopy::JobExecutor executor;
     velocitycopy::ExecutionControl control;
     const auto execution_options = executor.recommend_options(live_plan);
+    const auto production_strategy = executed_strategy(execution_options.copy_flags);
 
-    std::wcout << L"Production execution: CopyFile2 buffered baseline"
-               << L" | workers " << execution_options.worker_count << L"\n";
+    std::wcout << L"Production execution: " << strategy_name(production_strategy)
+               << L" | workers " << execution_options.worker_count
+               << L" | flags 0x" << std::hex << execution_options.copy_flags << std::dec
+               << L" | compressed traffic "
+               << (((execution_options.copy_flags & COPY_FILE_REQUEST_COMPRESSED_TRAFFIC) != 0) ? L"yes" : L"no")
+               << L"\n";
 
     const auto start = std::chrono::steady_clock::now();
     const auto result = executor.execute(live_plan, control, execution_options);
