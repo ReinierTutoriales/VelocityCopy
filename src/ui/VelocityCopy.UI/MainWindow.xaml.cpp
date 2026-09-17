@@ -24,7 +24,7 @@ MainWindow::MainWindow() {
 
     ExtendsContentIntoTitleBar(true);
     SetTitleBar(TitleBarDragRegion());
-    ResizeWindow(156);
+    ResizeWindow(72);
 }
 
 void MainWindow::ResizeWindow(const int height_epx) {
