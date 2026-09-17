@@ -80,7 +80,7 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
 
         try {
             Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-            const auto queue_label = loader.GetString(L"QueueTitle");
+            const auto queue_label = loader.GetString(L"ActionShowQueue");
             ToolTipService::SetToolTip(QueueButton(), box_value(queue_label));
             Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(QueueButton(), queue_label);
         } catch (...) {
