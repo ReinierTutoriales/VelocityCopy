@@ -57,6 +57,8 @@ VelocityCopy will not replace Windows clipboard semantics globally. A user may i
 - direct: place item/content directly in destination;
 - preserve: retain only the selected folder or the immediate containing folder for a loose file, never the full ancestral tree.
 
-## Startup
+## Startup and availability
 
-Explorer integration is demand-driven. The shell extension should connect to an existing VelocityCopy instance through IPC; if none is available, it launches the app and retries for a short bounded period. No permanently running Explorer helper is required.
+Installed builds register a packaged startup task for the main VelocityCopy app. After the app has been launched once, Windows can start the primary instance silently at user sign-in so Explorer handoff is immediate. The resident app remains idle on a blocking named pipe and performs no scanning, polling, hashing or copy work until a request arrives.
+
+The shell extension still treats the app as optional: it first connects to an existing primary instance through IPC; if none is available, it launches the app on demand. No permanently running Explorer helper, Windows service, global hook or worker thread inside Explorer is required. The user can disable VelocityCopy startup through Windows Settings or Task Manager.
