@@ -30,11 +30,13 @@ int main() {
     const auto app = read_all(root / "src/ui/VelocityCopy.UI/App.xaml.cpp");
     const auto shell = read_all(root / "src/shell/explorer_commands.cpp");
     const auto window = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
+    const auto tray = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Tray.cpp");
     const auto workflow = read_all(root / ".github/workflows/build.yml");
     const auto installer = read_all(root / "tools/Install-VelocityCopy-Test.ps1");
     const auto docs = read_all(root / "docs/SYSTEM_INTEGRATION.md");
 
-    if (manifest.empty() || app.empty() || shell.empty() || window.empty() || workflow.empty() || installer.empty() || docs.empty()) {
+    if (manifest.empty() || app.empty() || shell.empty() || window.empty() || tray.empty() ||
+        workflow.empty() || installer.empty() || docs.empty()) {
         return fail(1, "required integration source missing");
     }
 
@@ -65,10 +67,15 @@ int main() {
         return fail(5, "Explorer extension must stay bounded and IPC-only");
     }
 
-    if (!contains(window, "IsShownInSwitchers(true)") ||
-        !contains(window, "IsMinimizable(true)") ||
-        !contains(window, "IsMaximizable(false)")) {
-        return fail(6, "visible VelocityCopy window must behave as a compact normal taskbar app");
+    if (!contains(window, "IsMinimizable(true)") ||
+        !contains(window, "IsMaximizable(false)") ||
+        !contains(tray, "Shell_NotifyIconW(NIM_ADD") ||
+        !contains(tray, "AddClipboardFormatListener") ||
+        !contains(tray, "CFSTR_PREFERREDDROPEFFECT") ||
+        !contains(tray, "SC_MINIMIZE") ||
+        !contains(tray, "WM_CLOSE") ||
+        contains(tray, "SetWindowsHookEx")) {
+        return fail(6, "resident UI must use tray plus event-driven clipboard capture without global hooks");
     }
 
     if (!contains(workflow, "GenerateAppxPackageOnBuild=true") ||
@@ -85,7 +92,8 @@ int main() {
     }
 
     if (!contains(docs, "near-zero-CPU") || !contains(docs, "IExplorerCommand") ||
-        !contains(docs, "does not hook Explorer")) {
+        !contains(docs, "notification-area icon") ||
+        !contains(docs, "AddClipboardFormatListener")) {
         return fail(9, "system-impact constraints must remain documented");
     }
 
