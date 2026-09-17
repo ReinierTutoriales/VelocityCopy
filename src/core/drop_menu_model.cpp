@@ -54,11 +54,13 @@ CopyJob DropMenuBuilder::make_job(
     const std::span<const DropItem> items,
     const std::filesystem::path& destination,
     const DestinationLayout layout,
-    const std::uint64_t job_id) const {
+    const std::uint64_t job_id,
+    const FileOperation operation) const {
     CopyJob job{};
     job.id = job_id;
     job.destination = destination;
     job.layout = layout;
+    job.operation = operation;
     job.display_name = L"VelocityCopy transfer";
     job.sources.reserve(items.size());
 
