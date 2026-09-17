@@ -46,9 +46,15 @@ int main() {
     }
 
     if (!contains(executor_h, "std::uint32_t copy_flags{}") ||
+        !contains(executor_h, "CopyStrategyKind strategy{CopyStrategyKind::WindowsCopyFile2}") ||
+        !contains(executor_h, "std::uint32_t suggested_buffer_bytes{}") ||
+        !contains(executor_h, "bool async_iocp_candidate{}") ||
         !contains(executor_cpp, "options.copy_flags = shared_copy_flags") ||
+        !contains(executor_cpp, "options.strategy = (shared_copy_flags & COPY_FILE_NO_BUFFERING) != 0") ||
+        !contains(executor_cpp, "options.suggested_buffer_bytes = shared_buffer_bytes") ||
+        !contains(executor_cpp, "options.async_iocp_candidate = shared_async_candidate") ||
         !contains(executor_cpp, "CopyOptions{resume_from_pause, existing_policy, options.copy_flags}")) {
-        return fail(3, "JobExecutor must carry selected flags into the live production copy path");
+        return fail(3, "JobExecutor must preserve selected strategy metadata through the live production path");
     }
 
     if (!contains(engine_h, "std::uint32_t copy_flags{}") ||
@@ -56,14 +62,18 @@ int main() {
         return fail(4, "CopyEngine must consume the selected native flags");
     }
 
-    if (!contains(executor_cpp, "shared_copy_flags &= recommendation.copy_flags")) {
-        return fail(5, "multi-root execution must keep only flags supported by every source root");
+    if (!contains(executor_cpp, "shared_copy_flags &= recommendation.copy_flags") ||
+        !contains(executor_cpp, "shared_buffer_bytes = std::min(shared_buffer_bytes, recommendation.suggested_buffer_bytes)") ||
+        !contains(executor_cpp, "shared_async_candidate = shared_async_candidate && recommendation.async_iocp_candidate")) {
+        return fail(5, "multi-root execution must conservatively intersect strategy recommendations");
     }
 
-    if (!contains(benchmark_cpp, "executed_strategy(execution_options.copy_flags)") ||
+    if (!contains(benchmark_cpp, "strategy_name(execution_options.strategy)") ||
+        !contains(benchmark_cpp, "execution_options.suggested_buffer_bytes") ||
+        !contains(benchmark_cpp, "execution_options.async_iocp_candidate") ||
         !contains(benchmark_cpp, "execution_options.copy_flags & COPY_FILE_REQUEST_COMPRESSED_TRAFFIC") ||
         contains(benchmark_cpp, "Production execution: CopyFile2 buffered baseline")) {
-        return fail(6, "benchmark must report the strategy and native flags actually used by production execution");
+        return fail(6, "benchmark must report strategy metadata actually selected for production execution");
     }
 
     const auto copy_plan_overload = executor_cpp.find("JobResult JobExecutor::execute(\n    const CopyPlan& plan");
