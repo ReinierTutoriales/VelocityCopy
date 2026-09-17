@@ -45,9 +45,15 @@ int main() {
         return 8;
     }
 
+    ShellRequest unknown{};
+    unknown.action = static_cast<ShellAction>(0xff);
+    if (shell_request_valid(unknown)) {
+        return 9;
+    }
+
     copy_to.version = 2;
     if (velocitycopy::shell_request_valid(copy_to)) {
-        return 9;
+        return 10;
     }
 
     return 0;
