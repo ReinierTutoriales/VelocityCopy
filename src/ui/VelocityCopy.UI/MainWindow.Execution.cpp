@@ -172,6 +172,7 @@ velocitycopy::JobResult MainWindow::RunLivePlanSession(
 
 void MainWindow::StartCopy(velocitycopy::CopyJob job) {
     active_destination_ = job.destination;
+    active_operation_ = job.operation;
     stopped_session_ = false;
     conflict_session_ = false;
     conflict_replace_file_id_ = 0;
@@ -262,6 +263,7 @@ void MainWindow::ResumeStoppedCopy() {
     auto control = execution_control_;
     auto gate = append_gate_;
     active_destination_ = plan->destination_root();
+    active_operation_ = plan->operation();
     SetExecutionButtonsRunning();
     auto weak = get_weak();
     auto dispatcher = dispatcher_;
@@ -421,7 +423,10 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         stopped_session_ = true;
         conflict_session_ = false;
         append_gate_ = std::make_shared<AppendGate>();
-        if (live_plan_) active_destination_ = live_plan_->destination_root();
+        if (live_plan_) {
+            active_destination_ = live_plan_->destination_root();
+            active_operation_ = live_plan_->operation();
+        }
         SetExecutionButtonsStopped();
         RefreshQueue();
         QueueButton().IsEnabled(live_plan_ && (live_plan_->remaining_files() != 0 || live_plan_->has_pending_directories()));
@@ -447,6 +452,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         conflict_replace_file_id_ = 0;
         append_gate_ = std::make_shared<AppendGate>();
         active_destination_ = live_plan_->destination_root();
+        active_operation_ = live_plan_->operation();
         SetExecutionButtonsConflict();
         RefreshQueue();
         QueueButton().IsEnabled(live_plan_->remaining_files() != 0 || live_plan_->has_pending_directories());
