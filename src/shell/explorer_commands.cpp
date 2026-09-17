@@ -22,6 +22,10 @@ constexpr CLSID CLSID_VelocityCopyCopy =
     {0x7e1d27a7, 0xba17, 0x4eea, {0x9b, 0x93, 0x96, 0x7e, 0xe7, 0x77, 0xbd, 0x21}};
 constexpr CLSID CLSID_VelocityCopyPaste =
     {0xcbba1a7e, 0x35b4, 0x4708, {0x9d, 0x03, 0x94, 0x46, 0xd0, 0x3f, 0xc8, 0x43}};
+constexpr CLSID CLSID_VelocityCopyCopyTo =
+    {0xd0b92e7d, 0x7a23, 0x4c9a, {0x9a, 0xe2, 0x2b, 0x2a, 0x1a, 0x6f, 0x3a, 0x0d}};
+constexpr CLSID CLSID_VelocityCopyOpen =
+    {0xa6209c12, 0x10b0, 0x4d25, {0x8b, 0xf3, 0x2d, 0x3c, 0x3e, 0x6a, 0x7b, 0x11}};
 
 std::atomic<long> g_object_count{0};
 HINSTANCE g_module{};
@@ -29,6 +33,8 @@ HINSTANCE g_module{};
 enum class CommandKind {
     Copy,
     Paste,
+    CopyTo,
+    Open,
 };
 
 HRESULT duplicate_string(const wchar_t* text, PWSTR* result) noexcept {
@@ -210,9 +216,17 @@ public:
     }
 
     IFACEMETHODIMP GetTitle(IShellItemArray*, PWSTR* title) override {
-        return kind_ == CommandKind::Copy
-            ? localized_string(IDS_SHELL_COPY_WITH_VELOCITYCOPY, L"Copy with VelocityCopy", title)
-            : localized_string(IDS_SHELL_PASTE_WITH_VELOCITYCOPY, L"Paste with VelocityCopy", title);
+        switch (kind_) {
+        case CommandKind::Copy:
+            return localized_string(IDS_SHELL_COPY_WITH_VELOCITYCOPY, L"Copy with VelocityCopy", title);
+        case CommandKind::Paste:
+            return localized_string(IDS_SHELL_PASTE_WITH_VELOCITYCOPY, L"Paste with VelocityCopy", title);
+        case CommandKind::CopyTo:
+            return localized_string(IDS_SHELL_COPY_TO_VELOCITYCOPY, L"Copy to... with VelocityCopy", title);
+        case CommandKind::Open:
+            return localized_string(IDS_SHELL_OPEN_VELOCITYCOPY, L"Open VelocityCopy", title);
+        }
+        return E_UNEXPECTED;
     }
 
     IFACEMETHODIMP GetIcon(IShellItemArray*, PWSTR* icon) override {
@@ -235,13 +249,31 @@ public:
         if (canonical_name == nullptr) {
             return E_POINTER;
         }
-        *canonical_name = kind_ == CommandKind::Copy ? CLSID_VelocityCopyCopy : CLSID_VelocityCopyPaste;
+        switch (kind_) {
+        case CommandKind::Copy:
+            *canonical_name = CLSID_VelocityCopyCopy;
+            break;
+        case CommandKind::Paste:
+            *canonical_name = CLSID_VelocityCopyPaste;
+            break;
+        case CommandKind::CopyTo:
+            *canonical_name = CLSID_VelocityCopyCopyTo;
+            break;
+        case CommandKind::Open:
+            *canonical_name = CLSID_VelocityCopyOpen;
+            break;
+        }
         return S_OK;
     }
 
     IFACEMETHODIMP GetState(IShellItemArray* items, BOOL, EXPCMDSTATE* state) override {
         if (state == nullptr) {
             return E_POINTER;
+        }
+
+        if (kind_ == CommandKind::Open) {
+            *state = ECS_ENABLED;
+            return S_OK;
         }
 
         if (items != nullptr) {
@@ -264,6 +296,12 @@ public:
     }
 
     IFACEMETHODIMP Invoke(IShellItemArray* items, IBindCtx*) override {
+        velocitycopy::ShellRequest request{};
+        if (kind_ == CommandKind::Open) {
+            request.action = velocitycopy::ShellAction::OpenVelocityCopy;
+            return dispatch_request(request) ? S_OK : HRESULT_FROM_WIN32(ERROR_OPEN_FAILED);
+        }
+
         std::vector<std::filesystem::path> paths;
         HRESULT hr = items != nullptr
             ? shell_item_paths(items, paths)
@@ -272,13 +310,21 @@ public:
             return FAILED(hr) ? hr : E_INVALIDARG;
         }
 
-        velocitycopy::ShellRequest request{};
-        if (kind_ == CommandKind::Copy) {
+        switch (kind_) {
+        case CommandKind::Copy:
             request.action = velocitycopy::ShellAction::CopySelection;
             request.sources = std::move(paths);
-        } else {
+            break;
+        case CommandKind::CopyTo:
+            request.action = velocitycopy::ShellAction::CopySelectionPromptDestination;
+            request.sources = std::move(paths);
+            break;
+        case CommandKind::Paste:
             request.action = velocitycopy::ShellAction::PasteToFolder;
             request.destination = paths.front();
+            break;
+        case CommandKind::Open:
+            return E_UNEXPECTED;
         }
 
         return dispatch_request(request) ? S_OK : HRESULT_FROM_WIN32(ERROR_OPEN_FAILED);
@@ -380,6 +426,10 @@ STDAPI DllGetClassObject(REFCLSID clsid, REFIID riid, void** object) {
         kind = CommandKind::Copy;
     } else if (clsid == CLSID_VelocityCopyPaste) {
         kind = CommandKind::Paste;
+    } else if (clsid == CLSID_VelocityCopyCopyTo) {
+        kind = CommandKind::CopyTo;
+    } else if (clsid == CLSID_VelocityCopyOpen) {
+        kind = CommandKind::Open;
     } else {
         return CLASS_E_CLASSNOTAVAILABLE;
     }
