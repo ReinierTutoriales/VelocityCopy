@@ -39,6 +39,8 @@ int main() {
     if (!contains(xaml, "x:Name=\"TransferSurface\"") ||
         !contains(xaml, "x:Name=\"ProgressFill\"") ||
         !contains(xaml, "x:Name=\"ProgressPercentText\"") ||
+        !contains(xaml, "x:Name=\"BrandLogo\"") ||
+        !contains(xaml, "Source=\"Assets/VelocityCopy.png\"") ||
         !contains(xaml, "x:Name=\"QueueButton\"") ||
         !contains(xaml, "Content=\"▸\"") ||
         !contains(xaml, "x:Name=\"OptionsButton\"")) {
@@ -62,10 +64,19 @@ int main() {
         return fail(5, "compact and expanded geometry must remain aligned with the copy bar concept");
     }
 
+    const auto logo_pos = xaml.find("x:Name=\"BrandLogo\"");
+    const auto current_item_pos = xaml.find("x:Name=\"CurrentItemText\"");
+    const auto queue_pos = xaml.find("x:Name=\"QueueButton\"");
+    if (logo_pos == std::string::npos || current_item_pos == std::string::npos ||
+        queue_pos == std::string::npos || !(logo_pos < current_item_pos && current_item_pos < queue_pos)) {
+        return fail(6, "compact copy bar must keep logo left, content center, and queue disclosure right");
+    }
+
     if (!contains(spec, "Integrated progress surface") ||
-        !contains(spec, "left disclosure triangle") ||
+        !contains(spec, "brand mark anchored at the far left") ||
+        !contains(spec, "queue disclosure triangle anchored at the far right") ||
         !contains(spec, "Progress fills the compact transfer surface")) {
-        return fail(6, "UI specification must document the integrated copy bar concept");
+        return fail(7, "UI specification must document the integrated copy bar concept");
     }
 
     return 0;
