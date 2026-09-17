@@ -9,6 +9,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <vector>
 
 namespace fs = std::filesystem;
 
@@ -22,7 +23,7 @@ bool write_source(const fs::path& path) {
     std::ofstream stream(path, std::ios::binary | std::ios::trunc);
     if (!stream) return false;
 
-    std::array<char, 1024 * 1024> block{};
+    std::vector<char> block(1024 * 1024);
     for (std::size_t index = 0; index < block.size(); ++index) {
         block[index] = static_cast<char>((index * 31u + 17u) & 0xFFu);
     }
