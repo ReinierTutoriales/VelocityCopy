@@ -191,8 +191,9 @@ void MainWindow::StartCopy(velocitycopy::CopyJob job) {
     QueueCountText().Text(L"0");
     QueueButton().IsEnabled(false);
     QueuePanel().Visibility(Visibility::Collapsed);
-    ResizeWindow(156);
+    ResizeWindow(72);
     GlobalProgress().Value(0);
+    ProgressFill().Width(0);
     SetExecutionButtonsPlanning();
     CurrentItemText().Text(job.display_name.empty() ? hstring(L"…") : hstring(job.display_name));
 
@@ -389,7 +390,9 @@ void MainWindow::CancelCurrentSession() {
 }
 
 void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
-    GlobalProgress().Value(snapshot.fraction * 100.0);
+    const auto fraction = (std::clamp)(snapshot.fraction, 0.0, 1.0);
+    GlobalProgress().Value(fraction * 100.0);
+    ProgressFill().Width(TransferSurface().ActualWidth() * fraction);
     current_file_id_ = snapshot.current_file_id;
     current_file_skippable_ = snapshot.current_file_skippable;
     SkipButton().IsEnabled(execution_control_ && current_file_id_ != 0 && current_file_skippable_ &&
@@ -524,6 +527,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     EtaText().Text(L"—");
     if (queued_sessions_.empty()) {
         GlobalProgress().Value(100);
+        ProgressFill().Width(TransferSurface().ActualWidth());
         return;
     }
     StartNextQueuedSession();
@@ -551,6 +555,7 @@ void MainWindow::FinalizeStoppedSessionIfEmpty() {
     QueueButton().IsEnabled(false);
     SetExecutionButtonsIdle();
     GlobalProgress().Value(100);
+    ProgressFill().Width(TransferSurface().ActualWidth());
     StartNextQueuedSession();
 }
 
