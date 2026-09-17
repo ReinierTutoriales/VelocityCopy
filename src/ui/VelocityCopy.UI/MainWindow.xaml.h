@@ -23,7 +23,9 @@
 namespace winrt::VelocityCopyUI::implementation {
 struct MainWindow : MainWindowT<MainWindow> {
     MainWindow();
+    ~MainWindow();
 
+    void ShowFromTray();
     void HandleShellRequest(const velocitycopy::ShellRequest& request);
 
     void OnDragOver(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
@@ -71,6 +73,19 @@ private:
     winrt::fire_and_forget SaveQueueAsync();
     winrt::fire_and_forget LoadQueueAsync();
     void ConfigureQueuePersistenceMenu();
+    void InitializeTrayIntegration();
+    void RemoveTrayIntegration() noexcept;
+    void HideToTray() noexcept;
+    void ShowTrayMenu() noexcept;
+    void ExitFromTray() noexcept;
+    void CaptureClipboardFileSelection() noexcept;
+    static LRESULT CALLBACK TraySubclassProc(
+        HWND hwnd,
+        UINT message,
+        WPARAM wparam,
+        LPARAM lparam,
+        UINT_PTR subclass_id,
+        DWORD_PTR ref_data);
     void LoadDestinations();
     void NavigateDestination(std::filesystem::path folder);
     void ApplyDestinationNavigation(velocitycopy::DestinationNavigationResult result);
@@ -151,6 +166,12 @@ private:
     std::uint64_t shell_layout_generation_{};
     std::uint64_t current_file_id_{};
     std::uint64_t conflict_replace_file_id_{};
+    HWND hwnd_{};
+    HICON tray_icon_{};
+    NOTIFYICONDATAW tray_data_{};
+    bool tray_added_{};
+    bool tray_exit_requested_{};
+    bool tray_window_hidden_{};
     std::jthread copy_thread_;
 };
 }
