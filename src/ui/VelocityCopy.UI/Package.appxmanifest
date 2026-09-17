@@ -3,10 +3,11 @@
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
   xmlns:com="http://schemas.microsoft.com/appx/manifest/com/windows10"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
   xmlns:desktop4="http://schemas.microsoft.com/appx/manifest/desktop/windows10/4"
   xmlns:desktop5="http://schemas.microsoft.com/appx/manifest/desktop/windows10/5"
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-  IgnorableNamespaces="uap com desktop4 desktop5 rescap">
+  IgnorableNamespaces="uap com desktop desktop4 desktop5 rescap">
   <Identity Name="ReinierTutoriales.VelocityCopy" Publisher="CN=ReinierTutoriales" Version="0.20.0.0" />
   <Properties>
     <DisplayName>VelocityCopy</DisplayName>
@@ -28,6 +29,15 @@
         <uap:DefaultTile />
       </uap:VisualElements>
       <Extensions>
+        <desktop:Extension
+          Category="windows.startupTask"
+          Executable="$targetnametoken$.exe"
+          EntryPoint="Windows.FullTrustApplication">
+          <desktop:StartupTask
+            TaskId="VelocityCopyStartup"
+            Enabled="true"
+            DisplayName="VelocityCopy" />
+        </desktop:Extension>
         <com:Extension Category="windows.comServer">
           <com:ComServer>
             <com:SurrogateServer AppId="8F50A7A5-8A93-4B0E-A444-D0E748630A3A" DisplayName="VelocityCopy Shell Commands">
