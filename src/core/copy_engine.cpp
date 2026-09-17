@@ -10,6 +10,7 @@ namespace {
 struct CallbackContext {
     const ProgressCallback* callback{};
     bool callback_failed{};
+    COPYFILE2_MESSAGE_ACTION latched_action{COPYFILE2_PROGRESS_CONTINUE};
 };
 
 COPYFILE2_MESSAGE_ACTION to_native_action(const CopyDecision decision) noexcept {
@@ -35,6 +36,9 @@ COPYFILE2_MESSAGE_ACTION CALLBACK copy_progress_routine(
     }
 
     auto* callback_context = static_cast<CallbackContext*>(context);
+    if (callback_context->latched_action != COPYFILE2_PROGRESS_CONTINUE) {
+        return callback_context->latched_action;
+    }
     if (callback_context->callback == nullptr || !(*callback_context->callback)) {
         return COPYFILE2_PROGRESS_CONTINUE;
     }
@@ -64,9 +68,14 @@ COPYFILE2_MESSAGE_ACTION CALLBACK copy_progress_routine(
     }
 
     try {
-        return to_native_action((*callback_context->callback)(progress));
+        const auto action = to_native_action((*callback_context->callback)(progress));
+        if (action != COPYFILE2_PROGRESS_CONTINUE) {
+            callback_context->latched_action = action;
+        }
+        return action;
     } catch (...) {
         callback_context->callback_failed = true;
+        callback_context->latched_action = COPYFILE2_PROGRESS_CANCEL;
         return COPYFILE2_PROGRESS_CANCEL;
     }
 }
@@ -95,7 +104,7 @@ CopyResult CopyEngine::copy_file(
         }
     }
 
-    CallbackContext callback_context{&progress, false};
+    CallbackContext callback_context{&progress, false, COPYFILE2_PROGRESS_CONTINUE};
 
     COPYFILE2_EXTENDED_PARAMETERS parameters{};
     parameters.dwSize = sizeof(parameters);
