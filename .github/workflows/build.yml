@@ -27,14 +27,61 @@ jobs:
       - name: Test core
         run: ctest --test-dir build -C Release --output-on-failure
 
-      - name: Build WinUI 3 x64 Release
+      - name: Build WinUI 3 x64 Release and MSIX
         shell: pwsh
         run: |
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $msbuild = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\MSBuild.exe" | Select-Object -First 1
           if (-not $msbuild) { throw "MSBuild was not found" }
-          & $msbuild src/ui/VelocityCopy.UI/VelocityCopy.UI.vcxproj /restore /m /p:Configuration=Release /p:Platform=x64 /p:AppxPackageSigningEnabled=false
 
+          $packageDir = Join-Path (Resolve-Path ".").Path "artifacts\AppPackages\"
+          New-Item -ItemType Directory -Force -Path $packageDir | Out-Null
+
+          & $msbuild src/ui/VelocityCopy.UI/VelocityCopy.UI.vcxproj /restore /m `
+            /p:Configuration=Release `
+            /p:Platform=x64 `
+            /p:GenerateAppxPackageOnBuild=true `
+            /p:AppxPackageSigningEnabled=false `
+            /p:AppxBundle=Never `
+            /p:AppxPackageDir="$packageDir"
+          if ($LASTEXITCODE -ne 0) { throw "WinUI/MSIX build failed with exit code $LASTEXITCODE" }
+
+      - name: Sign Windows test MSIX
+        shell: pwsh
+        run: |
+          $packages = @(Get-ChildItem -Path artifacts/AppPackages -Recurse -File -Filter *.msix)
+          if ($packages.Count -eq 0) { throw "No MSIX package was produced" }
+
+          $plainPassword = [Guid]::NewGuid().ToString("N")
+          $securePassword = ConvertTo-SecureString -String $plainPassword -AsPlainText -Force
+          $cert = New-SelfSignedCertificate `
+            -Type Custom `
+            -Subject "CN=ReinierTutoriales" `
+            -KeyUsage DigitalSignature `
+            -CertStoreLocation "Cert:\CurrentUser\My" `
+            -TextExtension @(
+              "2.5.29.37={text}1.3.6.1.5.5.7.3.3",
+              "2.5.29.19={text}"
+            ) `
+            -FriendlyName "VelocityCopy CI Test Signing"
+
+          $pfx = Join-Path $env:RUNNER_TEMP "VelocityCopy-Test.pfx"
+          $cer = Join-Path (Resolve-Path ".").Path "artifacts\AppPackages\VelocityCopy-Test.cer"
+          Export-PfxCertificate -Cert $cert -FilePath $pfx -Password $securePassword | Out-Null
+          Export-Certificate -Cert $cert -FilePath $cer | Out-Null
+
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+          if (-not $signtool) { throw "SignTool.exe was not found" }
+
+          foreach ($package in $packages) {
+            & $signtool.FullName sign /fd SHA256 /a /f $pfx /p $plainPassword $package.FullName
+            if ($LASTEXITCODE -ne 0) { throw "Signing failed for $($package.FullName)" }
+          }
+
+          Remove-Item -LiteralPath $pfx -Force
+          Remove-Item -LiteralPath ("Cert:\CurrentUser\My\" + $cert.Thumbprint) -Force
 
       - name: Stage Windows test build
         shell: pwsh
@@ -48,9 +95,29 @@ jobs:
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
           Copy-Item -LiteralPath $exe.Directory.FullName -Destination "$stage/app" -Recurse
 
-          Get-ChildItem -Path src/ui/VelocityCopy.UI -Recurse -File |
-            Where-Object { $_.Extension -in ".msix", ".msixbundle", ".appinstaller" } |
-            Copy-Item -Destination $stage -Force
+          $packageRoot = (Resolve-Path "artifacts/AppPackages").Path
+          Get-ChildItem -LiteralPath $packageRoot -Recurse -File |
+            Where-Object { $_.Extension -in ".msix", ".appx", ".msixbundle", ".appinstaller", ".cer" } |
+            ForEach-Object {
+              $relative = $_.FullName.Substring($packageRoot.Length).TrimStart("\")
+              $target = Join-Path $stage $relative
+              New-Item -ItemType Directory -Force -Path (Split-Path -Parent $target) | Out-Null
+              Copy-Item -LiteralPath $_.FullName -Destination $target -Force
+            }
+
+          Copy-Item -LiteralPath "tools/Install-VelocityCopy-Test.ps1" -Destination $stage -Force
+
+          @(
+            "@echo off",
+            "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ""%~dp0Install-VelocityCopy-Test.ps1""",
+            "pause"
+          ) | Set-Content -LiteralPath "$stage/Install-VelocityCopy-Test.cmd" -Encoding ascii
+
+          @(
+            "@echo off",
+            "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ""%~dp0Install-VelocityCopy-Test.ps1"" -Uninstall",
+            "pause"
+          ) | Set-Content -LiteralPath "$stage/Uninstall-VelocityCopy-Test.cmd" -Encoding ascii
 
           "Source build: $($exe.Directory.FullName)" |
             Set-Content -LiteralPath "$stage/BUILD_SOURCE.txt" -Encoding utf8
