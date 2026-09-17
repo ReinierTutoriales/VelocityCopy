@@ -38,12 +38,6 @@ const wchar_t* seek_name(const velocitycopy::StorageProfile& profile) noexcept {
     return profile.incurs_seek_penalty ? L"rotational/seek penalty" : L"nonrotational";
 }
 
-velocitycopy::CopyStrategyKind executed_strategy(const std::uint32_t copy_flags) noexcept {
-    return (copy_flags & COPY_FILE_NO_BUFFERING) != 0
-        ? velocitycopy::CopyStrategyKind::WindowsCopyFile2NoBuffering
-        : velocitycopy::CopyStrategyKind::WindowsCopyFile2;
-}
-
 } // namespace
 
 int wmain(int argc, wchar_t* argv[]) {
@@ -91,6 +85,7 @@ int wmain(int argc, wchar_t* argv[]) {
                << destination_profile.physical_sector_bytes << L"\n";
     std::wcout << L"Strategy candidate: " << strategy_name(recommendation.strategy)
                << L" | suggested QD " << recommendation.suggested_queue_depth
+               << L" | buffer " << recommendation.suggested_buffer_bytes
                << L" | async candidate " << (recommendation.async_iocp_candidate ? L"yes" : L"no") << L"\n";
 
     const auto total_bytes = plan.total_bytes;
@@ -98,11 +93,12 @@ int wmain(int argc, wchar_t* argv[]) {
     velocitycopy::JobExecutor executor;
     velocitycopy::ExecutionControl control;
     const auto execution_options = executor.recommend_options(live_plan);
-    const auto production_strategy = executed_strategy(execution_options.copy_flags);
 
-    std::wcout << L"Production execution: " << strategy_name(production_strategy)
+    std::wcout << L"Production execution: " << strategy_name(execution_options.strategy)
                << L" | workers " << execution_options.worker_count
                << L" | flags 0x" << std::hex << execution_options.copy_flags << std::dec
+               << L" | buffer " << execution_options.suggested_buffer_bytes
+               << L" | async candidate " << (execution_options.async_iocp_candidate ? L"yes" : L"no")
                << L" | compressed traffic "
                << (((execution_options.copy_flags & COPY_FILE_REQUEST_COMPRESSED_TRAFFIC) != 0) ? L"yes" : L"no")
                << L"\n";
