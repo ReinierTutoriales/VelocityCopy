@@ -172,6 +172,14 @@ int main() {
             fs::remove_all(root, ec);
             return 12;
         }
+
+        CopyPlan other_operation{};
+        other_operation.destination_root = destination;
+        other_operation.operation = FileOperation::Move;
+        if (appended_plan.append(std::move(other_operation)) != LivePlanAppendResult::DifferentOperation) {
+            fs::remove_all(root, ec);
+            return 35;
+        }
     }
 
     {
