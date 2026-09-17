@@ -1,6 +1,8 @@
 #pragma once
 
 #include <windows.h>
+#include <commctrl.h>
+#include <shellapi.h>
 #include <unknwn.h>
 #include <microsoft.ui.xaml.window.h>
 
