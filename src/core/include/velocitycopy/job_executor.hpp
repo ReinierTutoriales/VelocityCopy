@@ -46,6 +46,9 @@ struct JobResult {
 struct JobExecutionOptions {
     std::uint32_t worker_count{1};
     std::uint32_t copy_flags{};
+    CopyStrategyKind strategy{CopyStrategyKind::WindowsCopyFile2};
+    std::uint32_t suggested_buffer_bytes{};
+    bool async_iocp_candidate{};
     ExistingDestinationPolicy existing_destination{ExistingDestinationPolicy::Fail};
     std::uint64_t replace_file_id{};
 };
