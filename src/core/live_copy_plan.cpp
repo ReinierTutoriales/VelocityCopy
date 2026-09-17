@@ -37,6 +37,7 @@ LiveCopyPlan::LiveCopyPlan(CopyPlan plan)
     : directories_(std::move(plan.directories)),
       source_roots_(std::move(plan.source_roots)),
       destination_root_(std::move(plan.destination_root)),
+      operation_(plan.operation),
       pending_files_(std::move(plan.files)),
       total_bytes_(plan.total_bytes),
       total_files_(pending_files_.size()),
@@ -64,6 +65,10 @@ std::vector<std::filesystem::path> LiveCopyPlan::source_roots() const {
 
 const std::filesystem::path& LiveCopyPlan::destination_root() const noexcept {
     return destination_root_;
+}
+
+FileOperation LiveCopyPlan::operation() const noexcept {
+    return operation_;
 }
 
 LiveCopyPlanSnapshot LiveCopyPlan::snapshot() const {
@@ -96,6 +101,9 @@ LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan, const bool allow_draine
         }
         if (normalized_path_key(plan.destination_root) != normalized_path_key(destination_root_)) {
             return LivePlanAppendResult::DifferentDestination;
+        }
+        if (plan.operation != operation_) {
+            return LivePlanAppendResult::DifferentOperation;
         }
         if (plan.total_bytes > std::numeric_limits<std::uint64_t>::max() - total_bytes_ ||
             plan.files.size() > std::numeric_limits<std::uint64_t>::max() - total_files_) {
