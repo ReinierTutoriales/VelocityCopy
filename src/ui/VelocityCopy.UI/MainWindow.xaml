@@ -37,57 +37,111 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Grid x:Name="TitleBarDragRegion" Grid.Row="0" Height="28">
-            <TextBlock Text="VelocityCopy" FontWeight="SemiBold" VerticalAlignment="Center" />
+        <Grid x:Name="TitleBarDragRegion" Grid.Row="0" Height="18">
+            <TextBlock Text="VelocityCopy"
+                       FontSize="11"
+                       Opacity="0.58"
+                       VerticalAlignment="Center" />
         </Grid>
 
-        <TextBlock x:Name="CurrentItemText"
-                   Grid.Row="1"
-                   x:Uid="CurrentItemText"
-                   Margin="0,8,0,4"
-                   TextTrimming="CharacterEllipsis"
-                   FontWeight="SemiBold" />
+        <Border x:Name="TransferSurface"
+                Grid.Row="1"
+                Height="52"
+                CornerRadius="10"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1">
+            <Grid>
+                <Border x:Name="ProgressFill"
+                        Width="0"
+                        HorizontalAlignment="Left"
+                        Background="{ThemeResource AccentFillColorDefaultBrush}"
+                        Opacity="0.16"
+                        CornerRadius="10" />
 
-        <ProgressBar x:Name="GlobalProgress"
-                     Grid.Row="2"
-                     Minimum="0"
-                     Maximum="100"
-                     Value="0"
-                     Height="{StaticResource ProgressBarHeight}" />
+                <ProgressBar x:Name="GlobalProgress"
+                             Minimum="0"
+                             Maximum="100"
+                             Value="0"
+                             Visibility="Collapsed" />
 
-        <Grid Grid.Row="3" Margin="0,6,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <TextBlock x:Name="SpeedText" Text="—" Opacity="0.75" />
-            <TextBlock x:Name="EtaText" Grid.Column="1" Text="—" Opacity="0.75" />
-        </Grid>
+                <Grid Padding="10,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
 
-        <Grid x:Name="ActionStrip" Grid.Row="4" Margin="0,8,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <Button x:Name="PauseButton" x:Uid="PauseButton" Click="OnPauseClick" IsEnabled="False" Margin="0,0,6,0" />
-            <Button x:Name="SkipButton" x:Uid="SkipButton" Grid.Column="1" Click="OnSkipClick" IsEnabled="False" Margin="0,0,6,0" />
-            <Button x:Name="StopButton" x:Uid="StopButton" Grid.Column="2" Click="OnStopClick" IsEnabled="False" Margin="0,0,6,0" />
-            <Button x:Name="CancelButton" x:Uid="CancelButton" Grid.Column="3" Click="OnCancelClick" IsEnabled="False" />
-            <Button x:Name="QueueButton" x:Uid="QueueButton" Grid.Column="5" Click="OnQueueClick" IsEnabled="False" />
-        </Grid>
+                    <Grid MinWidth="0" VerticalAlignment="Center">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <TextBlock x:Name="CurrentItemText"
+                                   x:Uid="CurrentItemText"
+                                   TextTrimming="CharacterEllipsis"
+                                   FontWeight="SemiBold"
+                                   FontSize="13" />
+                        <StackPanel Grid.Row="1"
+                                    Orientation="Horizontal"
+                                    Spacing="8"
+                                    Margin="0,1,0,0">
+                            <TextBlock x:Name="SpeedText" Text="—" Opacity="0.66" FontSize="11" />
+                            <TextBlock x:Name="EtaText" Text="—" Opacity="0.66" FontSize="11" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Button x:Name="PauseButton"
+                            x:Uid="PauseButton"
+                            Grid.Column="1"
+                            Click="OnPauseClick"
+                            IsEnabled="False"
+                            Padding="8,4"
+                            MinWidth="0"
+                            Margin="8,0,4,0" />
+                    <Button x:Name="SkipButton"
+                            x:Uid="SkipButton"
+                            Grid.Column="2"
+                            Click="OnSkipClick"
+                            IsEnabled="False"
+                            Padding="8,4"
+                            MinWidth="0"
+                            Margin="0,0,4,0" />
+                    <Button x:Name="StopButton"
+                            x:Uid="StopButton"
+                            Grid.Column="3"
+                            Click="OnStopClick"
+                            IsEnabled="False"
+                            Padding="8,4"
+                            MinWidth="0"
+                            Margin="0,0,4,0" />
+                    <Button x:Name="CancelButton"
+                            x:Uid="CancelButton"
+                            Grid.Column="4"
+                            Click="OnCancelClick"
+                            IsEnabled="False"
+                            Padding="8,4"
+                            MinWidth="0"
+                            Margin="0,0,4,0" />
+                    <Button x:Name="QueueButton"
+                            x:Uid="QueueButton"
+                            Grid.Column="5"
+                            Click="OnQueueClick"
+                            IsEnabled="False"
+                            Padding="8,4"
+                            MinWidth="0" />
+                </Grid>
+            </Grid>
+        </Border>
 
         <Grid x:Name="QueuePanel"
-              Grid.Row="5"
+              Grid.Row="2"
               Visibility="Collapsed"
               Margin="0,10,0,0">
             <Grid.RowDefinitions>
@@ -146,7 +200,7 @@
         </Grid>
 
         <InfoBar x:Name="ErrorBar"
-                 Grid.RowSpan="6"
+                 Grid.RowSpan="3"
                  IsOpen="False"
                  Severity="Error"
                  IsClosable="True"
@@ -154,7 +208,7 @@
                  Margin="0,32,0,0" />
 
         <Border x:Name="DragOverlay"
-                Grid.RowSpan="6"
+                Grid.RowSpan="3"
                 Visibility="Collapsed"
                 Background="{ThemeResource AccentFillColorDefaultBrush}"
                 Opacity="0.12"
