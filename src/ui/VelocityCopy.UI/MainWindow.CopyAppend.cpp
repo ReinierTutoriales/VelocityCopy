@@ -185,6 +185,7 @@ void MainWindow::EnqueueAppend(
                         return;
                     case velocitycopy::LivePlanAppendResult::Drained:
                     case velocitycopy::LivePlanAppendResult::DifferentDestination:
+                    case velocitycopy::LivePlanAppendResult::DifferentOperation:
                     case velocitycopy::LivePlanAppendResult::DestinationCollision:
                     case velocitycopy::LivePlanAppendResult::SizeOverflow:
                     case velocitycopy::LivePlanAppendResult::InternalFailure:
