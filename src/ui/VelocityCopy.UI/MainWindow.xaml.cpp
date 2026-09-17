@@ -31,6 +31,16 @@ MainWindow::MainWindow() {
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(SkipButton(), skip);
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(StopButton(), stop);
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(CancelButton(), cancel);
+
+        const auto move_up = loader.GetString(L"ActionMoveUp");
+        const auto move_down = loader.GetString(L"ActionMoveDown");
+        const auto remove = loader.GetString(L"ActionRemove");
+        ToolTipService::SetToolTip(QueueMoveUpButton(), box_value(move_up));
+        ToolTipService::SetToolTip(QueueMoveDownButton(), box_value(move_down));
+        ToolTipService::SetToolTip(QueueRemoveButton(), box_value(remove));
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(QueueMoveUpButton(), move_up);
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(QueueMoveDownButton(), move_down);
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(QueueRemoveButton(), remove);
     } catch (...) {
     }
 
@@ -42,6 +52,13 @@ MainWindow::MainWindow() {
     ExtendsContentIntoTitleBar(true);
     SetTitleBar(TitleBarDragRegion());
     ResizeWindow(72);
+}
+
+void MainWindow::OnTransferSurfaceSizeChanged(
+    IInspectable const&,
+    SizeChangedEventArgs const& args) {
+    const auto fraction = (std::clamp)(GlobalProgress().Value() / 100.0, 0.0, 1.0);
+    ProgressFill().Width(args.NewSize().Width * fraction);
 }
 
 void MainWindow::ResizeWindow(const int height_epx) {
