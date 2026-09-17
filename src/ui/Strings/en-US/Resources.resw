@@ -29,6 +29,8 @@
   <data name="ActionQueueOptions" xml:space="preserve"><value>Queue options</value></data>
   <data name="ActionShowQueue" xml:space="preserve"><value>Show queue</value></data>
   <data name="ActionHideQueue" xml:space="preserve"><value>Hide queue</value></data>
+  <data name="TrayOpen" xml:space="preserve"><value>Open VelocityCopy</value></data>
+  <data name="TrayExit" xml:space="preserve"><value>Exit</value></data>
   <data name="DropPrompt" xml:space="preserve"><value>Drop to copy</value></data>
   <data name="DestinationPrompt" xml:space="preserve"><value>Where do you want to copy?</value></data>
   <data name="LayoutDirect" xml:space="preserve"><value>Copy directly</value></data>
