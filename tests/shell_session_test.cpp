@@ -44,10 +44,19 @@ int wmain() {
         return 3;
     }
 
+    ShellRequest prompt{};
+    prompt.action = ShellAction::CopySelectionPromptDestination;
+    prompt.sources = {std::filesystem::path(L"C:\\Temp\\prompt.bin")};
+    const auto prompt_result = session.dispatch(prompt);
+    if (prompt_result.status != ShellDispatchStatus::Accepted || prompt_result.job ||
+        !prompt_result.show_window) {
+        return 4;
+    }
+
     session.clear_staged_sources();
     const auto empty_paste = session.dispatch(paste);
     if (empty_paste.status != ShellDispatchStatus::NoStagedSources || empty_paste.job) {
-        return 4;
+        return 5;
     }
 
     std::wcout << L"VelocityCopy shell session test passed.\n";
