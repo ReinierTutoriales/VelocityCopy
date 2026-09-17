@@ -64,5 +64,30 @@ int main() {
         return fail(6, "benchmark must report the strategy and native flags actually used by production execution");
     }
 
+    const auto copy_plan_overload = executor_cpp.find("JobResult JobExecutor::execute(\n    const CopyPlan& plan");
+    const auto live_plan_overload = executor_cpp.find("JobResult JobExecutor::execute(\n    LiveCopyPlan& plan");
+    if (copy_plan_overload == std::string::npos || live_plan_overload == std::string::npos ||
+        copy_plan_overload >= live_plan_overload) {
+        return fail(7, "CopyPlan compatibility adapter and LiveCopyPlan production path must both exist");
+    }
+
+    const auto adapter = executor_cpp.substr(copy_plan_overload, live_plan_overload - copy_plan_overload);
+    if (!contains(adapter, "LiveCopyPlan live_plan(plan)") ||
+        !contains(adapter, "return execute(live_plan, progress)") ||
+        contains(adapter, "engine_.copy_file") ||
+        contains(adapter, "std::filesystem::create_directories")) {
+        return fail(8, "CopyPlan execution must delegate to LiveCopyPlan instead of owning a second copy loop");
+    }
+
+    const auto copy_job_overload = executor_cpp.find("JobResult JobExecutor::execute(\n    const CopyJob& job");
+    if (copy_job_overload == std::string::npos || copy_job_overload >= copy_plan_overload) {
+        return fail(9, "CopyJob entry point must remain available before the CopyPlan adapter");
+    }
+    const auto job_adapter = executor_cpp.substr(copy_job_overload, copy_plan_overload - copy_job_overload);
+    if (!contains(job_adapter, "LiveCopyPlan live_plan(std::move(plan))") ||
+        !contains(job_adapter, "return execute(live_plan, progress)")) {
+        return fail(10, "CopyJob execution must enter the same LiveCopyPlan production path");
+    }
+
     return 0;
 }
