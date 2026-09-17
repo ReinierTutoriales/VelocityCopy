@@ -47,7 +47,8 @@ int main() {
     }
 
     if (!contains(archive_cpp, "kMagic{'V','C','Q','U','E','U','E','1'}") ||
-        !contains(archive_cpp, "kFormatVersion = 1") ||
+        !contains(archive_cpp, "kFormatVersion = 2") ||
+        !contains(archive_cpp, "kLegacyFormatVersion = 1") ||
         !contains(archive_cpp, "kMaxEntries") || !contains(archive_cpp, "TempFileGuard") ||
         !contains(archive_cpp, "MOVEFILE_REPLACE_EXISTING") ||
         !contains(archive_cpp, "MOVEFILE_WRITE_THROUGH") || !contains(archive_cpp, "stream.peek()")) {
