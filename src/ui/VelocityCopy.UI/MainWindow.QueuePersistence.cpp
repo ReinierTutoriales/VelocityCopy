@@ -259,6 +259,7 @@ void MainWindow::StartCopyPlan(velocitycopy::CopyPlan plan) {
     }
 
     active_destination_ = plan.destination_root;
+    active_operation_ = plan.operation;
     stopped_session_ = false;
     conflict_session_ = false;
     conflict_replace_file_id_ = 0;
