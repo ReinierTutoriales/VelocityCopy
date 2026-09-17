@@ -25,6 +25,7 @@ struct CopyPlan {
     std::vector<PlannedFile> files;
     std::vector<std::filesystem::path> source_roots;
     std::filesystem::path destination_root;
+    FileOperation operation{FileOperation::Copy};
     std::uint64_t total_bytes{};
     std::uint64_t largest_file_bytes{};
 
