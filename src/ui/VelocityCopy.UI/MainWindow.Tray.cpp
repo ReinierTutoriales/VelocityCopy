@@ -2,6 +2,7 @@
 #include "MainWindow.xaml.h"
 
 #include <commctrl.h>
+#include <cwctype>
 #include <exdisp.h>
 #include <servprov.h>
 #include <shellapi.h>
