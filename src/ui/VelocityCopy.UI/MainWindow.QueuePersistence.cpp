@@ -52,12 +52,8 @@ bool merge_current_append_jobs(velocitycopy::QueueArchive& archive) {
 
 void MainWindow::ConfigureQueuePersistenceMenu() {
     try {
-        auto column = ColumnDefinition{};
-        column.Width(GridLengthHelper::Auto());
-        ActionStrip().ColumnDefinitions().Append(column);
-
         queue_options_button_ = Button{};
-        Grid::SetColumn(queue_options_button_, 6);
+        Grid::SetColumn(queue_options_button_, 2);
         queue_options_button_.Margin(Thickness{6.0, 0.0, 0.0, 0.0});
 
         FontIcon icon;
@@ -87,7 +83,16 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
         menu.Items().Append(save_queue_menu_item_);
         menu.Items().Append(load_queue_menu_item_);
         queue_options_button_.Flyout(menu);
-        ActionStrip().Children().Append(queue_options_button_);
+        QueueHeader().Children().Append(queue_options_button_);
+
+        try {
+            Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
+            const auto options_label = loader.GetString(L"ActionQueueOptions");
+            ToolTipService::SetToolTip(QueueButton(), box_value(options_label));
+            Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(QueueButton(), options_label);
+        } catch (...) {
+        }
+
         RefreshQueueCommandState();
     } catch (...) {
         // Persistence commands are auxiliary UI. Failure to construct the menu
