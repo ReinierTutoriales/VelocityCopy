@@ -3,6 +3,7 @@
 #include "velocitycopy/ipc_protocol.hpp"
 
 #include <windows.h>
+#include <sddl.h>
 
 #include <cstdint>
 #include <utility>
@@ -12,6 +13,94 @@ namespace velocitycopy {
 namespace {
 
 constexpr wchar_t kMutexName[] = L"Local\\VelocityCopy.Instance.v1";
+
+class LocalSecurityDescriptor final {
+public:
+    LocalSecurityDescriptor() noexcept {
+        HANDLE token = nullptr;
+        if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token)) {
+            return;
+        }
+
+        DWORD bytes = 0;
+        (void)GetTokenInformation(token, TokenUser, nullptr, 0, &bytes);
+        if (bytes == 0) {
+            CloseHandle(token);
+            return;
+        }
+
+        try {
+            token_user_.resize(bytes);
+        } catch (...) {
+            CloseHandle(token);
+            return;
+        }
+
+        if (!GetTokenInformation(
+                token,
+                TokenUser,
+                token_user_.data(),
+                bytes,
+                &bytes)) {
+            CloseHandle(token);
+            token_user_.clear();
+            return;
+        }
+        CloseHandle(token);
+
+        const auto* user = reinterpret_cast<const TOKEN_USER*>(token_user_.data());
+        LPWSTR sid_text = nullptr;
+        if (!ConvertSidToStringSidW(user->User.Sid, &sid_text) || sid_text == nullptr) {
+            return;
+        }
+
+        try {
+            const std::wstring sddl =
+                L"D:P(A;;GA;;;SY)(A;;GA;;;" + std::wstring(sid_text) + L")";
+            LocalFree(sid_text);
+            sid_text = nullptr;
+
+            if (!ConvertStringSecurityDescriptorToSecurityDescriptorW(
+                    sddl.c_str(),
+                    SDDL_REVISION_1,
+                    &descriptor_,
+                    nullptr)) {
+                descriptor_ = nullptr;
+                return;
+            }
+
+            attributes_.nLength = sizeof(attributes_);
+            attributes_.lpSecurityDescriptor = descriptor_;
+            attributes_.bInheritHandle = FALSE;
+        } catch (...) {
+            if (sid_text != nullptr) {
+                LocalFree(sid_text);
+            }
+            if (descriptor_ != nullptr) {
+                LocalFree(descriptor_);
+                descriptor_ = nullptr;
+            }
+        }
+    }
+
+    ~LocalSecurityDescriptor() {
+        if (descriptor_ != nullptr) {
+            LocalFree(descriptor_);
+        }
+    }
+
+    LocalSecurityDescriptor(const LocalSecurityDescriptor&) = delete;
+    LocalSecurityDescriptor& operator=(const LocalSecurityDescriptor&) = delete;
+
+    [[nodiscard]] SECURITY_ATTRIBUTES* attributes() noexcept {
+        return descriptor_ != nullptr ? &attributes_ : nullptr;
+    }
+
+private:
+    std::vector<std::uint8_t> token_user_;
+    PSECURITY_DESCRIPTOR descriptor_{};
+    SECURITY_ATTRIBUTES attributes_{};
+};
 
 class UniqueHandle final {
 public:
@@ -83,7 +172,8 @@ std::wstring shell_pipe_name() noexcept {
 }
 
 SingleInstance::SingleInstance() noexcept {
-    HANDLE handle = CreateMutexW(nullptr, FALSE, kMutexName);
+    LocalSecurityDescriptor security;
+    HANDLE handle = CreateMutexW(security.attributes(), FALSE, kMutexName);
     mutex_ = handle;
     primary_ = handle != nullptr && GetLastError() != ERROR_ALREADY_EXISTS;
 }
@@ -117,11 +207,14 @@ bool ShellIpcServer::create_pipe() noexcept {
     const auto name = shell_pipe_name();
     if (name.empty()) return false;
 
+    LocalSecurityDescriptor security;
+    if (security.attributes() == nullptr) return false;
+
     HANDLE pipe = CreateNamedPipeW(
         name.c_str(), PIPE_ACCESS_INBOUND | FILE_FLAG_FIRST_PIPE_INSTANCE,
-        PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT, 1,
+        PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS, 1,
         static_cast<DWORD>(kMaxShellMessageBytes + sizeof(std::uint32_t)),
-        static_cast<DWORD>(kMaxShellMessageBytes + sizeof(std::uint32_t)), 0, nullptr);
+        static_cast<DWORD>(kMaxShellMessageBytes + sizeof(std::uint32_t)), 0, security.attributes());
     if (pipe == INVALID_HANDLE_VALUE) {
         pipe_ = nullptr;
         return false;
