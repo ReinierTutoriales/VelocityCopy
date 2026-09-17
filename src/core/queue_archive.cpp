@@ -15,7 +15,8 @@ namespace velocitycopy {
 namespace {
 
 constexpr std::array<char, 8> kMagic{'V','C','Q','U','E','U','E','1'};
-constexpr std::uint32_t kFormatVersion = 1;
+constexpr std::uint32_t kFormatVersion = 2;
+constexpr std::uint32_t kLegacyFormatVersion = 1;
 constexpr std::uint32_t kMaxStringChars = 32767;
 constexpr std::uint64_t kMaxEntries = 10'000'000;
 
@@ -65,7 +66,8 @@ bool read_path(std::ifstream& stream, std::filesystem::path& path) {
 }
 
 bool write_plan(std::ofstream& stream, const CopyPlan& plan) {
-    if (!write_path(stream, plan.destination_root)) return false;
+    const auto operation = static_cast<std::uint8_t>(plan.operation);
+    if (!write_value(stream, operation) || !write_path(stream, plan.destination_root)) return false;
 
     if (plan.source_roots.size() > kMaxEntries ||
         plan.directories.size() > kMaxEntries ||
@@ -97,7 +99,17 @@ bool write_plan(std::ofstream& stream, const CopyPlan& plan) {
     return true;
 }
 
-bool read_plan(std::ifstream& stream, CopyPlan& plan) {
+bool read_plan(std::ifstream& stream, CopyPlan& plan, const std::uint32_t version) {
+    if (version >= 2) {
+        std::uint8_t operation{};
+        if (!read_value(stream, operation) ||
+            operation > static_cast<std::uint8_t>(FileOperation::Move)) {
+            return false;
+        }
+        plan.operation = static_cast<FileOperation>(operation);
+    } else {
+        plan.operation = FileOperation::Copy;
+    }
     if (!read_path(stream, plan.destination_root)) return false;
 
     std::uint64_t roots{};
@@ -144,7 +156,9 @@ bool write_job(std::ofstream& stream, const CopyJob& job) {
     if (job.sources.size() > kMaxEntries) return false;
     if (!write_path(stream, job.destination)) return false;
     const auto layout = static_cast<std::uint8_t>(job.layout);
-    if (!write_value(stream, layout) || !write_wstring(stream, job.display_name)) return false;
+    const auto operation = static_cast<std::uint8_t>(job.operation);
+    if (!write_value(stream, layout) || !write_value(stream, operation) ||
+        !write_wstring(stream, job.display_name)) return false;
 
     const auto sources = static_cast<std::uint64_t>(job.sources.size());
     if (!write_value(stream, sources)) return false;
@@ -154,7 +168,7 @@ bool write_job(std::ofstream& stream, const CopyJob& job) {
     return true;
 }
 
-bool read_job(std::ifstream& stream, CopyJob& job) {
+bool read_job(std::ifstream& stream, CopyJob& job, const std::uint32_t version) {
     if (!read_path(stream, job.destination)) return false;
     std::uint8_t layout{};
     if (!read_value(stream, layout) ||
@@ -162,6 +176,16 @@ bool read_job(std::ifstream& stream, CopyJob& job) {
         return false;
     }
     job.layout = static_cast<DestinationLayout>(layout);
+    if (version >= 2) {
+        std::uint8_t operation{};
+        if (!read_value(stream, operation) ||
+            operation > static_cast<std::uint8_t>(FileOperation::Move)) {
+            return false;
+        }
+        job.operation = static_cast<FileOperation>(operation);
+    } else {
+        job.operation = FileOperation::Copy;
+    }
     if (!read_wstring(stream, job.display_name)) return false;
 
     std::uint64_t sources{};
@@ -186,13 +210,13 @@ bool write_jobs(std::ofstream& stream, const std::vector<CopyJob>& jobs) {
     return true;
 }
 
-bool read_jobs(std::ifstream& stream, std::vector<CopyJob>& jobs) {
+bool read_jobs(std::ifstream& stream, std::vector<CopyJob>& jobs, const std::uint32_t version) {
     std::uint64_t count{};
     if (!read_value(stream, count) || count > kMaxEntries) return false;
     jobs.reserve(static_cast<std::size_t>(count));
     for (std::uint64_t i = 0; i < count; ++i) {
         CopyJob job{};
-        if (!read_job(stream, job)) return false;
+        if (!read_job(stream, job, version)) return false;
         jobs.push_back(std::move(job));
     }
     return true;
@@ -276,19 +300,20 @@ std::optional<QueueArchive> QueueArchiveStore::load(
         std::uint32_t version{};
         std::uint8_t has_current{};
         if (!stream || magic != kMagic || !read_value(stream, version) ||
-            version != kFormatVersion || !read_value(stream, has_current) || has_current > 1) {
+            (version != kFormatVersion && version != kLegacyFormatVersion) ||
+            !read_value(stream, has_current) || has_current > 1) {
             return std::nullopt;
         }
 
         QueueArchive archive{};
         if (has_current != 0) {
             CopyPlan plan{};
-            if (!read_plan(stream, plan)) return std::nullopt;
+            if (!read_plan(stream, plan, version)) return std::nullopt;
             archive.current_plan = std::move(plan);
         }
 
-        if (!read_jobs(stream, archive.current_append_jobs) ||
-            !read_jobs(stream, archive.queued_jobs)) {
+        if (!read_jobs(stream, archive.current_append_jobs, version) ||
+            !read_jobs(stream, archive.queued_jobs, version)) {
             return std::nullopt;
         }
 
