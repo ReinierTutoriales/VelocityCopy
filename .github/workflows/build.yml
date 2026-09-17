@@ -34,3 +34,31 @@ jobs:
           $msbuild = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\MSBuild.exe" | Select-Object -First 1
           if (-not $msbuild) { throw "MSBuild was not found" }
           & $msbuild src/ui/VelocityCopy.UI/VelocityCopy.UI.vcxproj /restore /m /p:Configuration=Release /p:Platform=x64 /p:AppxPackageSigningEnabled=false
+
+
+      - name: Stage Windows test build
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Path src/ui/VelocityCopy.UI -Recurse -Filter VelocityCopy.WinUI.exe |
+            Sort-Object LastWriteTimeUtc -Descending |
+            Select-Object -First 1
+          if (-not $exe) { throw "VelocityCopy.WinUI.exe was not produced" }
+
+          $stage = "artifacts/VelocityCopy-Windows-x64-Test"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item -LiteralPath $exe.Directory.FullName -Destination "$stage/app" -Recurse
+
+          Get-ChildItem -Path src/ui/VelocityCopy.UI -Recurse -File |
+            Where-Object { $_.Extension -in ".msix", ".msixbundle", ".appinstaller" } |
+            Copy-Item -Destination $stage -Force
+
+          "Source build: $($exe.Directory.FullName)" |
+            Set-Content -LiteralPath "$stage/BUILD_SOURCE.txt" -Encoding utf8
+
+      - name: Upload Windows test build
+        uses: actions/upload-artifact@v4
+        with:
+          name: VelocityCopy-Windows-x64-Test
+          path: artifacts/VelocityCopy-Windows-x64-Test
+          if-no-files-found: error
+          retention-days: 14
