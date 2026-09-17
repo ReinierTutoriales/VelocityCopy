@@ -21,11 +21,17 @@ enum class DestinationLayout {
     ContentsOnly,
 };
 
+enum class FileOperation {
+    Copy,
+    Move,
+};
+
 struct CopyJob {
     std::uint64_t id{};
     std::vector<std::filesystem::path> sources;
     std::filesystem::path destination;
     DestinationLayout layout{DestinationLayout::PreserveSourceFolder};
+    FileOperation operation{FileOperation::Copy};
     JobState state{JobState::Pending};
     std::wstring display_name;
 };
