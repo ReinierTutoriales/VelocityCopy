@@ -10,12 +10,12 @@ void MainWindow::HandleShellRequest(const velocitycopy::ShellRequest& request) {
 
     switch (dispatch.status) {
     case velocitycopy::ShellDispatchStatus::InvalidRequest:
-        Activate();
+        ShowFromTray();
         ShowError();
         return;
 
     case velocitycopy::ShellDispatchStatus::NoStagedSources:
-        Activate();
+        ShowFromTray();
         ShowError();
         return;
 
@@ -35,14 +35,14 @@ void MainWindow::HandleShellRequest(const velocitycopy::ShellRequest& request) {
         }
 
         if (dispatch.show_window) {
-            Activate();
+            ShowFromTray();
         }
         QueueOrStartCopy(std::move(*dispatch.job));
         return;
     }
 
     if (dispatch.show_window) {
-        Activate();
+        ShowFromTray();
     }
 }
 
@@ -87,7 +87,7 @@ fire_and_forget MainWindow::BeginShellDestinationAsync(
                 return;
             }
 
-            self->Activate();
+            self->ShowFromTray();
             if (items.empty()) {
                 self->ShowError();
                 return;
@@ -150,7 +150,7 @@ fire_and_forget MainWindow::BeginShellLayoutAsync(velocitycopy::CopyJob job) {
                 return;
             }
 
-            self->Activate();
+            self->ShowFromTray();
             if (items.empty()) {
                 self->ShowError();
                 return;
