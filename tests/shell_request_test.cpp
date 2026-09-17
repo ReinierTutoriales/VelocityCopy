@@ -35,9 +35,19 @@ int main() {
         return 6;
     }
 
+    ShellRequest prompt{};
+    prompt.action = ShellAction::CopySelectionPromptDestination;
+    if (shell_request_valid(prompt)) {
+        return 7;
+    }
+    prompt.sources = {L"C:\\Source\\prompt.txt"};
+    if (!shell_request_valid(prompt)) {
+        return 8;
+    }
+
     copy_to.version = 2;
     if (velocitycopy::shell_request_valid(copy_to)) {
-        return 7;
+        return 9;
     }
 
     return 0;
