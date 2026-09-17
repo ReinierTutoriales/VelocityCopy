@@ -18,6 +18,14 @@ VelocityCopy integrates deeply enough to feel native on Windows 11 without repla
 - There is never more than one primary VelocityCopy process per interactive Windows session.
 - Windows and the user remain authoritative: the startup entry may be disabled from Settings or Task Manager and VelocityCopy must not fight that choice.
 
+## Taskbar and window behavior
+
+- When the user-visible copy window is open, VelocityCopy behaves as a normal Windows desktop app: it appears in the taskbar and system switchers.
+- The compact window is explicitly minimizable and intentionally not maximizable.
+- Minimizing never pauses, cancels or stops the active transfer; execution is owned by the core worker, not by window visibility.
+- Restoring from the taskbar returns to the same live queue/progress state.
+- Silent sign-in startup does not activate the window, so it must not create a visible taskbar button until the app is actually shown.
+
 ## Resident impact
 
 The resident process exists only to provide near-instant Explorer handoff and state continuity.
