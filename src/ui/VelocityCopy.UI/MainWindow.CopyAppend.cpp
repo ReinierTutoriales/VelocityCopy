@@ -24,6 +24,14 @@ bool same_destination(
     return !left.empty() && !right.empty() && destination_key(left) == destination_key(right);
 }
 
+bool same_session(
+    const std::filesystem::path& active_destination,
+    const velocitycopy::FileOperation active_operation,
+    const velocitycopy::CopyJob& job) {
+    return same_destination(active_destination, job.destination) &&
+           active_operation == job.operation;
+}
+
 } // namespace
 
 void MainWindow::OnQueueOrStartCopyClick(IInspectable const&, RoutedEventArgs const&) {
@@ -39,7 +47,7 @@ void MainWindow::OnQueueOrStartCopyClick(IInspectable const&, RoutedEventArgs co
 
 void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
     if (stop_requested_) {
-        if (same_destination(active_destination_, job.destination)) {
+        if (same_session(active_destination_, active_operation_, job)) {
             deferred_interrupted_jobs_.push_back(std::move(job));
         } else {
             queued_sessions_.push_back(std::move(job));
@@ -48,7 +56,7 @@ void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
     }
 
     if (stopped_session_ && live_plan_ && append_gate_) {
-        if (!same_destination(active_destination_, job.destination)) {
+        if (!same_session(active_destination_, active_operation_, job)) {
             queued_sessions_.push_back(std::move(job));
             return;
         }
@@ -57,7 +65,7 @@ void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
     }
 
     if (conflict_session_ && live_plan_ && append_gate_) {
-        if (!same_destination(active_destination_, job.destination)) {
+        if (!same_session(active_destination_, active_operation_, job)) {
             queued_sessions_.push_back(std::move(job));
             return;
         }
@@ -74,7 +82,7 @@ void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
         return;
     }
 
-    if (!same_destination(active_destination_, job.destination)) {
+    if (!same_session(active_destination_, active_operation_, job)) {
         queued_sessions_.push_back(std::move(job));
         return;
     }
@@ -117,7 +125,7 @@ void MainWindow::EnqueueAppend(
             }
         }
         if (!reserved) {
-            if ((stopped_session_ || conflict_session_) && same_destination(active_destination_, job.destination))
+            if ((stopped_session_ || conflict_session_) && same_session(active_destination_, active_operation_, job))
                 deferred_interrupted_jobs_.push_back(std::move(job));
             else
                 queued_sessions_.push_back(std::move(job));
