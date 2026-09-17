@@ -115,8 +115,10 @@ CopyResult CopyEngine::copy_file(
     if (options.existing_destination == ExistingDestinationPolicy::Fail) {
         parameters.dwCopyFlags |= COPY_FILE_FAIL_IF_EXISTS;
     }
-    parameters.pProgressRoutine = copy_progress_routine;
-    parameters.pvCallbackContext = &callback_context;
+    if (progress) {
+        parameters.pProgressRoutine = copy_progress_routine;
+        parameters.pvCallbackContext = &callback_context;
+    }
 
     const HRESULT result = CopyFile2(
         source.c_str(),
