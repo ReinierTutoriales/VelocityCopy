@@ -51,6 +51,9 @@ struct MainWindow : MainWindowT<MainWindow> {
     void OnQueueDragItemsCompleted(
         Microsoft::UI::Xaml::Controls::ListViewBase const&,
         Microsoft::UI::Xaml::Controls::DragItemsCompletedEventArgs const&);
+    void OnTransferSurfaceSizeChanged(
+        IInspectable const&,
+        Microsoft::UI::Xaml::SizeChangedEventArgs const&);
 
 private:
     struct AppendGate {
