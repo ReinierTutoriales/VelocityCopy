@@ -21,28 +21,30 @@ These are defaults, not architectural limits. The layout must remain responsive 
 
 The collapsed window is a single compact transfer surface:
 
-1. a left disclosure triangle for the copy queue
+1. the VelocityCopy brand mark anchored at the far left
 2. current item name
-3. throughput + ETA as secondary metadata
-4. essential transport controls
-5. global progress expressed by the transfer surface itself
+3. throughput + percentage + ETA as secondary metadata
+4. essential icon-only transport controls
+5. a queue disclosure triangle anchored at the far right
+6. global progress expressed by the transfer surface itself
 
 Conceptual layout:
 
 ```
 ╭────────────────────────────────────────────╮
-│ ▸  Windows11_24H2.iso    684 MB/s  1m42s  ⏸ × │
+│ ◉  Windows11_24H2.iso  72%  684 MB/s  1m42s  ⏸  ⚙  ▸ │
 ╰────────────────────────────────────────────╯
 ```
 
-The left disclosure changes orientation when the queue is expanded. The current item uses end ellipsis rather than increasing the collapsed height.
+The logo remains visible at the far left in every compact state. The disclosure at the far right changes orientation when the queue is expanded. The current item uses end ellipsis rather than increasing the collapsed height.
 
 ## Integrated progress surface
 
 - There is one global progress indicator only.
 - Do not draw a separate progress strip in the collapsed window.
 - Progress fills the compact transfer surface from left to right behind its content.
-- Keep the fill visually subordinate so text and controls retain contrast.
+- Keep the fill visually subordinate so text, logo, icons and focus visuals retain contrast.
+- The fill extends beneath the full transfer surface; it is not confined to the text region.
 - Do not animate continuously when no progress is occurring.
 - Update UI from periodic snapshots rather than per I/O completion.
 
@@ -65,14 +67,14 @@ Use the Windows type system / Segoe UI Variable through WinUI theme resources ra
 
 ## Density
 
-Use WinUI compact density where appropriate for a desktop utility. Do not reduce hit targets to the point that keyboard/mouse interaction becomes difficult.
+Use WinUI compact density where appropriate for this desktop-first utility. Preserve keyboard focus visuals, accessible names/tooltips and practical pointer targets. Prefer progressive disclosure over adding permanent controls.
 
 ## Queue panel
 
 The queue is collapsed by default. Expanding it must not create an entirely different application window.
 
 - target expanded height: ~300 epx
-- resizable later; 380 epx is the default, not a fixed limit
+- resizable later; 300 epx is the current default, not a fixed limit
 - virtualized item presentation
 - drag/drop reordering
 - keyboard selection
