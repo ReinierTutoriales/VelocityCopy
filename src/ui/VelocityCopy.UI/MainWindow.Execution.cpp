@@ -24,9 +24,12 @@ void MainWindow::SetExecutionButtonsRunning() {
     current_file_id_ = 0;
     current_file_skippable_ = false;
     paused_ = false;
+    PauseIcon().Glyph(L"\xE769");
     try {
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-        PauseButton().Content(box_value(loader.GetString(L"ActionPause")));
+        const auto label = loader.GetString(L"ActionPause");
+        ToolTipService::SetToolTip(PauseButton(), box_value(label));
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), label);
     } catch (...) {}
 }
 
@@ -39,9 +42,12 @@ void MainWindow::SetExecutionButtonsIdle() {
     current_file_skippable_ = false;
     paused_ = false;
     resume_requested_ = false;
+    PauseIcon().Glyph(L"\xE769");
     try {
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-        PauseButton().Content(box_value(loader.GetString(L"ActionPause")));
+        const auto label = loader.GetString(L"ActionPause");
+        ToolTipService::SetToolTip(PauseButton(), box_value(label));
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), label);
     } catch (...) {}
 }
 
@@ -53,9 +59,12 @@ void MainWindow::SetExecutionButtonsStopped() {
     current_file_id_ = 0;
     current_file_skippable_ = false;
     paused_ = false;
+    PauseIcon().Glyph(L"\xE768");
     try {
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-        PauseButton().Content(box_value(loader.GetString(L"ActionResume")));
+        const auto label = loader.GetString(L"ActionResume");
+        ToolTipService::SetToolTip(PauseButton(), box_value(label));
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), label);
     } catch (...) {}
 }
 
@@ -194,6 +203,7 @@ void MainWindow::StartCopy(velocitycopy::CopyJob job) {
     ResizeWindow(72);
     GlobalProgress().Value(0);
     ProgressFill().Width(0);
+    ProgressPercentText().Text(L"0%");
     SetExecutionButtonsPlanning();
     CurrentItemText().Text(job.display_name.empty() ? hstring(L"…") : hstring(job.display_name));
 
@@ -319,9 +329,12 @@ void MainWindow::OnPauseClick(IInspectable const&, RoutedEventArgs const&) {
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
     }
+    PauseIcon().Glyph(paused_ ? L"\xE768" : L"\xE769");
     try {
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-        PauseButton().Content(box_value(loader.GetString(paused_ ? L"ActionResume" : L"ActionPause")));
+        const auto label = loader.GetString(paused_ ? L"ActionResume" : L"ActionPause");
+        ToolTipService::SetToolTip(PauseButton(), box_value(label));
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), label);
     } catch (...) {
         // Localization failure must never mutate the execution state.
     }
@@ -393,6 +406,7 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
     const auto fraction = (std::clamp)(snapshot.fraction, 0.0, 1.0);
     GlobalProgress().Value(fraction * 100.0);
     ProgressFill().Width(TransferSurface().ActualWidth() * fraction);
+    ProgressPercentText().Text(hstring(std::format(L"{:.0f}%", fraction * 100.0)));
     current_file_id_ = snapshot.current_file_id;
     current_file_skippable_ = snapshot.current_file_skippable;
     SkipButton().IsEnabled(execution_control_ && current_file_id_ != 0 && current_file_skippable_ &&
@@ -528,6 +542,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     if (queued_sessions_.empty()) {
         GlobalProgress().Value(100);
         ProgressFill().Width(TransferSurface().ActualWidth());
+        ProgressPercentText().Text(L"100%");
         return;
     }
     StartNextQueuedSession();
@@ -556,6 +571,7 @@ void MainWindow::FinalizeStoppedSessionIfEmpty() {
     SetExecutionButtonsIdle();
     GlobalProgress().Value(100);
     ProgressFill().Width(TransferSurface().ActualWidth());
+    ProgressPercentText().Text(L"100%");
     StartNextQueuedSession();
 }
 
