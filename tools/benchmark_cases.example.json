@@ -1,0 +1,17 @@
+[
+  {
+    "name": "local-fixed",
+    "source": "C:\\VelocityCopyBench\\dataset",
+    "destinationRoot": "D:\\VelocityCopyBench\\runs"
+  },
+  {
+    "name": "usb",
+    "source": "C:\\VelocityCopyBench\\dataset",
+    "destinationRoot": "E:\\VelocityCopyBench\\runs"
+  },
+  {
+    "name": "network",
+    "source": "C:\\VelocityCopyBench\\dataset",
+    "destinationRoot": "\\\\server\\share\\VelocityCopyBench\\runs"
+  }
+]
