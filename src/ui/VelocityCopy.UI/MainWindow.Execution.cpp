@@ -396,6 +396,9 @@ void MainWindow::CancelCurrentSession() {
         QueueList().Items().Clear();
         QueueCountText().Text(L"0");
         QueueButton().IsEnabled(false);
+        QueuePanel().Visibility(Visibility::Collapsed);
+        QueueButton().Content(box_value(hstring(L"▸")));
+        ResizeWindow(72);
         SetExecutionButtonsIdle();
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
@@ -509,6 +512,9 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         active_destination_.clear();
         RefreshQueue();
         QueueButton().IsEnabled(false);
+        QueuePanel().Visibility(Visibility::Collapsed);
+        QueueButton().Content(box_value(hstring(L"▸")));
+        ResizeWindow(72);
         SetExecutionButtonsIdle();
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
@@ -525,6 +531,9 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         active_destination_.clear();
         RefreshQueue();
         QueueButton().IsEnabled(false);
+        QueuePanel().Visibility(Visibility::Collapsed);
+        QueueButton().Content(box_value(hstring(L"▸")));
+        ResizeWindow(72);
         SetExecutionButtonsIdle();
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
@@ -536,6 +545,9 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     active_destination_.clear();
     RefreshQueue();
     QueueButton().IsEnabled(false);
+    QueuePanel().Visibility(Visibility::Collapsed);
+    QueueButton().Content(box_value(hstring(L"▸")));
+    ResizeWindow(72);
     SetExecutionButtonsIdle();
     SpeedText().Text(L"—");
     EtaText().Text(L"—");
@@ -568,6 +580,9 @@ void MainWindow::FinalizeStoppedSessionIfEmpty() {
     active_destination_.clear();
     RefreshQueue();
     QueueButton().IsEnabled(false);
+    QueuePanel().Visibility(Visibility::Collapsed);
+    QueueButton().Content(box_value(hstring(L"▸")));
+    ResizeWindow(72);
     SetExecutionButtonsIdle();
     GlobalProgress().Value(100);
     ProgressFill().Width(TransferSurface().ActualWidth());
