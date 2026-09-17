@@ -30,9 +30,10 @@ int main() {
     const auto executor_cpp = read_all(root / "src/core/job_executor.cpp");
     const auto engine_h = read_all(root / "src/core/include/velocitycopy/copy_engine.hpp");
     const auto engine_cpp = read_all(root / "src/core/copy_engine.cpp");
+    const auto benchmark_cpp = read_all(root / "tools/benchmark.cpp");
 
     if (selector_h.empty() || selector_cpp.empty() || executor_h.empty() || executor_cpp.empty() ||
-        engine_h.empty() || engine_cpp.empty()) {
+        engine_h.empty() || engine_cpp.empty() || benchmark_cpp.empty()) {
         return fail(1, "required production source missing");
     }
 
@@ -55,6 +56,12 @@ int main() {
 
     if (!contains(executor_cpp, "shared_copy_flags &= recommendation.copy_flags")) {
         return fail(5, "multi-root execution must keep only flags supported by every source root");
+    }
+
+    if (!contains(benchmark_cpp, "executed_strategy(execution_options.copy_flags)") ||
+        !contains(benchmark_cpp, "execution_options.copy_flags & COPY_FILE_REQUEST_COMPRESSED_TRAFFIC") ||
+        contains(benchmark_cpp, "Production execution: CopyFile2 buffered baseline")) {
+        return fail(6, "benchmark must report the strategy and native flags actually used by production execution");
     }
 
     return 0;
