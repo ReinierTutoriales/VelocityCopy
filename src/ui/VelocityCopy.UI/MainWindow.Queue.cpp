@@ -69,6 +69,13 @@ void MainWindow::OnQueueClick(IInspectable const&, RoutedEventArgs const&) {
     const bool expanding = QueuePanel().Visibility() != Visibility::Visible;
     QueuePanel().Visibility(expanding ? Visibility::Visible : Visibility::Collapsed);
     QueueButton().Content(box_value(hstring(expanding ? L"▾" : L"▸")));
+    try {
+        Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
+        const auto label = loader.GetString(expanding ? L"ActionHideQueue" : L"ActionShowQueue");
+        ToolTipService::SetToolTip(QueueButton(), box_value(label));
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(QueueButton(), label);
+    } catch (...) {
+    }
     if (expanding) {
         RefreshQueue();
         ResizeWindow(300);
