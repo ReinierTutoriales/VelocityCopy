@@ -29,13 +29,14 @@ int main() {
     const auto manifest = read_all(root / "src/ui/VelocityCopy.UI/Package.appxmanifest");
     const auto app = read_all(root / "src/ui/VelocityCopy.UI/App.xaml.cpp");
     const auto shell = read_all(root / "src/shell/explorer_commands.cpp");
+    const auto ipc = read_all(root / "src/core/ipc_transport.cpp");
     const auto window = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
     const auto tray = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Tray.cpp");
     const auto workflow = read_all(root / ".github/workflows/build.yml");
     const auto installer = read_all(root / "tools/Install-VelocityCopy-Test.ps1");
     const auto docs = read_all(root / "docs/SYSTEM_INTEGRATION.md");
 
-    if (manifest.empty() || app.empty() || shell.empty() || window.empty() || tray.empty() ||
+    if (manifest.empty() || app.empty() || shell.empty() || ipc.empty() || window.empty() || tray.empty() ||
         workflow.empty() || installer.empty() || docs.empty()) {
         return fail(1, "required integration source missing");
     }
@@ -83,23 +84,31 @@ int main() {
         return fail(6, "resident UI must scope Ctrl-V interception to valid Explorer file pastes");
     }
 
+    if (!contains(ipc, "ConvertSidToStringSidW") ||
+        !contains(ipc, "D:P(A;;GA;;;SY)(A;;GA;;;") ||
+        !contains(ipc, "PIPE_REJECT_REMOTE_CLIENTS") ||
+        !contains(ipc, "CreateNamedPipeW") ||
+        contains(ipc, "0, nullptr);")) {
+        return fail(7, "IPC pipe and mutex must use explicit local-user security");
+    }
+
     if (!contains(workflow, "GenerateAppxPackageOnBuild=true") ||
         !contains(workflow, "Sign Windows test MSIX") ||
         !contains(workflow, "signtool") ||
         !contains(workflow, "VelocityCopy-Test.cer")) {
-        return fail(7, "CI must build and sign an installable test MSIX");
+        return fail(8, "CI must build and sign an installable test MSIX");
     }
 
     if (!contains(installer, "Import-Certificate") ||
         !contains(installer, "Add-AppxPackage") ||
         !contains(installer, "Remove-AppxPackage")) {
-        return fail(8, "test package must ship install and uninstall flow");
+        return fail(9, "test package must ship install and uninstall flow");
     }
 
     if (!contains(docs, "near-zero-CPU") || !contains(docs, "IExplorerCommand") ||
         !contains(docs, "notification-area icon") ||
         !contains(docs, "AddClipboardFormatListener")) {
-        return fail(9, "system-impact constraints must remain documented");
+        return fail(10, "system-impact constraints must remain documented");
     }
 
     return 0;
