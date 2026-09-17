@@ -36,8 +36,9 @@ The resident process exists only to provide near-instant Explorer handoff and st
 - no hashing while idle
 - no network polling
 - no filesystem watcher farm
-- no global keyboard or mouse hooks
 - clipboard file capture uses AddClipboardFormatListener events, not polling
+- one low-level keyboard hook is permitted only for Explorer Ctrl+V handoff; it ignores non-Explorer foreground processes and non-file clipboard content
+- no mouse hooks, process injection, DLL injection, or generic keystroke capture
 - no periodic benchmark
 - no copy worker until work exists
 - IPC blocks on a local named pipe instead of polling
@@ -58,7 +59,9 @@ Explorer integration uses the Windows 11 packaged desktop model:
 - all enumeration, planning, conflicts, queue state and I/O remain in the VelocityCopy app process
 - IPC or launch failure must never destabilize Explorer
 
-VelocityCopy does not hook Explorer, patch explorer.exe, install a kernel driver, or add a permanently active helper service. It observes normal file Copy/Cut clipboard updates using AddClipboardFormatListener and stages CF_HDROP paths, including Preferred DropEffect so Cut becomes Move. Global Ctrl+V remains owned by Windows; VelocityCopy paste is invoked through its Explorer command surface until a stable public interception path exists.
+VelocityCopy does not patch or inject into explorer.exe, install a kernel driver, or add a permanently active helper service. It observes normal file Copy/Cut clipboard updates using AddClipboardFormatListener and stages CF_HDROP paths, including Preferred DropEffect so Cut becomes Move.
+
+For transparent Explorer paste, the resident process installs a WH_KEYBOARD_LL callback. The callback only suppresses Ctrl+V when all of these conditions are true: explorer.exe owns the foreground window, the clipboard contains CF_HDROP files, focus is not a text-edit control, and the active Explorer window resolves to a filesystem destination. It then routes PasteToFolder through the same ShellSession/JobExecutor path. Otherwise it calls the next hook unchanged.
 
 ## Process model
 
