@@ -79,6 +79,10 @@ private:
     void ShowTrayMenu() noexcept;
     void ExitFromTray() noexcept;
     void CaptureClipboardFileSelection() noexcept;
+    void InitializeExplorerPasteInterception() noexcept;
+    void RemoveExplorerPasteInterception() noexcept;
+    [[nodiscard]] bool TryInterceptExplorerPaste() noexcept;
+    static LRESULT CALLBACK ExplorerKeyboardProc(int code, WPARAM wparam, LPARAM lparam);
     static LRESULT CALLBACK TraySubclassProc(
         HWND hwnd,
         UINT message,
@@ -168,10 +172,12 @@ private:
     std::uint64_t conflict_replace_file_id_{};
     HWND hwnd_{};
     HICON tray_icon_{};
+    HHOOK explorer_keyboard_hook_{};
     NOTIFYICONDATAW tray_data_{};
     bool tray_added_{};
     bool tray_exit_requested_{};
     bool tray_window_hidden_{};
+    bool paste_key_down_{};
     std::jthread copy_thread_;
 };
 }
