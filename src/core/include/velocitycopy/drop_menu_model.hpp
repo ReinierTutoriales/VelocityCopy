@@ -45,7 +45,8 @@ public:
         std::span<const DropItem> items,
         const std::filesystem::path& destination,
         DestinationLayout layout,
-        std::uint64_t job_id = 0) const;
+        std::uint64_t job_id = 0,
+        FileOperation operation = FileOperation::Copy) const;
 
 private:
     [[nodiscard]] static std::filesystem::path preview_destination(
