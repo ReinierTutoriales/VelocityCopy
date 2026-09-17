@@ -32,6 +32,80 @@ bool is_destination_conflict(const std::int32_t code) noexcept {
            code == static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_ALREADY_EXISTS));
 }
 
+std::int32_t remove_moved_source_file(const std::filesystem::path& source) noexcept {
+    std::error_code ec;
+    const bool removed = std::filesystem::remove(source, ec);
+    if (ec) {
+        return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
+    }
+    if (removed) {
+        return S_OK;
+    }
+
+    ec.clear();
+    const bool still_exists = std::filesystem::exists(source, ec);
+    if (ec) {
+        return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
+    }
+    return still_exists
+        ? static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_ACCESS_DENIED))
+        : S_OK;
+}
+
+std::int32_t remove_empty_source_directories(
+    const std::vector<std::filesystem::path>& source_roots) noexcept {
+    try {
+        for (const auto& root : source_roots) {
+            std::error_code ec;
+            if (!std::filesystem::is_directory(root, ec)) {
+                if (ec) {
+                    return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
+                }
+                continue;
+            }
+
+            std::vector<std::filesystem::path> directories;
+            std::filesystem::recursive_directory_iterator it(
+                root,
+                std::filesystem::directory_options::none,
+                ec);
+            const std::filesystem::recursive_directory_iterator end;
+            if (ec) {
+                return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
+            }
+            for (; it != end; it.increment(ec)) {
+                if (ec) {
+                    return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
+                }
+                if (it->is_directory(ec)) {
+                    if (ec) {
+                        return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
+                    }
+                    directories.push_back(it->path());
+                }
+            }
+
+            std::sort(directories.rbegin(), directories.rend());
+            for (const auto& directory : directories) {
+                ec.clear();
+                (void)std::filesystem::remove(directory, ec);
+                if (ec) {
+                    return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
+                }
+            }
+
+            ec.clear();
+            (void)std::filesystem::remove(root, ec);
+            if (ec) {
+                return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
+            }
+        }
+        return S_OK;
+    } catch (...) {
+        return static_cast<std::int32_t>(E_FAIL);
+    }
+}
+
 struct ConcurrentProgressState {
     mutable std::mutex mutex;
     std::uint64_t completed_bytes{};
@@ -288,6 +362,12 @@ JobResult JobExecutor::execute(
 
         const auto remaining_files = plan.remaining_files();
         if (remaining_files == 0) {
+            if (plan.operation() == FileOperation::Move) {
+                const auto cleanup = remove_empty_source_directories(plan.source_roots());
+                if (cleanup != S_OK) {
+                    return {false, false, cleanup};
+                }
+            }
             return {true, false, S_OK};
         }
 
@@ -518,6 +598,23 @@ JobResult JobExecutor::execute(
                             continue;
                         }
 
+                        if (plan.operation() == FileOperation::Move) {
+                            const auto remove_source = remove_moved_source_file(file->source);
+                            if (remove_source != S_OK) {
+                                progress_state.release(file_id);
+                                plan.release_active(file_id);
+                                result_state.record_error(remove_source, &*file);
+                                control.request_cancel();
+                                worker_results[worker_index] = {
+                                    false,
+                                    false,
+                                    remove_source,
+                                    false,
+                                };
+                                return;
+                            }
+                        }
+
                         progress_state.complete(*file);
                         plan.complete_active(file_id);
                         if (!emit_progress(*file, false, false)) {
@@ -573,6 +670,12 @@ JobResult JobExecutor::execute(
         for (const auto& worker_result : worker_results) {
             if (worker_result.stopped) {
                 return worker_result;
+            }
+        }
+        if (plan.operation() == FileOperation::Move) {
+            const auto cleanup = remove_empty_source_directories(plan.source_roots());
+            if (cleanup != S_OK) {
+                return {false, false, cleanup, false};
             }
         }
         return {true, false, S_OK, false};
