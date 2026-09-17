@@ -173,6 +173,10 @@ std::wstring shell_pipe_name() noexcept {
 
 SingleInstance::SingleInstance() noexcept {
     LocalSecurityDescriptor security;
+    if (security.attributes() == nullptr) {
+        return;
+    }
+
     HANDLE handle = CreateMutexW(security.attributes(), FALSE, kMutexName);
     mutex_ = handle;
     primary_ = handle != nullptr && GetLastError() != ERROR_ALREADY_EXISTS;
