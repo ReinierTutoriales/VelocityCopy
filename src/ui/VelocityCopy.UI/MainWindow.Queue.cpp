@@ -23,11 +23,24 @@ void MainWindow::RefreshQueue() {
     auto items = QueueList().Items();
     items.Clear();
     for (const auto& file : queue_snapshot_) {
-        TextBlock row;
-        row.Text(hstring(file.source.wstring()));
-        row.TextTrimming(TextTrimming::CharacterEllipsis);
+        StackPanel row;
+        row.Spacing(1);
         row.HorizontalAlignment(HorizontalAlignment::Stretch);
         row.Tag(box_value(file.id));
+
+        TextBlock name;
+        name.Text(hstring(file.source.filename().wstring()));
+        name.TextTrimming(TextTrimming::CharacterEllipsis);
+        name.FontWeight(Windows::UI::Text::FontWeights::SemiBold());
+
+        TextBlock location;
+        location.Text(hstring(file.source.parent_path().wstring()));
+        location.TextTrimming(TextTrimming::CharacterEllipsis);
+        location.Opacity(0.58);
+        location.FontSize(11);
+
+        row.Children().Append(name);
+        row.Children().Append(location);
         items.Append(row);
     }
 
@@ -102,7 +115,7 @@ void MainWindow::OnQueueDragItemsCompleted(
     ordered_ids.reserve(items.Size());
     for (std::uint32_t index = 0; index < items.Size(); ++index) {
         try {
-            const auto row = items.GetAt(index).as<TextBlock>();
+            const auto row = items.GetAt(index).as<FrameworkElement>();
             ordered_ids.push_back(unbox_value<std::uint64_t>(row.Tag()));
         } catch (...) {
             // A malformed visual item must not corrupt the live queue order.
