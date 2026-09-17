@@ -155,18 +155,25 @@ JobExecutionOptions recommend_for_roots(
 
     const auto destination = profiler.inspect(destination_root);
     std::uint32_t worker_count = kMaxCopyWorkers;
-    bool first_recommendation = true;
     std::uint32_t shared_copy_flags = 0;
+    std::uint32_t shared_buffer_bytes = 0;
+    bool shared_async_candidate = false;
+    bool first_recommendation = true;
 
     for (const auto& source_path : source_roots) {
         const auto source = profiler.inspect(source_path);
         const auto recommendation = selector.choose(source, destination, workload);
         worker_count = std::min(worker_count, recommendation.suggested_queue_depth);
+
         if (first_recommendation) {
             shared_copy_flags = recommendation.copy_flags;
+            shared_buffer_bytes = recommendation.suggested_buffer_bytes;
+            shared_async_candidate = recommendation.async_iocp_candidate;
             first_recommendation = false;
         } else {
             shared_copy_flags &= recommendation.copy_flags;
+            shared_buffer_bytes = std::min(shared_buffer_bytes, recommendation.suggested_buffer_bytes);
+            shared_async_candidate = shared_async_candidate && recommendation.async_iocp_candidate;
         }
     }
 
@@ -175,6 +182,11 @@ JobExecutionOptions recommend_for_roots(
         1,
         static_cast<std::uint32_t>(std::min<std::uint64_t>(workload.file_count, kMaxCopyWorkers)));
     options.copy_flags = shared_copy_flags;
+    options.strategy = (shared_copy_flags & COPY_FILE_NO_BUFFERING) != 0
+        ? CopyStrategyKind::WindowsCopyFile2NoBuffering
+        : CopyStrategyKind::WindowsCopyFile2;
+    options.suggested_buffer_bytes = shared_buffer_bytes;
+    options.async_iocp_candidate = shared_async_candidate;
     return options;
 }
 
