@@ -74,18 +74,23 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <Button x:Name="QueueButton"
-                            Grid.Column="0"
-                            Click="OnQueueClick"
-                            IsEnabled="False"
-                            Content="▸"
-                            FontSize="15"
-                            FontWeight="SemiBold"
-                            Padding="4,2"
-                            MinWidth="24"
-                            MinHeight="28"
-                            Margin="0,0,6,0"
-                            />
+                    <Border Grid.Column="0"
+                            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                            BorderThickness="0,0,1,0"
+                            Padding="0,0,6,0"
+                            Margin="0,0,8,0">
+                        <Button x:Name="QueueButton"
+                                Click="OnQueueClick"
+                                IsEnabled="False"
+                                Content="▸"
+                                FontSize="15"
+                                FontWeight="SemiBold"
+                                Width="26"
+                                Height="30"
+                                Padding="0"
+                                BorderThickness="0"
+                                Background="Transparent" />
+                    </Border>
 
                     <Grid Grid.Column="1" MinWidth="0" VerticalAlignment="Center">
                         <Grid.RowDefinitions>
@@ -115,6 +120,7 @@
                             Height="30"
                             Padding="0"
                             BorderThickness="0"
+                            Background="Transparent"
                             Margin="8,0,2,0">
                         <FontIcon x:Name="PauseIcon"
                                   FontFamily="Segoe Fluent Icons"
@@ -129,6 +135,7 @@
                             Height="30"
                             Padding="0"
                             BorderThickness="0"
+                            Background="Transparent"
                             Margin="0,0,2,0">
                         <FontIcon FontFamily="Segoe Fluent Icons"
                                   Glyph="&#xE893;"
@@ -142,6 +149,7 @@
                             Height="30"
                             Padding="0"
                             BorderThickness="0"
+                            Background="Transparent"
                             Margin="0,0,2,0">
                         <FontIcon FontFamily="Segoe Fluent Icons"
                                   Glyph="&#xE71A;"
@@ -154,7 +162,8 @@
                             Width="30"
                             Height="30"
                             Padding="0"
-                            BorderThickness="0">
+                            BorderThickness="0"
+                            Background="Transparent">
                         <FontIcon FontFamily="Segoe Fluent Icons"
                                   Glyph="&#xE711;"
                                   FontSize="13" />
