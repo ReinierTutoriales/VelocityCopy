@@ -23,6 +23,9 @@ ShellDispatchResult ShellSession::dispatch(const ShellRequest& request) noexcept
     case ShellAction::CopySelectionTo:
         break;
 
+    case ShellAction::CopySelectionPromptDestination:
+        return {ShellDispatchStatus::Accepted, true, std::nullopt};
+
     case ShellAction::OpenVelocityCopy:
         return {ShellDispatchStatus::Accepted, true, std::nullopt};
     }
