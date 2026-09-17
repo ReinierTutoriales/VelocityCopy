@@ -38,6 +38,7 @@ enum class LivePlanAppendResult {
     Appended,
     Drained,
     DifferentDestination,
+    DifferentOperation,
     DestinationCollision,
     SizeOverflow,
     InternalFailure,
@@ -73,6 +74,7 @@ public:
     }
     [[nodiscard]] std::vector<std::filesystem::path> source_roots() const;
     [[nodiscard]] const std::filesystem::path& destination_root() const noexcept;
+    [[nodiscard]] FileOperation operation() const noexcept;
     [[nodiscard]] LiveCopyPlanSnapshot snapshot() const;
     [[nodiscard]] LiveQueueView queue_view(std::size_t max_items) const;
     [[nodiscard]] CopyPlan export_remaining_plan() const;
@@ -109,6 +111,7 @@ private:
     std::size_t materialized_directory_count_{};
     std::vector<std::filesystem::path> source_roots_;
     std::filesystem::path destination_root_;
+    FileOperation operation_{FileOperation::Copy};
     mutable std::mutex mutex_;
     std::vector<PlannedFile> pending_files_;
     std::vector<PlannedFile> active_files_;
