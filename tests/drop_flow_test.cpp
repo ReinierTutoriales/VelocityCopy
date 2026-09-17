@@ -42,8 +42,9 @@ int wmain() {
         return 6;
     }
 
-    const auto job = flow.make_job(77);
+    const auto job = flow.make_job(77, velocitycopy::FileOperation::Move);
     if (!job || job->id != 77 || job->layout != velocitycopy::DestinationLayout::ContentsOnly ||
+        job->operation != velocitycopy::FileOperation::Move ||
         job->destination != fs::path(L"D:\\Backup")) {
         return 7;
     }
