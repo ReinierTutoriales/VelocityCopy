@@ -11,7 +11,9 @@ namespace {
 std::string read_all(const std::filesystem::path& path) {
     std::ifstream stream(path, std::ios::binary);
     if (!stream) return {};
-    return {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
+    std::string text{std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
+    std::erase(text, '\r');
+    return text;
 }
 bool contains(const std::string& text, const std::string& value) {
     return text.find(value) != std::string::npos;
