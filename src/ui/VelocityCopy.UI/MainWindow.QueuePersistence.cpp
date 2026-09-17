@@ -52,13 +52,7 @@ bool merge_current_append_jobs(velocitycopy::QueueArchive& archive) {
 
 void MainWindow::ConfigureQueuePersistenceMenu() {
     try {
-        queue_options_button_ = Button{};
-        Grid::SetColumn(queue_options_button_, 2);
-        queue_options_button_.Margin(Thickness{6.0, 0.0, 0.0, 0.0});
-
-        FontIcon icon;
-        icon.Glyph(L"\xE712");
-        queue_options_button_.Content(icon);
+        queue_options_button_ = OptionsButton();
 
         MenuFlyout menu;
         save_queue_menu_item_ = MenuFlyoutItem{};
@@ -83,13 +77,12 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
         menu.Items().Append(save_queue_menu_item_);
         menu.Items().Append(load_queue_menu_item_);
         queue_options_button_.Flyout(menu);
-        QueueHeader().Children().Append(queue_options_button_);
 
         try {
             Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-            const auto options_label = loader.GetString(L"ActionQueueOptions");
-            ToolTipService::SetToolTip(QueueButton(), box_value(options_label));
-            Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(QueueButton(), options_label);
+            const auto queue_label = loader.GetString(L"QueueTitle");
+            ToolTipService::SetToolTip(QueueButton(), box_value(queue_label));
+            Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(QueueButton(), queue_label);
         } catch (...) {
         }
 
