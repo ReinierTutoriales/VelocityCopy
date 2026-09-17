@@ -253,6 +253,7 @@ CopyPlan JobPlanner::build(const CopyJob& job) const {
     CopyPlan plan{};
     plan.source_roots = job.sources;
     plan.destination_root = job.destination;
+    plan.operation = job.operation;
     std::uint64_t next_file_id = 1;
     OutputRegistry outputs;
     std::unordered_set<std::wstring> preserved_roots;
