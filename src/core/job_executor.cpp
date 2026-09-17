@@ -97,14 +97,14 @@ std::int32_t remove_empty_source_directories(
             for (const auto& directory : directories) {
                 ec.clear();
                 (void)std::filesystem::remove(directory, ec);
-                if (ec) {
+                if (ec && ec.value() != ERROR_DIR_NOT_EMPTY) {
                     return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
                 }
             }
 
             ec.clear();
             (void)std::filesystem::remove(root, ec);
-            if (ec) {
+            if (ec && ec.value() != ERROR_DIR_NOT_EMPTY) {
                 return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
             }
         }
