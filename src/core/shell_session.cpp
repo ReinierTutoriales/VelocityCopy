@@ -11,7 +11,7 @@ ShellDispatchResult ShellSession::dispatch(const ShellRequest& request) noexcept
 
     switch (request.action) {
     case ShellAction::CopySelection:
-        staged_sources_ = request.sources;
+        stage_sources(request.sources, FileOperation::Copy);
         return {ShellDispatchStatus::Accepted, false, std::nullopt};
 
     case ShellAction::PasteToFolder:
@@ -34,6 +34,9 @@ ShellDispatchResult ShellSession::dispatch(const ShellRequest& request) noexcept
     job.id = next_job_id_++;
     job.destination = request.destination;
     job.layout = request.layout;
+    job.operation = request.action == ShellAction::PasteToFolder
+        ? staged_operation_
+        : FileOperation::Copy;
     job.display_name = L"Explorer transfer";
     job.sources = request.action == ShellAction::PasteToFolder ? staged_sources_ : request.sources;
 
@@ -44,8 +47,20 @@ const std::vector<std::filesystem::path>& ShellSession::staged_sources() const n
     return staged_sources_;
 }
 
+FileOperation ShellSession::staged_operation() const noexcept {
+    return staged_operation_;
+}
+
+void ShellSession::stage_sources(
+    std::vector<std::filesystem::path> sources,
+    const FileOperation operation) {
+    staged_sources_ = std::move(sources);
+    staged_operation_ = operation;
+}
+
 void ShellSession::clear_staged_sources() noexcept {
     staged_sources_.clear();
+    staged_operation_ = FileOperation::Copy;
 }
 
 } // namespace velocitycopy
