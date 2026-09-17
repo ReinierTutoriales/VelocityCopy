@@ -12,6 +12,7 @@ enum class ShellAction : std::uint8_t {
     CopySelection,
     PasteToFolder,
     CopySelectionTo,
+    CopySelectionPromptDestination,
     OpenVelocityCopy,
 };
 
@@ -24,7 +25,9 @@ struct ShellRequest {
 };
 
 [[nodiscard]] constexpr bool shell_request_requires_sources(const ShellAction action) noexcept {
-    return action == ShellAction::CopySelection || action == ShellAction::CopySelectionTo;
+    return action == ShellAction::CopySelection ||
+        action == ShellAction::CopySelectionTo ||
+        action == ShellAction::CopySelectionPromptDestination;
 }
 
 [[nodiscard]] constexpr bool shell_request_requires_destination(const ShellAction action) noexcept {
