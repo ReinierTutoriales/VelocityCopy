@@ -45,7 +45,9 @@ int main() {
 
     if (!contains(manifest, "Category=\"windows.comServer\"") ||
         !contains(manifest, "Category=\"windows.fileExplorerContextMenus\"") ||
-        !contains(manifest, "VelocityCopy.Shell.dll")) {
+        !contains(manifest, "VelocityCopy.Shell.dll") ||
+        !contains(manifest, "VelocityCopy.CopyTo") ||
+        !contains(manifest, "VelocityCopy.OpenBackground")) {
         return fail(3, "MSIX must own modern Explorer COM/context-menu registration");
     }
 
