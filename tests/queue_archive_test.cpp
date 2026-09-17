@@ -2,9 +2,62 @@
 #include "velocitycopy/queue_archive.hpp"
 
 #include <filesystem>
+#include <array>
+#include <cstdint>
 #include <fstream>
+#include <type_traits>
 
 namespace {
+
+template <typename T>
+requires std::is_trivially_copyable_v<T>
+void write_legacy_value(std::ofstream& stream, const T& value) {
+    stream.write(reinterpret_cast<const char*>(&value), sizeof(value));
+}
+
+void write_legacy_wstring(std::ofstream& stream, const std::wstring& value) {
+    const auto size = static_cast<std::uint32_t>(value.size());
+    write_legacy_value(stream, size);
+    if (size != 0) {
+        stream.write(
+            reinterpret_cast<const char*>(value.data()),
+            static_cast<std::streamsize>(size * sizeof(wchar_t)));
+    }
+}
+
+void write_legacy_path(std::ofstream& stream, const std::filesystem::path& path) {
+    write_legacy_wstring(stream, path.wstring());
+}
+
+bool write_legacy_v1_archive(
+    const std::filesystem::path& path,
+    const velocitycopy::CopyJob& job) {
+    std::ofstream stream(path, std::ios::binary | std::ios::trunc);
+    if (!stream) return false;
+
+    constexpr std::array<char, 8> magic{'V','C','Q','U','E','U','E','1'};
+    constexpr std::uint32_t version = 1;
+    constexpr std::uint8_t no_current_plan = 0;
+    stream.write(magic.data(), static_cast<std::streamsize>(magic.size()));
+    write_legacy_value(stream, version);
+    write_legacy_value(stream, no_current_plan);
+
+    const std::uint64_t append_count = 0;
+    write_legacy_value(stream, append_count);
+
+    const std::uint64_t queued_count = 1;
+    write_legacy_value(stream, queued_count);
+    write_legacy_path(stream, job.destination);
+    const auto layout = static_cast<std::uint8_t>(job.layout);
+    write_legacy_value(stream, layout);
+    write_legacy_wstring(stream, job.display_name);
+    const auto source_count = static_cast<std::uint64_t>(job.sources.size());
+    write_legacy_value(stream, source_count);
+    for (const auto& source : job.sources) {
+        write_legacy_path(stream, source);
+    }
+    return static_cast<bool>(stream);
+}
 
 velocitycopy::CopyPlan make_plan(const std::filesystem::path& root) {
     velocitycopy::CopyPlan plan{};
@@ -119,12 +172,35 @@ int wmain() {
         return 10;
     }
 
+    // Version 1 archives did not encode an operation. They remain readable and
+    // must default to Copy rather than guessing Move.
+    CopyJob legacy{};
+    legacy.sources = {root / L"legacy-source.txt"};
+    legacy.destination = root / L"legacy-destination";
+    legacy.layout = DestinationLayout::ContentsOnly;
+    legacy.display_name = L"Legacy queue";
+    if (!write_legacy_v1_archive(archive_path, legacy)) return 11;
+
+    loaded = store.load(archive_path);
+    if (!loaded || loaded->current_plan || !loaded->current_append_jobs.empty() ||
+        loaded->queued_jobs.size() != 1) {
+        return 12;
+    }
+    const auto& restored_legacy = loaded->queued_jobs.front();
+    if (restored_legacy.operation != FileOperation::Copy ||
+        restored_legacy.sources != legacy.sources ||
+        restored_legacy.destination != legacy.destination ||
+        restored_legacy.layout != legacy.layout ||
+        restored_legacy.display_name != legacy.display_name) {
+        return 13;
+    }
+
     // Corrupt or unknown formats must be rejected without partial recovery.
     {
         std::ofstream corrupt(archive_path, std::ios::binary | std::ios::trunc);
         corrupt << "not-a-velocitycopy-queue";
     }
-    if (store.load(archive_path)) return 11;
+    if (store.load(archive_path)) return 14;
 
     fs::remove_all(root, ec);
     return 0;
