@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <iterator>
 #include <mutex>
 #include <system_error>
 #include <thread>
