@@ -80,7 +80,7 @@ void MainWindow::OnQueueClick(IInspectable const&, RoutedEventArgs const&) {
         RefreshQueue();
         ResizeWindow(300);
     } else {
-        ResizeWindow(78);
+        ResizeWindow(72);
     }
 }
 
