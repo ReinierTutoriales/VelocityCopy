@@ -9,6 +9,7 @@ namespace {
 velocitycopy::CopyPlan make_plan(const std::filesystem::path& root) {
     velocitycopy::CopyPlan plan{};
     plan.destination_root = root / L"destino";
+    plan.operation = velocitycopy::FileOperation::Move;
     plan.source_roots = {root / L"origen-á"};
     plan.directories = {{plan.destination_root}, {plan.destination_root / L"sub"}};
     plan.files = {
@@ -46,6 +47,7 @@ int wmain() {
     append.sources = {root / L"append" / L"uno-extra.txt"};
     append.destination = root / L"destino";
     append.layout = DestinationLayout::ContentsOnly;
+    append.operation = FileOperation::Move;
     append.state = JobState::Running;
     append.display_name = L"Añadido a sesión";
     archive.current_append_jobs.push_back(append);
@@ -55,6 +57,7 @@ int wmain() {
     future.sources = {root / L"futuro" / L"A", root / L"futuro" / L"B"};
     future.destination = root / L"otro-destino";
     future.layout = DestinationLayout::ContentsOnly;
+    future.operation = FileOperation::Copy;
     future.state = JobState::Running;
     future.display_name = L"Sesión futura ñ";
     archive.queued_jobs.push_back(future);
@@ -82,6 +85,7 @@ int wmain() {
     if (restored.destination_root != archive.current_plan->destination_root ||
         restored.source_roots != archive.current_plan->source_roots ||
         restored.directories.size() != 2 || restored.files.size() != 3 ||
+        restored.operation != FileOperation::Move ||
         restored.total_bytes != 60 || restored.largest_file_bytes != 30 ||
         restored.files[0].id != 1 || restored.files[2].id != 3 ||
         restored.files[2].destination.filename() != L"tres.txt") {
@@ -91,14 +95,16 @@ int wmain() {
     const auto& restored_append = loaded->current_append_jobs.front();
     if (restored_append.id != 0 || restored_append.state != JobState::Pending ||
         restored_append.sources != append.sources || restored_append.destination != append.destination ||
-        restored_append.layout != append.layout || restored_append.display_name != append.display_name) {
+        restored_append.layout != append.layout || restored_append.operation != FileOperation::Move ||
+        restored_append.display_name != append.display_name) {
         return 7;
     }
 
     const auto& restored_job = loaded->queued_jobs.front();
     if (restored_job.id != 0 || restored_job.state != JobState::Pending ||
         restored_job.sources != future.sources || restored_job.destination != future.destination ||
-        restored_job.layout != future.layout || restored_job.display_name != future.display_name) {
+        restored_job.layout != future.layout || restored_job.operation != FileOperation::Copy ||
+        restored_job.display_name != future.display_name) {
         return 8;
     }
 
