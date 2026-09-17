@@ -55,11 +55,12 @@ std::vector<std::uint64_t> MainWindow::SelectedPendingIds() {
 void MainWindow::OnQueueClick(IInspectable const&, RoutedEventArgs const&) {
     const bool expanding = QueuePanel().Visibility() != Visibility::Visible;
     QueuePanel().Visibility(expanding ? Visibility::Visible : Visibility::Collapsed);
+    QueueButton().Content(box_value(hstring(expanding ? L"▾" : L"▸")));
     if (expanding) {
         RefreshQueue();
-        ResizeWindow(380);
+        ResizeWindow(320);
     } else {
-        ResizeWindow(156);
+        ResizeWindow(78);
     }
 }
 
