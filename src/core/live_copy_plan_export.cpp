@@ -14,6 +14,7 @@ CopyPlan LiveCopyPlan::export_remaining_plan() const {
     plan.directories = directories_;
     plan.source_roots = source_roots_;
     plan.destination_root = destination_root_;
+    plan.operation = operation_;
     plan.files.reserve(active_files_.size() + pending_files_.size());
 
     std::uint64_t next_id = 1;
