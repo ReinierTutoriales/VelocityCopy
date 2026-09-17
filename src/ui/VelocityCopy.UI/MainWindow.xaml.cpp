@@ -18,6 +18,23 @@ MainWindow::MainWindow() {
     ConfigureQueuePersistenceMenu();
 
     try {
+        Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
+        const auto pause = loader.GetString(L"ActionPause");
+        const auto skip = loader.GetString(L"ActionSkip");
+        const auto stop = loader.GetString(L"ActionStop");
+        const auto cancel = loader.GetString(L"ActionCancel");
+        ToolTipService::SetToolTip(PauseButton(), box_value(pause));
+        ToolTipService::SetToolTip(SkipButton(), box_value(skip));
+        ToolTipService::SetToolTip(StopButton(), box_value(stop));
+        ToolTipService::SetToolTip(CancelButton(), box_value(cancel));
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), pause);
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(SkipButton(), skip);
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(StopButton(), stop);
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(CancelButton(), cancel);
+    } catch (...) {
+    }
+
+    try {
         SystemBackdrop(Microsoft::UI::Xaml::Media::MicaBackdrop{});
     } catch (...) {
     }
