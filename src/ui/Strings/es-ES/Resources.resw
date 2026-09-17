@@ -9,6 +9,9 @@
   <data name="StatusCopying" xml:space="preserve"><value>Copiando</value></data>
   <data name="StatusPaused" xml:space="preserve"><value>Pausado</value></data>
   <data name="StatusCompleted" xml:space="preserve"><value>Copia completada</value></data>
+  <data name="StatusMoveCompleted" xml:space="preserve"><value>Movimiento completado</value></data>
+  <data name="StatusCancelled" xml:space="preserve"><value>Operación cancelada</value></data>
+  <data name="StatusFailed" xml:space="preserve"><value>La operación falló</value></data>
   <data name="QueuePendingFormat" xml:space="preserve"><value>{0} archivos pendientes</value></data>
   <data name="ActionPause" xml:space="preserve"><value>Pausar</value></data>
   <data name="ActionResume" xml:space="preserve"><value>Reanudar</value></data>
