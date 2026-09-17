@@ -29,6 +29,8 @@
   <data name="ActionQueueOptions" xml:space="preserve"><value>Opciones de cola</value></data>
   <data name="ActionShowQueue" xml:space="preserve"><value>Mostrar cola</value></data>
   <data name="ActionHideQueue" xml:space="preserve"><value>Ocultar cola</value></data>
+  <data name="TrayOpen" xml:space="preserve"><value>Abrir VelocityCopy</value></data>
+  <data name="TrayExit" xml:space="preserve"><value>Salir</value></data>
   <data name="DropPrompt" xml:space="preserve"><value>Suelta para copiar</value></data>
   <data name="DestinationPrompt" xml:space="preserve"><value>¿Dónde quieres copiar?</value></data>
   <data name="LayoutDirect" xml:space="preserve"><value>Copiar directamente</value></data>
