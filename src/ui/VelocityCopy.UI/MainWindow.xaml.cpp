@@ -51,6 +51,18 @@ MainWindow::MainWindow() {
 
     ExtendsContentIntoTitleBar(true);
     SetTitleBar(TitleBarDragRegion());
+
+    try {
+        auto app_window = AppWindow();
+        app_window.IsShownInSwitchers(true);
+        if (auto presenter = app_window.Presenter().try_as<Microsoft::UI::Windowing::OverlappedPresenter>()) {
+            presenter.IsMinimizable(true);
+            presenter.IsMaximizable(false);
+        }
+    } catch (...) {
+        // Keep the native WinUI defaults if the presenter cannot be adjusted.
+    }
+
     ResizeWindow(72);
 }
 
