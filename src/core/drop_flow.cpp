@@ -89,11 +89,13 @@ bool DropFlowController::back() noexcept {
     return false;
 }
 
-std::optional<CopyJob> DropFlowController::make_job(const std::uint64_t job_id) const {
+std::optional<CopyJob> DropFlowController::make_job(
+    const std::uint64_t job_id,
+    const FileOperation operation) const {
     if (stage_ != DropFlowStage::Ready || !selected_layout_ || destination_.empty() || items_.empty()) {
         return std::nullopt;
     }
-    return builder_.make_job(items_, destination_, *selected_layout_, job_id);
+    return builder_.make_job(items_, destination_, *selected_layout_, job_id, operation);
 }
 
 } // namespace velocitycopy
