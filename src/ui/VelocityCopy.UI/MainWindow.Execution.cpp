@@ -518,6 +518,11 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         SetExecutionButtonsIdle();
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
+        try {
+            Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
+            CurrentItemText().Text(loader.GetString(L"StatusCancelled"));
+        } catch (...) {
+        }
         return;
     }
 
@@ -537,6 +542,11 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         SetExecutionButtonsIdle();
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
+        try {
+            Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
+            CurrentItemText().Text(loader.GetString(L"StatusFailed"));
+        } catch (...) {
+        }
         ShowError();
         return;
     }
@@ -555,6 +565,14 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         GlobalProgress().Value(100);
         ProgressFill().Width(TransferSurface().ActualWidth());
         ProgressPercentText().Text(L"100%");
+        try {
+            Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
+            CurrentItemText().Text(loader.GetString(
+                active_operation_ == velocitycopy::FileOperation::Move
+                    ? L"StatusMoveCompleted"
+                    : L"StatusCompleted"));
+        } catch (...) {
+        }
         return;
     }
     StartNextQueuedSession();
