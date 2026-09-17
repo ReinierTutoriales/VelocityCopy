@@ -26,10 +26,13 @@ public:
     [[nodiscard]] ShellDispatchResult dispatch(const ShellRequest& request) noexcept;
 
     [[nodiscard]] const std::vector<std::filesystem::path>& staged_sources() const noexcept;
+    [[nodiscard]] FileOperation staged_operation() const noexcept;
+    void stage_sources(std::vector<std::filesystem::path> sources, FileOperation operation);
     void clear_staged_sources() noexcept;
 
 private:
     std::vector<std::filesystem::path> staged_sources_;
+    FileOperation staged_operation_{FileOperation::Copy};
     std::uint64_t next_job_id_{1};
 };
 
