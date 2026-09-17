@@ -64,10 +64,11 @@
                              Value="0"
                              Visibility="Collapsed" />
 
-                <Grid Padding="10,6">
+                <Grid Padding="8,4">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
@@ -78,19 +79,15 @@
                     <Border Grid.Column="0"
                             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                             BorderThickness="0,0,1,0"
-                            Padding="0,0,6,0"
-                            Margin="0,0,8,0">
-                        <Button x:Name="QueueButton"
-                                Click="OnQueueClick"
-                                IsEnabled="False"
-                                Content="▸"
-                                FontSize="15"
-                                FontWeight="SemiBold"
-                                Width="26"
-                                Height="30"
-                                Padding="0"
-                                BorderThickness="0"
-                                Background="Transparent" />
+                            Padding="0,0,8,0"
+                            Margin="0,0,8,0"
+                            VerticalAlignment="Center">
+                        <Image x:Name="BrandLogo"
+                               Source="Assets/VelocityCopy.png"
+                               Width="28"
+                               Height="28"
+                               Stretch="Uniform"
+                               IsHitTestVisible="False" />
                     </Border>
 
                     <Grid Grid.Column="1" MinWidth="0" VerticalAlignment="Center">
@@ -128,6 +125,7 @@
                                   Glyph="&#xE769;"
                                   FontSize="14" />
                     </Button>
+
                     <Button x:Name="SkipButton"
                             Grid.Column="3"
                             Click="OnSkipClick"
@@ -142,6 +140,7 @@
                                   Glyph="&#xE893;"
                                   FontSize="14" />
                     </Button>
+
                     <Button x:Name="StopButton"
                             Grid.Column="4"
                             Click="OnStopClick"
@@ -156,6 +155,7 @@
                                   Glyph="&#xE71A;"
                                   FontSize="13" />
                     </Button>
+
                     <Button x:Name="CancelButton"
                             Grid.Column="5"
                             Click="OnCancelClick"
@@ -170,17 +170,37 @@
                                   Glyph="&#xE711;"
                                   FontSize="13" />
                     </Button>
+
                     <Button x:Name="OptionsButton"
                             Grid.Column="6"
                             Width="30"
                             Height="30"
                             Padding="0"
                             BorderThickness="0"
-                            Background="Transparent">
+                            Background="Transparent"
+                            Margin="0,0,4,0">
                         <FontIcon FontFamily="Segoe Fluent Icons"
                                   Glyph="&#xE713;"
                                   FontSize="14" />
                     </Button>
+
+                    <Border Grid.Column="7"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1,0,0,0"
+                            Padding="6,0,0,0"
+                            VerticalAlignment="Center">
+                        <Button x:Name="QueueButton"
+                                Click="OnQueueClick"
+                                IsEnabled="False"
+                                Content="▸"
+                                FontSize="15"
+                                FontWeight="SemiBold"
+                                Width="28"
+                                Height="30"
+                                Padding="0"
+                                BorderThickness="0"
+                                Background="Transparent" />
+                    </Border>
                 </Grid>
             </Grid>
         </Border>
