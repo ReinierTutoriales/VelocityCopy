@@ -2,10 +2,12 @@
 
 #include <windows.h>
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <string>
 
 namespace fs = std::filesystem;
 
