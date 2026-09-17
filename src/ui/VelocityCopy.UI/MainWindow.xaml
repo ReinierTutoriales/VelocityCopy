@@ -101,42 +101,63 @@
                                     Spacing="8"
                                     Margin="0,1,0,0">
                             <TextBlock x:Name="SpeedText" Text="—" Opacity="0.66" FontSize="11" />
+                            <TextBlock x:Name="ProgressPercentText" Text="0%" Opacity="0.78" FontSize="11" FontWeight="SemiBold" />
                             <TextBlock x:Name="EtaText" Text="—" Opacity="0.66" FontSize="11" />
                         </StackPanel>
                     </Grid>
 
                     <Button x:Name="PauseButton"
-                            x:Uid="PauseButton"
                             Grid.Column="2"
                             Click="OnPauseClick"
                             IsEnabled="False"
-                            Padding="8,4"
-                            MinWidth="0"
-                            Margin="8,0,4,0" />
+                            Width="30"
+                            Height="30"
+                            Padding="0"
+                            BorderThickness="0"
+                            Margin="8,0,2,0">
+                        <FontIcon x:Name="PauseIcon"
+                                  FontFamily="Segoe Fluent Icons"
+                                  Glyph="&#xE769;"
+                                  FontSize="14" />
+                    </Button>
                     <Button x:Name="SkipButton"
-                            x:Uid="SkipButton"
                             Grid.Column="3"
                             Click="OnSkipClick"
                             IsEnabled="False"
-                            Padding="8,4"
-                            MinWidth="0"
-                            Margin="0,0,4,0" />
+                            Width="30"
+                            Height="30"
+                            Padding="0"
+                            BorderThickness="0"
+                            Margin="0,0,2,0">
+                        <FontIcon FontFamily="Segoe Fluent Icons"
+                                  Glyph="&#xE893;"
+                                  FontSize="14" />
+                    </Button>
                     <Button x:Name="StopButton"
-                            x:Uid="StopButton"
                             Grid.Column="4"
                             Click="OnStopClick"
                             IsEnabled="False"
-                            Padding="8,4"
-                            MinWidth="0"
-                            Margin="0,0,4,0" />
+                            Width="30"
+                            Height="30"
+                            Padding="0"
+                            BorderThickness="0"
+                            Margin="0,0,2,0">
+                        <FontIcon FontFamily="Segoe Fluent Icons"
+                                  Glyph="&#xE71A;"
+                                  FontSize="13" />
+                    </Button>
                     <Button x:Name="CancelButton"
-                            x:Uid="CancelButton"
                             Grid.Column="5"
                             Click="OnCancelClick"
                             IsEnabled="False"
-                            Padding="8,4"
-                            MinWidth="0"
-                            Margin="0,0,4,0" />
+                            Width="30"
+                            Height="30"
+                            Padding="0"
+                            BorderThickness="0">
+                        <FontIcon FontFamily="Segoe Fluent Icons"
+                                  Glyph="&#xE711;"
+                                  FontSize="13" />
+                    </Button>
                 </Grid>
             </Grid>
         </Border>
