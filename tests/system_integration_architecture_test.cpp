@@ -29,11 +29,12 @@ int main() {
     const auto manifest = read_all(root / "src/ui/VelocityCopy.UI/Package.appxmanifest");
     const auto app = read_all(root / "src/ui/VelocityCopy.UI/App.xaml.cpp");
     const auto shell = read_all(root / "src/shell/explorer_commands.cpp");
+    const auto window = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
     const auto workflow = read_all(root / ".github/workflows/build.yml");
     const auto installer = read_all(root / "tools/Install-VelocityCopy-Test.ps1");
     const auto docs = read_all(root / "docs/SYSTEM_INTEGRATION.md");
 
-    if (manifest.empty() || app.empty() || shell.empty() || workflow.empty() || installer.empty() || docs.empty()) {
+    if (manifest.empty() || app.empty() || shell.empty() || window.empty() || workflow.empty() || installer.empty() || docs.empty()) {
         return fail(1, "required integration source missing");
     }
 
@@ -64,22 +65,28 @@ int main() {
         return fail(5, "Explorer extension must stay bounded and IPC-only");
     }
 
+    if (!contains(window, "IsShownInSwitchers(true)") ||
+        !contains(window, "IsMinimizable(true)") ||
+        !contains(window, "IsMaximizable(false)")) {
+        return fail(6, "visible VelocityCopy window must behave as a compact normal taskbar app");
+    }
+
     if (!contains(workflow, "GenerateAppxPackageOnBuild=true") ||
         !contains(workflow, "Sign Windows test MSIX") ||
         !contains(workflow, "signtool") ||
         !contains(workflow, "VelocityCopy-Test.cer")) {
-        return fail(6, "CI must build and sign an installable test MSIX");
+        return fail(7, "CI must build and sign an installable test MSIX");
     }
 
     if (!contains(installer, "Import-Certificate") ||
         !contains(installer, "Add-AppxPackage") ||
         !contains(installer, "Remove-AppxPackage")) {
-        return fail(7, "test package must ship install and uninstall flow");
+        return fail(8, "test package must ship install and uninstall flow");
     }
 
     if (!contains(docs, "near-zero-CPU") || !contains(docs, "IExplorerCommand") ||
         !contains(docs, "does not hook Explorer")) {
-        return fail(8, "system-impact constraints must remain documented");
+        return fail(9, "system-impact constraints must remain documented");
     }
 
     return 0;
