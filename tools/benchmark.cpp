@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
+#include <string_view>
 
 namespace {
 
@@ -41,8 +42,9 @@ const wchar_t* seek_name(const velocitycopy::StorageProfile& profile) noexcept {
 } // namespace
 
 int wmain(int argc, wchar_t* argv[]) {
-    if (argc != 3) {
-        std::wcout << L"Usage: VelocityCopyBenchmark <source> <destination>\n";
+    const bool json_output = argc == 4 && std::wstring_view(argv[3]) == L"--json";
+    if (argc != 3 && !json_output) {
+        std::wcout << L"Usage: VelocityCopyBenchmark <source> <destination> [--json]\n";
         return 1;
     }
 
@@ -75,18 +77,20 @@ int wmain(int argc, wchar_t* argv[]) {
     velocitycopy::StrategySelector selector;
     const auto recommendation = selector.choose(source_profile, destination_profile, workload);
 
-    std::wcout << L"Source: " << storage_name(source_profile.kind)
-               << L" | " << seek_name(source_profile)
-               << L" | sector " << source_profile.logical_sector_bytes << L"/"
-               << source_profile.physical_sector_bytes << L"\n";
-    std::wcout << L"Destination: " << storage_name(destination_profile.kind)
-               << L" | " << seek_name(destination_profile)
-               << L" | sector " << destination_profile.logical_sector_bytes << L"/"
-               << destination_profile.physical_sector_bytes << L"\n";
-    std::wcout << L"Strategy candidate: " << strategy_name(recommendation.strategy)
-               << L" | suggested QD " << recommendation.suggested_queue_depth
-               << L" | buffer " << recommendation.suggested_buffer_bytes
-               << L" | async candidate " << (recommendation.async_iocp_candidate ? L"yes" : L"no") << L"\n";
+    if (!json_output) {
+        std::wcout << L"Source: " << storage_name(source_profile.kind)
+                   << L" | " << seek_name(source_profile)
+                   << L" | sector " << source_profile.logical_sector_bytes << L"/"
+                   << source_profile.physical_sector_bytes << L"\n";
+        std::wcout << L"Destination: " << storage_name(destination_profile.kind)
+                   << L" | " << seek_name(destination_profile)
+                   << L" | sector " << destination_profile.logical_sector_bytes << L"/"
+                   << destination_profile.physical_sector_bytes << L"\n";
+        std::wcout << L"Strategy candidate: " << strategy_name(recommendation.strategy)
+                   << L" | suggested QD " << recommendation.suggested_queue_depth
+                   << L" | buffer " << recommendation.suggested_buffer_bytes
+                   << L" | async candidate " << (recommendation.async_iocp_candidate ? L"yes" : L"no") << L"\n";
+    }
 
     const auto total_bytes = plan.total_bytes;
     velocitycopy::LiveCopyPlan live_plan(std::move(plan));
@@ -94,14 +98,16 @@ int wmain(int argc, wchar_t* argv[]) {
     velocitycopy::ExecutionControl control;
     const auto execution_options = executor.recommend_options(live_plan);
 
-    std::wcout << L"Production execution: " << strategy_name(execution_options.strategy)
-               << L" | workers " << execution_options.worker_count
-               << L" | flags 0x" << std::hex << execution_options.copy_flags << std::dec
-               << L" | buffer " << execution_options.suggested_buffer_bytes
-               << L" | async candidate " << (execution_options.async_iocp_candidate ? L"yes" : L"no")
-               << L" | compressed traffic "
-               << (((execution_options.copy_flags & COPY_FILE_REQUEST_COMPRESSED_TRAFFIC) != 0) ? L"yes" : L"no")
-               << L"\n";
+    if (!json_output) {
+        std::wcout << L"Production execution: " << strategy_name(execution_options.strategy)
+                   << L" | workers " << execution_options.worker_count
+                   << L" | flags 0x" << std::hex << execution_options.copy_flags << std::dec
+                   << L" | buffer " << execution_options.suggested_buffer_bytes
+                   << L" | async candidate " << (execution_options.async_iocp_candidate ? L"yes" : L"no")
+                   << L" | compressed traffic "
+                   << (((execution_options.copy_flags & COPY_FILE_REQUEST_COMPRESSED_TRAFFIC) != 0) ? L"yes" : L"no")
+                   << L"\n";
+    }
 
     const auto start = std::chrono::steady_clock::now();
     const auto result = executor.execute(live_plan, control, execution_options);
@@ -117,8 +123,29 @@ int wmain(int argc, wchar_t* argv[]) {
     const double mib = static_cast<double>(total_bytes) / (1024.0 * 1024.0);
     const double mib_per_second = elapsed.count() > 0.0 ? mib / elapsed.count() : 0.0;
 
-    std::wcout << std::fixed << std::setprecision(2)
-               << L"Copied " << mib << L" MiB in " << elapsed.count()
-               << L" s (" << mib_per_second << L" MiB/s)\n";
+    if (json_output) {
+        std::wcout << std::fixed << std::setprecision(6)
+                   << L"{\"source_kind\":\"" << storage_name(source_profile.kind)
+                   << L"\",\"destination_kind\":\"" << storage_name(destination_profile.kind)
+                   << L"\",\"source_seek\":\"" << seek_name(source_profile)
+                   << L"\",\"destination_seek\":\"" << seek_name(destination_profile)
+                   << L"\",\"total_bytes\":" << total_bytes
+                   << L",\"file_count\":" << workload.file_count
+                   << L",\"largest_file_bytes\":" << workload.largest_file_bytes
+                   << L",\"strategy\":\"" << strategy_name(execution_options.strategy)
+                   << L"\",\"workers\":" << execution_options.worker_count
+                   << L",\"copy_flags\":" << execution_options.copy_flags
+                   << L",\"buffer_bytes\":" << execution_options.suggested_buffer_bytes
+                   << L",\"async_candidate\":" << (execution_options.async_iocp_candidate ? L"true" : L"false")
+                   << L",\"compressed_traffic\":"
+                   << (((execution_options.copy_flags & COPY_FILE_REQUEST_COMPRESSED_TRAFFIC) != 0) ? L"true" : L"false")
+                   << L",\"elapsed_seconds\":" << elapsed.count()
+                   << L",\"mib_per_second\":" << mib_per_second
+                   << L"}\n";
+    } else {
+        std::wcout << std::fixed << std::setprecision(2)
+                   << L"Copied " << mib << L" MiB in " << elapsed.count()
+                   << L" s (" << mib_per_second << L" MiB/s)\n";
+    }
     return 0;
 }
