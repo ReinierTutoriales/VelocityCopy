@@ -6,6 +6,8 @@ STRINGTABLE
 BEGIN
     IDS_SHELL_COPY_WITH_VELOCITYCOPY  "Copy with VelocityCopy"
     IDS_SHELL_PASTE_WITH_VELOCITYCOPY "Paste with VelocityCopy"
+    IDS_SHELL_COPY_TO_VELOCITYCOPY     "Copy to... with VelocityCopy"
+    IDS_SHELL_OPEN_VELOCITYCOPY        "Open VelocityCopy"
 END
 
 LANGUAGE LANG_SPANISH, SUBLANG_SPANISH_MODERN
@@ -13,4 +15,6 @@ STRINGTABLE
 BEGIN
     IDS_SHELL_COPY_WITH_VELOCITYCOPY  "Copiar con VelocityCopy"
     IDS_SHELL_PASTE_WITH_VELOCITYCOPY "Pegar con VelocityCopy"
+    IDS_SHELL_COPY_TO_VELOCITYCOPY     "Copiar a... con VelocityCopy"
+    IDS_SHELL_OPEN_VELOCITYCOPY        "Abrir VelocityCopy"
 END
