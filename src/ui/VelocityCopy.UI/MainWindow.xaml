@@ -45,7 +45,8 @@
         <Border x:Name="TransferSurface"
                 Grid.Row="1"
                 Height="46"
-                CornerRadius="10"
+                CornerRadius="23"
+                SizeChanged="OnTransferSurfaceSizeChanged"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1">
@@ -55,7 +56,7 @@
                         HorizontalAlignment="Left"
                         Background="{ThemeResource AccentFillColorDefaultBrush}"
                         Opacity="0.16"
-                        CornerRadius="10" />
+                        CornerRadius="23" />
 
                 <ProgressBar x:Name="GlobalProgress"
                              Minimum="0"
