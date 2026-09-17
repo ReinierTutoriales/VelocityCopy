@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <string>
 #include <vector>
 
@@ -15,9 +14,6 @@ namespace fs = std::filesystem;
 
 namespace {
 
-void checkpoint(const char* text) {
-    std::cerr << "pause-resume: " << text << '\n' << std::flush;
-}
 
 bool write_source(const fs::path& path) {
     std::ofstream stream(path, std::ios::binary | std::ios::trunc);
@@ -61,7 +57,6 @@ bool same_contents(const fs::path& left, const fs::path& right) {
 } // namespace
 
 int wmain() {
-    checkpoint("prepare");
     const auto base = fs::temp_directory_path() /
         (L"VelocityCopyPauseResumeTest-" + std::to_wstring(GetCurrentProcessId()));
     const auto source = base / L"source.bin";
@@ -75,8 +70,6 @@ int wmain() {
         fs::remove_all(base, ec);
         return 1;
     }
-
-    checkpoint("pause-call");
     velocitycopy::CopyEngine engine;
     bool pause_requested = false;
     const auto paused = engine.copy_file(
@@ -86,12 +79,10 @@ int wmain() {
             if (!pause_requested && progress.transferred_bytes != 0 &&
                 progress.transferred_bytes < progress.total_bytes) {
                 pause_requested = true;
-                checkpoint("pause-requested");
                 return velocitycopy::CopyDecision::Pause;
             }
             return velocitycopy::CopyDecision::Continue;
         });
-    checkpoint("pause-returned");
 
     if (!pause_requested || paused.success ||
         paused.native_code != static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_PAUSED)) ||
@@ -99,8 +90,6 @@ int wmain() {
         fs::remove_all(base, ec);
         return 2;
     }
-
-    checkpoint("inspect-partial");
     const auto partial_size = fs::file_size(destination, ec);
     if (ec || partial_size == 0 || partial_size >= fs::file_size(source, ec)) {
         fs::remove_all(base, ec);
@@ -110,16 +99,11 @@ int wmain() {
     velocitycopy::CopyOptions resume_options{};
     resume_options.resume_from_pause = true;
     resume_options.existing_destination = velocitycopy::ExistingDestinationPolicy::Fail;
-
-    checkpoint("resume-call");
     const auto resumed = engine.copy_file(source, destination, resume_options);
-    checkpoint("resume-returned");
     if (!resumed.success || resumed.native_code != S_OK) {
         fs::remove_all(base, ec);
         return 4;
     }
-
-    checkpoint("verify");
     const auto source_size = fs::file_size(source, ec);
     if (ec) {
         fs::remove_all(base, ec);
@@ -130,8 +114,6 @@ int wmain() {
         fs::remove_all(base, ec);
         return 6;
     }
-
-    checkpoint("done");
     fs::remove_all(base, ec);
     return 0;
 }
