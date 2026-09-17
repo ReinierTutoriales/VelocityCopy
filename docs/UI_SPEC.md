@@ -6,8 +6,8 @@ VelocityCopy is a compact Windows 11 utility, not a full-screen file manager. Th
 
 Use effective pixels (epx) and keep dimensions in multiples of 4 where practical.
 
-- Default collapsed size: **460 × 156 epx**
-- Expanded queue size: **460 × 380 epx**
+- Default collapsed size: **460 × 72 epx**
+- Expanded queue size: **460 × 300 epx**
 - Preferred width range: **440–520 epx**
 - Minimum practical width: **420 epx**
 - Outer content gutter: **12 epx**
@@ -19,37 +19,30 @@ These are defaults, not architectural limits. The layout must remain responsive 
 
 ## Collapsed composition
 
-The primary window contains only:
+The collapsed window is a single compact transfer surface:
 
-1. compact title bar / app identity
+1. a left disclosure triangle for the copy queue
 2. current item name
-3. one global progress bar
-4. throughput + ETA
-5. essential transport controls
-6. one disclosure affordance for the queue
+3. throughput + ETA as secondary metadata
+4. essential transport controls
+5. global progress expressed by the transfer surface itself
 
 Conceptual layout:
 
 ```
 ╭────────────────────────────────────────────╮
-│  VelocityCopy                         — □ × │
-│                                            │
-│  Windows11_24H2.iso                        │
-│  ███████████████████░░░░░░░   72%         │
-│  684 MB/s                      1 min 42 s  │
-│                                            │
-│  ⏸ Pausar   ⏭ Saltar   ■ Detener     ⋯   │
-│  ▾ 2,318 archivos pendientes               │
+│ ▸  Windows11_24H2.iso    684 MB/s  1m42s  ⏸ × │
 ╰────────────────────────────────────────────╯
 ```
 
-The current item name is always directly above the progress bar. Long names use end ellipsis and expose the full path through tooltip/details rather than increasing window height.
+The left disclosure changes orientation when the queue is expanded. The current item uses end ellipsis rather than increasing the collapsed height.
 
-## Progress bar
+## Integrated progress surface
 
-- One global progress bar only.
-- Preferred visual height: **6–8 epx**.
-- Horizontal margin follows the 12 epx outer gutter.
+- There is one global progress indicator only.
+- Do not draw a separate progress strip in the collapsed window.
+- Progress fills the compact transfer surface from left to right behind its content.
+- Keep the fill visually subordinate so text and controls retain contrast.
 - Do not animate continuously when no progress is occurring.
 - Update UI from periodic snapshots rather than per I/O completion.
 
@@ -78,7 +71,7 @@ Use WinUI compact density where appropriate for a desktop utility. Do not reduce
 
 The queue is collapsed by default. Expanding it must not create an entirely different application window.
 
-- target expanded height: ~380 epx
+- target expanded height: ~300 epx
 - resizable later; 380 epx is the default, not a fixed limit
 - virtualized item presentation
 - drag/drop reordering
