@@ -53,10 +53,19 @@ int wmain() {
         return 4;
     }
 
+    session.stage_sources(
+        {std::filesystem::path(L"C:\\Move\\cut.bin")},
+        FileOperation::Move);
+    const auto move_paste = session.dispatch(paste);
+    if (move_paste.status != ShellDispatchStatus::Accepted || !move_paste.job ||
+        move_paste.job->operation != FileOperation::Move) {
+        return 5;
+    }
+
     session.clear_staged_sources();
     const auto empty_paste = session.dispatch(paste);
     if (empty_paste.status != ShellDispatchStatus::NoStagedSources || empty_paste.job) {
-        return 5;
+        return 6;
     }
 
     std::wcout << L"VelocityCopy shell session test passed.\n";
