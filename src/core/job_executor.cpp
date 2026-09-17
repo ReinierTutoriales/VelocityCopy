@@ -96,16 +96,24 @@ JobExecutionOptions recommend_for_roots(const StorageProfiler& profiler, const S
     const std::vector<std::filesystem::path>& source_roots, const std::filesystem::path& destination_root,
     const WorkloadProfile& workload) noexcept {
     JobExecutionOptions options{};
-    if (source_roots.empty() || destination_root.empty() || workload.file_count < 2) return options;
+    if (source_roots.empty() || destination_root.empty() || workload.file_count == 0) return options;
     const auto destination = profiler.inspect(destination_root);
     std::uint32_t worker_count = kMaxCopyWorkers;
+    bool first_recommendation = true;
+    std::uint32_t shared_copy_flags = 0;
     for (const auto& source_path : source_roots) {
         const auto source = profiler.inspect(source_path);
         const auto recommendation = selector.choose(source, destination, workload);
         worker_count = std::min(worker_count, recommendation.suggested_queue_depth);
-        if (worker_count <= 1) return options;
+        if (first_recommendation) {
+            shared_copy_flags = recommendation.copy_flags;
+            first_recommendation = false;
+        } else {
+            shared_copy_flags &= recommendation.copy_flags;
+        }
     }
     options.worker_count = std::clamp<std::uint32_t>(worker_count, 1, static_cast<std::uint32_t>(std::min<std::uint64_t>(workload.file_count, kMaxCopyWorkers)));
+    options.copy_flags = shared_copy_flags;
     return options;
 }
 } // namespace
@@ -220,7 +228,7 @@ JobResult JobExecutor::execute(LiveCopyPlan& plan, ExecutionControl& control, co
                         for (;;) {
                             bool skip_requested = false;
                             const auto existing_policy = options.replace_file_id == file_id ? ExistingDestinationPolicy::Replace : options.existing_destination;
-                            const auto result = engine_.copy_file(file->source, file->destination, CopyOptions{resume_from_pause, existing_policy}, [&](const CopyProgress& file_progress) {
+                            const auto result = engine_.copy_file(file->source, file->destination, CopyOptions{resume_from_pause, existing_policy, options.copy_flags}, [&](const CopyProgress& file_progress) {
                                 progress_state.update_active(*file, file_progress.transferred_bytes);
                                 if (skip_allowed && control.consume_skip(file_id)) { skip_requested = true; return CopyDecision::Skip; }
                                 const auto current = control.directive();
@@ -254,18 +262,24 @@ JobResult JobExecutor::execute(LiveCopyPlan& plan, ExecutionControl& control, co
                 } catch (const std::filesystem::filesystem_error& error) {
                     const auto code = error.code().value(); const auto native = static_cast<std::int32_t>(HRESULT_FROM_WIN32(code == 0 ? ERROR_INVALID_DATA : code));
                     result_state.record_error(native); control.request_cancel(); worker_results[worker_index] = {false, false, native, false};
-                } catch (...) { result_state.record_error(static_cast<std::int32_t>(E_FAIL)); control.request_cancel(); worker_results[worker_index] = {false, false, static_cast<std::int32_t>(E_FAIL), false}; }
+                } catch (...) {
+                    result_state.record_error(static_cast<std::int32_t>(E_FAIL)); control.request_cancel(); worker_results[worker_index] = {false, false, static_cast<std::int32_t>(E_FAIL), false};
+                }
             });
         }
-        for (auto& worker : workers) worker.join();
+        workers.clear();
+
         if (result_state.error() != S_OK) return result_state.failure_result();
-        bool stopped = false, cancelled = false;
-        for (const auto& result : worker_results) { stopped = stopped || result.stopped; cancelled = cancelled || result.cancelled; }
-        if (stopped || control.directive() == ExecutionDirective::Stop) return {false, false, S_OK, true};
-        if (cancelled || control.directive() == ExecutionDirective::Cancel) return {false, true, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED)), false};
-        return {true, false, S_OK};
-    } catch (const std::filesystem::filesystem_error& error) { const auto code = error.code().value(); return {false, false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(code == 0 ? ERROR_INVALID_DATA : code))}; }
-    catch (...) { return {false, false, static_cast<std::int32_t>(E_FAIL)}; }
+        for (const auto& worker_result : worker_results) {
+            if (worker_result.cancelled) return worker_result;
+        }
+        for (const auto& worker_result : worker_results) {
+            if (worker_result.stopped) return worker_result;
+        }
+        return {true, false, S_OK, false};
+    } catch (const std::filesystem::filesystem_error& error) {
+        const auto code = error.code().value(); return {false, false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(code == 0 ? ERROR_INVALID_DATA : code))};
+    } catch (...) { return {false, false, static_cast<std::int32_t>(E_FAIL)}; }
 }
 
 } // namespace velocitycopy
