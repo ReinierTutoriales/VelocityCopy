@@ -47,13 +47,14 @@ int main() {
     const auto cmake = read_all(root / "CMakeLists.txt");
     const auto engine_h = read_all(root / "src/core/include/velocitycopy/copy_engine.hpp");
     const auto engine_cpp = read_all(root / "src/core/copy_engine.cpp");
+    const auto live_h = read_all(root / "src/core/include/velocitycopy/live_copy_plan.hpp");
     const auto executor_h = read_all(root / "src/core/include/velocitycopy/job_executor.hpp");
     const auto executor_cpp = read_all(root / "src/core/job_executor.cpp");
 
     if (app.empty() || shell.empty() || xaml.empty() || header.empty() || window.empty() ||
         append.empty() || conflict.empty() || execution.empty() || queue.empty() || project.empty() ||
         manifest.empty() || explorer.empty() || cli.empty() || cmake.empty() ||
-        engine_h.empty() || engine_cpp.empty() || executor_h.empty() || executor_cpp.empty()) {
+        engine_h.empty() || engine_cpp.empty() || live_h.empty() || executor_h.empty() || executor_cpp.empty()) {
         return fail(1, "required production source missing");
     }
 
@@ -189,6 +190,24 @@ int main() {
         !contains(conflict, "remove_pending_file(conflict.conflict_file_id)") ||
         !contains(conflict, "CancelCurrentSession()")) {
         return fail(20, "native per-file conflict resolution route incomplete");
+    }
+
+    if (!contains(live_h, "LiveDirectoryBatch") ||
+        !contains(live_h, "pending_directories() const") ||
+        !contains(live_h, "mark_directories_materialized") ||
+        !contains(live_h, "has_pending_directories() const noexcept") ||
+        !contains(executor_cpp, "const auto directory_batch = plan.pending_directories()") ||
+        !contains(executor_cpp, "plan.mark_directories_materialized(directory_batch.through_index)") ||
+        contains(append, "create_directories") || contains(execution, "create_directories") ||
+        contains(queue, "create_directories") || contains(conflict, "create_directories")) {
+        return fail(21, "JobExecutor must be the sole live-directory materializer");
+    }
+
+    if (!contains(execution, "plan->remaining_files() != 0 || plan->has_pending_directories()") ||
+        !contains(execution, "live_plan_->remaining_files() == 0 && !live_plan_->has_pending_directories()") ||
+        !contains(execution, "live_plan_->remaining_files() != 0 || live_plan_->has_pending_directories()") ||
+        !contains(execution, "live_plan_->remaining_files() != 0 ||\n        live_plan_->has_pending_directories()")) {
+        return fail(22, "directory-only live work must survive run, Resume, conflict and finalization states");
     }
 
     return 0;
