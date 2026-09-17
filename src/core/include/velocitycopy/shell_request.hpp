@@ -24,6 +24,10 @@ struct ShellRequest {
     DestinationLayout layout{DestinationLayout::PreserveSourceFolder};
 };
 
+[[nodiscard]] constexpr bool shell_action_valid(const ShellAction action) noexcept {
+    return action >= ShellAction::CopySelection && action <= ShellAction::OpenVelocityCopy;
+}
+
 [[nodiscard]] constexpr bool shell_request_requires_sources(const ShellAction action) noexcept {
     return action == ShellAction::CopySelection ||
         action == ShellAction::CopySelectionTo ||
@@ -35,7 +39,7 @@ struct ShellRequest {
 }
 
 [[nodiscard]] inline bool shell_request_valid(const ShellRequest& request) noexcept {
-    if (request.version != 1) {
+    if (request.version != 1 || !shell_action_valid(request.action)) {
         return false;
     }
     if (shell_request_requires_sources(request.action) && request.sources.empty()) {
