@@ -45,11 +45,13 @@ int wmain() {
         items,
         destination,
         velocitycopy::DestinationLayout::PreserveSourceFolder,
-        42);
+        42,
+        velocitycopy::FileOperation::Move);
 
     if (job.id != 42 ||
         job.destination != destination ||
         job.layout != velocitycopy::DestinationLayout::PreserveSourceFolder ||
+        job.operation != velocitycopy::FileOperation::Move ||
         job.sources.size() != items.size() ||
         job.sources[0] != items[0].source) {
         return 6;
