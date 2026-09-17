@@ -18,13 +18,15 @@ VelocityCopy integrates deeply enough to feel native on Windows 11 without repla
 - There is never more than one primary VelocityCopy process per interactive Windows session.
 - Windows and the user remain authoritative: the startup entry may be disabled from Settings or Task Manager and VelocityCopy must not fight that choice.
 
-## Taskbar and window behavior
+## Tray, taskbar and window behavior
 
-- When the user-visible copy window is open, VelocityCopy behaves as a normal Windows desktop app: it appears in the taskbar and system switchers.
-- The compact window is explicitly minimizable and intentionally not maximizable.
-- Minimizing never pauses, cancels or stops the active transfer; execution is owned by the core worker, not by window visibility.
-- Restoring from the taskbar returns to the same live queue/progress state.
-- Silent sign-in startup does not activate the window, so it must not create a visible taskbar button until the app is actually shown.
+- VelocityCopy owns a persistent notification-area icon while the resident process is running.
+- When the compact window is visible it behaves as a normal Windows desktop app and may appear in the taskbar/system switchers.
+- Minimize and close hide the compact window to the notification area instead of terminating the resident process.
+- Minimizing or hiding never pauses, cancels or stops an active transfer; execution is owned by the core worker, not by window visibility.
+- Clicking the tray icon restores the same live queue/progress state.
+- The tray menu exposes Open VelocityCopy and Exit. Exit is the explicit action that terminates the resident process.
+- Silent sign-in startup creates the tray presence without activating the compact window or creating a taskbar button.
 
 ## Resident impact
 
@@ -35,6 +37,7 @@ The resident process exists only to provide near-instant Explorer handoff and st
 - no network polling
 - no filesystem watcher farm
 - no global keyboard or mouse hooks
+- clipboard file capture uses AddClipboardFormatListener events, not polling
 - no periodic benchmark
 - no copy worker until work exists
 - IPC blocks on a local named pipe instead of polling
@@ -55,7 +58,7 @@ Explorer integration uses the Windows 11 packaged desktop model:
 - all enumeration, planning, conflicts, queue state and I/O remain in the VelocityCopy app process
 - IPC or launch failure must never destabilize Explorer
 
-VelocityCopy does not hook Explorer, replace Ctrl+C/Ctrl+V globally, patch explorer.exe, install a kernel driver, or add a permanently active helper service.
+VelocityCopy does not hook Explorer, patch explorer.exe, install a kernel driver, or add a permanently active helper service. It observes normal file Copy/Cut clipboard updates using AddClipboardFormatListener and stages CF_HDROP paths, including Preferred DropEffect so Cut becomes Move. Global Ctrl+V remains owned by Windows; VelocityCopy paste is invoked through its Explorer command surface until a stable public interception path exists.
 
 ## Process model
 
