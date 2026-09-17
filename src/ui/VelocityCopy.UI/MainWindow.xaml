@@ -207,18 +207,33 @@
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
                 <Button x:Name="QueueMoveUpButton"
-                        x:Uid="QueueMoveUpButton"
                         Click="OnQueueMoveUpClick"
-                        Margin="0,0,6,0" />
+                        Width="30"
+                        Height="30"
+                        Padding="0"
+                        BorderThickness="0"
+                        Margin="0,0,4,0">
+                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE70E;" FontSize="13" />
+                </Button>
                 <Button x:Name="QueueMoveDownButton"
-                        x:Uid="QueueMoveDownButton"
                         Grid.Column="1"
                         Click="OnQueueMoveDownClick"
-                        Margin="0,0,6,0" />
+                        Width="30"
+                        Height="30"
+                        Padding="0"
+                        BorderThickness="0"
+                        Margin="0,0,4,0">
+                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE70D;" FontSize="13" />
+                </Button>
                 <Button x:Name="QueueRemoveButton"
-                        x:Uid="QueueRemoveButton"
                         Grid.Column="2"
-                        Click="OnQueueRemoveClick" />
+                        Click="OnQueueRemoveClick"
+                        Width="30"
+                        Height="30"
+                        Padding="0"
+                        BorderThickness="0">
+                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74D;" FontSize="13" />
+                </Button>
             </Grid>
         </Grid>
 
