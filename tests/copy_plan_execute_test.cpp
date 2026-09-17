@@ -57,6 +57,55 @@ int wmain() {
         return 5;
     }
 
+    const auto move_source_root = base / L"move-source";
+    const auto move_destination_root = base / L"move-destination";
+    const auto move_source = move_source_root / L"payload.txt";
+    const auto move_destination = move_destination_root / L"payload.txt";
+
+    fs::create_directories(move_source_root, ec);
+    if (ec) {
+        fs::remove_all(base, ec);
+        return 6;
+    }
+    {
+        std::ofstream stream(move_source, std::ios::binary | std::ios::trunc);
+        stream << "move-plan-adapter";
+        if (!stream) {
+            fs::remove_all(base, ec);
+            return 7;
+        }
+    }
+
+    velocitycopy::CopyPlan move_plan{};
+    move_plan.operation = velocitycopy::FileOperation::Move;
+    move_plan.directories.push_back({move_destination_root});
+    move_plan.files.push_back({1, move_source, move_destination, fs::file_size(move_source, ec)});
+    if (ec) {
+        fs::remove_all(base, ec);
+        return 8;
+    }
+    move_plan.source_roots.push_back(move_source_root);
+    move_plan.destination_root = move_destination_root;
+    move_plan.total_bytes = move_plan.files.front().size;
+    move_plan.largest_file_bytes = move_plan.files.front().size;
+
+    const auto move_result = executor.execute(move_plan);
+    if (!move_result.success || move_result.cancelled || move_result.stopped ||
+        !fs::is_regular_file(move_destination) || fs::exists(move_source) ||
+        fs::exists(move_source_root)) {
+        fs::remove_all(base, ec);
+        return 9;
+    }
+
+    std::ifstream moved(move_destination, std::ios::binary);
+    const std::string moved_contents{
+        std::istreambuf_iterator<char>(moved),
+        std::istreambuf_iterator<char>()};
+    if (moved_contents != "move-plan-adapter") {
+        fs::remove_all(base, ec);
+        return 10;
+    }
+
     fs::remove_all(base, ec);
     return 0;
 }
