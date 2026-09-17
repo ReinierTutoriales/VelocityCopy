@@ -71,7 +71,7 @@ void MainWindow::OnQueueClick(IInspectable const&, RoutedEventArgs const&) {
     QueueButton().Content(box_value(hstring(expanding ? L"▾" : L"▸")));
     if (expanding) {
         RefreshQueue();
-        ResizeWindow(320);
+        ResizeWindow(300);
     } else {
         ResizeWindow(78);
     }
