@@ -206,7 +206,8 @@ int main() {
     if (!contains(execution, "plan->remaining_files() != 0 || plan->has_pending_directories()") ||
         !contains(execution, "live_plan_->remaining_files() == 0 && !live_plan_->has_pending_directories()") ||
         !contains(execution, "live_plan_->remaining_files() != 0 || live_plan_->has_pending_directories()") ||
-        !contains(execution, "live_plan_->remaining_files() != 0 ||\n        live_plan_->has_pending_directories()")) {
+        !contains(conflict, "live_plan_->remaining_files() == 0 && !live_plan_->has_pending_directories()") ||
+        !contains(conflict, "live_plan_->remaining_files() != 0 ||\n        live_plan_->has_pending_directories()")) {
         return fail(22, "directory-only live work must survive run, Resume, conflict and finalization states");
     }
 
