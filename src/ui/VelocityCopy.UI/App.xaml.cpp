@@ -61,6 +61,16 @@ bool is_stage_only_activation(const std::optional<velocitycopy::ShellRequest>& r
         velocitycopy::shell_request_valid(*request);
 }
 
+bool is_startup_activation() noexcept {
+    try {
+        const auto args = Microsoft::Windows::AppLifecycle::AppInstance::GetCurrent().GetActivatedEventArgs();
+        return args &&
+            args.Kind() == Microsoft::Windows::AppLifecycle::ExtendedActivationKind::StartupTask;
+    } catch (...) {
+        return false;
+    }
+}
+
 } // namespace
 
 App::App() {
@@ -80,6 +90,7 @@ App::~App() {
 }
 
 void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
+    const bool startup_activation = is_startup_activation();
     const auto initial_request = inherited_shell_request();
 
     instance_ = std::make_unique<velocitycopy::SingleInstance>();
@@ -91,6 +102,10 @@ void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
     if (!instance_->primary()) {
         if (initial_request) {
             (void)velocitycopy::send_shell_request(*initial_request, 1000);
+        } else if (!startup_activation) {
+            velocitycopy::ShellRequest open{};
+            open.action = velocitycopy::ShellAction::OpenVelocityCopy;
+            (void)velocitycopy::send_shell_request(open, 1000);
         }
         Microsoft::UI::Xaml::Application::Current().Exit();
         return;
@@ -98,7 +113,7 @@ void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
 
     auto main_window = winrt::make<MainWindow>();
     window_ = main_window;
-    if (!is_stage_only_activation(initial_request)) {
+    if (!startup_activation && !is_stage_only_activation(initial_request)) {
         window_.Activate();
     }
 
