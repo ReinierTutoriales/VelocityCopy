@@ -74,8 +74,13 @@ int main() {
         !contains(tray, "CFSTR_PREFERREDDROPEFFECT") ||
         !contains(tray, "SC_MINIMIZE") ||
         !contains(tray, "WM_CLOSE") ||
-        contains(tray, "SetWindowsHookEx")) {
-        return fail(6, "resident UI must use tray plus event-driven clipboard capture without global hooks");
+        !contains(tray, "SetWindowsHookExW") ||
+        !contains(tray, "WH_KEYBOARD_LL") ||
+        !contains(tray, "is_explorer_process") ||
+        !contains(tray, "IsClipboardFormatAvailable(CF_HDROP)") ||
+        !contains(tray, "explorer_folder_for_window") ||
+        !contains(tray, "CallNextHookEx")) {
+        return fail(6, "resident UI must scope Ctrl-V interception to valid Explorer file pastes");
     }
 
     if (!contains(workflow, "GenerateAppxPackageOnBuild=true") ||
