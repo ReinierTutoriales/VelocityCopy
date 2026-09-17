@@ -64,6 +64,7 @@ private:
     };
 
     winrt::fire_and_forget HandleDropAsync(Windows::ApplicationModel::DataTransfer::DataPackageView data_view);
+    winrt::fire_and_forget BeginShellDestinationAsync(std::vector<std::filesystem::path> sources);
     winrt::fire_and_forget BeginShellLayoutAsync(velocitycopy::CopyJob job);
     winrt::fire_and_forget BrowseAsync();
     winrt::fire_and_forget ShowConflictDialogAsync(velocitycopy::JobResult conflict);
