@@ -76,11 +76,11 @@ $bundledCert = [System.Security.Cryptography.X509Certificates.X509Certificate2]:
 $signature = Get-AuthenticodeSignature -FilePath $main.FullName
 if (-not $signature.SignerCertificate) {
     $bundledCert.Dispose()
-    throw "VelocityCopy MSIX has no signer certificate."
+    throw "VelocityCopy package has no signer certificate."
 }
 if ($signature.SignerCertificate.Thumbprint -ne $bundledCert.Thumbprint) {
     $bundledCert.Dispose()
-    throw "Bundled certificate does not match the VelocityCopy MSIX signer."
+    throw "Bundled certificate does not match the VelocityCopy package signer."
 }
 
 $trustedPath = "$machineStore\$($bundledCert.Thumbprint)"
