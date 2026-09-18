@@ -375,6 +375,8 @@ void MainWindow::OnStopClick(IInspectable const&, RoutedEventArgs const&) {
     execution_control_->request_stop();
     PauseButton().IsEnabled(false);
     StopButton().IsEnabled(false);
+    SpeedText().Text(L"—");
+    EtaText().Text(L"—");
     RefreshExecutionMenuState();
 }
 
