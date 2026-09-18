@@ -173,6 +173,9 @@ void MainWindow::LoadDestinations() {
     ++destination_navigation_generation_;
     DestinationLoadingRing().IsActive(false);
     DestinationLoadingRing().Visibility(Visibility::Collapsed);
+    DestinationItems().IsEnabled(true);
+    DestinationBackButton().IsEnabled(true);
+    ChooseCurrentFolderButton().IsEnabled(true);
     current_destination_folder_.clear();
     DestinationBrowserHeader().Visibility(Visibility::Collapsed);
     ChooseCurrentFolderButton().Visibility(Visibility::Collapsed);
