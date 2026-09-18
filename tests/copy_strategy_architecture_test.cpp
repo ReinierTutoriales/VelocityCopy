@@ -33,10 +33,20 @@ int main() {
     const auto engine_h = read_all(root / "src/core/include/velocitycopy/copy_engine.hpp");
     const auto engine_cpp = read_all(root / "src/core/copy_engine.cpp");
     const auto benchmark_cpp = read_all(root / "tools/benchmark.cpp");
+    const auto profiler_h = read_all(root / "src/core/include/velocitycopy/storage_profiler.hpp");
+    const auto profiler_cpp = read_all(root / "src/core/storage_profiler.cpp");
 
     if (selector_h.empty() || selector_cpp.empty() || executor_h.empty() || executor_cpp.empty() ||
-        engine_h.empty() || engine_cpp.empty() || benchmark_cpp.empty()) {
+        engine_h.empty() || engine_cpp.empty() || benchmark_cpp.empty() || profiler_h.empty() || profiler_cpp.empty()) {
         return fail(1, "required production source missing");
+    }
+
+    if (!contains(profiler_h, "std::uint32_t device_number{}") ||
+        !contains(profiler_h, "bool device_number_available{}") ||
+        !contains(profiler_cpp, "GetVolumeNameForVolumeMountPointW") ||
+        !contains(profiler_cpp, "IOCTL_STORAGE_GET_DEVICE_NUMBER") ||
+        !contains(profiler_cpp, "device_path.pop_back()")) {
+        return fail(11, "storage profiling must resolve mounted volumes and expose physical device identity");
     }
 
     if (!contains(selector_h, "std::uint32_t copy_flags{}") ||
