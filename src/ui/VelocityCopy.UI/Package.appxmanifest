@@ -31,7 +31,7 @@
       <Extensions>
         <desktop:Extension
           Category="windows.startupTask"
-          Executable="$targetnametoken$.exe"
+          Executable="VelocityCopy.WinUI.exe"
           EntryPoint="Windows.FullTrustApplication">
           <desktop:StartupTask
             TaskId="VelocityCopyStartup"
