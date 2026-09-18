@@ -120,19 +120,22 @@ int main() {
         !contains(package_workflow, "Build WinUI 3 ARM64 Release and MSIX") ||
         !contains(package_workflow, "/p:Platform=ARM64") ||
         !contains(package_workflow, "AppPackages-ARM64") ||
-        !contains(package_workflow, "Sign Windows test MSIX") ||
+        !contains(package_workflow, "Bundle and sign Windows test package") ||
+        !contains(package_workflow, "makeappx bundle") ||
+        !contains(package_workflow, "VelocityCopy.msixbundle") ||
+        !contains(package_workflow, "signtool verify /pa /v") ||
         !contains(package_workflow, "signtool") ||
         !contains(package_workflow, "VelocityCopy-Test.cer") ||
-        !contains(package_workflow, "VelocityCopy-Setup-x64.exe") ||
+        !contains(package_workflow, "VelocityCopy-Setup.exe") ||
         !contains(package_workflow, "Build single-file Windows installer") ||
-        !contains(package_workflow, "VelocityCopy-Setup-x64") ||
+        !contains(package_workflow, "VelocityCopy-Setup") ||
         !contains(package_workflow, "Stamp test package version") ||
         !contains(package_workflow, "GITHUB_RUN_NUMBER") ||
-        !contains(package_workflow, "Smoke install packaged MSIX") ||
+        !contains(package_workflow, "Smoke install packaged MSIX bundle") ||
         !contains(package_workflow, "& $script") ||
         !contains(package_workflow, "Get-AppxPackage -Name \"ReinierTutoriales.VelocityCopy\"") ||
         !contains(package_workflow, "& $script -Uninstall")) {
-        return fail(9, "release packaging must remain explicit and perform the real sign/install/uninstall/installer gate");
+        return fail(9, "release packaging must build ARM64, create and sign the universal bundle, smoke install it, and publish one installer EXE");
     }
 
     if (!contains(installer, "Import-Certificate") ||
