@@ -71,7 +71,9 @@ private:
         std::size_t planning_count{};
     };
 
-    winrt::fire_and_forget HandleDropAsync(Windows::ApplicationModel::DataTransfer::DataPackageView data_view);
+    winrt::fire_and_forget HandleDropAsync(
+        Windows::ApplicationModel::DataTransfer::DataPackageView data_view,
+        velocitycopy::FileOperation operation);
     winrt::fire_and_forget BeginShellDestinationAsync(std::vector<std::filesystem::path> sources);
     winrt::fire_and_forget BeginShellLayoutAsync(velocitycopy::CopyJob job);
     winrt::fire_and_forget BrowseAsync();
