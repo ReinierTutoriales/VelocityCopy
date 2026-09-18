@@ -21,10 +21,12 @@ std::string read_text(const std::filesystem::path& path) {
 
 velocitycopy::CopyPlan make_plan(
     const std::filesystem::path& source,
-    const std::filesystem::path& destination) {
+    const std::filesystem::path& destination,
+    const velocitycopy::FileOperation operation = velocitycopy::FileOperation::Copy) {
     velocitycopy::CopyPlan plan{};
     plan.source_roots.push_back(source);
     plan.destination_root = destination;
+    plan.operation = operation;
     plan.directories.push_back({destination});
     plan.files.push_back({1, source / L"a.txt", destination / L"a.txt", 4});
     plan.files.push_back({2, source / L"b.txt", destination / L"b.txt", 4});
@@ -100,6 +102,40 @@ int wmain() {
         plan.completed_files() != 2 || plan.completed_bytes() != 8 || plan.remaining_files() != 0) {
         fs::remove_all(root, ec);
         return 4;
+    }
+
+    // Move conflicts are transactional: an unresolved conflict must preserve
+    // every source, and a one-shot replacement may delete only the source whose
+    // destination was successfully replaced.
+    const auto move_source = root / L"move-source";
+    const auto move_destination = root / L"move-destination";
+    write_text(move_source / L"a.txt", "MAAA");
+    write_text(move_source / L"b.txt", "MBBB");
+    write_text(move_destination / L"a.txt", "OLD-MA");
+    write_text(move_destination / L"b.txt", "OLD-MB");
+
+    LiveCopyPlan move_plan(make_plan(move_source, move_destination, FileOperation::Move));
+    ExecutionControl move_first_control;
+    const auto move_first = executor.execute(move_plan, move_first_control, JobExecutionOptions{1}, {});
+    if (move_first.success || !move_first.destination_conflict ||
+        !fs::exists(move_source / L"a.txt") || !fs::exists(move_source / L"b.txt") ||
+        read_text(move_destination / L"a.txt") != "OLD-MA" ||
+        read_text(move_destination / L"b.txt") != "OLD-MB") {
+        fs::remove_all(root, ec);
+        return 5;
+    }
+
+    ExecutionControl move_replace_control;
+    JobExecutionOptions move_replace{1};
+    move_replace.replace_file_id = move_first.conflict_file_id;
+    const auto move_replaced = executor.execute(move_plan, move_replace_control, move_replace, {});
+    if (!move_replaced.success || fs::exists(move_source / L"a.txt") ||
+        !fs::exists(move_source / L"b.txt") ||
+        read_text(move_destination / L"a.txt") != "MAAA" ||
+        read_text(move_destination / L"b.txt") != "OLD-MB" ||
+        move_plan.completed_files() != 1 || move_plan.remaining_files() != 1) {
+        fs::remove_all(root, ec);
+        return 6;
     }
 
     fs::remove_all(root, ec);
