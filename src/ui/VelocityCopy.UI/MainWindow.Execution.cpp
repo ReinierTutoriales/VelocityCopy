@@ -349,6 +349,7 @@ void MainWindow::OnPauseClick(IInspectable const&, RoutedEventArgs const&) {
     } catch (...) {
         // Localization failure must never mutate the execution state.
     }
+    RefreshExecutionMenuState();
 }
 
 void MainWindow::OnSkipClick(IInspectable const&, RoutedEventArgs const&) {
@@ -368,6 +369,7 @@ void MainWindow::OnStopClick(IInspectable const&, RoutedEventArgs const&) {
     execution_control_->request_stop();
     PauseButton().IsEnabled(false);
     StopButton().IsEnabled(false);
+    RefreshExecutionMenuState();
 }
 
 void MainWindow::OnCancelClick(IInspectable const&, RoutedEventArgs const&) {
