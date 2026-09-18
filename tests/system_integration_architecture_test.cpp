@@ -166,7 +166,7 @@ int main() {
     if (!contains(shell_window, "PasteToFolder") ||
         !contains(shell_window, "staged_sources().empty()") ||
         !contains(shell_window, "CaptureClipboardFileSelection()")) {
-        return fail(11, "Explorer paste must reconstruct clipboard staging when app starts on demand");
+        return fail(12, "Explorer paste must reconstruct clipboard staging when app starts on demand");
     }
 
     if (!contains(docs, "near-zero-CPU") || !contains(docs, "IExplorerCommand") ||
@@ -175,14 +175,14 @@ int main() {
         !contains(docs, "EcoQoS") ||
         !contains(docs, "WM_ENDSESSION") ||
         !contains(docs, "NOTIFYICON_VERSION_4")) {
-        return fail(12, "system-impact constraints must remain documented");
+        return fail(13, "system-impact constraints must remain documented");
     }
 
     if (!contains(window, "item.IsOfType(StorageItemTypes::Folder)") ||
         !contains(window, "item.IsOfType(StorageItemTypes::File)") ||
         !contains(window, "if (!kind)") ||
         contains(window, "? velocitycopy::DropItemKind::Directory\n                : velocitycopy::DropItemKind::File")) {
-        return fail(13, "drag-and-drop must classify only supported files and folders explicitly");
+        return fail(14, "drag-and-drop must classify only supported files and folders explicitly");
     }
 
     return 0;
