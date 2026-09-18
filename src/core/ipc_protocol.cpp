@@ -115,7 +115,6 @@ std::optional<ShellRequest> deserialize_shell_request(std::span<const std::uint8
         if (!read_u32(bytes, offset, source_count) || source_count > kMaxShellSources) {
             return std::nullopt;
         }
-        request.sources.reserve(source_count);
         for (std::uint32_t i = 0; i < source_count; ++i) {
             std::filesystem::path source;
             if (!read_path(bytes, offset, source)) {
