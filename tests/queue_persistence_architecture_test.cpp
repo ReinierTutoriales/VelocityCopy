@@ -32,12 +32,14 @@ int main() {
     const auto window_h = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.h");
     const auto window_cpp = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
     const auto persistence = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.QueuePersistence.cpp");
+    const auto recovery = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Recovery.cpp");
+    const auto tray = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Tray.cpp");
     const auto project = read_all(root / "src/ui/VelocityCopy.UI/VelocityCopy.UI.vcxproj");
     const auto cmake = read_all(root / "CMakeLists.txt");
 
     if (archive_h.empty() || archive_cpp.empty() || live_h.empty() || live_cpp.empty() ||
         live_export.empty() || window_h.empty() || window_cpp.empty() || persistence.empty() ||
-        project.empty() || cmake.empty()) {
+        recovery.empty() || tray.empty() || project.empty() || cmake.empty()) {
         return fail(1, "required production source missing");
     }
 
@@ -98,6 +100,7 @@ int main() {
     }
 
     if (!contains(project, "MainWindow.QueuePersistence.cpp") ||
+        !contains(project, "MainWindow.Recovery.cpp") ||
         !contains(cmake, "src/core/queue_archive.cpp") ||
         !contains(cmake, "src/core/live_copy_plan_export.cpp") ||
         !contains(cmake, "VelocityCopyQueueArchiveTest") ||
@@ -107,6 +110,23 @@ int main() {
 
     if (contains(window_h, "queue_archive_store_")) {
         return fail(11, "unused persistence state must not remain in MainWindow");
+    }
+
+    if (!contains(recovery, "VelocityCopy.Recovery.vcq") ||
+        !contains(recovery, "ContentDialogResult::Primary") ||
+        !contains(recovery, "ContentDialogResult::Secondary") ||
+        !contains(recovery, "revalidate_recovery_plan") ||
+        !contains(recovery, "revalidate_recovery_job") ||
+        !contains(recovery, "retire_recovery_checkpoint") ||
+        !contains(recovery, "StartCopyPlan(std::move(*archive->current_plan))")) {
+        return fail(12, "shutdown recovery must require an explicit validated resume/discard decision");
+    }
+
+    if (!contains(tray, "MaybeOfferRecoveryAsync()") ||
+        !contains(tray, "ShowWindow(hwnd_, SW_SHOW)") ||
+        !contains(window_h, "recovery_prompt_checked_") ||
+        !contains(window_h, "recovery_prompt_active_")) {
+        return fail(13, "recovery prompt must be tied to interactive window show and guarded against duplicates");
     }
 
     return 0;
