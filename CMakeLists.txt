@@ -49,6 +49,9 @@ target_link_libraries(VelocityCopyCli PRIVATE velocitycopy_core)
 add_executable(VelocityCopyBenchmark tools/benchmark.cpp)
 target_link_libraries(VelocityCopyBenchmark PRIVATE velocitycopy_core)
 
+add_executable(VelocityCopyAppendBenchmark tools/benchmark_append.cpp)
+target_link_libraries(VelocityCopyAppendBenchmark PRIVATE velocitycopy_core)
+
 add_library(VelocityCopyShell SHARED src/shell/explorer_commands.cpp src/shell/shell_strings.rc src/shell/VelocityCopyShell.def)
 target_include_directories(VelocityCopyShell PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/shell)
 target_link_libraries(VelocityCopyShell PRIVATE velocitycopy_core ole32)
@@ -57,6 +60,7 @@ set_target_properties(VelocityCopyShell PROPERTIES OUTPUT_NAME "VelocityCopy.She
 if(MSVC)
     target_compile_options(VelocityCopyCli PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyBenchmark PRIVATE /W4 /permissive- /EHsc /utf-8)
+    target_compile_options(VelocityCopyAppendBenchmark PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyShell PRIVATE /W4 /permissive- /EHsc /utf-8)
 endif()
 
