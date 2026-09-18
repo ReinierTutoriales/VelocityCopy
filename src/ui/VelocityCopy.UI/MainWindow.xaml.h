@@ -54,6 +54,7 @@ struct MainWindow : MainWindowT<MainWindow> {
     void OnQueueMoveUpClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnQueueMoveDownClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnQueueRemoveClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
+    void OnQueueSelectionChanged(IInspectable const&, Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const&);
     void OnQueueDragItemsCompleted(
         Microsoft::UI::Xaml::Controls::ListViewBase const&,
         Microsoft::UI::Xaml::Controls::DragItemsCompletedEventArgs const&);
@@ -122,6 +123,7 @@ private:
     void RefreshQueue();
     void RefreshQueueCommandState();
     void RefreshExecutionMenuState();
+    void RefreshQueueEditCommandState();
     [[nodiscard]] std::vector<std::uint64_t> SelectedPendingIds();
     void ResizeWindow(int height_epx);
     void SetExecutionButtonsPlanning();
