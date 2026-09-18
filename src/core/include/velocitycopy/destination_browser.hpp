@@ -11,6 +11,11 @@ struct DestinationFolderEntry {
     std::filesystem::path name;
 };
 
+struct DestinationFolderListing {
+    bool available{};
+    std::vector<DestinationFolderEntry> children;
+};
+
 struct DestinationCapacity {
     bool available{};
     std::uint64_t free_bytes{};
@@ -19,7 +24,7 @@ struct DestinationCapacity {
 
 class DestinationBrowser final {
 public:
-    [[nodiscard]] std::vector<DestinationFolderEntry> list_children(
+    [[nodiscard]] DestinationFolderListing list_children(
         const std::filesystem::path& folder) const noexcept;
 
     [[nodiscard]] DestinationCapacity capacity(
