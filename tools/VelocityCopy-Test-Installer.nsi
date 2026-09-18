@@ -38,8 +38,7 @@ Section "Install VelocityCopy" SEC_INSTALL
   ${If} ${RunningX64}
     ${DisableX64FSRedirection}
   ${EndIf}
-  nsExec::ExecToLog '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\VelocityCopy\Install-VelocityCopy-Test.ps1" -LogPath "$TEMP\VelocityCopy-Install.log"'
-  Pop $0
+  ExecWait '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\VelocityCopy\Install-VelocityCopy-Test.ps1" -LogPath "$TEMP\VelocityCopy-Install.log"' $0
   ${If} ${RunningX64}
     ${EnableX64FSRedirection}
   ${EndIf}
@@ -52,8 +51,8 @@ Section "Install VelocityCopy" SEC_INSTALL
   ${EndIf}
 
   SetOutPath "$INSTDIR\InstallerSupport"
-  File "/oname=Install-VelocityCopy-Test.ps1" "${PAYLOAD_DIR}\Install-VelocityCopy-Test.ps1"
-  File "/oname=VelocityCopy-Test.cer" "${PAYLOAD_DIR}\VelocityCopy-Test.cer"
+  File /oname=Install-VelocityCopy-Test.ps1 "${PAYLOAD_DIR}\Install-VelocityCopy-Test.ps1"
+  File /oname=VelocityCopy-Test.cer "${PAYLOAD_DIR}\VelocityCopy-Test.cer"
 
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "DisplayName" "VelocityCopy"
@@ -69,8 +68,13 @@ SectionEnd
 Section "Uninstall"
   DetailPrint "Removing VelocityCopy..."
   Delete "$TEMP\VelocityCopy-Install.log"
-  nsExec::ExecToLog '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$INSTDIR\InstallerSupport\Install-VelocityCopy-Test.ps1" -Uninstall -LogPath "$TEMP\VelocityCopy-Install.log"'
-  Pop $0
+  ${If} ${RunningX64}
+    ${DisableX64FSRedirection}
+  ${EndIf}
+  ExecWait '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$INSTDIR\InstallerSupport\Install-VelocityCopy-Test.ps1" -Uninstall -LogPath "$TEMP\VelocityCopy-Install.log"' $0
+  ${If} ${RunningX64}
+    ${EnableX64FSRedirection}
+  ${EndIf}
   ${If} $0 != 0
     DetailPrint "VelocityCopy uninstall failed with exit code $0."
     DetailPrint "Diagnostic log: $TEMP\VelocityCopy-Install.log"
