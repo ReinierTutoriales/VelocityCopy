@@ -122,7 +122,8 @@ void MainWindow::RefreshQueue() {
     if (focused_id) {
         for (std::uint32_t index = 0; index < queue_snapshot_.size(); ++index) {
             if (queue_snapshot_[index].id == *focused_id) {
-                QueueList().ScrollIntoView(QueueList().Items().GetAt(index));
+                // Do not force ScrollIntoView during a live refresh. Keeping the
+                // user's viewport stable is more important than chasing progress.
                 if (auto container = QueueList().ContainerFromIndex(index).try_as<Control>()) {
                     container.Focus(FocusState::Programmatic);
                 }
