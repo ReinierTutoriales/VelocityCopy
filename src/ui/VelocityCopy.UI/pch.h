@@ -27,6 +27,12 @@
 #include <winrt/Microsoft.Windows.ApplicationModel.Resources.h>
 #include <winrt/Microsoft.Windows.Storage.Pickers.h>
 
+// DragEventArgs::Modifiers is projected from Windows.ApplicationModel.DataTransfer.DragDrop.
+// Keep the existing Microsoft::UI::Input call sites source-compatible with that projection.
+namespace winrt::Microsoft::UI::Input {
+namespace DragDrop = winrt::Windows::ApplicationModel::DataTransfer::DragDrop;
+}
+
 #include <algorithm>
 #include <atomic>
 #include <chrono>
