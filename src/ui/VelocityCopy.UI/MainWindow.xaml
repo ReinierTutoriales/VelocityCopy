@@ -343,11 +343,19 @@
                                 </StackPanel>
                             </Grid>
 
-                            <ScrollViewer Grid.Row="2"
-                                          MaxHeight="240"
-                                          VerticalScrollBarVisibility="Auto">
-                                <StackPanel x:Name="DestinationItems" Spacing="4" />
-                            </ScrollViewer>
+                            <Grid Grid.Row="2">
+                                <ScrollViewer MaxHeight="240"
+                                              VerticalScrollBarVisibility="Auto">
+                                    <StackPanel x:Name="DestinationItems" Spacing="4" />
+                                </ScrollViewer>
+                                <ProgressRing x:Name="DestinationLoadingRing"
+                                              Width="24"
+                                              Height="24"
+                                              IsActive="False"
+                                              Visibility="Collapsed"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                            </Grid>
 
                             <Grid Grid.Row="3" Margin="0,10,0,0">
                                 <Grid.ColumnDefinitions>
