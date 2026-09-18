@@ -4,6 +4,7 @@ SetCompressor /SOLID lzma
 
 !include "MUI2.nsh"
 !include "LogicLib.nsh"
+!include "x64.nsh"
 
 !ifndef PAYLOAD_DIR
   !error "PAYLOAD_DIR is required"
@@ -21,8 +22,6 @@ InstallDir "$PROGRAMFILES64\VelocityCopy"
 BrandingText "VelocityCopy"
 ShowInstDetails show
 ShowUninstDetails show
-SilentInstall silent
-SilentUnInstall silent
 
 !define MUI_ABORTWARNING
 !insertmacro MUI_PAGE_WELCOME
@@ -35,10 +34,16 @@ Section "Install VelocityCopy" SEC_INSTALL
   File /r "${PAYLOAD_DIR}\*.*"
 
   DetailPrint "Installing VelocityCopy and required Windows runtimes..."
+  ${If} ${RunningX64}
+    ${DisableX64FSRedirection}
+  ${EndIf}
   nsExec::ExecToLog '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\VelocityCopy\Install-VelocityCopy-Test.ps1"'
   Pop $0
+  ${If} ${RunningX64}
+    ${EnableX64FSRedirection}
+  ${EndIf}
   ${If} $0 != 0
-    MessageBox MB_ICONSTOP|MB_OK "VelocityCopy installation failed (exit code $0). See the installer details for the failing step."
+    MessageBox MB_ICONSTOP|MB_OK /SD IDOK "VelocityCopy installation failed (exit code $0). See the installer details for the failing step."
     Abort
   ${EndIf}
 
@@ -62,7 +67,7 @@ Section "Uninstall"
   nsExec::ExecToLog '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$INSTDIR\InstallerSupport\Install-VelocityCopy-Test.ps1" -Uninstall'
   Pop $0
   ${If} $0 != 0
-    MessageBox MB_ICONSTOP|MB_OK "VelocityCopy uninstall failed (exit code $0)."
+    MessageBox MB_ICONSTOP|MB_OK /SD IDOK "VelocityCopy uninstall failed (exit code $0)."
     Abort
   ${EndIf}
 
