@@ -30,6 +30,7 @@ ShowUninstDetails show
 !insertmacro MUI_LANGUAGE "English"
 
 Section "Install VelocityCopy" SEC_INSTALL
+  InitPluginsDir
   SetOutPath "$PLUGINSDIR\VelocityCopy"
   File /r "${PAYLOAD_DIR}\*.*"
 
