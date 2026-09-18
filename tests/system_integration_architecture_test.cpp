@@ -159,7 +159,7 @@ int main() {
     }
 
     if (!contains(installer_exe, "RequestExecutionLevel admin") ||
-        !contains(installer_exe, "Install-VelocityCopy-Test.ps1") ||
+        !contains(installer_exe, "SilentInstall silent") ||\n        !contains(installer_exe, "SilentUnInstall silent") ||\n        !contains(installer_exe, "Install-VelocityCopy-Test.ps1") ||
         !contains(installer_exe, "PAYLOAD_DIR") ||
         !contains(installer_exe, "OUTPUT_FILE") ||
         !contains(installer_exe, "DISPLAY_VERSION") ||
