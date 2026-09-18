@@ -16,6 +16,7 @@ namespace velocitycopy {
 
 struct DestinationNavigationResult {
     std::uint64_t generation{};
+    bool available{};
     std::filesystem::path folder;
     std::vector<DestinationFolderEntry> children;
     DestinationCapacity capacity{};
