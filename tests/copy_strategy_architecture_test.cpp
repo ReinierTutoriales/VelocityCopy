@@ -35,9 +35,12 @@ int main() {
     const auto benchmark_cpp = read_all(root / "tools/benchmark.cpp");
     const auto profiler_h = read_all(root / "src/core/include/velocitycopy/storage_profiler.hpp");
     const auto profiler_cpp = read_all(root / "src/core/storage_profiler.cpp");
+    const auto topology_h = read_all(root / "src/core/include/velocitycopy/storage_topology.hpp");
+    const auto topology_cpp = read_all(root / "src/core/storage_topology.cpp");
 
     if (selector_h.empty() || selector_cpp.empty() || executor_h.empty() || executor_cpp.empty() ||
-        engine_h.empty() || engine_cpp.empty() || benchmark_cpp.empty() || profiler_h.empty() || profiler_cpp.empty()) {
+        engine_h.empty() || engine_cpp.empty() || benchmark_cpp.empty() || profiler_h.empty() || profiler_cpp.empty() ||
+        topology_h.empty() || topology_cpp.empty()) {
         return fail(1, "required production source missing");
     }
 
@@ -51,6 +54,14 @@ int main() {
         !contains(profiler_cpp, "IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS") ||
         !contains(profiler_cpp, "ERROR_MORE_DATA")) {
         return fail(11, "storage profiling must resolve mounted volumes and expose physical disk topology");
+    }
+
+    if (!contains(topology_h, "enum class PhysicalStorageRelationship") ||
+        !contains(topology_h, "Unknown") || !contains(topology_h, "SharedDisk") || !contains(topology_h, "DisjointDisks") ||
+        !contains(topology_cpp, "PhysicalStorageRelationship::Unknown") ||
+        !contains(topology_cpp, "PhysicalStorageRelationship::SharedDisk") ||
+        !contains(topology_cpp, "PhysicalStorageRelationship::DisjointDisks")) {
+        return fail(12, "physical storage topology must preserve unknown/shared/disjoint semantics");
     }
 
     if (!contains(selector_h, "std::uint32_t copy_flags{}") ||
@@ -68,7 +79,7 @@ int main() {
         !contains(executor_cpp, "options.suggested_buffer_bytes = shared_buffer_bytes") ||
         !contains(executor_cpp, "options.async_iocp_candidate = shared_async_candidate") ||
         !contains(executor_cpp, "CopyOptions{resume_from_pause, existing_policy, options.copy_flags}") ||
-        !contains(executor_cpp, "shares_physical_disk(source, destination)") ||
+        !contains(executor_cpp, "physical_storage_relationship(source, destination) == PhysicalStorageRelationship::SharedDisk") ||
         !contains(executor_cpp, "source_destination_share_disk") ||
         !contains(executor_cpp, "worker_count = 1")) {
         return fail(3, "JobExecutor must preserve selected strategy metadata through the live production path");
