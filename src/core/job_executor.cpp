@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <set>
 #include <iterator>
 #include <mutex>
 #include <system_error>
@@ -224,6 +225,21 @@ WorkloadProfile workload_from_live_plan(const LiveCopyPlan& plan) noexcept {
     };
 }
 
+bool shares_physical_disk(
+    const StorageProfile& left,
+    const StorageProfile& right) noexcept {
+    if (!left.physical_disk_extents_available || !right.physical_disk_extents_available) {
+        return false;
+    }
+    for (const auto disk : left.physical_disk_numbers) {
+        if (std::find(right.physical_disk_numbers.begin(), right.physical_disk_numbers.end(), disk) !=
+            right.physical_disk_numbers.end()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 JobExecutionOptions recommend_for_roots(
     const StorageProfiler& profiler,
     const StrategySelector& selector,
@@ -241,11 +257,20 @@ JobExecutionOptions recommend_for_roots(
     std::uint32_t shared_buffer_bytes = 0;
     bool shared_async_candidate = false;
     bool first_recommendation = true;
+    bool topology_complete = destination.physical_disk_extents_available;
+    bool source_destination_share_disk = false;
+    std::set<std::uint32_t> independent_source_disks;
 
     for (const auto& source_path : source_roots) {
         const auto source = profiler.inspect(source_path);
         const auto recommendation = selector.choose(source, destination, workload);
         worker_count = std::min(worker_count, recommendation.suggested_queue_depth);
+
+        topology_complete = topology_complete && source.physical_disk_extents_available;
+        source_destination_share_disk = source_destination_share_disk || shares_physical_disk(source, destination);
+        if (source.physical_disk_extents_available) {
+            independent_source_disks.insert(source.physical_disk_numbers.begin(), source.physical_disk_numbers.end());
+        }
 
         if (first_recommendation) {
             shared_copy_flags = recommendation.copy_flags;
@@ -257,6 +282,15 @@ JobExecutionOptions recommend_for_roots(
             shared_buffer_bytes = std::min(shared_buffer_bytes, recommendation.suggested_buffer_bytes);
             shared_async_candidate = shared_async_candidate && recommendation.async_iocp_candidate;
         }
+    }
+
+    // Physical topology is a guardrail, not a synthetic performance claim.
+    // When source and destination share a physical disk, parallel CopyFile2
+    // operations can compete for the same device; serialize that workload.
+    // For independent devices, retain the selector's measured/heuristic depth
+    // rather than increasing concurrency merely because more disks exist.
+    if (topology_complete && source_destination_share_disk) {
+        worker_count = 1;
     }
 
     options.worker_count = std::clamp<std::uint32_t>(
