@@ -44,6 +44,7 @@ jobs:
           if ($stamped -notmatch ('Version="' + [regex]::Escape($version) + '"')) {
             throw "Failed to stamp VelocityCopy package version $version"
           }
+          "VELOCITYCOPY_PACKAGE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           Write-Host "VelocityCopy test package version: $version"
 
       - name: Build WinUI 3 x64 Release and MSIX
@@ -165,7 +166,8 @@ jobs:
           New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
           $output = Join-Path (Resolve-Path $outputDir).Path "VelocityCopy-Setup-x64.exe"
 
-          & $makensis "/DPAYLOAD_DIR=$payload" "/DOUTPUT_FILE=$output" "tools/VelocityCopy-Test-Installer.nsi"
+          if (-not $env:VELOCITYCOPY_PACKAGE_VERSION) { throw "Stamped VelocityCopy package version is unavailable" }
+          & $makensis "/DPAYLOAD_DIR=$payload" "/DOUTPUT_FILE=$output" "/DDISPLAY_VERSION=$env:VELOCITYCOPY_PACKAGE_VERSION" "tools/VelocityCopy-Test-Installer.nsi"
           if ($LASTEXITCODE -ne 0) { throw "VelocityCopy setup generation failed" }
           if (-not (Test-Path -LiteralPath $output -PathType Leaf)) { throw "VelocityCopy-Setup-x64.exe was not produced" }
       - name: Upload Windows installer
