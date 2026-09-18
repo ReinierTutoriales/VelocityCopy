@@ -4,7 +4,6 @@
 
 #include <algorithm>
 #include <limits>
-#include <set>
 #include <iterator>
 #include <mutex>
 #include <system_error>
@@ -259,7 +258,7 @@ JobExecutionOptions recommend_for_roots(
     bool first_recommendation = true;
     bool topology_complete = destination.physical_disk_extents_available;
     bool source_destination_share_disk = false;
-    std::set<std::uint32_t> independent_source_disks;
+
 
     for (const auto& source_path : source_roots) {
         const auto source = profiler.inspect(source_path);
@@ -268,9 +267,6 @@ JobExecutionOptions recommend_for_roots(
 
         topology_complete = topology_complete && source.physical_disk_extents_available;
         source_destination_share_disk = source_destination_share_disk || shares_physical_disk(source, destination);
-        if (source.physical_disk_extents_available) {
-            independent_source_disks.insert(source.physical_disk_numbers.begin(), source.physical_disk_numbers.end());
-        }
 
         if (first_recommendation) {
             shared_copy_flags = recommendation.copy_flags;
