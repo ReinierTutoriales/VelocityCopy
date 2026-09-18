@@ -31,6 +31,20 @@ void MainWindow::RefreshQueue() {
         return;
     }
     const auto selected_ids = SelectedPendingIds();
+    std::optional<std::uint64_t> focused_id;
+    if (auto focused = FocusManager::GetFocusedElement().try_as<FrameworkElement>()) {
+        auto current = focused;
+        while (current) {
+            try {
+                if (current.Tag()) {
+                    focused_id = unbox_value<std::uint64_t>(current.Tag());
+                    break;
+                }
+            } catch (...) {
+            }
+            current = Media::VisualTreeHelper::GetParent(current).try_as<FrameworkElement>();
+        }
+    }
     const auto previous_snapshot = std::move(queue_snapshot_);
     queue_snapshot_ = std::move(view.pending_files);
 
@@ -101,6 +115,18 @@ void MainWindow::RefreshQueue() {
         for (std::uint32_t index = 0; index < queue_snapshot_.size(); ++index) {
             if (std::find(selected_ids.begin(), selected_ids.end(), queue_snapshot_[index].id) != selected_ids.end()) {
                 QueueList().SelectRange(Windows::Foundation::IndexRange(index, index));
+            }
+        }
+    }
+
+    if (focused_id) {
+        for (std::uint32_t index = 0; index < queue_snapshot_.size(); ++index) {
+            if (queue_snapshot_[index].id == *focused_id) {
+                QueueList().ScrollIntoView(QueueList().Items().GetAt(index));
+                if (auto container = QueueList().ContainerFromIndex(index).try_as<Control>()) {
+                    container.Focus(FocusState::Programmatic);
+                }
+                break;
             }
         }
     }
