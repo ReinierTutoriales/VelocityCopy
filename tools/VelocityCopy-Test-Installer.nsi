@@ -21,6 +21,8 @@ InstallDir "$PROGRAMFILES64\VelocityCopy"
 BrandingText "VelocityCopy"
 ShowInstDetails show
 ShowUninstDetails show
+SilentInstall silent
+SilentUnInstall silent
 
 !define MUI_ABORTWARNING
 !insertmacro MUI_PAGE_WELCOME
