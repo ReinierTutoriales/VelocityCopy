@@ -328,6 +328,10 @@ jobs:
           }
 
           try {
+            # The hosted runner can keep Windows Terminal open while AppX updates a shared
+            # framework. Close it explicitly so the installer smoke test measures our
+            # package rather than failing with AppX 0x80073D02 (resource in use).
+            Get-Process -Name "WindowsTerminal" -ErrorAction SilentlyContinue | Stop-Process -Force
             $install = Start-Process -FilePath $setup -ArgumentList "/S" -Wait -PassThru
             if ($install.ExitCode -ne 0) {
               Show-DeploymentDiagnostics
