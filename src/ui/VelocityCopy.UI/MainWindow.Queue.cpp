@@ -110,13 +110,13 @@ void MainWindow::RefreshQueue() {
     // removal can leave index-based ListView selection attached to a different row.
     const auto selected_ranges = QueueList().SelectedRanges();
     if (selected_ranges.Size() != 0 && items.Size() != 0) {
-        QueueList().DeselectRange(Windows::Foundation::IndexRange(
-            0, static_cast<std::uint32_t>(items.Size() - 1)));
+        QueueList().DeselectRange(Microsoft::UI::Xaml::Data::ItemIndexRange(
+            0, static_cast<std::uint32_t>(items.Size())));
     }
     if (!selected_ids.empty()) {
         for (std::uint32_t index = 0; index < queue_snapshot_.size(); ++index) {
             if (std::find(selected_ids.begin(), selected_ids.end(), queue_snapshot_[index].id) != selected_ids.end()) {
-                QueueList().SelectRange(Windows::Foundation::IndexRange(index, index));
+                QueueList().SelectRange(Microsoft::UI::Xaml::Data::ItemIndexRange(index, 1));
             }
         }
     }
@@ -176,13 +176,13 @@ void MainWindow::OnQueueKeyDown(IInspectable const&, KeyRoutedEventArgs const& a
         args.Handled(true);
         break;
     case Windows::System::VirtualKey::Up:
-        if (InputKeyboardSource::GetKeyStateForCurrentThread(Windows::System::VirtualKey::Menu).HasFlag(Windows::UI::Core::CoreVirtualKeyStates::Down)) {
+        if ((GetKeyState(VK_MENU) & 0x8000) != 0) {
             OnQueueMoveUpClick(nullptr, nullptr);
             args.Handled(true);
         }
         break;
     case Windows::System::VirtualKey::Down:
-        if (InputKeyboardSource::GetKeyStateForCurrentThread(Windows::System::VirtualKey::Menu).HasFlag(Windows::UI::Core::CoreVirtualKeyStates::Down)) {
+        if ((GetKeyState(VK_MENU) & 0x8000) != 0) {
             OnQueueMoveDownClick(nullptr, nullptr);
             args.Handled(true);
         }
