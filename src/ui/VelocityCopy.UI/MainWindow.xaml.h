@@ -76,8 +76,12 @@ private:
     void InitializeTrayIntegration();
     void RemoveTrayIntegration() noexcept;
     void HideToTray() noexcept;
-    void ShowTrayMenu() noexcept;
+    void ShowTrayMenu(POINT anchor) noexcept;
     void ExitFromTray() noexcept;
+    void SetEfficiencyMode(bool enabled) noexcept;
+    void RefreshEfficiencyMode() noexcept;
+    [[nodiscard]] bool HasActiveWorkForEfficiencyMode() noexcept;
+    void PersistRecoveryQueueNoThrow() noexcept;
     void CaptureClipboardFileSelection() noexcept;
     void InitializeExplorerPasteInterception() noexcept;
     void RemoveExplorerPasteInterception() noexcept;
@@ -175,8 +179,11 @@ private:
     HHOOK explorer_keyboard_hook_{};
     NOTIFYICONDATAW tray_data_{};
     bool tray_added_{};
+    bool tray_v4_{};
     bool tray_exit_requested_{};
     bool tray_window_hidden_{};
+    bool efficiency_mode_enabled_{};
+    bool session_ending_{};
     bool paste_key_down_{};
     std::jthread copy_thread_;
 };
