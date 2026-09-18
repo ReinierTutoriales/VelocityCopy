@@ -29,10 +29,11 @@ int main() {
     const auto xaml = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml");
     const auto execution = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Execution.cpp");
     const auto queue = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Queue.cpp");
+    const auto window = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
     const auto tokens = read_all(root / "src/ui/DesignTokens.xaml");
     const auto spec = read_all(root / "docs/UI_SPEC.md");
 
-    if (xaml.empty() || execution.empty() || queue.empty() || tokens.empty() || spec.empty()) {
+    if (xaml.empty() || execution.empty() || queue.empty() || window.empty() || tokens.empty() || spec.empty()) {
         return fail(1, "required UI source missing");
     }
 
@@ -77,6 +78,15 @@ int main() {
         !contains(spec, "queue disclosure triangle anchored at the far right") ||
         !contains(spec, "Progress fills the compact transfer surface")) {
         return fail(7, "UI specification must document the integrated copy bar concept");
+    }
+
+    if (!contains(xaml, "DragEnter=\"OnDragEnter\"") ||
+        !contains(xaml, "DragOver=\"OnDragOver\"") ||
+        !contains(xaml, "x:Name=\"DragOverlay\"") ||
+        !contains(window, "void MainWindow::OnDragEnter") ||
+        !contains(window, "DataPackageOperation::None") ||
+        !contains(window, "DragOverlay().Visibility(")) {
+        return fail(8, "whole-window drop surface must provide immediate validated drag feedback");
     }
 
     return 0;
