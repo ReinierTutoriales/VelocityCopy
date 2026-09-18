@@ -228,6 +228,9 @@ int main() {
         !contains(window, "preferred_drop_operation(args.DataView(), args.Modifiers())") ||
         !contains(window, "DragDropModifiers::Control") ||
         !contains(window, "DragDropModifiers::Shift") ||
+        !contains(window, "if (allows_copy) return DataPackageOperation::Copy") ||
+        !contains(window, "return DataPackageOperation::None") ||
+        !contains(window, "if (operation == DataPackageOperation::None)") ||
         !contains(append, "flow_.make_job(next_job_id_++, pending_flow_operation_)") ||
         !contains(append, "pending_flow_operation_ = velocitycopy::FileOperation::Copy")) {
         return fail(23, "Explorer Cut/Paste operation must survive the shared layout flow");
