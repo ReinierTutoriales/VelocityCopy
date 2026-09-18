@@ -10,6 +10,14 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+option(VELOCITYCOPY_ENABLE_ASAN "Enable MSVC AddressSanitizer for CMake targets" OFF)
+if(MSVC AND VELOCITYCOPY_ENABLE_ASAN)
+    # MSVC ASan supports optimized builds; use RelWithDebInfo in CI to avoid
+    # Debug-only /RTC, which Microsoft documents as incompatible with ASan.
+    add_compile_options(/fsanitize=address /Zi)
+    add_link_options(/INCREMENTAL:NO)
+endif()
+
 add_library(velocitycopy_core STATIC
     src/core/copy_engine.cpp
     src/core/destination_browser.cpp
