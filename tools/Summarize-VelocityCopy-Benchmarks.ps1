@@ -33,6 +33,12 @@ $summary = @($groups | ForEach-Object {
         median_files_per_second = [double](Get-Median @($samples.files_per_second))
         min_mib_per_second = [double](($samples.mib_per_second | Measure-Object -Minimum).Minimum)
         max_mib_per_second = [double](($samples.mib_per_second | Measure-Object -Maximum).Maximum)
+        median_cpu_seconds = if ($null -ne $samples[0].cpu_seconds) { [double](Get-Median @($samples.cpu_seconds)) } else { $null }
+        median_cpu_cores_used = if ($null -ne $samples[0].cpu_cores_used) { [double](Get-Median @($samples.cpu_cores_used)) } else { $null }
+        median_working_set_bytes = if ($null -ne $samples[0].working_set_bytes) { [double](Get-Median @($samples.working_set_bytes)) } else { $null }
+        median_peak_working_set_bytes = if ($null -ne $samples[0].peak_working_set_bytes) { [double](Get-Median @($samples.peak_working_set_bytes)) } else { $null }
+        median_private_usage_bytes = if ($null -ne $samples[0].private_usage_bytes) { [double](Get-Median @($samples.private_usage_bytes)) } else { $null }
+        median_append_latency_ms = if ($null -ne $samples[0].append_latency_ms) { [double](Get-Median @($samples.append_latency_ms)) } else { $null }
     }
 } | Sort-Object scenario, topology_scenario, workers)
 
@@ -44,5 +50,5 @@ $report = [pscustomobject]@{
 }
 
 $report | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $Output -Encoding utf8
-$summary | Format-Table scenario, topology_scenario, workers, samples, median_mib_per_second, median_files_per_second, min_mib_per_second, max_mib_per_second -AutoSize
+$summary | Format-Table scenario, topology_scenario, workers, samples, median_mib_per_second, median_files_per_second, median_cpu_cores_used, median_append_latency_ms -AutoSize
 Write-Host "Descriptive benchmark summary written to $Output"
