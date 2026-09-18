@@ -43,16 +43,20 @@ void MainWindow::RefreshQueue() {
             ++completed_prefix;
         }
     }
+    const auto retained_count = previous_snapshot.size() - completed_prefix;
     const bool can_trim_prefix = completed_prefix > 0 && completed_prefix < previous_snapshot.size() &&
-        queue_snapshot_.size() + completed_prefix >= previous_snapshot.size() &&
+        queue_snapshot_.size() >= retained_count &&
         std::equal(previous_snapshot.begin() + completed_prefix, previous_snapshot.end(), queue_snapshot_.begin(),
-            [](const velocitycopy::PlannedFile& left, const velocitycopy::PlannedFile& right) { return left.id == right.id; });
+            [](const velocitycopy::PlannedFile& left, const velocitycopy::PlannedFile& right) {
+                return left.id == right.id && left.source == right.source &&
+                       left.destination == right.destination && left.size == right.size;
+            });
     if (can_trim_prefix) {
         for (std::size_t index = 0; index < completed_prefix; ++index) items.RemoveAt(0);
     } else {
         items.Clear();
     }
-    const auto first_new_index = can_trim_prefix ? previous_snapshot.size() - completed_prefix : 0;
+    const auto first_new_index = can_trim_prefix ? retained_count : 0;
     for (std::size_t file_index = first_new_index; file_index < queue_snapshot_.size(); ++file_index) {
         const auto& file = queue_snapshot_[file_index];
         StackPanel row;
