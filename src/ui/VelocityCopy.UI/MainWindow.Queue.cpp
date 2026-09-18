@@ -54,6 +54,13 @@ void MainWindow::RefreshQueue() {
 
         row.Children().Append(name);
         row.Children().Append(location);
+        std::wstring accessible_name = file.source.filename().wstring();
+        const auto parent = file.source.parent_path().wstring();
+        if (!parent.empty()) {
+            accessible_name += L", ";
+            accessible_name += parent;
+        }
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(row, hstring(accessible_name));
         items.Append(row);
     }
 
