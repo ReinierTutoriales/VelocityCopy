@@ -36,11 +36,12 @@ int main() {
     const auto persistence = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.QueuePersistence.cpp");
     const auto workflow = read_all(root / ".github/workflows/build.yml");
     const auto installer = read_all(root / "tools/Install-VelocityCopy-Test.ps1");
+    const auto installer_exe = read_all(root / "tools/VelocityCopy-Test-Installer.nsi");
     const auto docs = read_all(root / "docs/SYSTEM_INTEGRATION.md");
 
     if (manifest.empty() || app.empty() || shell.empty() || shell_window.empty() || ipc.empty() ||
         window.empty() || tray.empty() || persistence.empty() || workflow.empty() ||
-        installer.empty() || docs.empty()) {
+        installer.empty() || installer_exe.empty() || docs.empty()) {
         return fail(1, "required integration source missing");
     }
 
@@ -105,31 +106,37 @@ int main() {
     if (!contains(workflow, "GenerateAppxPackageOnBuild=true") ||
         !contains(workflow, "Sign Windows test MSIX") ||
         !contains(workflow, "signtool") ||
-        !contains(workflow, "VelocityCopy-Test.cer")) {
-        return fail(8, "CI must build and sign an installable test MSIX");
+        !contains(workflow, "VelocityCopy-Test.cer") ||
+        !contains(workflow, "VelocityCopy-Setup-x64.exe") ||
+        !contains(workflow, "Build single-file Windows installer") ||
+        !contains(workflow, "VelocityCopy-Setup-x64")) {
+        return fail(8, "CI must build, sign and publish one installer EXE");
     }
 
     if (!contains(installer, "Import-Certificate") ||
         !contains(installer, "Add-AppxPackage") ||
         !contains(installer, "Remove-AppxPackage") ||
-        !contains(installer, "TrustedPeople") ||
-        !contains(installer, "CurrentUser\\Root") ||
-        !contains(installer, "trustedPeoplePath") ||
-        !contains(installer, "trustedRootPath") ||
+        !contains(installer, "LocalMachine\\TrustedPeople") ||
+        !contains(installer, "SignerCertificate.Thumbprint") ||
         !contains(installer, "Dependencies[\\\\/]x64") ||
         contains(installer, "Dependencies[\\\\/]arm64") ||
         contains(installer, "Dependencies[\\\\/]x86") ||
-        !contains(installer, "Microsoft.VCLibs.140.00") ||
-        !contains(installer, "Microsoft.VCLibs.140.00.UWPDesktop") ||
-        !contains(installer, "Microsoft.WindowsAppRuntime.2") ||
-        !contains(installer, "Required x64 framework was not installed")) {
-        return fail(9, "test package must trust/clean its certificate and install x64 dependencies only");
+        !contains(installer, "Microsoft\\.VCLibs") ||
+        !contains(installer, "Microsoft\\.WindowsAppRuntime")) {
+        return fail(9, "embedded installer must trust exact signer and install x64 dependencies only");
+    }
+
+    if (!contains(installer_exe, "RequestExecutionLevel admin") ||
+        !contains(installer_exe, "Install-VelocityCopy-Test.ps1") ||
+        !contains(installer_exe, "PAYLOAD_DIR") ||
+        !contains(installer_exe, "OUTPUT_FILE")) {
+        return fail(10, "single-file installer must self-elevate and embed the full payload");
     }
 
     if (!contains(shell_window, "PasteToFolder") ||
         !contains(shell_window, "staged_sources().empty()") ||
         !contains(shell_window, "CaptureClipboardFileSelection()")) {
-        return fail(10, "Explorer paste must reconstruct clipboard staging when app starts on demand");
+        return fail(11, "Explorer paste must reconstruct clipboard staging when app starts on demand");
     }
 
     if (!contains(docs, "near-zero-CPU") || !contains(docs, "IExplorerCommand") ||
@@ -138,7 +145,7 @@ int main() {
         !contains(docs, "EcoQoS") ||
         !contains(docs, "WM_ENDSESSION") ||
         !contains(docs, "NOTIFYICON_VERSION_4")) {
-        return fail(11, "system-impact constraints must remain documented");
+        return fail(12, "system-impact constraints must remain documented");
     }
 
     return 0;
