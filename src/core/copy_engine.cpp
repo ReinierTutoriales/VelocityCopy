@@ -80,6 +80,15 @@ COPYFILE2_MESSAGE_ACTION CALLBACK copy_progress_routine(
     }
 }
 
+bool source_is_unsafe_reparse_point(const std::filesystem::path& source) noexcept {
+    const DWORD attrs = GetFileAttributesW(source.c_str());
+    if (attrs == INVALID_FILE_ATTRIBUTES) {
+        // Let CopyFile2 report missing/inaccessible sources with its native error.
+        return false;
+    }
+    return (attrs & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
+}
+
 } // namespace
 
 CopyResult CopyEngine::copy_file(
@@ -102,6 +111,16 @@ CopyResult CopyEngine::copy_file(
         if (directory_error) {
             return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(directory_error.value()))};
         }
+    }
+
+    // Revalidate immediately before CopyFile2 so a source that was safe at
+    // planning time cannot be silently followed after being swapped for a
+    // symlink/junction. This narrows the remaining TOCTOU window.
+    if (source_is_unsafe_reparse_point(source)) {
+        return {
+            false,
+            static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_CANT_ACCESS_FILE)),
+        };
     }
 
     CallbackContext callback_context{&progress, false, COPYFILE2_PROGRESS_CONTINUE};
