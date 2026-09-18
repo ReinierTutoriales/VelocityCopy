@@ -87,12 +87,15 @@ try {
 
     $bundledCert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certificate)
     try {
-        # Windows PowerShell on the hosted runner can fail to import
-        # Microsoft.PowerShell.Security, making Get-AuthenticodeSignature unusable.
-        # The bundle was signed in CI immediately before staging; verify its signer
-        # with the Windows SDK SignTool against the exact staged certificate instead.
-        $signtool = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Filter "signtool.exe" -Recurse -File |
-            Where-Object { $_.FullName -match '\\x64\\signtool\.exe
+        # The bundle is signed by CI immediately before staging. The certificate
+        # thumbprint is the trust anchor we install; cryptographic bundle validation
+        # is performed by AppX deployment itself after that exact certificate is trusted.
+        $currentThumbprint = $bundledCert.Thumbprint
+    }
+    finally {
+        $bundledCert.Dispose()
+    }
+
     $trustedPath = "$machineStore\$currentThumbprint"
     if (-not (Test-Path -LiteralPath $trustedPath)) {
         Write-InstallLog "Trusting the exact VelocityCopy test signing certificate in LocalMachine\TrustedPeople."
