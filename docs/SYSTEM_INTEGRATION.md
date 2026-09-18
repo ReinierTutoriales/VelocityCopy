@@ -27,6 +27,8 @@ VelocityCopy integrates deeply enough to feel native on Windows 11 without repla
 - Clicking the tray icon restores the same live queue/progress state.
 - The tray menu exposes Open VelocityCopy and Exit. Exit is the explicit action that terminates the resident process.
 - Silent sign-in startup creates the tray presence without activating the compact window or creating a taskbar button.
+- The tray icon negotiates `NOTIFYICON_VERSION_4` after `NIM_ADD` and handles the v4 callback layout, including keyboard selection.
+- If Explorer restarts, VelocityCopy handles the registered `TaskbarCreated` message and re-adds the notification icon.
 
 ## Resident impact
 
@@ -43,8 +45,17 @@ The resident process exists only to provide near-instant Explorer handoff and st
 - no copy worker until work exists
 - IPC blocks on a local named pipe instead of polling
 - the hidden startup window performs no animation
+- when hidden in the tray and no transfer/planning work is active, VelocityCopy opts into Windows 11 EcoQoS with `ProcessPowerThrottling` / `PROCESS_POWER_THROTTLING_EXECUTION_SPEED`
+- EcoQoS is removed before planning, copying, resuming work, showing the window or exiting, so active file I/O is never intentionally throttled
 
-Windows may apply normal desktop power/resource policies to the background process. Any future idle feature must preserve this near-zero-CPU design.
+Any future idle feature must preserve this near-zero-CPU design and must not apply background I/O priority to active transfers.
+
+## Session shutdown and recovery
+
+- `WM_QUERYENDSESSION` returns success immediately; VelocityCopy does not delay Windows shutdown with UI.
+- On a confirmed `WM_ENDSESSION`, EcoQoS is removed and the remaining live plan, deferred appends and queued sessions are snapshotted.
+- The snapshot is stored as `VelocityCopy.Recovery.vcq` in the packaged app LocalState using the existing atomic temp-file + `MoveFileExW` archive path.
+- Recovery persistence is best-effort and must never block or veto Windows shutdown.
 
 ## File Explorer integration
 
