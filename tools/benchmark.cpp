@@ -180,6 +180,9 @@ int wmain(int argc, wchar_t* argv[]) {
     const std::chrono::duration<double> elapsed = end - start;
     const double mib = static_cast<double>(total_bytes) / (1024.0 * 1024.0);
     const double mib_per_second = elapsed.count() > 0.0 ? mib / elapsed.count() : 0.0;
+    const double files_per_second = elapsed.count() > 0.0
+        ? static_cast<double>(workload.file_count) / elapsed.count()
+        : 0.0;
 
     if (json_output) {
         std::wcout << std::fixed << std::setprecision(6)
@@ -204,11 +207,13 @@ int wmain(int argc, wchar_t* argv[]) {
                    << (((execution_options.copy_flags & COPY_FILE_REQUEST_COMPRESSED_TRAFFIC) != 0) ? L"true" : L"false")
                    << L",\"elapsed_seconds\":" << elapsed.count()
                    << L",\"mib_per_second\":" << mib_per_second
+                   << L",\"files_per_second\":" << files_per_second
                    << L"}\n";
     } else {
         std::wcout << std::fixed << std::setprecision(2)
                    << L"Copied " << mib << L" MiB in " << elapsed.count()
-                   << L" s (" << mib_per_second << L" MiB/s)\n";
+                   << L" s (" << mib_per_second << L" MiB/s, "
+                   << files_per_second << L" files/s)\n";
     }
     return 0;
 }
