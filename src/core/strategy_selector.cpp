@@ -30,7 +30,11 @@ StrategyRecommendation StrategySelector::choose(
         return recommendation;
     }
 
-    if (very_large_file && local_fixed && destination.sector_info_available) {
+    // Microsoft documents COPY_FILE_NO_BUFFERING for very large copies, but also
+    // advises against pausing such copies. Keep the optimization restricted to
+    // local fixed storage with known sector geometry; execution control can
+    // deliberately fall back to buffered CopyFile2 when pause semantics matter.
+    if (very_large_file && local_fixed && source.sector_info_available && destination.sector_info_available) {
         recommendation.strategy = CopyStrategyKind::WindowsCopyFile2NoBuffering;
         recommendation.copy_flags = COPY_FILE_NO_BUFFERING;
         recommendation.suggested_buffer_bytes = 4u * 1024u * 1024u;
