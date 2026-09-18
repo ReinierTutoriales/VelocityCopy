@@ -132,11 +132,12 @@ int main() {
         !contains(package_workflow, "VelocityCopy-Setup") ||
         !contains(package_workflow, "Stamp test package version") ||
         !contains(package_workflow, "GITHUB_RUN_NUMBER") ||
-        !contains(package_workflow, "Smoke install packaged MSIX bundle") ||
-        !contains(package_workflow, "& $script") ||
+        !contains(package_workflow, "Smoke install single-file Windows installer") ||
+        !contains(package_workflow, "Start-Process -FilePath $setup -ArgumentList \"/S\"") ||
         !contains(package_workflow, "Get-AppxPackage -Name \"ReinierTutoriales.VelocityCopy\"") ||
-        !contains(package_workflow, "& $script -Uninstall")) {
-        return fail(9, "release packaging must build ARM64, create and sign the universal bundle, smoke install it, and publish one installer EXE");
+        !contains(package_workflow, "Start-Process -FilePath $uninstaller -ArgumentList \"/S\"") ||
+        !contains(package_workflow, "package remains installed after setup smoke uninstall")) {
+        return fail(9, "release packaging must build ARM64, create and sign the universal bundle, smoke install the actual setup EXE, uninstall it, and publish one installer EXE");
     }
 
     if (!contains(installer, "Import-Certificate") ||
