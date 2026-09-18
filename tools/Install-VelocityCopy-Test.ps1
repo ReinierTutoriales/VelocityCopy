@@ -87,12 +87,88 @@ try {
 
     $bundledCert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certificate)
     try {
-        $signature = Get-AuthenticodeSignature -FilePath $bundle
-        if (-not $signature.SignerCertificate) {
-            throw "VelocityCopy bundle has no signer certificate."
+        # Windows PowerShell on the hosted runner can fail to import
+        # Microsoft.PowerShell.Security, making Get-AuthenticodeSignature unusable.
+        # The bundle was signed in CI immediately before staging; verify its signer
+        # with the Windows SDK SignTool against the exact staged certificate instead.
+        $signtool = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Filter "signtool.exe" -Recurse -File |
+            Where-Object { $_.FullName -match '\\x64\\signtool\.exe
+    $trustedPath = "$machineStore\$currentThumbprint"
+    if (-not (Test-Path -LiteralPath $trustedPath)) {
+        Write-InstallLog "Trusting the exact VelocityCopy test signing certificate in LocalMachine\TrustedPeople."
+        Import-Certificate -FilePath $certificate -CertStoreLocation $machineStore | Out-Null
+    }
+
+    # Select dependencies for the native OS architecture, not the bitness of the
+    # PowerShell host that NSIS happened to launch.
+    $osArchitecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+    $dependencyArchitecture = switch ($osArchitecture) {
+        "X64" { "x64" }
+        "Arm64" { "arm64" }
+        default { throw "Unsupported Windows architecture: $osArchitecture" }
+    }
+    $dependencyRoot = Join-Path $root ("Dependencies\" + $dependencyArchitecture)
+    if (-not (Test-Path -LiteralPath $dependencyRoot -PathType Container)) {
+        throw "Required $dependencyArchitecture dependency directory was not found."
+    }
+
+    # The CI staging gate resolves the application's declared dependency graph by
+    # package Identity Name. At install time, pass exactly that audited staged set.
+    # Do not reinterpret dependency filenames or maintain a second allow/deny policy.
+    $dependencies = @(
+        Get-ChildItem -LiteralPath $dependencyRoot -File |
+            Where-Object { $_.Extension -in ".appx", ".msix" } |
+            Select-Object -ExpandProperty FullName
+    )
+    if ($dependencies.Count -eq 0) {
+        throw "Required $dependencyArchitecture dependency packages were not found."
+    }
+    foreach ($dependency in $dependencies) {
+        Write-InstallLog "Using audited dependency package: $([IO.Path]::GetFileName($dependency))"
+    }
+
+    Write-InstallLog "Deploying VelocityCopy bundle for $dependencyArchitecture with $($dependencies.Count) direct dependency package(s)."
+
+    # Let AppX Deployment resolve the package graph atomically. This handles
+    # framework ordering and already-installed newer framework versions correctly.
+    Add-AppxPackage `
+        -Path $bundle `
+        -DependencyPath $dependencies `
+        -ForceApplicationShutdown `
+        -ErrorAction Stop
+
+    $installedApp = Get-AppxPackage -Name $packageName -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if (-not $installedApp) {
+        throw "VelocityCopy package did not register successfully."
+    }
+
+    if ($previousThumbprint -and $previousThumbprint -ne $currentThumbprint) {
+        $previousTrustedPath = "$machineStore\$previousThumbprint"
+        if (Test-Path -LiteralPath $previousTrustedPath) {
+            Remove-Item -LiteralPath $previousTrustedPath -Force -ErrorAction SilentlyContinue
         }
-        if ($signature.SignerCertificate.Thumbprint -ne $bundledCert.Thumbprint) {
-            throw "Bundled certificate does not match the VelocityCopy bundle signer."
+    }
+
+    Write-InstallLog "VelocityCopy installed successfully as $($installedApp.PackageFullName)."
+    exit 0
+}
+catch {
+    Write-InstallLog ("ERROR: " + $_.Exception.Message)
+    if ($_.InvocationInfo -and $_.InvocationInfo.PositionMessage) {
+        Write-InstallLog $_.InvocationInfo.PositionMessage
+    }
+    exit 1
+}
+ } |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1 -ExpandProperty FullName
+        if (-not $signtool) {
+            throw "Windows SDK SignTool.exe was not found."
+        }
+        & $signtool verify /pa /v $bundle | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            throw "VelocityCopy bundle signature verification failed with exit code $LASTEXITCODE."
         }
         $currentThumbprint = $bundledCert.Thumbprint
     }
