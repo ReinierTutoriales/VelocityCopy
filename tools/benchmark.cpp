@@ -41,6 +41,32 @@ const wchar_t* seek_name(const velocitycopy::StorageProfile& profile) noexcept {
     return profile.incurs_seek_penalty ? L"rotational/seek penalty" : L"nonrotational";
 }
 
+void write_disk_numbers(std::wostream& stream, const velocitycopy::StorageProfile& profile) {
+    if (!profile.physical_disk_extents_available) {
+        stream << L"unknown";
+        return;
+    }
+    for (std::size_t index = 0; index < profile.physical_disk_numbers.size(); ++index) {
+        if (index != 0) stream << L",";
+        stream << profile.physical_disk_numbers[index];
+    }
+}
+
+bool shares_physical_disk(
+    const velocitycopy::StorageProfile& source,
+    const velocitycopy::StorageProfile& destination) noexcept {
+    if (!source.physical_disk_extents_available || !destination.physical_disk_extents_available) {
+        return false;
+    }
+    for (const auto disk : source.physical_disk_numbers) {
+        if (std::find(destination.physical_disk_numbers.begin(), destination.physical_disk_numbers.end(), disk) !=
+            destination.physical_disk_numbers.end()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 } // namespace
 
 int wmain(int argc, wchar_t* argv[]) {
@@ -94,6 +120,8 @@ int wmain(int argc, wchar_t* argv[]) {
     velocitycopy::StorageProfiler profiler;
     const auto source_profile = profiler.inspect(job.sources.front());
     const auto destination_profile = profiler.inspect(job.destination);
+    const bool topology_known = source_profile.physical_disk_extents_available && destination_profile.physical_disk_extents_available;
+    const bool shared_physical_disk = topology_known && shares_physical_disk(source_profile, destination_profile);
 
     velocitycopy::StrategySelector selector;
     const auto recommendation = selector.choose(source_profile, destination_profile, workload);
@@ -102,11 +130,15 @@ int wmain(int argc, wchar_t* argv[]) {
         std::wcout << L"Source: " << storage_name(source_profile.kind)
                    << L" | " << seek_name(source_profile)
                    << L" | sector " << source_profile.logical_sector_bytes << L"/"
-                   << source_profile.physical_sector_bytes << L"\n";
+                   << source_profile.physical_sector_bytes << L" | disks ";
+        write_disk_numbers(std::wcout, source_profile);
+        std::wcout << L"\n";
         std::wcout << L"Destination: " << storage_name(destination_profile.kind)
                    << L" | " << seek_name(destination_profile)
                    << L" | sector " << destination_profile.logical_sector_bytes << L"/"
-                   << destination_profile.physical_sector_bytes << L"\n";
+                   << destination_profile.physical_sector_bytes << L" | disks ";
+        write_disk_numbers(std::wcout, destination_profile);
+        std::wcout << L" | shared physical disk " << (shared_physical_disk ? L"yes" : (topology_known ? L"no" : L"unknown")) << L"\n";
         std::wcout << L"Strategy candidate: " << strategy_name(recommendation.strategy)
                    << L" | suggested QD " << recommendation.suggested_queue_depth
                    << L" | buffer " << recommendation.suggested_buffer_bytes
@@ -155,7 +187,10 @@ int wmain(int argc, wchar_t* argv[]) {
                    << L"\",\"destination_kind\":\"" << storage_name(destination_profile.kind)
                    << L"\",\"source_seek\":\"" << seek_name(source_profile)
                    << L"\",\"destination_seek\":\"" << seek_name(destination_profile)
-                   << L"\",\"total_bytes\":" << total_bytes
+                   << L"\",\"source_topology_known\":" << (source_profile.physical_disk_extents_available ? L"true" : L"false")
+                   << L",\"destination_topology_known\":" << (destination_profile.physical_disk_extents_available ? L"true" : L"false")
+                   << L",\"shared_physical_disk\":" << (shared_physical_disk ? L"true" : L"false")
+                   << L",\"total_bytes\":" << total_bytes
                    << L",\"file_count\":" << workload.file_count
                    << L",\"largest_file_bytes\":" << workload.largest_file_bytes
                    << L",\"strategy\":\"" << strategy_name(execution_options.strategy)
