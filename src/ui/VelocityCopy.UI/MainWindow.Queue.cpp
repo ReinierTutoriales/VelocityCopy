@@ -21,6 +21,11 @@ void MainWindow::RefreshQueue() {
 
     constexpr std::size_t kVisibleQueueItems = 256;
     auto view = live_plan_->queue_view(kVisibleQueueItems);
+    if (view.pending_files == queue_snapshot_) {
+        QueueCountText().Text(hstring(std::format(L"{}", view.pending_count)));
+        RefreshQueueCommandState();
+        return;
+    }
     queue_snapshot_ = std::move(view.pending_files);
 
     auto items = QueueList().Items();
