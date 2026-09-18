@@ -167,37 +167,41 @@ jobs:
             Remove-Item -LiteralPath ("Cert:\CurrentUser\My\" + $cert.Thumbprint) -Force -ErrorAction SilentlyContinue
           }
 
-      - name: Stage installer payload
+      - name: Stage universal installer payload
         shell: pwsh
         run: |
           $payload = "artifacts/VelocityCopy-InstallerPayload"
           New-Item -ItemType Directory -Force -Path $payload | Out-Null
 
-          $packageRoot = (Resolve-Path "artifacts/AppPackages").Path
-          $main = Get-ChildItem -LiteralPath $packageRoot -Recurse -File -Filter *.msix |
-            Where-Object { $_.FullName -notmatch "[\\/]Dependencies[\\/]" } |
-            Select-Object -First 1
-          if (-not $main) { throw "VelocityCopy MSIX package was not found" }
+          $bundleRoot = (Resolve-Path "artifacts/Bundle").Path
+          $bundle = Join-Path $bundleRoot "VelocityCopy.msixbundle"
+          $certificate = Join-Path $bundleRoot "VelocityCopy-Test.cer"
+          if (-not (Test-Path -LiteralPath $bundle -PathType Leaf)) { throw "VelocityCopy.msixbundle was not found" }
+          if (-not (Test-Path -LiteralPath $certificate -PathType Leaf)) { throw "VelocityCopy-Test.cer was not found" }
+          Copy-Item -LiteralPath $bundle -Destination $payload -Force
+          Copy-Item -LiteralPath $certificate -Destination $payload -Force
 
-          Copy-Item -LiteralPath $main.FullName -Destination $payload -Force
-          Copy-Item -LiteralPath (Join-Path $packageRoot "VelocityCopy-Test.cer") -Destination $payload -Force
+          foreach ($architecture in @("x64", "arm64")) {
+            $sourceRoot = if ($architecture -eq "x64") { "artifacts/AppPackages" } else { "artifacts/AppPackages-ARM64" }
+            $dependencies = @(
+              Get-ChildItem -LiteralPath $sourceRoot -Recurse -File |
+                Where-Object {
+                  $_.FullName -match ("[\\/]Dependencies[\\/]" + $architecture + "[\\/]") -and
+                  $_.Extension -in ".appx", ".msix"
+                }
+            )
+            if ($dependencies.Count -eq 0) { throw "$architecture package dependencies were not found" }
 
-          $x64Dependencies = Get-ChildItem -LiteralPath $packageRoot -Recurse -File |
-            Where-Object {
-              $_.FullName -match "[\\/]Dependencies[\\/]x64[\\/]" -and
-              $_.Extension -in ".appx", ".msix"
+            $dependencyStage = Join-Path $payload ("Dependencies\" + $architecture)
+            New-Item -ItemType Directory -Force -Path $dependencyStage | Out-Null
+            foreach ($dependency in $dependencies) {
+              Copy-Item -LiteralPath $dependency.FullName -Destination $dependencyStage -Force
             }
-          if (-not $x64Dependencies) { throw "x64 package dependencies were not found" }
-
-          $dependencyStage = Join-Path $payload "Dependencies\x64"
-          New-Item -ItemType Directory -Force -Path $dependencyStage | Out-Null
-          foreach ($dependency in $x64Dependencies) {
-            Copy-Item -LiteralPath $dependency.FullName -Destination $dependencyStage -Force
           }
 
           Copy-Item -LiteralPath "tools/Install-VelocityCopy-Test.ps1" -Destination $payload -Force
 
-      - name: Smoke install packaged MSIX
+      - name: Smoke install packaged MSIX bundle
         shell: pwsh
         timeout-minutes: 5
         run: |
@@ -243,16 +247,16 @@ jobs:
           $payload = (Resolve-Path "artifacts/VelocityCopy-InstallerPayload").Path
           $outputDir = "artifacts/installer"
           New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
-          $output = Join-Path (Resolve-Path $outputDir).Path "VelocityCopy-Setup-x64.exe"
+          $output = Join-Path (Resolve-Path $outputDir).Path "VelocityCopy-Setup.exe"
 
           if (-not $env:VELOCITYCOPY_PACKAGE_VERSION) { throw "Stamped VelocityCopy package version is unavailable" }
           & $makensis "/DPAYLOAD_DIR=$payload" "/DOUTPUT_FILE=$output" "/DDISPLAY_VERSION=$env:VELOCITYCOPY_PACKAGE_VERSION" "tools/VelocityCopy-Test-Installer.nsi"
           if ($LASTEXITCODE -ne 0) { throw "VelocityCopy setup generation failed" }
-          if (-not (Test-Path -LiteralPath $output -PathType Leaf)) { throw "VelocityCopy-Setup-x64.exe was not produced" }
+          if (-not (Test-Path -LiteralPath $output -PathType Leaf)) { throw "VelocityCopy-Setup.exe was not produced" }
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
-          name: VelocityCopy-Setup-x64
-          path: artifacts/installer/VelocityCopy-Setup-x64.exe
+          name: VelocityCopy-Setup
+          path: artifacts/installer/VelocityCopy-Setup.exe
           if-no-files-found: error
           retention-days: 14
