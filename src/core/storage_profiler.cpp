@@ -3,7 +3,9 @@
 #include <windows.h>
 #include <winioctl.h>
 
+#include <algorithm>
 #include <array>
+#include <vector>
 #include <system_error>
 
 namespace velocitycopy {
@@ -27,6 +29,74 @@ std::filesystem::path nearest_existing_path(std::filesystem::path path) noexcept
         ec.clear();
     }
     return path;
+}
+
+bool open_volume(const std::filesystem::path& volume_root, HANDLE& volume) noexcept {
+    std::array<wchar_t, 64> volume_name{};
+    if (GetVolumeNameForVolumeMountPointW(
+            volume_root.c_str(),
+            volume_name.data(),
+            static_cast<DWORD>(volume_name.size())) == 0) {
+        return false;
+    }
+
+    std::wstring device_path = volume_name.data();
+    if (!device_path.empty() && device_path.back() == L'\\') {
+        device_path.pop_back();
+    }
+
+    volume = CreateFileW(
+        device_path.c_str(),
+        0,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        nullptr,
+        OPEN_EXISTING,
+        0,
+        nullptr);
+    return volume != INVALID_HANDLE_VALUE;
+}
+
+void query_physical_disk_extents(const std::filesystem::path& volume_root, StorageProfile& profile) noexcept {
+    HANDLE volume = INVALID_HANDLE_VALUE;
+    if (!open_volume(volume_root, volume)) {
+        return;
+    }
+
+    std::vector<std::byte> buffer(sizeof(VOLUME_DISK_EXTENTS) + sizeof(DISK_EXTENT) * 7);
+    for (;;) {
+        DWORD bytes_returned = 0;
+        if (DeviceIoControl(
+                volume,
+                IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS,
+                nullptr,
+                0,
+                buffer.data(),
+                static_cast<DWORD>(buffer.size()),
+                &bytes_returned,
+                nullptr) != 0) {
+            const auto* extents = reinterpret_cast<const VOLUME_DISK_EXTENTS*>(buffer.data());
+            profile.physical_disk_numbers.reserve(extents->NumberOfDiskExtents);
+            for (DWORD index = 0; index < extents->NumberOfDiskExtents; ++index) {
+                profile.physical_disk_numbers.push_back(extents->Extents[index].DiskNumber);
+            }
+            std::sort(profile.physical_disk_numbers.begin(), profile.physical_disk_numbers.end());
+            profile.physical_disk_numbers.erase(
+                std::unique(profile.physical_disk_numbers.begin(), profile.physical_disk_numbers.end()),
+                profile.physical_disk_numbers.end());
+            profile.physical_disk_extents_available = !profile.physical_disk_numbers.empty();
+            break;
+        }
+
+        if (GetLastError() != ERROR_MORE_DATA) {
+            break;
+        }
+        if (buffer.size() > 1024 * 1024) {
+            break;
+        }
+        buffer.resize(buffer.size() * 2);
+    }
+
+    CloseHandle(volume);
 }
 
 void query_device_number(const std::filesystem::path& volume_root, StorageProfile& profile) noexcept {
@@ -144,6 +214,7 @@ StorageProfile StorageProfiler::inspect(const std::filesystem::path& path) const
 
         if (!profile.remote && profile.kind != StorageKind::Optical) {
             query_device_number(profile.volume_root, profile);
+            query_physical_disk_extents(profile.volume_root, profile);
             query_seek_penalty(profile.volume_root, profile);
         }
     }
