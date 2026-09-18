@@ -61,7 +61,7 @@ void MainWindow::RefreshQueue() {
     if (!selected_ids.empty()) {
         for (std::uint32_t index = 0; index < queue_snapshot_.size(); ++index) {
             if (std::find(selected_ids.begin(), selected_ids.end(), queue_snapshot_[index].id) != selected_ids.end()) {
-                QueueList().SelectRange(Windows::Foundation::IndexRange(index, 1));
+                QueueList().SelectRange(Windows::Foundation::IndexRange(index, index));
             }
         }
     }
