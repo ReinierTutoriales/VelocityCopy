@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <vector>
 
 namespace velocitycopy {
 
@@ -21,9 +22,11 @@ struct StorageProfile {
     std::uint32_t physical_sector_bytes{};
     std::uint32_t device_type{};
     std::uint32_t device_number{};
+    std::vector<std::uint32_t> physical_disk_numbers;
     bool remote{};
     bool sector_info_available{};
     bool device_number_available{};
+    bool physical_disk_extents_available{};
     bool incurs_seek_penalty{};
     bool seek_penalty_available{};
 };
