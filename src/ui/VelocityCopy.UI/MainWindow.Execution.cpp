@@ -427,6 +427,11 @@ void MainWindow::CancelCurrentSession() {
 }
 
 void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
+    // Progress callbacks are marshalled through DispatcherQueue. A snapshot that was
+    // queued before a terminal/control transition must not repaint stale telemetry.
+    if (!execution_control_ || stopped_session_ || conflict_session_ || stop_requested_ ||
+        cancel_requested_.load(std::memory_order_relaxed)) return;
+
     const auto fraction = (std::clamp)(snapshot.fraction, 0.0, 1.0);
     GlobalProgress().Value(fraction * 100.0);
     ProgressFill().Width(TransferSurface().ActualWidth() * fraction);
