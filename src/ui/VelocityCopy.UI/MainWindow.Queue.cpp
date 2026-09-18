@@ -31,11 +31,30 @@ void MainWindow::RefreshQueue() {
         return;
     }
     const auto selected_ids = SelectedPendingIds();
+    const auto previous_snapshot = std::move(queue_snapshot_);
     queue_snapshot_ = std::move(view.pending_files);
 
     auto items = QueueList().Items();
-    items.Clear();
-    for (const auto& file : queue_snapshot_) {
+    std::size_t completed_prefix = 0;
+    if (!previous_snapshot.empty() && items.Size() == previous_snapshot.size()) {
+        while (completed_prefix < previous_snapshot.size() &&
+               std::none_of(queue_snapshot_.begin(), queue_snapshot_.end(),
+                   [&](const velocitycopy::PlannedFile& current) { return current.id == previous_snapshot[completed_prefix].id; })) {
+            ++completed_prefix;
+        }
+    }
+    const bool can_trim_prefix = completed_prefix > 0 && completed_prefix < previous_snapshot.size() &&
+        queue_snapshot_.size() + completed_prefix >= previous_snapshot.size() &&
+        std::equal(previous_snapshot.begin() + completed_prefix, previous_snapshot.end(), queue_snapshot_.begin(),
+            [](const velocitycopy::PlannedFile& left, const velocitycopy::PlannedFile& right) { return left.id == right.id; });
+    if (can_trim_prefix) {
+        for (std::size_t index = 0; index < completed_prefix; ++index) items.RemoveAt(0);
+    } else {
+        items.Clear();
+    }
+    const auto first_new_index = can_trim_prefix ? previous_snapshot.size() - completed_prefix : 0;
+    for (std::size_t file_index = first_new_index; file_index < queue_snapshot_.size(); ++file_index) {
+        const auto& file = queue_snapshot_[file_index];
         StackPanel row;
         row.Spacing(1);
         row.HorizontalAlignment(HorizontalAlignment::Stretch);
