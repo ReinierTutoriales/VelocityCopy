@@ -114,7 +114,9 @@ void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
     auto main_window = winrt::make<MainWindow>();
     window_ = main_window;
     if (!startup_activation && !is_stage_only_activation(initial_request)) {
-        main_window.ShowFromTray();
+        if (auto* implementation = winrt::get_self<MainWindow>(main_window)) {
+            implementation->ShowFromTray();
+        }
     }
 
     auto deliver = [weak = winrt::weak_ref<winrt::VelocityCopyUI::MainWindow>{main_window}](
