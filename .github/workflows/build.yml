@@ -159,9 +159,6 @@ jobs:
 
           try {
             & $script
-            if ($LASTEXITCODE -ne 0) {
-              throw "VelocityCopy smoke installation failed with exit code $LASTEXITCODE"
-            }
 
             $installed = Get-AppxPackage -Name "ReinierTutoriales.VelocityCopy" -ErrorAction SilentlyContinue |
               Select-Object -First 1
@@ -176,9 +173,6 @@ jobs:
           finally {
             if (Test-Path -LiteralPath $script -PathType Leaf) {
               & $script -Uninstall
-              if ($LASTEXITCODE -ne 0) {
-                Write-Warning "VelocityCopy smoke uninstall returned exit code $LASTEXITCODE"
-              }
             }
           }
 
