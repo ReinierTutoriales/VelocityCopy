@@ -93,25 +93,41 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
         queue_options_button_ = OptionsButton();
 
         MenuFlyout menu;
+        pause_menu_item_ = MenuFlyoutItem{};
+        stop_menu_item_ = MenuFlyoutItem{};
+        cancel_menu_item_ = MenuFlyoutItem{};
         save_queue_menu_item_ = MenuFlyoutItem{};
         load_queue_menu_item_ = MenuFlyoutItem{};
 
         try {
             Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
             const auto options_label = loader.GetString(L"ActionQueueOptions");
+            pause_menu_item_.Text(loader.GetString(L"ActionPause"));
+            stop_menu_item_.Text(loader.GetString(L"ActionStop"));
+            cancel_menu_item_.Text(loader.GetString(L"ActionCancel"));
             save_queue_menu_item_.Text(loader.GetString(L"ActionSaveQueue"));
             load_queue_menu_item_.Text(loader.GetString(L"ActionLoadQueue"));
             ToolTipService::SetToolTip(queue_options_button_, box_value(options_label));
             Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(queue_options_button_, options_label);
         } catch (...) {
+            pause_menu_item_.Text(L"Pause");
+            stop_menu_item_.Text(L"Stop");
+            cancel_menu_item_.Text(L"Cancel");
             save_queue_menu_item_.Text(L"Save queue");
             load_queue_menu_item_.Text(L"Load queue");
             ToolTipService::SetToolTip(queue_options_button_, box_value(L"Queue options"));
             Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(queue_options_button_, L"Queue options");
         }
 
+        pause_menu_item_.Click({this, &MainWindow::OnMenuPauseClick});
+        stop_menu_item_.Click({this, &MainWindow::OnMenuStopClick});
+        cancel_menu_item_.Click({this, &MainWindow::OnMenuCancelClick});
         save_queue_menu_item_.Click({this, &MainWindow::OnSaveQueueClick});
         load_queue_menu_item_.Click({this, &MainWindow::OnLoadQueueClick});
+        menu.Items().Append(pause_menu_item_);
+        menu.Items().Append(stop_menu_item_);
+        menu.Items().Append(cancel_menu_item_);
+        menu.Items().Append(MenuFlyoutSeparator{});
         menu.Items().Append(save_queue_menu_item_);
         menu.Items().Append(load_queue_menu_item_);
         queue_options_button_.Flyout(menu);
@@ -125,6 +141,7 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
         }
 
         RefreshQueueCommandState();
+        RefreshExecutionMenuState();
     } catch (...) {
         // Persistence commands are auxiliary UI. Failure to construct the menu
         // must not prevent the copy engine or main window from starting.
@@ -150,6 +167,35 @@ void MainWindow::RefreshQueueCommandState() {
     load_queue_menu_item_.IsEnabled(
         !execution_control_ && !live_plan_ && !stopped_session_ &&
         !conflict_session_ && !stop_requested_ && queued_sessions_.empty());
+}
+
+void MainWindow::OnMenuPauseClick(IInspectable const& sender, RoutedEventArgs const& args) {
+    OnPauseClick(sender, args);
+    RefreshExecutionMenuState();
+}
+
+void MainWindow::OnMenuStopClick(IInspectable const& sender, RoutedEventArgs const& args) {
+    OnStopClick(sender, args);
+    RefreshExecutionMenuState();
+}
+
+void MainWindow::OnMenuCancelClick(IInspectable const& sender, RoutedEventArgs const& args) {
+    OnCancelClick(sender, args);
+    RefreshExecutionMenuState();
+}
+
+void MainWindow::RefreshExecutionMenuState() {
+    if (!pause_menu_item_ || !stop_menu_item_ || !cancel_menu_item_) return;
+    const bool active = execution_control_ != nullptr;
+    pause_menu_item_.IsEnabled((active && !stop_requested_ && !conflict_session_) || stopped_session_);
+    stop_menu_item_.IsEnabled(active && !stopped_session_ && !conflict_session_ && !stop_requested_);
+    cancel_menu_item_.IsEnabled(active || stopped_session_ || conflict_session_);
+    try {
+        Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
+        pause_menu_item_.Text(loader.GetString((paused_ || stopped_session_) ? L"ActionResume" : L"ActionPause"));
+    } catch (...) {
+        pause_menu_item_.Text((paused_ || stopped_session_) ? L"Resume" : L"Pause");
+    }
 }
 
 void MainWindow::OnSaveQueueClick(IInspectable const&, RoutedEventArgs const&) {
