@@ -18,6 +18,17 @@ $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $certificate = Join-Path $root "VelocityCopy-Test.cer"
 $packageName = "ReinierTutoriales.VelocityCopy"
 $machineStore = "Cert:\LocalMachine\TrustedPeople"
+$installedSupportCert = Join-Path $env:ProgramFiles "VelocityCopy\InstallerSupport\VelocityCopy-Test.cer"
+$previousThumbprint = $null
+if (Test-Path -LiteralPath $installedSupportCert -PathType Leaf) {
+    try {
+        $previousCert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($installedSupportCert)
+        $previousThumbprint = $previousCert.Thumbprint
+        $previousCert.Dispose()
+    } catch {
+        $previousThumbprint = $null
+    }
+}
 
 if ($Uninstall) {
     Get-AppxPackage -Name $packageName -ErrorAction SilentlyContinue |
@@ -100,6 +111,13 @@ Add-AppxPackage -Path $main.FullName -ForceApplicationShutdown -ErrorAction Stop
 $installedApp = Get-AppxPackage -Name $packageName -ErrorAction SilentlyContinue | Select-Object -First 1
 if (-not $installedApp) {
     throw "VelocityCopy package did not register successfully."
+}
+
+if ($previousThumbprint -and $previousThumbprint -ne $signature.SignerCertificate.Thumbprint) {
+    $previousTrustedPath = "$machineStore\$previousThumbprint"
+    if (Test-Path -LiteralPath $previousTrustedPath) {
+        Remove-Item -LiteralPath $previousTrustedPath -Force -ErrorAction SilentlyContinue
+    }
 }
 
 Write-Host "VelocityCopy installed successfully."
