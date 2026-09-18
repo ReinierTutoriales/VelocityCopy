@@ -13,12 +13,23 @@ using namespace Microsoft::UI::Xaml::Controls;
 namespace winrt::VelocityCopyUI::implementation {
 namespace {
 
-DataPackageOperation preferred_drop_operation(const DataPackageView& data_view) {
-    // RequestedOperation is the source's preferred/default operation. Explorer can
-    // advertise more than one operation; only honor Move when it is unambiguous.
-    return data_view.RequestedOperation() == DataPackageOperation::Move
-        ? DataPackageOperation::Move
-        : DataPackageOperation::Copy;
+DataPackageOperation preferred_drop_operation(
+    const DataPackageView& data_view,
+    const Microsoft::UI::Input::DragDrop::DragDropModifiers modifiers) {
+    const auto requested = data_view.RequestedOperation();
+    const bool allows_copy = (requested & DataPackageOperation::Copy) == DataPackageOperation::Copy;
+    const bool allows_move = (requested & DataPackageOperation::Move) == DataPackageOperation::Move;
+    const bool control = (modifiers & Microsoft::UI::Input::DragDrop::DragDropModifiers::Control) ==
+        Microsoft::UI::Input::DragDrop::DragDropModifiers::Control;
+    const bool shift = (modifiers & Microsoft::UI::Input::DragDrop::DragDropModifiers::Shift) ==
+        Microsoft::UI::Input::DragDrop::DragDropModifiers::Shift;
+
+    // Windows documents Ctrl/Shift as user overrides for drag/drop operation.
+    // Never synthesize an operation the source did not advertise.
+    if (control && allows_copy) return DataPackageOperation::Copy;
+    if (shift && allows_move) return DataPackageOperation::Move;
+    if (requested == DataPackageOperation::Move) return DataPackageOperation::Move;
+    return DataPackageOperation::Copy;
 }
 
 velocitycopy::FileOperation file_operation(const DataPackageOperation operation) {
@@ -113,7 +124,7 @@ void MainWindow::ResizeWindow(const int height_epx) {
 
 void MainWindow::OnDragEnter(IInspectable const&, DragEventArgs const& args) {
     const bool accepts_storage_items = args.DataView().Contains(StandardDataFormats::StorageItems());
-    const auto operation = accepts_storage_items ? preferred_drop_operation(args.DataView()) : DataPackageOperation::None;
+    const auto operation = accepts_storage_items ? preferred_drop_operation(args.DataView(), args.Modifiers()) : DataPackageOperation::None;
     args.AcceptedOperation(operation);
     if (accepts_storage_items) {
         args.DragUIOverride().IsCaptionVisible(true);
@@ -125,7 +136,7 @@ void MainWindow::OnDragEnter(IInspectable const&, DragEventArgs const& args) {
 
 void MainWindow::OnDragOver(IInspectable const&, DragEventArgs const& args) {
     const bool accepts_storage_items = args.DataView().Contains(StandardDataFormats::StorageItems());
-    const auto operation = accepts_storage_items ? preferred_drop_operation(args.DataView()) : DataPackageOperation::None;
+    const auto operation = accepts_storage_items ? preferred_drop_operation(args.DataView(), args.Modifiers()) : DataPackageOperation::None;
     args.AcceptedOperation(operation);
     if (accepts_storage_items) {
         args.DragUIOverride().IsCaptionVisible(true);
@@ -141,7 +152,7 @@ void MainWindow::OnDragLeave(IInspectable const&, DragEventArgs const&) {
 
 void MainWindow::OnDrop(IInspectable const&, DragEventArgs const& args) {
     DragOverlay().Visibility(Visibility::Collapsed);
-    const auto operation = preferred_drop_operation(args.DataView());
+    const auto operation = preferred_drop_operation(args.DataView(), args.Modifiers());
     args.AcceptedOperation(operation);
     HandleDropAsync(args.DataView(), file_operation(operation));
 }
