@@ -90,13 +90,13 @@ bool source_is_unsafe_reparse_point(const std::filesystem::path& source) noexcep
 }
 
 
-bool existing_path_is_reparse_point(const std::filesystem::path& path) noexcept {
+bool existing_path_is_safe_non_reparse(const std::filesystem::path& path) noexcept {
     const HANDLE handle = CreateFileW(path.c_str(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
     if (handle == INVALID_HANDLE_VALUE) return false;
     FILE_ATTRIBUTE_TAG_INFO info{};
-    const bool result = GetFileInformationByHandleEx(handle, FileAttributeTagInfo, &info, sizeof(info)) != 0 && (info.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
+    const bool queried = GetFileInformationByHandleEx(handle, FileAttributeTagInfo, &info, sizeof(info)) != 0;
     CloseHandle(handle);
-    return result;
+    return queried && (info.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0;
 }
 
 bool destination_chain_contains_reparse_point(const std::filesystem::path& destination) noexcept {
@@ -109,7 +109,7 @@ bool destination_chain_contains_reparse_point(const std::filesystem::path& desti
         if (ec) {
             if (ec == std::errc::no_such_file_or_directory) ec.clear();
             else return true;
-        } else if (std::filesystem::exists(status) && existing_path_is_reparse_point(probe)) {
+        } else if (std::filesystem::exists(status) && !existing_path_is_safe_non_reparse(probe)) {
             return true;
         }
         probe = probe.parent_path();
