@@ -6,6 +6,14 @@
 namespace winrt::VelocityCopyUI::implementation {
 
 void MainWindow::HandleShellRequest(const velocitycopy::ShellRequest& request) {
+    if (request.action == velocitycopy::ShellAction::PasteToFolder &&
+        shell_session_.staged_sources().empty()) {
+        // The app may have been started on demand after Explorer already placed
+        // Copy/Cut files on the clipboard. Reconstruct staging at paste time so
+        // Paste with VelocityCopy does not depend on startup residency.
+        CaptureClipboardFileSelection();
+    }
+
     const auto dispatch = shell_session_.dispatch(request);
 
     switch (dispatch.status) {
