@@ -136,9 +136,13 @@ int main() {
         !contains(installer_exe, "Install-VelocityCopy-Test.ps1") ||
         !contains(installer_exe, "PAYLOAD_DIR") ||
         !contains(installer_exe, "OUTPUT_FILE") ||
+        !contains(installer_exe, "DISPLAY_VERSION") ||
+        !contains(installer_exe, "${DISPLAY_VERSION}") ||
         !contains(installer_exe, "WriteUninstaller") ||
-        !contains(installer_exe, "Windows\\CurrentVersion\\Uninstall\\VelocityCopy")) {
-        return fail(10, "single-file installer must self-elevate and embed the full payload");
+        !contains(installer_exe, "Windows\\CurrentVersion\\Uninstall\\VelocityCopy") ||
+        !contains(workflow, "VELOCITYCOPY_PACKAGE_VERSION") ||
+        !contains(workflow, "/DDISPLAY_VERSION=$env:VELOCITYCOPY_PACKAGE_VERSION")) {
+        return fail(10, "single-file installer must self-elevate and inherit the stamped package version");
     }
 
     if (!contains(shell_window, "PasteToFolder") ||
@@ -154,6 +158,13 @@ int main() {
         !contains(docs, "WM_ENDSESSION") ||
         !contains(docs, "NOTIFYICON_VERSION_4")) {
         return fail(12, "system-impact constraints must remain documented");
+    }
+
+    if (!contains(window, "item.IsOfType(StorageItemTypes::Folder)") ||
+        !contains(window, "item.IsOfType(StorageItemTypes::File)") ||
+        !contains(window, "if (!kind)") ||
+        contains(window, "? velocitycopy::DropItemKind::Directory\n                : velocitycopy::DropItemKind::File")) {
+        return fail(13, "drag-and-drop must classify only supported files and folders explicitly");
     }
 
     return 0;
