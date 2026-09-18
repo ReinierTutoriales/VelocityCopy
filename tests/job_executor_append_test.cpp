@@ -171,6 +171,43 @@ int wmain() {
         }
     }
 
+    // Stop/Resume in a move session may remove only files that completed before
+    // the stop boundary; every pending source must survive and then be removed
+    // only after its resumed copy completes.
+    {
+        const auto move_source = root / L"move-stopped-source";
+        const auto destination = root / L"move-stopped-destination";
+        write_text(move_source / L"a.txt", "a");
+        write_text(move_source / L"b.txt", "b");
+        write_text(move_source / L"c.txt", "c");
+        write_text(move_source / L"d.txt", "d");
+        auto plan = four_file_plan(move_source, destination);
+        plan.operation = FileOperation::Move;
+        LiveCopyPlan live(std::move(plan));
+        ExecutionControl first_control;
+        bool stop_requested = false;
+        const auto stopped = executor.execute(live, first_control, JobExecutionOptions{1}, [&](const JobProgress& progress) {
+            if (!stop_requested && progress.completed_files >= 1) {
+                stop_requested = true;
+                first_control.request_stop();
+            }
+            return JobDecision::Continue;
+        });
+        if (!stopped.stopped || !stop_requested || live.completed_files() == 0 || live.remaining_files() == 0) {
+            fs::remove_all(root, ec); return 12;
+        }
+        const auto pending = live.snapshot().pending_files;
+        for (const auto& file : pending) {
+            if (!fs::exists(file.source)) { fs::remove_all(root, ec); return 13; }
+        }
+        ExecutionControl resumed_control;
+        const auto resumed = executor.execute(live, resumed_control, JobExecutionOptions{1}, {});
+        if (!resumed.success || resumed.cancelled || resumed.stopped || live.remaining_files() != 0 ||
+            fs::exists(move_source) || !all_outputs_exist(destination)) {
+            fs::remove_all(root, ec); return 14;
+        }
+    }
+
     fs::remove_all(root, ec);
     return 0;
 }
