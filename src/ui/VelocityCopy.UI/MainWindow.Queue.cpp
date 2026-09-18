@@ -57,7 +57,13 @@ void MainWindow::RefreshQueue() {
         items.Clear();
     }
     const auto first_new_index = can_trim_prefix ? retained_count : 0;
-    for (std::size_t file_index = first_new_index; file_index < queue_snapshot_.size(); ++file_index) {
+    const auto expected_retained_visuals = can_trim_prefix ? retained_count : 0;
+    if (can_trim_prefix && items.Size() != expected_retained_visuals) {
+        items.Clear();
+    }
+    const bool incremental_visual_state_valid = can_trim_prefix && items.Size() == expected_retained_visuals;
+    const auto append_from_index = incremental_visual_state_valid ? retained_count : 0;
+    for (std::size_t file_index = append_from_index; file_index < queue_snapshot_.size(); ++file_index) {
         const auto& file = queue_snapshot_[file_index];
         StackPanel row;
         row.Spacing(1);
