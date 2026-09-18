@@ -1,0 +1,27 @@
+name: Windows CI
+
+on:
+  push:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: windows-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure x64 Release
+        run: cmake -S . -B build/x64 -A x64
+
+      - name: Build core
+        run: cmake --build build/x64 --config Release --parallel
+
+      - name: Test core
+        run: ctest --test-dir build/x64 -C Release --output-on-failure
