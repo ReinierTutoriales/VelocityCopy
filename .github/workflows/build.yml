@@ -74,7 +74,7 @@ jobs:
           $cer = Join-Path (Resolve-Path ".").Path "artifacts\AppPackages\VelocityCopy-Test.cer"
           Export-PfxCertificate -Cert $cert -FilePath $pfx -Password $securePassword | Out-Null
           Export-Certificate -Cert $cert -FilePath $cer | Out-Null
-          $trusted = Import-Certificate -FilePath $cer -CertStoreLocation "Cert:\CurrentUser\TrustedPeople"
+          $trustedRoot = Import-Certificate -FilePath $cer -CertStoreLocation "Cert:\CurrentUser\Root"
 
           $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" |
             Sort-Object FullName -Descending |
@@ -90,8 +90,8 @@ jobs:
           }
 
           Remove-Item -LiteralPath $pfx -Force
-          if ($trusted) {
-            Remove-Item -LiteralPath ("Cert:\CurrentUser\TrustedPeople\" + $trusted.Thumbprint) -Force -ErrorAction SilentlyContinue
+          if ($trustedRoot) {
+            Remove-Item -LiteralPath ("Cert:\CurrentUser\Root\" + $trustedRoot.Thumbprint) -Force -ErrorAction SilentlyContinue
           }
           Remove-Item -LiteralPath ("Cert:\CurrentUser\My\" + $cert.Thumbprint) -Force
 
