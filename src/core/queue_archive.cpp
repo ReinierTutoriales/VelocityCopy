@@ -114,7 +114,6 @@ bool read_plan(std::ifstream& stream, CopyPlan& plan, const std::uint32_t versio
 
     std::uint64_t roots{};
     if (!read_value(stream, roots) || roots > kMaxEntries) return false;
-    plan.source_roots.reserve(static_cast<std::size_t>(roots));
     for (std::uint64_t i = 0; i < roots; ++i) {
         std::filesystem::path path;
         if (!read_path(stream, path)) return false;
@@ -123,7 +122,6 @@ bool read_plan(std::ifstream& stream, CopyPlan& plan, const std::uint32_t versio
 
     std::uint64_t directories{};
     if (!read_value(stream, directories) || directories > kMaxEntries) return false;
-    plan.directories.reserve(static_cast<std::size_t>(directories));
     for (std::uint64_t i = 0; i < directories; ++i) {
         std::filesystem::path path;
         if (!read_path(stream, path)) return false;
@@ -132,7 +130,6 @@ bool read_plan(std::ifstream& stream, CopyPlan& plan, const std::uint32_t versio
 
     std::uint64_t files{};
     if (!read_value(stream, files) || files > kMaxEntries) return false;
-    plan.files.reserve(static_cast<std::size_t>(files));
     std::uint64_t next_id = 1;
     for (std::uint64_t i = 0; i < files; ++i) {
         PlannedFile file{};
@@ -190,7 +187,6 @@ bool read_job(std::ifstream& stream, CopyJob& job, const std::uint32_t version) 
 
     std::uint64_t sources{};
     if (!read_value(stream, sources) || sources > kMaxEntries) return false;
-    job.sources.reserve(static_cast<std::size_t>(sources));
     for (std::uint64_t i = 0; i < sources; ++i) {
         std::filesystem::path path;
         if (!read_path(stream, path)) return false;
@@ -213,7 +209,6 @@ bool write_jobs(std::ofstream& stream, const std::vector<CopyJob>& jobs) {
 bool read_jobs(std::ifstream& stream, std::vector<CopyJob>& jobs, const std::uint32_t version) {
     std::uint64_t count{};
     if (!read_value(stream, count) || count > kMaxEntries) return false;
-    jobs.reserve(static_cast<std::size_t>(count));
     for (std::uint64_t i = 0; i < count; ++i) {
         CopyJob job{};
         if (!read_job(stream, job, version)) return false;
