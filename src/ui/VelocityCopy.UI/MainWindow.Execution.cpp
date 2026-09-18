@@ -16,6 +16,7 @@ void MainWindow::SetExecutionButtonsPlanning() {
     current_file_id_ = 0;
     current_file_skippable_ = false;
     paused_ = false;
+    RefreshExecutionMenuState();
 }
 
 void MainWindow::SetExecutionButtonsRunning() {
@@ -34,6 +35,7 @@ void MainWindow::SetExecutionButtonsRunning() {
         ToolTipService::SetToolTip(PauseButton(), box_value(label));
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), label);
     } catch (...) {}
+    RefreshExecutionMenuState();
 }
 
 void MainWindow::SetExecutionButtonsIdle() {
@@ -53,6 +55,7 @@ void MainWindow::SetExecutionButtonsIdle() {
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), label);
     } catch (...) {}
     RefreshEfficiencyMode();
+    RefreshExecutionMenuState();
 }
 
 void MainWindow::SetExecutionButtonsStopped() {
@@ -71,6 +74,7 @@ void MainWindow::SetExecutionButtonsStopped() {
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), label);
     } catch (...) {}
     RefreshEfficiencyMode();
+    RefreshExecutionMenuState();
 }
 
 void MainWindow::SetExecutionButtonsConflict() {
@@ -82,6 +86,7 @@ void MainWindow::SetExecutionButtonsConflict() {
     current_file_skippable_ = false;
     paused_ = false;
     RefreshEfficiencyMode();
+    RefreshExecutionMenuState();
 }
 
 velocitycopy::JobResult MainWindow::RunLivePlanSession(
