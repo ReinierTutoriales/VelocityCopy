@@ -456,6 +456,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     current_file_skippable_ = false;
     SkipButton().IsEnabled(false);
     paused_ = false;
+    PauseIcon().Glyph(L"\xE769");
 
     if (result.stopped) {
         stop_requested_ = false;
