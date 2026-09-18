@@ -56,15 +56,37 @@ if ($dependencies.Count -eq 0) {
     throw "Required x64 package dependencies were not found."
 }
 
+# Install x64 framework dependencies first so runtime failures such as
+# MSVCP140.dll/VCRUNTIME140.dll missing are surfaced deterministically.
+$vclibs = @($dependencies | Where-Object { $_ -match "Microsoft\.VCLibs" })
+$appRuntime = @($dependencies | Where-Object { $_ -match "Microsoft\.WindowsAppRuntime" })
+$orderedDependencies = @($vclibs + $appRuntime)
+
+foreach ($dependency in $orderedDependencies) {
+    Write-Host "Installing dependency: $(Split-Path -Leaf $dependency)"
+    Add-AppxPackage -Path $dependency -ErrorAction Stop
+}
+
 $params = @{
     Path = $main.FullName
     ForceApplicationShutdown = $true
 }
-if ($dependencies.Count -gt 0) {
-    $params.DependencyPath = $dependencies
+Add-AppxPackage @params
+
+$requiredFrameworks = @(
+    "Microsoft.VCLibs.140.00",
+    "Microsoft.VCLibs.140.00.UWPDesktop",
+    "Microsoft.WindowsAppRuntime.2"
+)
+foreach ($framework in $requiredFrameworks) {
+    $installed = Get-AppxPackage -Name $framework -ErrorAction SilentlyContinue |
+        Where-Object { $_.Architecture -eq "X64" -or $_.Architecture -eq "Neutral" } |
+        Select-Object -First 1
+    if (-not $installed) {
+        throw "Required x64 framework was not installed: $framework"
+    }
 }
 
-Add-AppxPackage @params
 Write-Host "VelocityCopy installed for the current user."
 Write-Host "Launch VelocityCopy once to register its enabled startup task."
 Write-Host "Windows may reload File Explorer integration after Explorer restart or sign-out/sign-in."
