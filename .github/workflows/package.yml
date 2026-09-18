@@ -66,6 +66,33 @@ jobs:
             /p:AppxPackageDir="$packageDir"
           if ($LASTEXITCODE -ne 0) { throw "WinUI/MSIX build failed with exit code $LASTEXITCODE" }
 
+      - name: Build WinUI 3 ARM64 Release and MSIX
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $msbuild = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\MSBuild.exe" | Select-Object -First 1
+          if (-not $msbuild) { throw "MSBuild was not found" }
+
+          $packageDir = Join-Path (Resolve-Path ".").Path "artifacts\AppPackages-ARM64\"
+          New-Item -ItemType Directory -Force -Path $packageDir | Out-Null
+
+          & $msbuild src/ui/VelocityCopy.UI/VelocityCopy.UI.vcxproj /restore /m `
+            /p:Configuration=Release `
+            /p:Platform=ARM64 `
+            /p:GenerateAppxPackageOnBuild=true `
+            /p:AppxPackageSigningEnabled=false `
+            /p:AppxBundle=Never `
+            /p:AppxPackageDir="$packageDir"
+          if ($LASTEXITCODE -ne 0) { throw "WinUI/ARM64 MSIX build failed with exit code $LASTEXITCODE" }
+
+          $armPackages = @(
+            Get-ChildItem -LiteralPath $packageDir -Recurse -File -Filter *.msix |
+              Where-Object { $_.FullName -notmatch "[\\/]Dependencies[\\/]" }
+          )
+          if ($armPackages.Count -ne 1) {
+            throw "Expected exactly one ARM64 VelocityCopy MSIX package, found $($armPackages.Count)"
+          }
+
       - name: Sign Windows test MSIX
         shell: pwsh
         timeout-minutes: 5
