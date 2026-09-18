@@ -251,7 +251,16 @@ void MainWindow::ApplyDestinationNavigation(velocitycopy::DestinationNavigationR
     DestinationLoadingRing().Visibility(Visibility::Collapsed);
     DestinationItems().IsEnabled(true);
     DestinationBackButton().IsEnabled(true);
-    ChooseCurrentFolderButton().IsEnabled(true);
+    ChooseCurrentFolderButton().IsEnabled(result.available);
+    if (!result.available) {
+        current_destination_folder_.clear();
+        DestinationBrowserHeader().Visibility(Visibility::Collapsed);
+        ChooseCurrentFolderButton().Visibility(Visibility::Collapsed);
+        DestinationItems().Items().Clear();
+        ShowError();
+        return;
+    }
+    ErrorBar().IsOpen(false);
     current_destination_folder_ = std::move(result.folder);
     DestinationBrowserHeader().Visibility(Visibility::Visible);
     ChooseCurrentFolderButton().Visibility(Visibility::Visible);
