@@ -184,6 +184,7 @@ void MainWindow::LoadDestinations() {
         Button button;
         button.HorizontalAlignment(HorizontalAlignment::Stretch);
         button.HorizontalContentAlignment(HorizontalAlignment::Left);
+        button.MinHeight(36);
         std::wstring display = entry.label;
         if (!entry.path.empty()) {
             display += L"  ";
@@ -252,6 +253,7 @@ void MainWindow::ApplyDestinationNavigation(velocitycopy::DestinationNavigationR
         Button button;
         button.HorizontalAlignment(HorizontalAlignment::Stretch);
         button.HorizontalContentAlignment(HorizontalAlignment::Left);
+        button.MinHeight(36);
         const auto accessible_name = hstring(entry.name.wstring());
         button.Content(box_value(accessible_name));
         button.Tag(box_value(hstring(entry.path.wstring())));
