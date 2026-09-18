@@ -49,8 +49,13 @@ jobs:
       - name: Sign Windows test MSIX
         shell: pwsh
         run: |
-          $packages = @(Get-ChildItem -Path artifacts/AppPackages -Recurse -File -Filter *.msix)
-          if ($packages.Count -eq 0) { throw "No MSIX package was produced" }
+          $packages = @(
+            Get-ChildItem -Path artifacts/AppPackages -Recurse -File -Filter *.msix |
+              Where-Object { $_.FullName -notmatch "[\\/]Dependencies[\\/]" }
+          )
+          if ($packages.Count -ne 1) {
+            throw "Expected exactly one VelocityCopy MSIX package, found $($packages.Count)"
+          }
 
           $plainPassword = [Guid]::NewGuid().ToString("N")
           $securePassword = ConvertTo-SecureString -String $plainPassword -AsPlainText -Force
@@ -78,6 +83,9 @@ jobs:
           foreach ($package in $packages) {
             & $signtool.FullName sign /fd SHA256 /a /f $pfx /p $plainPassword $package.FullName
             if ($LASTEXITCODE -ne 0) { throw "Signing failed for $($package.FullName)" }
+
+            & $signtool.FullName verify /pa /all $package.FullName
+            if ($LASTEXITCODE -ne 0) { throw "Signature verification failed for $($package.FullName)" }
           }
 
           Remove-Item -LiteralPath $pfx -Force
