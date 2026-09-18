@@ -114,8 +114,13 @@ int main() {
     }
 
     if (!contains(header, "queued_sessions_") || !contains(append, "queued_sessions_.push_back") ||
+        !contains(append, "same_session(active_destination_, active_operation_, job)") ||
+        !contains(append, "same_destination(active_destination, job.destination)") ||
+        !contains(append, "active_operation == job.operation") ||
+        !contains(append, "EnqueueAppend(std::move(job), live_plan_, nullptr, append_gate_, false)") ||
+        !contains(append, "EnqueueAppend(std::move(job), std::move(target_plan), std::move(target_control)") ||
         !contains(execution, "conflict_session_") || !contains(execution, "StartNextQueuedSession()")) {
-        return fail(11, "future destinations must remain serialized");
+        return fail(11, "compatible live drops must append while different sessions remain serialized");
     }
 
     if (!contains(queue, "kVisibleQueueItems = 256") || !contains(queue, "row.Tag(box_value(file.id))") ||
