@@ -33,18 +33,22 @@ Section "Install VelocityCopy" SEC_INSTALL
   SetOutPath "$PLUGINSDIR\VelocityCopy"
   File /r "${PAYLOAD_DIR}\*.*"
 
+  Delete "$TEMP\VelocityCopy-Install.log"
   DetailPrint "Installing VelocityCopy and required Windows runtimes..."
   ${If} ${RunningX64}
     ${DisableX64FSRedirection}
   ${EndIf}
-  nsExec::ExecToLog '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\VelocityCopy\Install-VelocityCopy-Test.ps1"'
+  nsExec::ExecToLog '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\VelocityCopy\Install-VelocityCopy-Test.ps1" -LogPath "$TEMP\VelocityCopy-Install.log"'
   Pop $0
   ${If} ${RunningX64}
     ${EnableX64FSRedirection}
   ${EndIf}
   ${If} $0 != 0
-    MessageBox MB_ICONSTOP|MB_OK "VelocityCopy installation failed (exit code $0). See the installer details for the failing step." /SD IDOK
-    Abort
+    DetailPrint "VelocityCopy deployment failed with exit code $0."
+    DetailPrint "Diagnostic log: $TEMP\VelocityCopy-Install.log"
+    MessageBox MB_ICONSTOP|MB_OK "VelocityCopy installation failed.$\r$\n$\r$\nDiagnostic log:$\r$\n$TEMP\VelocityCopy-Install.log" /SD IDOK
+    SetErrorLevel $0
+    Quit
   ${EndIf}
 
   SetOutPath "$INSTDIR\InstallerSupport"
@@ -64,11 +68,15 @@ SectionEnd
 
 Section "Uninstall"
   DetailPrint "Removing VelocityCopy..."
-  nsExec::ExecToLog '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$INSTDIR\InstallerSupport\Install-VelocityCopy-Test.ps1" -Uninstall'
+  Delete "$TEMP\VelocityCopy-Install.log"
+  nsExec::ExecToLog '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$INSTDIR\InstallerSupport\Install-VelocityCopy-Test.ps1" -Uninstall -LogPath "$TEMP\VelocityCopy-Install.log"'
   Pop $0
   ${If} $0 != 0
-    MessageBox MB_ICONSTOP|MB_OK "VelocityCopy uninstall failed (exit code $0)." /SD IDOK
-    Abort
+    DetailPrint "VelocityCopy uninstall failed with exit code $0."
+    DetailPrint "Diagnostic log: $TEMP\VelocityCopy-Install.log"
+    MessageBox MB_ICONSTOP|MB_OK "VelocityCopy uninstall failed.$\r$\n$\r$\nDiagnostic log:$\r$\n$TEMP\VelocityCopy-Install.log" /SD IDOK
+    SetErrorLevel $0
+    Quit
   ${EndIf}
 
   Delete "$INSTDIR\InstallerSupport\Install-VelocityCopy-Test.ps1"
