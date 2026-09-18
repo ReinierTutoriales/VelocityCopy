@@ -2,12 +2,8 @@
 #include "MainWindow.xaml.h"
 
 #include <commctrl.h>
-#include <cwctype>
-#include <exdisp.h>
-#include <servprov.h>
 #include <shellapi.h>
 #include <shlobj_core.h>
-#include <shobjidl_core.h>
 
 using namespace winrt;
 
@@ -20,143 +16,7 @@ constexpr UINT kTrayIconId = 1;
 constexpr UINT kTrayOpenCommand = 1;
 constexpr UINT kTrayExitCommand = 2;
 
-MainWindow* g_explorer_keyboard_owner = nullptr;
 UINT g_taskbar_created_message = 0;
-
-bool is_explorer_process(HWND window) noexcept {
-    if (window == nullptr) return false;
-
-    DWORD process_id{};
-    GetWindowThreadProcessId(window, &process_id);
-    if (process_id == 0) return false;
-
-    HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, process_id);
-    if (process == nullptr) return false;
-
-    std::array<wchar_t, 32768> image{};
-    DWORD size = static_cast<DWORD>(image.size());
-    const bool have_image = QueryFullProcessImageNameW(process, 0, image.data(), &size) != FALSE;
-    CloseHandle(process);
-    if (!have_image || size == 0) return false;
-
-    std::filesystem::path executable(std::wstring_view(image.data(), size));
-    auto name = executable.filename().wstring();
-    std::transform(name.begin(), name.end(), name.begin(), [](const wchar_t ch) {
-        return static_cast<wchar_t>(std::towlower(ch));
-    });
-    return name == L"explorer.exe";
-}
-
-bool focus_is_text_input(HWND foreground) noexcept {
-    if (foreground == nullptr) return false;
-
-    const DWORD thread_id = GetWindowThreadProcessId(foreground, nullptr);
-    GUITHREADINFO info{};
-    info.cbSize = sizeof(info);
-    if (!GetGUIThreadInfo(thread_id, &info) || info.hwndFocus == nullptr) {
-        return false;
-    }
-
-    std::array<wchar_t, 256> class_name{};
-    if (GetClassNameW(info.hwndFocus, class_name.data(), static_cast<int>(class_name.size())) == 0) {
-        return false;
-    }
-
-    std::wstring value(class_name.data());
-    std::transform(value.begin(), value.end(), value.begin(), [](const wchar_t ch) {
-        return static_cast<wchar_t>(std::towlower(ch));
-    });
-    return value.find(L"edit") != std::wstring::npos ||
-           value.find(L"richedit") != std::wstring::npos;
-}
-
-std::optional<std::filesystem::path> explorer_folder_for_window(HWND foreground) noexcept {
-    try {
-        winrt::com_ptr<IShellWindows> shell_windows;
-        if (FAILED(CoCreateInstance(
-                CLSID_ShellWindows,
-                nullptr,
-                CLSCTX_LOCAL_SERVER,
-                IID_PPV_ARGS(shell_windows.put())))) {
-            return std::nullopt;
-        }
-
-        long count{};
-        if (FAILED(shell_windows->get_Count(&count))) {
-            return std::nullopt;
-        }
-
-        for (long index = 0; index < count; ++index) {
-            VARIANT item_index{};
-            VariantInit(&item_index);
-            item_index.vt = VT_I4;
-            item_index.lVal = index;
-
-            winrt::com_ptr<IDispatch> dispatch;
-            if (FAILED(shell_windows->Item(item_index, dispatch.put())) || !dispatch) {
-                continue;
-            }
-
-            winrt::com_ptr<IWebBrowserApp> browser;
-            if (FAILED(dispatch->QueryInterface(IID_PPV_ARGS(browser.put()))) || !browser) {
-                continue;
-            }
-
-            SHANDLE_PTR browser_hwnd{};
-            if (FAILED(browser->get_HWND(&browser_hwnd)) ||
-                reinterpret_cast<HWND>(browser_hwnd) != foreground) {
-                continue;
-            }
-
-            winrt::com_ptr<IServiceProvider> provider;
-            if (FAILED(browser->QueryInterface(IID_PPV_ARGS(provider.put()))) || !provider) {
-                return std::nullopt;
-            }
-
-            winrt::com_ptr<IShellBrowser> shell_browser;
-            if (FAILED(provider->QueryService(
-                    SID_STopLevelBrowser,
-                    IID_PPV_ARGS(shell_browser.put()))) || !shell_browser) {
-                return std::nullopt;
-            }
-
-            winrt::com_ptr<IShellView> shell_view;
-            if (FAILED(shell_browser->QueryActiveShellView(shell_view.put())) || !shell_view) {
-                return std::nullopt;
-            }
-
-            winrt::com_ptr<IFolderView> folder_view;
-            if (FAILED(shell_view->QueryInterface(IID_PPV_ARGS(folder_view.put()))) || !folder_view) {
-                return std::nullopt;
-            }
-
-            winrt::com_ptr<IPersistFolder2> persist_folder;
-            if (FAILED(folder_view->GetFolder(IID_PPV_ARGS(persist_folder.put()))) || !persist_folder) {
-                return std::nullopt;
-            }
-
-            PIDLIST_ABSOLUTE pidl{};
-            if (FAILED(persist_folder->GetCurFolder(&pidl)) || pidl == nullptr) {
-                return std::nullopt;
-            }
-
-            std::array<wchar_t, 32768> path{};
-            const bool converted = SHGetPathFromIDListEx(
-                pidl,
-                path.data(),
-                static_cast<DWORD>(path.size()),
-                GPFIDL_DEFAULT) != FALSE;
-            CoTaskMemFree(pidl);
-
-            if (!converted || path[0] == L'\0') {
-                return std::nullopt;
-            }
-            return std::filesystem::path(path.data());
-        }
-    } catch (...) {
-    }
-    return std::nullopt;
-}
 
 } // namespace
 
@@ -186,7 +46,6 @@ void MainWindow::InitializeTrayIntegration() {
         }
 
         (void)AddClipboardFormatListener(hwnd_);
-        InitializeExplorerPasteInterception();
 
         std::array<wchar_t, 32768> module_path{};
         SHFILEINFOW shell_info{};
@@ -232,8 +91,6 @@ void MainWindow::InitializeTrayIntegration() {
 }
 
 void MainWindow::RemoveTrayIntegration() noexcept {
-    RemoveExplorerPasteInterception();
-
     if (hwnd_ != nullptr) {
         (void)RemoveClipboardFormatListener(hwnd_);
     }
@@ -440,99 +297,6 @@ void MainWindow::CaptureClipboardFileSelection() noexcept {
         } catch (...) {
         }
     }
-}
-
-void MainWindow::InitializeExplorerPasteInterception() noexcept {
-    if (explorer_keyboard_hook_ != nullptr) {
-        return;
-    }
-
-    g_explorer_keyboard_owner = this;
-    explorer_keyboard_hook_ = SetWindowsHookExW(
-        WH_KEYBOARD_LL,
-        &MainWindow::ExplorerKeyboardProc,
-        GetModuleHandleW(nullptr),
-        0);
-    if (explorer_keyboard_hook_ == nullptr) {
-        g_explorer_keyboard_owner = nullptr;
-    }
-}
-
-void MainWindow::RemoveExplorerPasteInterception() noexcept {
-    if (explorer_keyboard_hook_ != nullptr) {
-        UnhookWindowsHookEx(explorer_keyboard_hook_);
-        explorer_keyboard_hook_ = nullptr;
-    }
-    if (g_explorer_keyboard_owner == this) {
-        g_explorer_keyboard_owner = nullptr;
-    }
-    paste_key_down_ = false;
-}
-
-bool MainWindow::TryInterceptExplorerPaste() noexcept {
-    try {
-        const HWND foreground = GetForegroundWindow();
-        if (!is_explorer_process(foreground) ||
-            focus_is_text_input(foreground) ||
-            !IsClipboardFormatAvailable(CF_HDROP)) {
-            return false;
-        }
-
-        CaptureClipboardFileSelection();
-        if (shell_session_.staged_sources().empty()) {
-            return false;
-        }
-
-        const auto destination = explorer_folder_for_window(foreground);
-        if (!destination || destination->empty()) {
-            return false;
-        }
-
-        velocitycopy::ShellRequest request{};
-        request.action = velocitycopy::ShellAction::PasteToFolder;
-        request.destination = *destination;
-        HandleShellRequest(request);
-        return true;
-    } catch (...) {
-        return false;
-    }
-}
-
-LRESULT CALLBACK MainWindow::ExplorerKeyboardProc(
-    const int code,
-    const WPARAM wparam,
-    const LPARAM lparam) {
-    auto* self = g_explorer_keyboard_owner;
-    if (code < 0 || self == nullptr || lparam == 0) {
-        return CallNextHookEx(nullptr, code, wparam, lparam);
-    }
-
-    const auto* key = reinterpret_cast<const KBDLLHOOKSTRUCT*>(lparam);
-    if (key->vkCode != 'V') {
-        return CallNextHookEx(nullptr, code, wparam, lparam);
-    }
-
-    const bool key_down = wparam == WM_KEYDOWN || wparam == WM_SYSKEYDOWN;
-    const bool key_up = wparam == WM_KEYUP || wparam == WM_SYSKEYUP;
-    const bool control_down = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
-    const bool alt_down = (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
-
-    if (key_down && control_down && !alt_down) {
-        if (self->paste_key_down_) {
-            return 1;
-        }
-        if (self->TryInterceptExplorerPaste()) {
-            self->paste_key_down_ = true;
-            return 1;
-        }
-    }
-
-    if (key_up && self->paste_key_down_) {
-        self->paste_key_down_ = false;
-        return 1;
-    }
-
-    return CallNextHookEx(nullptr, code, wparam, lparam);
 }
 
 LRESULT CALLBACK MainWindow::TraySubclassProc(
