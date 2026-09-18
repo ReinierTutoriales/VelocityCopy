@@ -35,12 +35,13 @@ bool same_session(
 } // namespace
 
 void MainWindow::OnQueueOrStartCopyClick(IInspectable const&, RoutedEventArgs const&) {
-    auto job = flow_.make_job(next_job_id_++);
+    auto job = flow_.make_job(next_job_id_++, pending_flow_operation_);
     if (!job) {
         ShowError();
         return;
     }
 
+    pending_flow_operation_ = velocitycopy::FileOperation::Copy;
     DropFlowFlyout().Hide();
     QueueOrStartCopy(std::move(*job));
 }
