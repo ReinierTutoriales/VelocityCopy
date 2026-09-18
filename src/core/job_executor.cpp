@@ -1,4 +1,5 @@
 #include "velocitycopy/job_executor.hpp"
+#include "velocitycopy/storage_topology.hpp"
 
 #include <windows.h>
 
@@ -224,21 +225,6 @@ WorkloadProfile workload_from_live_plan(const LiveCopyPlan& plan) noexcept {
     };
 }
 
-bool shares_physical_disk(
-    const StorageProfile& left,
-    const StorageProfile& right) noexcept {
-    if (!left.physical_disk_extents_available || !right.physical_disk_extents_available) {
-        return false;
-    }
-    for (const auto disk : left.physical_disk_numbers) {
-        if (std::find(right.physical_disk_numbers.begin(), right.physical_disk_numbers.end(), disk) !=
-            right.physical_disk_numbers.end()) {
-            return true;
-        }
-    }
-    return false;
-}
-
 JobExecutionOptions recommend_for_roots(
     const StorageProfiler& profiler,
     const StrategySelector& selector,
@@ -256,7 +242,6 @@ JobExecutionOptions recommend_for_roots(
     std::uint32_t shared_buffer_bytes = 0;
     bool shared_async_candidate = false;
     bool first_recommendation = true;
-    bool topology_complete = destination.physical_disk_extents_available;
     bool source_destination_share_disk = false;
 
 
@@ -265,8 +250,8 @@ JobExecutionOptions recommend_for_roots(
         const auto recommendation = selector.choose(source, destination, workload);
         worker_count = std::min(worker_count, recommendation.suggested_queue_depth);
 
-        topology_complete = topology_complete && source.physical_disk_extents_available;
-        source_destination_share_disk = source_destination_share_disk || shares_physical_disk(source, destination);
+        source_destination_share_disk = source_destination_share_disk ||
+            physical_storage_relationship(source, destination) == PhysicalStorageRelationship::SharedDisk;
 
         if (first_recommendation) {
             shared_copy_flags = recommendation.copy_flags;
@@ -285,7 +270,7 @@ JobExecutionOptions recommend_for_roots(
     // operations can compete for the same device; serialize that workload.
     // For independent devices, retain the selector's measured/heuristic depth
     // rather than increasing concurrency merely because more disks exist.
-    if (topology_complete && source_destination_share_disk) {
+    if (source_destination_share_disk) {
         worker_count = 1;
     }
 
