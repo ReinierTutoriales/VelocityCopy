@@ -186,8 +186,10 @@ void MainWindow::LoadDestinations() {
             display += L"  ";
             display += entry.path.wstring();
         }
-        button.Content(box_value(hstring(display)));
+        const auto accessible_name = hstring(display);
+        button.Content(box_value(accessible_name));
         button.Tag(box_value(hstring(entry.path.wstring())));
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(button, accessible_name);
         button.Click({this, &MainWindow::OnDestinationClick});
         children.Append(button);
     }
@@ -239,8 +241,10 @@ void MainWindow::ApplyDestinationNavigation(velocitycopy::DestinationNavigationR
         Button button;
         button.HorizontalAlignment(HorizontalAlignment::Stretch);
         button.HorizontalContentAlignment(HorizontalAlignment::Left);
-        button.Content(box_value(hstring(entry.name.wstring())));
+        const auto accessible_name = hstring(entry.name.wstring());
+        button.Content(box_value(accessible_name));
         button.Tag(box_value(hstring(entry.path.wstring())));
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(button, accessible_name);
         button.Click({this, &MainWindow::OnDestinationFolderClick});
         children.Append(button);
     }
