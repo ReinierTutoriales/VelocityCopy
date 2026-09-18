@@ -67,7 +67,10 @@ int main() {
         !contains(executor_cpp, "options.strategy = (shared_copy_flags & COPY_FILE_NO_BUFFERING) != 0") ||
         !contains(executor_cpp, "options.suggested_buffer_bytes = shared_buffer_bytes") ||
         !contains(executor_cpp, "options.async_iocp_candidate = shared_async_candidate") ||
-        !contains(executor_cpp, "CopyOptions{resume_from_pause, existing_policy, options.copy_flags}")) {
+        !contains(executor_cpp, "CopyOptions{resume_from_pause, existing_policy, options.copy_flags}") ||
+        !contains(executor_cpp, "shares_physical_disk(source, destination)") ||
+        !contains(executor_cpp, "source_destination_share_disk") ||
+        !contains(executor_cpp, "worker_count = 1")) {
         return fail(3, "JobExecutor must preserve selected strategy metadata through the live production path");
     }
 
