@@ -36,7 +36,7 @@ jobs:
           $content = [regex]::Replace(
             $content,
             '(<Identity\s+Name="ReinierTutoriales\.VelocityCopy"\s+Publisher="CN=ReinierTutoriales"\s+Version=")[^"]+(")',
-            ('1' + $version + '2')
+            ('${1}' + $version + '${2}')
           )
           Set-Content -LiteralPath $manifest -Value $content -Encoding utf8
 
