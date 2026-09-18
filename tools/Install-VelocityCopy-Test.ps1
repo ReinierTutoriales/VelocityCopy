@@ -14,6 +14,15 @@ if (-not (Test-IsAdministrator)) {
     throw "VelocityCopy installer requires Administrator privileges."
 }
 
+if (-not [Environment]::Is64BitOperatingSystem) {
+    throw "VelocityCopy test builds require 64-bit Windows."
+}
+
+$windowsBuild = [Environment]::OSVersion.Version.Build
+if ($windowsBuild -lt 22000) {
+    throw "VelocityCopy test builds require Windows 11 (build 22000 or newer)."
+}
+
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $certificate = Join-Path $root "VelocityCopy-Test.cer"
 $packageName = "ReinierTutoriales.VelocityCopy"
