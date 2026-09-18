@@ -18,10 +18,24 @@ int wmain() {
     }
 
     velocitycopy::DestinationBrowser browser;
-    const auto children = browser.list_children(base);
-    if (children.size() != 2 || children[0].name != L"alpha" || children[1].name != L"Zulu") {
+    const auto listing = browser.list_children(base);
+    if (!listing.available || listing.children.size() != 2 ||
+        listing.children[0].name != L"alpha" || listing.children[1].name != L"Zulu") {
         fs::remove_all(base, ec);
         return 1;
+    }
+
+    const auto missing = browser.list_children(base / L"missing");
+    if (missing.available || !missing.children.empty()) {
+        fs::remove_all(base, ec);
+        return 6;
+    }
+
+    fs::create_directories(base / L"empty", ec);
+    const auto empty = browser.list_children(base / L"empty");
+    if (!empty.available || !empty.children.empty()) {
+        fs::remove_all(base, ec);
+        return 7;
     }
 
     fs::path created;
