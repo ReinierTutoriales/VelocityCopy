@@ -344,10 +344,17 @@
                             </Grid>
 
                             <Grid Grid.Row="2">
-                                <ScrollViewer MaxHeight="240"
-                                              VerticalScrollBarVisibility="Auto">
-                                    <StackPanel x:Name="DestinationItems" Spacing="4" />
-                                </ScrollViewer>
+                                <ListView x:Name="DestinationItems"
+                                          MaxHeight="240"
+                                          SelectionMode="None"
+                                          IsItemClickEnabled="False"
+                                          HorizontalContentAlignment="Stretch">
+                                    <ListView.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <ItemsStackPanel Orientation="Vertical" />
+                                        </ItemsPanelTemplate>
+                                    </ListView.ItemsPanel>
+                                </ListView>
                                 <ProgressRing x:Name="DestinationLoadingRing"
                                               Width="24"
                                               Height="24"
