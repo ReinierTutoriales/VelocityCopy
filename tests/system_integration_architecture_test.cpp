@@ -32,12 +32,13 @@ int main() {
     const auto ipc = read_all(root / "src/core/ipc_transport.cpp");
     const auto window = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
     const auto tray = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Tray.cpp");
+    const auto persistence = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.QueuePersistence.cpp");
     const auto workflow = read_all(root / ".github/workflows/build.yml");
     const auto installer = read_all(root / "tools/Install-VelocityCopy-Test.ps1");
     const auto docs = read_all(root / "docs/SYSTEM_INTEGRATION.md");
 
     if (manifest.empty() || app.empty() || shell.empty() || ipc.empty() || window.empty() || tray.empty() ||
-        workflow.empty() || installer.empty() || docs.empty()) {
+        persistence.empty() || workflow.empty() || installer.empty() || docs.empty()) {
         return fail(1, "required integration source missing");
     }
 
@@ -80,8 +81,17 @@ int main() {
         !contains(tray, "is_explorer_process") ||
         !contains(tray, "IsClipboardFormatAvailable(CF_HDROP)") ||
         !contains(tray, "explorer_folder_for_window") ||
-        !contains(tray, "CallNextHookEx")) {
-        return fail(6, "resident UI must scope Ctrl-V interception to valid Explorer file pastes");
+        !contains(tray, "CallNextHookEx") ||
+        !contains(tray, "ProcessPowerThrottling") ||
+        !contains(tray, "PROCESS_POWER_THROTTLING_EXECUTION_SPEED") ||
+        !contains(tray, "NOTIFYICON_VERSION_4") ||
+        !contains(tray, "NIM_SETVERSION") ||
+        !contains(tray, "TaskbarCreated") ||
+        !contains(tray, "WM_QUERYENDSESSION") ||
+        !contains(tray, "WM_ENDSESSION") ||
+        !contains(persistence, "VelocityCopy.Recovery.vcq") ||
+        !contains(persistence, "QueueArchiveStore{}.save")) {
+        return fail(6, "resident UI must enforce tray, EcoQoS, Explorer paste and shutdown recovery contracts");
     }
 
     if (!contains(ipc, "ConvertSidToStringSidW") ||
@@ -109,7 +119,10 @@ int main() {
 
     if (!contains(docs, "near-zero-CPU") || !contains(docs, "IExplorerCommand") ||
         !contains(docs, "notification-area icon") ||
-        !contains(docs, "AddClipboardFormatListener")) {
+        !contains(docs, "AddClipboardFormatListener") ||
+        !contains(docs, "EcoQoS") ||
+        !contains(docs, "WM_ENDSESSION") ||
+        !contains(docs, "NOTIFYICON_VERSION_4")) {
         return fail(10, "system-impact constraints must remain documented");
     }
 
