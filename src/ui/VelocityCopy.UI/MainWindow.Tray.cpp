@@ -148,6 +148,7 @@ void MainWindow::ShowFromTray() {
     }
     Activate();
     tray_window_hidden_ = false;
+    MaybeOfferRecoveryAsync();
 }
 
 void MainWindow::ShowTrayMenu(POINT anchor) noexcept {
