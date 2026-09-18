@@ -29,6 +29,49 @@ std::filesystem::path nearest_existing_path(std::filesystem::path path) noexcept
     return path;
 }
 
+void query_device_number(const std::filesystem::path& volume_root, StorageProfile& profile) noexcept {
+    const auto root = volume_root.wstring();
+    if (root.size() < 2 || root[1] != L':') {
+        return;
+    }
+
+    std::wstring device_path = L"\\\\.\\";
+    device_path.push_back(root[0]);
+    device_path.push_back(L':');
+
+    const HANDLE volume = CreateFileW(
+        device_path.c_str(),
+        0,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        nullptr,
+        OPEN_EXISTING,
+        0,
+        nullptr);
+    if (volume == INVALID_HANDLE_VALUE) {
+        return;
+    }
+
+    STORAGE_DEVICE_NUMBER device_number{};
+    DWORD bytes_returned = 0;
+    if (DeviceIoControl(
+            volume,
+            IOCTL_STORAGE_GET_DEVICE_NUMBER,
+            nullptr,
+            0,
+            &device_number,
+            sizeof(device_number),
+            &bytes_returned,
+            nullptr) != 0 &&
+        bytes_returned >= sizeof(device_number) &&
+        device_number.DeviceNumber != 0xFFFFFFFFu) {
+        profile.device_type = device_number.DeviceType;
+        profile.device_number = device_number.DeviceNumber;
+        profile.device_number_available = true;
+    }
+
+    CloseHandle(volume);
+}
+
 void query_seek_penalty(const std::filesystem::path& volume_root, StorageProfile& profile) noexcept {
     const auto root = volume_root.wstring();
     if (root.size() < 2 || root[1] != L':') {
@@ -92,6 +135,7 @@ StorageProfile StorageProfiler::inspect(const std::filesystem::path& path) const
         profile.remote = drive_type == DRIVE_REMOTE;
 
         if (!profile.remote && profile.kind != StorageKind::Optical) {
+            query_device_number(profile.volume_root, profile);
             query_seek_penalty(profile.volume_root, profile);
         }
     }
