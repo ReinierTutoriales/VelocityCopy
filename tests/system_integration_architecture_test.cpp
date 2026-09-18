@@ -29,6 +29,7 @@ int main() {
     const auto manifest = read_all(root / "src/ui/VelocityCopy.UI/Package.appxmanifest");
     const auto app = read_all(root / "src/ui/VelocityCopy.UI/App.xaml.cpp");
     const auto shell = read_all(root / "src/shell/explorer_commands.cpp");
+    const auto shell_window = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Shell.cpp");
     const auto ipc = read_all(root / "src/core/ipc_transport.cpp");
     const auto window = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
     const auto tray = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Tray.cpp");
@@ -37,8 +38,9 @@ int main() {
     const auto installer = read_all(root / "tools/Install-VelocityCopy-Test.ps1");
     const auto docs = read_all(root / "docs/SYSTEM_INTEGRATION.md");
 
-    if (manifest.empty() || app.empty() || shell.empty() || ipc.empty() || window.empty() || tray.empty() ||
-        persistence.empty() || workflow.empty() || installer.empty() || docs.empty()) {
+    if (manifest.empty() || app.empty() || shell.empty() || shell_window.empty() || ipc.empty() ||
+        window.empty() || tray.empty() || persistence.empty() || workflow.empty() ||
+        installer.empty() || docs.empty()) {
         return fail(1, "required integration source missing");
     }
 
@@ -109,8 +111,16 @@ int main() {
 
     if (!contains(installer, "Import-Certificate") ||
         !contains(installer, "Add-AppxPackage") ||
-        !contains(installer, "Remove-AppxPackage")) {
-        return fail(9, "test package must ship install and uninstall flow");
+        !contains(installer, "Remove-AppxPackage") ||
+        !contains(installer, "TrustedPeople") ||
+        !contains(installer, "Remove-Item -LiteralPath $trustedPath")) {
+        return fail(9, "test package must install and clean its test certificate");
+    }
+
+    if (!contains(shell_window, "PasteToFolder") ||
+        !contains(shell_window, "staged_sources().empty()") ||
+        !contains(shell_window, "CaptureClipboardFileSelection()")) {
+        return fail(10, "Explorer paste must reconstruct clipboard staging when app starts on demand");
     }
 
     if (!contains(docs, "near-zero-CPU") || !contains(docs, "IExplorerCommand") ||
@@ -119,7 +129,7 @@ int main() {
         !contains(docs, "EcoQoS") ||
         !contains(docs, "WM_ENDSESSION") ||
         !contains(docs, "NOTIFYICON_VERSION_4")) {
-        return fail(10, "system-impact constraints must remain documented");
+        return fail(11, "system-impact constraints must remain documented");
     }
 
     return 0;
