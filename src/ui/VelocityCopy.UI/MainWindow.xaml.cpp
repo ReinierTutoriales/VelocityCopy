@@ -177,7 +177,7 @@ void MainWindow::LoadDestinations() {
     DestinationBrowserHeader().Visibility(Visibility::Collapsed);
     ChooseCurrentFolderButton().Visibility(Visibility::Collapsed);
 
-    auto children = DestinationItems().Children();
+    auto children = DestinationItems().Items();
     children.Clear();
 
     for (const auto& entry : destination_catalog_.enumerate()) {
@@ -246,7 +246,7 @@ void MainWindow::ApplyDestinationNavigation(velocitycopy::DestinationNavigationR
     DestinationPathText().Text(hstring(current_destination_folder_.wstring()));
     DestinationCapacityText().Text(FormatCapacity(result.capacity));
 
-    auto children = DestinationItems().Children();
+    auto children = DestinationItems().Items();
     children.Clear();
     for (const auto& entry : result.children) {
         Button button;
