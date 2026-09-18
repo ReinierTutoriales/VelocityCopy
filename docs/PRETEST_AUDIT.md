@@ -22,9 +22,11 @@ The Windows CI gate must be green before using an artifact for manual testing:
 
 If a `PasteToFolder` request arrives with no staged sources, the app re-reads the current `CF_HDROP` clipboard state before dispatching the shell job. This covers startup-disabled, first-run and on-demand activation cases.
 
-### Test certificate cleanup
+### One-click test installer
 
-The test installer imports the self-signed package certificate for the current user into both `CurrentUser\TrustedPeople` and `CurrentUser\Root`, because Windows must trust the self-signed root to install the test MSIX. The matching test uninstall flow removes the MSIX package and the exact bundled certificate from both stores.
+Manual testing uses one file: `VelocityCopy-Setup-x64.exe`.
+
+The setup requests elevation through UAC, extracts its embedded payload to a temporary directory, verifies that the bundled certificate thumbprint exactly matches the MSIX signer, trusts that certificate in `LocalMachine\TrustedPeople`, installs only the bundled x64 VCLibs and Windows App Runtime packages, then installs the VelocityCopy MSIX. Testers do not run PowerShell, CMD, certificates, MSIX files or framework packages manually.
 
 ## Known pre-release gap
 
@@ -47,12 +49,12 @@ This does not block basic copy/move UI testing, but shutdown-recovery testing is
 
 ### Installation and shell registration
 
-- Install from the staged test artifact using `Install-VelocityCopy-Test.cmd`.
+- Double-click `VelocityCopy-Setup-x64.exe` and accept the UAC prompt.
 - Confirm VelocityCopy appears in installed apps.
 - Launch once and confirm the tray icon appears.
 - Confirm Explorer modern context menu entries appear for files, folders and folder background.
 - Restart Explorer and confirm the tray icon re-registers.
-- Uninstall with `Uninstall-VelocityCopy-Test.cmd` and confirm the app and test certificate are removed.
+- Uninstall VelocityCopy from Windows Installed apps and confirm shell registration is removed.
 
 ### Resident startup and tray
 
