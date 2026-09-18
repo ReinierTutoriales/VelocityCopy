@@ -56,7 +56,6 @@ void MainWindow::RefreshQueue() {
     } else {
         items.Clear();
     }
-    const auto first_new_index = can_trim_prefix ? retained_count : 0;
     const auto expected_retained_visuals = can_trim_prefix ? retained_count : 0;
     if (can_trim_prefix && items.Size() != expected_retained_visuals) {
         items.Clear();
