@@ -2,6 +2,7 @@
 #include "velocitycopy/job_planner.hpp"
 #include "velocitycopy/live_copy_plan.hpp"
 #include "velocitycopy/storage_profiler.hpp"
+#include "velocitycopy/storage_topology.hpp"
 #include "velocitycopy/strategy_selector.hpp"
 
 #include <windows.h>
@@ -51,21 +52,6 @@ void write_disk_numbers(std::wostream& stream, const velocitycopy::StorageProfil
         if (index != 0) stream << L",";
         stream << profile.physical_disk_numbers[index];
     }
-}
-
-bool shares_physical_disk(
-    const velocitycopy::StorageProfile& source,
-    const velocitycopy::StorageProfile& destination) noexcept {
-    if (!source.physical_disk_extents_available || !destination.physical_disk_extents_available) {
-        return false;
-    }
-    for (const auto disk : source.physical_disk_numbers) {
-        if (std::find(destination.physical_disk_numbers.begin(), destination.physical_disk_numbers.end(), disk) !=
-            destination.physical_disk_numbers.end()) {
-            return true;
-        }
-    }
-    return false;
 }
 
 } // namespace
@@ -121,8 +107,9 @@ int wmain(int argc, wchar_t* argv[]) {
     velocitycopy::StorageProfiler profiler;
     const auto source_profile = profiler.inspect(job.sources.front());
     const auto destination_profile = profiler.inspect(job.destination);
-    const bool topology_known = source_profile.physical_disk_extents_available && destination_profile.physical_disk_extents_available;
-    const bool shared_physical_disk = topology_known && shares_physical_disk(source_profile, destination_profile);
+    const auto topology = velocitycopy::physical_storage_relationship(source_profile, destination_profile);
+    const bool topology_known = topology != velocitycopy::PhysicalStorageRelationship::Unknown;
+    const bool shared_physical_disk = topology == velocitycopy::PhysicalStorageRelationship::SharedDisk;
     const wchar_t* topology_scenario = !topology_known ? L"unknown" : (shared_physical_disk ? L"G" : L"H");
 
     velocitycopy::StrategySelector selector;
