@@ -44,11 +44,13 @@ int main() {
         return fail(2, "source reparse point must be revalidated immediately before CopyFile2");
     }
 
-    const auto destination_check = engine.find("destination_chain_contains_reparse_point(destination)");
+    const auto destination_check = engine.find("destination_chain_contains_reparse_point(destination, destination_guard)");
     if (destination_check == std::string::npos ||
         !contains(engine, "FILE_FLAG_OPEN_REPARSE_POINT") ||
         !contains(engine, "FileAttributeTagInfo") ||
         !contains(engine, "COPY_FILE_COPY_SYMLINK") ||
+        !contains(engine, "FILE_SHARE_READ | FILE_SHARE_WRITE") ||
+        contains(engine, "FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING,\n                FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT") ||
         destination_check > copy_call) {
         return fail(6, "destination reparse defenses must precede CopyFile2");
     }
