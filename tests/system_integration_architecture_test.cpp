@@ -153,8 +153,11 @@ int main() {
         !contains(installer, "RuntimeInformation]::OSArchitecture") ||
         contains(installer, "RuntimeInformation]::ProcessArchitecture") ||
         contains(installer, "\"X86\" { \"x86\" }") ||
-        !contains(installer, "Microsoft\\.VCLibs") ||
-        !contains(installer, "Microsoft\\.WindowsAppRuntime") ||
+        !contains(package_workflow, "Audit generated MSIX manifests") ||
+        !contains(package_workflow, "PackageDependency") ||
+        !contains(package_workflow, "Identity.Name") ||
+        !contains(package_workflow, "Microsoft.UI.Xaml*") ||
+        !contains(package_workflow, "Staged dependency Identity Name") ||
         !contains(installer, "previousThumbprint") ||
         !contains(installer, "previousTrustedPath") ||
         !contains(installer, "VelocityCopy-Install.log") ||
