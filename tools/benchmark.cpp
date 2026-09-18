@@ -42,9 +42,28 @@ const wchar_t* seek_name(const velocitycopy::StorageProfile& profile) noexcept {
 } // namespace
 
 int wmain(int argc, wchar_t* argv[]) {
-    const bool json_output = argc == 4 && std::wstring_view(argv[3]) == L"--json";
-    if (argc != 3 && !json_output) {
-        std::wcout << L"Usage: VelocityCopyBenchmark <source> <destination> [--json]\n";
+    bool json_output = false;
+    std::uint32_t forced_workers = 0;
+    for (int index = 3; index < argc; ++index) {
+        const std::wstring_view arg(argv[index]);
+        if (arg == L"--json") {
+            json_output = true;
+        } else if (arg.starts_with(L"--workers=")) {
+            try {
+                const auto parsed = std::stoul(std::wstring(arg.substr(10)));
+                if (parsed < 1 || parsed > 4) throw std::out_of_range("workers");
+                forced_workers = static_cast<std::uint32_t>(parsed);
+            } catch (...) {
+                std::wcerr << L"Invalid --workers value; supported range is 1..4.\n";
+                return 1;
+            }
+        } else {
+            std::wcerr << L"Unknown benchmark option.\n";
+            return 1;
+        }
+    }
+    if (argc < 3) {
+        std::wcout << L"Usage: VelocityCopyBenchmark <source> <destination> [--workers=1..4] [--json]\n";
         return 1;
     }
 
@@ -96,11 +115,16 @@ int wmain(int argc, wchar_t* argv[]) {
     velocitycopy::LiveCopyPlan live_plan(std::move(plan));
     velocitycopy::JobExecutor executor;
     velocitycopy::ExecutionControl control;
-    const auto execution_options = executor.recommend_options(live_plan);
+    auto execution_options = executor.recommend_options(live_plan);
+    const auto recommended_workers = execution_options.worker_count;
+    if (forced_workers != 0) {
+        execution_options.worker_count = forced_workers;
+    }
 
     if (!json_output) {
         std::wcout << L"Production execution: " << strategy_name(execution_options.strategy)
                    << L" | workers " << execution_options.worker_count
+                   << L" | recommended workers " << recommended_workers
                    << L" | flags 0x" << std::hex << execution_options.copy_flags << std::dec
                    << L" | buffer " << execution_options.suggested_buffer_bytes
                    << L" | async candidate " << (execution_options.async_iocp_candidate ? L"yes" : L"no")
@@ -134,6 +158,8 @@ int wmain(int argc, wchar_t* argv[]) {
                    << L",\"largest_file_bytes\":" << workload.largest_file_bytes
                    << L",\"strategy\":\"" << strategy_name(execution_options.strategy)
                    << L"\",\"workers\":" << execution_options.worker_count
+                   << L",\"recommended_workers\":" << recommended_workers
+                   << L",\"workers_overridden\":" << (forced_workers != 0 ? L"true" : L"false")
                    << L",\"copy_flags\":" << execution_options.copy_flags
                    << L",\"buffer_bytes\":" << execution_options.suggested_buffer_bytes
                    << L",\"async_candidate\":" << (execution_options.async_iocp_candidate ? L"true" : L"false")
