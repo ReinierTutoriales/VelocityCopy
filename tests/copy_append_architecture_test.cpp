@@ -230,7 +230,11 @@ int main() {
         !contains(window, "DragDropModifiers::Shift") ||
         !contains(window, "if (allows_copy) return DataPackageOperation::Copy") ||
         !contains(window, "return DataPackageOperation::None") ||
-        !contains(window, "if (operation == DataPackageOperation::None)") ||
+        !contains(window, "args.AllowedOperations() & DataPackageOperation::Copy") ||
+        !contains(window, "args.AcceptedOperation(DataPackageOperation::Copy)") ||
+        !contains(window, "auto deferral = args.GetDeferral()") ||
+        count_occurrences(window, "deferral.Complete()") < 3 ||
+        !contains(header, "Microsoft::UI::Xaml::DragEventArgs args") ||
         !contains(append, "flow_.make_job(next_job_id_++, pending_flow_operation_)") ||
         !contains(append, "pending_flow_operation_ = velocitycopy::FileOperation::Copy")) {
         return fail(23, "Explorer Cut/Paste operation must survive the shared layout flow");
