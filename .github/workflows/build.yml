@@ -97,48 +97,62 @@ jobs:
           Remove-Item -LiteralPath $pfx -Force
           Remove-Item -LiteralPath ("Cert:\CurrentUser\My\" + $cert.Thumbprint) -Force
 
-      - name: Stage Windows test build
+      - name: Stage installer payload
         shell: pwsh
         run: |
-          $exe = Get-ChildItem -Path src/ui/VelocityCopy.UI -Recurse -Filter VelocityCopy.WinUI.exe |
-            Sort-Object LastWriteTimeUtc -Descending |
-            Select-Object -First 1
-          if (-not $exe) { throw "VelocityCopy.WinUI.exe was not produced" }
-
-          $stage = "artifacts/VelocityCopy-Windows-x64-Test"
-          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          $payload = "artifacts/VelocityCopy-InstallerPayload"
+          New-Item -ItemType Directory -Force -Path $payload | Out-Null
 
           $packageRoot = (Resolve-Path "artifacts/AppPackages").Path
-          Get-ChildItem -LiteralPath $packageRoot -Recurse -File |
-            Where-Object { $_.Extension -in ".msix", ".appx", ".msixbundle", ".appinstaller", ".cer" } |
-            ForEach-Object {
-              $relative = $_.FullName.Substring($packageRoot.Length).TrimStart("\")
-              $target = Join-Path $stage $relative
-              New-Item -ItemType Directory -Force -Path (Split-Path -Parent $target) | Out-Null
-              Copy-Item -LiteralPath $_.FullName -Destination $target -Force
+          $main = Get-ChildItem -LiteralPath $packageRoot -Recurse -File -Filter *.msix |
+            Where-Object { $_.FullName -notmatch "[\\/]Dependencies[\\/]" } |
+            Select-Object -First 1
+          if (-not $main) { throw "VelocityCopy MSIX package was not found" }
+
+          Copy-Item -LiteralPath $main.FullName -Destination $payload -Force
+          Copy-Item -LiteralPath (Join-Path $packageRoot "VelocityCopy-Test.cer") -Destination $payload -Force
+
+          $x64Dependencies = Get-ChildItem -LiteralPath $packageRoot -Recurse -File |
+            Where-Object {
+              $_.FullName -match "[\\/]Dependencies[\\/]x64[\\/]" -and
+              $_.Extension -in ".appx", ".msix"
             }
+          if (-not $x64Dependencies) { throw "x64 package dependencies were not found" }
 
-          Copy-Item -LiteralPath "tools/Install-VelocityCopy-Test.ps1" -Destination $stage -Force
+          $dependencyStage = Join-Path $payload "Dependencies\x64"
+          New-Item -ItemType Directory -Force -Path $dependencyStage | Out-Null
+          foreach ($dependency in $x64Dependencies) {
+            Copy-Item -LiteralPath $dependency.FullName -Destination $dependencyStage -Force
+          }
 
-          @(
-            "@echo off",
-            "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ""%~dp0Install-VelocityCopy-Test.ps1""",
-            "pause"
-          ) | Set-Content -LiteralPath "$stage/Install-VelocityCopy-Test.cmd" -Encoding ascii
+          Copy-Item -LiteralPath "tools/Install-VelocityCopy-Test.ps1" -Destination $payload -Force
 
-          @(
-            "@echo off",
-            "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ""%~dp0Install-VelocityCopy-Test.ps1"" -Uninstall",
-            "pause"
-          ) | Set-Content -LiteralPath "$stage/Uninstall-VelocityCopy-Test.cmd" -Encoding ascii
+      - name: Build single-file Windows installer
+        shell: pwsh
+        timeout-minutes: 10
+        run: |
+          choco install nsis -y --no-progress
+          if ($LASTEXITCODE -ne 0) { throw "NSIS installation failed" }
 
-          "Source build: $($exe.Directory.FullName)" |
-            Set-Content -LiteralPath "$stage/BUILD_SOURCE.txt" -Encoding utf8
+          $candidates = @(
+            "${env:ProgramFiles(x86)}\NSIS\makensis.exe",
+            "$env:ProgramFiles\NSIS\makensis.exe"
+          )
+          $makensis = $candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+          if (-not $makensis) { throw "makensis.exe was not found" }
 
-      - name: Upload Windows test build
+          $payload = (Resolve-Path "artifacts/VelocityCopy-InstallerPayload").Path
+          $outputDir = "artifacts/installer"
+          New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
+          $output = Join-Path (Resolve-Path $outputDir).Path "VelocityCopy-Setup-x64.exe"
+
+          & $makensis "/DPAYLOAD_DIR=$payload" "/DOUTPUT_FILE=$output" "tools/VelocityCopy-Test-Installer.nsi"
+          if ($LASTEXITCODE -ne 0) { throw "VelocityCopy setup generation failed" }
+          if (-not (Test-Path -LiteralPath $output -PathType Leaf)) { throw "VelocityCopy-Setup-x64.exe was not produced" }
+      - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
-          name: VelocityCopy-Windows-x64-Test
-          path: artifacts/VelocityCopy-Windows-x64-Test
+          name: VelocityCopy-Setup-x64
+          path: artifacts/installer/VelocityCopy-Setup-x64.exe
           if-no-files-found: error
           retention-days: 14
