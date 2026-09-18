@@ -170,6 +170,7 @@ fire_and_forget MainWindow::HandleDropAsync(DataPackageView data_view) {
 
 void MainWindow::LoadDestinations() {
     destination_navigation_.cancel();
+    ++destination_navigation_generation_;
     current_destination_folder_.clear();
     DestinationBrowserHeader().Visibility(Visibility::Collapsed);
     ChooseCurrentFolderButton().Visibility(Visibility::Collapsed);
@@ -216,7 +217,7 @@ void MainWindow::NavigateDestination(std::filesystem::path folder) {
 
     auto weak = get_weak();
     auto dispatcher = dispatcher_;
-    (void)destination_navigation_.navigate(
+    destination_navigation_generation_ = destination_navigation_.navigate(
         std::move(folder),
         true,
         [weak, dispatcher](velocitycopy::DestinationNavigationResult result) mutable {
@@ -229,6 +230,9 @@ void MainWindow::NavigateDestination(std::filesystem::path folder) {
 }
 
 void MainWindow::ApplyDestinationNavigation(velocitycopy::DestinationNavigationResult result) {
+    if (result.generation != destination_navigation_generation_) {
+        return;
+    }
     current_destination_folder_ = std::move(result.folder);
     DestinationBrowserHeader().Visibility(Visibility::Visible);
     ChooseCurrentFolderButton().Visibility(Visibility::Visible);
