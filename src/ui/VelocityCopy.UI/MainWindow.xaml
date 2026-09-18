@@ -5,6 +5,7 @@
 
     <Grid x:Name="RootGrid"
           AllowDrop="True"
+          DragEnter="OnDragEnter"
           DragOver="OnDragOver"
           DragLeave="OnDragLeave"
           Drop="OnDrop"
