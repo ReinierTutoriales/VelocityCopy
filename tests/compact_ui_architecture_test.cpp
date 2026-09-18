@@ -80,13 +80,26 @@ int main() {
         return fail(7, "UI specification must document the integrated copy bar concept");
     }
 
-    if (!contains(xaml, "DragEnter=\"OnDragEnter\"") ||
+    if (!contains(xaml, "x:Name=\"RootGrid\"") ||
+        !contains(xaml, "AllowDrop=\"True\"") ||
+        !contains(xaml, "Background=\"Transparent\"") ||
+        !contains(xaml, "DragEnter=\"OnDragEnter\"") ||
         !contains(xaml, "DragOver=\"OnDragOver\"") ||
+        !contains(xaml, "DragLeave=\"OnDragLeave\"") ||
+        !contains(xaml, "Drop=\"OnDrop\"") ||
         !contains(xaml, "x:Name=\"DragOverlay\"") ||
         !contains(window, "void MainWindow::OnDragEnter") ||
         !contains(window, "DataPackageOperation::None") ||
-        !contains(window, "DragOverlay().Visibility(")) {
+        !contains(window, "operation != DataPackageOperation::None ? Visibility::Visible : Visibility::Collapsed")) {
         return fail(8, "whole-window drop surface must provide immediate validated drag feedback");
+    }
+
+    if (!contains(xaml, "Background=\"{ThemeResource CardBackgroundFillColorDefaultBrush}\"") ||
+        !contains(xaml, "BorderBrush=\"{ThemeResource CardStrokeColorDefaultBrush}\"") ||
+        !contains(xaml, "Background=\"{ThemeResource AccentFillColorDefaultBrush}\"") ||
+        contains(xaml, "Background=\"#") || contains(xaml, "BorderBrush=\"#") ||
+        contains(xaml, "Foreground=\"#")) {
+        return fail(9, "custom transfer/drop surfaces must remain system-theme driven");
     }
 
     return 0;
