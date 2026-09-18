@@ -80,6 +80,7 @@ private:
     winrt::fire_and_forget ShowConflictDialogAsync(velocitycopy::JobResult conflict);
     winrt::fire_and_forget SaveQueueAsync();
     winrt::fire_and_forget LoadQueueAsync();
+    winrt::fire_and_forget MaybeOfferRecoveryAsync();
     void ConfigureQueuePersistenceMenu();
     void InitializeTrayIntegration();
     void RemoveTrayIntegration() noexcept;
@@ -179,6 +180,8 @@ private:
     bool resume_requested_{};
     bool initial_size_applied_{};
     bool current_file_skippable_{};
+    bool recovery_prompt_checked_{};
+    bool recovery_prompt_active_{};
     std::uint64_t next_job_id_{1};
     std::uint64_t last_queue_completed_files_{};
     std::uint64_t shell_layout_generation_{};
