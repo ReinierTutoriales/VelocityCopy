@@ -122,6 +122,7 @@ int wmain(int argc, wchar_t* argv[]) {
     const auto destination_profile = profiler.inspect(job.destination);
     const bool topology_known = source_profile.physical_disk_extents_available && destination_profile.physical_disk_extents_available;
     const bool shared_physical_disk = topology_known && shares_physical_disk(source_profile, destination_profile);
+    const wchar_t* topology_scenario = !topology_known ? L"unknown" : (shared_physical_disk ? L"G" : L"H");
 
     velocitycopy::StrategySelector selector;
     const auto recommendation = selector.choose(source_profile, destination_profile, workload);
@@ -193,6 +194,7 @@ int wmain(int argc, wchar_t* argv[]) {
                    << L"\",\"source_topology_known\":" << (source_profile.physical_disk_extents_available ? L"true" : L"false")
                    << L",\"destination_topology_known\":" << (destination_profile.physical_disk_extents_available ? L"true" : L"false")
                    << L",\"shared_physical_disk\":" << (shared_physical_disk ? L"true" : L"false")
+                   << L",\"topology_scenario\":\"" << topology_scenario << L"\""
                    << L",\"total_bytes\":" << total_bytes
                    << L",\"file_count\":" << workload.file_count
                    << L",\"largest_file_bytes\":" << workload.largest_file_bytes
