@@ -4,16 +4,26 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$certificate = Join-Path $root "VelocityCopy-Test.cer"
 $packageName = "ReinierTutoriales.VelocityCopy"
+
 if ($Uninstall) {
     Get-AppxPackage -Name $packageName -ErrorAction SilentlyContinue |
         Remove-AppxPackage -ErrorAction Stop
-    Write-Host "VelocityCopy removed for the current user."
+
+    if (Test-Path -LiteralPath $certificate -PathType Leaf) {
+        $cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certificate)
+        $trustedPath = "Cert:\CurrentUser\TrustedPeople\$($cert.Thumbprint)"
+        if (Test-Path -LiteralPath $trustedPath) {
+            Remove-Item -LiteralPath $trustedPath -Force
+        }
+        $cert.Dispose()
+    }
+
+    Write-Host "VelocityCopy and its test signing certificate were removed for the current user."
     exit 0
 }
-
-$root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$certificate = Join-Path $root "VelocityCopy-Test.cer"
 if (-not (Test-Path -LiteralPath $certificate -PathType Leaf)) {
     throw "VelocityCopy-Test.cer is missing."
 }
