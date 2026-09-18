@@ -126,7 +126,9 @@ int main() {
         !contains(installer, "Microsoft\\.VCLibs") ||
         !contains(installer, "Microsoft\\.WindowsAppRuntime") ||
         !contains(installer, "previousThumbprint") ||
-        !contains(installer, "previousTrustedPath")) {
+        !contains(installer, "previousTrustedPath") ||
+        !contains(installer, "Is64BitOperatingSystem") ||
+        !contains(installer, "build 22000 or newer")) {
         return fail(9, "embedded installer must trust exact signer and install x64 dependencies only");
     }
 
