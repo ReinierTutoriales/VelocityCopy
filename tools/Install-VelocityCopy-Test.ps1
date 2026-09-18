@@ -119,44 +119,19 @@ try {
         throw "Required $dependencyArchitecture dependency directory was not found."
     }
 
-    # MSBuild can emit transitive framework packages (for example Microsoft.UI.Xaml)
-    # beside the direct prerequisites. Passing every emitted package to
-    # Add-AppxPackage can force an update of a shared framework currently in use by
-    # another process, producing 0x80073D02. Only deploy the framework families
-    # VelocityCopy intentionally carries as installer prerequisites.
-    $allowedDependencyPattern = '^Microsoft\.(VCLibs|WindowsAppRuntime).+\.(appx|msix)$'
-    $allDependencyPackages = @(
-        Get-ChildItem -LiteralPath $dependencyRoot -File |
-            Where-Object { $_.Extension -in ".appx", ".msix" }
-    )
+    # The CI staging gate resolves the application's declared dependency graph by
+    # package Identity Name. At install time, pass exactly that audited staged set.
+    # Do not reinterpret dependency filenames or maintain a second allow/deny policy.
     $dependencies = @(
-        $allDependencyPackages |
-            Where-Object { $_.Name -match $allowedDependencyPattern } |
+        Get-ChildItem -LiteralPath $dependencyRoot -File |
+            Where-Object { $_.Extension -in ".appx", ".msix" } |
             Select-Object -ExpandProperty FullName
     )
-    $excludedDependencies = @(
-        $allDependencyPackages |
-            Where-Object { $_.Name -notmatch $allowedDependencyPattern }
-    )
-
-    foreach ($excluded in $excludedDependencies) {
-        Write-InstallLog "Ignoring transitive dependency package: $($excluded.Name)"
+    if ($dependencies.Count -eq 0) {
+        throw "Required $dependencyArchitecture dependency packages were not found."
     }
     foreach ($dependency in $dependencies) {
-        Write-InstallLog "Selected dependency package: $([IO.Path]::GetFileName($dependency))"
-    }
-
-    if ($dependencies.Count -eq 0) {
-        throw "Required $dependencyArchitecture runtime packages were not found."
-    }
-    if (-not ($dependencies | Where-Object { $_ -match "Microsoft\.VCLibs" })) {
-        throw "Microsoft Visual C++ $dependencyArchitecture framework package was not found."
-    }
-    if (-not ($dependencies | Where-Object { $_ -match "Microsoft\.WindowsAppRuntime" })) {
-        throw "Microsoft Windows App Runtime $dependencyArchitecture framework package was not found."
-    }
-    if ($dependencies | Where-Object { $_ -match "Microsoft\.UI\.Xaml" }) {
-        throw "Microsoft.UI.Xaml must not be passed explicitly to Add-AppxPackage."
+        Write-InstallLog "Using audited dependency package: $([IO.Path]::GetFileName($dependency))"
     }
 
     Write-InstallLog "Deploying VelocityCopy bundle for $dependencyArchitecture with $($dependencies.Count) direct dependency package(s)."
