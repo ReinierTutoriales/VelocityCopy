@@ -136,8 +136,15 @@ void MainWindow::FinalizeConflictSessionIfEmpty() {
     active_destination_.clear();
     RefreshQueue();
     QueueButton().IsEnabled(false);
+    QueuePanel().Visibility(Visibility::Collapsed);
+    QueueButton().Content(box_value(hstring(L"▸")));
+    ResizeWindow(72);
     SetExecutionButtonsIdle();
+    SpeedText().Text(L"—");
+    EtaText().Text(L"—");
     GlobalProgress().Value(100);
+    ProgressFill().Width(TransferSurface().ActualWidth());
+    ProgressPercentText().Text(L"100%");
     StartNextQueuedSession();
 }
 
