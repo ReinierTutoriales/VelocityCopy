@@ -87,6 +87,8 @@ int main() {
     if (!contains(ipc, "ConvertSidToStringSidW") ||
         !contains(ipc, "D:P(A;;GA;;;SY)(A;;GA;;;") ||
         !contains(ipc, "PIPE_REJECT_REMOTE_CLIENTS") ||
+        !contains(ipc, "GetNamedPipeClientProcessId") ||
+        !contains(ipc, "connected_client_in_same_session") ||
         !contains(ipc, "CreateNamedPipeW") ||
         contains(ipc, "0, nullptr);")) {
         return fail(7, "IPC pipe and mutex must use explicit local-user security");
