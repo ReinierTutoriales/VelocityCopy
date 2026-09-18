@@ -9,6 +9,7 @@
           DragOver="OnDragOver"
           DragLeave="OnDragLeave"
           Drop="OnDrop"
+          Background="Transparent"
           Padding="{StaticResource ContentGutterThickness}">
         <VisualStateManager.VisualStateGroups>
             <VisualStateGroup x:Name="WindowWidthStates">
