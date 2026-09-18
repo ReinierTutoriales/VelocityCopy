@@ -38,16 +38,17 @@ bool valid_new_folder_name(const std::filesystem::path& name) noexcept {
 
 } // namespace
 
-std::vector<DestinationFolderEntry> DestinationBrowser::list_children(
+DestinationFolderListing DestinationBrowser::list_children(
     const std::filesystem::path& folder) const noexcept {
     try {
-        std::vector<DestinationFolderEntry> result;
+        DestinationFolderListing result;
         std::error_code ec;
         std::filesystem::directory_iterator it(folder, std::filesystem::directory_options::skip_permission_denied, ec);
         const std::filesystem::directory_iterator end;
         if (ec) {
             return result;
         }
+        result.available = true;
 
         for (; it != end; it.increment(ec)) {
             if (ec) {
@@ -60,11 +61,11 @@ std::vector<DestinationFolderEntry> DestinationBrowser::list_children(
                 continue;
             }
             if (std::filesystem::is_directory(status) && !std::filesystem::is_symlink(status)) {
-                result.push_back({it->path(), it->path().filename()});
+                result.children.push_back({it->path(), it->path().filename()});
             }
         }
 
-        std::sort(result.begin(), result.end(), less_name);
+        std::sort(result.children.begin(), result.children.end(), less_name);
         return result;
     } catch (...) {
         return {};
