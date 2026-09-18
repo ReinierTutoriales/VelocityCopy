@@ -117,6 +117,9 @@ int main() {
     if (!contains(package_workflow, "workflow_dispatch:") ||
         !contains(package_workflow, "tags:") ||
         !contains(package_workflow, "GenerateAppxPackageOnBuild=true") ||
+        !contains(package_workflow, "Build WinUI 3 ARM64 Release and MSIX") ||
+        !contains(package_workflow, "/p:Platform=ARM64") ||
+        !contains(package_workflow, "AppPackages-ARM64") ||
         !contains(package_workflow, "Sign Windows test MSIX") ||
         !contains(package_workflow, "signtool") ||
         !contains(package_workflow, "VelocityCopy-Test.cer") ||
