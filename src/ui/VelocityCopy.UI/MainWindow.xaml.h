@@ -48,6 +48,9 @@ struct MainWindow : MainWindowT<MainWindow> {
     void OnQueueClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnSaveQueueClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnLoadQueueClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
+    void OnMenuPauseClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
+    void OnMenuStopClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
+    void OnMenuCancelClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnQueueMoveUpClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnQueueMoveDownClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnQueueRemoveClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
@@ -118,6 +121,7 @@ private:
     void PublishLivePlan(std::shared_ptr<velocitycopy::LiveCopyPlan> plan);
     void RefreshQueue();
     void RefreshQueueCommandState();
+    void RefreshExecutionMenuState();
     [[nodiscard]] std::vector<std::uint64_t> SelectedPendingIds();
     void ResizeWindow(int height_epx);
     void SetExecutionButtonsPlanning();
@@ -159,6 +163,9 @@ private:
     Microsoft::UI::Xaml::Controls::Button queue_options_button_{nullptr};
     Microsoft::UI::Xaml::Controls::MenuFlyoutItem save_queue_menu_item_{nullptr};
     Microsoft::UI::Xaml::Controls::MenuFlyoutItem load_queue_menu_item_{nullptr};
+    Microsoft::UI::Xaml::Controls::MenuFlyoutItem pause_menu_item_{nullptr};
+    Microsoft::UI::Xaml::Controls::MenuFlyoutItem stop_menu_item_{nullptr};
+    Microsoft::UI::Xaml::Controls::MenuFlyoutItem cancel_menu_item_{nullptr};
     std::atomic_bool cancel_requested_{false};
     bool paused_{};
     bool stopped_session_{};
