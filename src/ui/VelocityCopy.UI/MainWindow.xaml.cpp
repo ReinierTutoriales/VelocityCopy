@@ -29,7 +29,9 @@ DataPackageOperation preferred_drop_operation(
     if (control && allows_copy) return DataPackageOperation::Copy;
     if (shift && allows_move) return DataPackageOperation::Move;
     if (requested == DataPackageOperation::Move) return DataPackageOperation::Move;
-    return DataPackageOperation::Copy;
+    if (allows_copy) return DataPackageOperation::Copy;
+    if (allows_move) return DataPackageOperation::Move;
+    return DataPackageOperation::None;
 }
 
 velocitycopy::FileOperation file_operation(const DataPackageOperation operation) {
@@ -152,8 +154,14 @@ void MainWindow::OnDragLeave(IInspectable const&, DragEventArgs const&) {
 
 void MainWindow::OnDrop(IInspectable const&, DragEventArgs const& args) {
     DragOverlay().Visibility(Visibility::Collapsed);
-    const auto operation = preferred_drop_operation(args.DataView(), args.Modifiers());
+    const bool accepts_storage_items = args.DataView().Contains(StandardDataFormats::StorageItems());
+    const auto operation = accepts_storage_items
+        ? preferred_drop_operation(args.DataView(), args.Modifiers())
+        : DataPackageOperation::None;
     args.AcceptedOperation(operation);
+    if (operation == DataPackageOperation::None) {
+        return;
+    }
     HandleDropAsync(args.DataView(), file_operation(operation));
 }
 
