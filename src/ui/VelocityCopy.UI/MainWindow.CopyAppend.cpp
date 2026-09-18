@@ -46,6 +46,7 @@ void MainWindow::OnQueueOrStartCopyClick(IInspectable const&, RoutedEventArgs co
 }
 
 void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
+    SetEfficiencyMode(false);
     if (stop_requested_) {
         if (same_session(active_destination_, active_operation_, job)) {
             deferred_interrupted_jobs_.push_back(std::move(job));
