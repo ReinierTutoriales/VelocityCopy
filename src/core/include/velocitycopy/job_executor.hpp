@@ -43,6 +43,12 @@ struct JobResult {
     std::filesystem::path conflict_destination;
 };
 
+enum class ConflictPolicy : std::uint8_t {
+    Prompt,
+    ReplaceAll,
+    SkipAll,
+};
+
 struct JobExecutionOptions {
     std::uint32_t worker_count{1};
     std::uint32_t copy_flags{};
@@ -51,6 +57,7 @@ struct JobExecutionOptions {
     bool async_iocp_candidate{};
     ExistingDestinationPolicy existing_destination{ExistingDestinationPolicy::Fail};
     std::uint64_t replace_file_id{};
+    ConflictPolicy conflict_policy{ConflictPolicy::Prompt};
 };
 
 class JobExecutor final {
