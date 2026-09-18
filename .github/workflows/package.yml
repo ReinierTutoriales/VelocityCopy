@@ -6,14 +6,20 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/package.yml"
-      - "src/ui/VelocityCopy.UI/VelocityCopy.UI.vcxproj"
+      - "CMakeLists.txt"
+      - "src/core/**"
+      - "src/shell/**"
+      - "src/ui/**"
+      - "tools/Install-VelocityCopy-Test.ps1"
+      - "tools/VelocityCopy-Test-Installer.nsi"
       - "tests/system_integration_architecture_test.cpp"
+      - "tests/queue_persistence_architecture_test.cpp"
     tags:
       - "v*"
 
 concurrency:
   group: windows-package-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -159,9 +165,6 @@ jobs:
             & $signtool sign /fd SHA256 /a /f $pfx /p $plainPassword $bundle
             if ($LASTEXITCODE -ne 0) { throw "Bundle signing failed with exit code $LASTEXITCODE" }
 
-            # The CI signer is intentionally self-signed and is not trusted on the runner yet.
-            # Validate that the bundle is signed by the exact certificate we just generated.
-            # The installer smoke test separately bootstraps TrustedPeople and proves Add-AppxPackage.
             $signature = Get-AuthenticodeSignature -FilePath $bundle
             if (-not $signature.SignerCertificate -or $signature.SignerCertificate.Thumbprint -ne $cert.Thumbprint) {
               throw "Unexpected signer certificate for VelocityCopy.msixbundle"
