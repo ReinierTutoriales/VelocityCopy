@@ -39,6 +39,10 @@
   <data name="ActionStartCopy" xml:space="preserve"><value>Copy</value></data>
   <data name="ShellCopy" xml:space="preserve"><value>Copy with VelocityCopy</value></data>
   <data name="ShellPaste" xml:space="preserve"><value>Paste with VelocityCopy</value></data>
+  <data name="RecoveryTitle" xml:space="preserve"><value>Resume interrupted transfer?</value></data>
+  <data name="RecoveryMessage" xml:space="preserve"><value>VelocityCopy found work saved during Windows shutdown. Nothing will resume until you choose Resume.</value></data>
+  <data name="RecoveryResume" xml:space="preserve"><value>Resume</value></data>
+  <data name="RecoveryDiscard" xml:space="preserve"><value>Discard</value></data>
   <data name="CurrentItemText.Text" xml:space="preserve"><value>Drop files or folders to begin</value></data>
   <data name="PauseButton.Content" xml:space="preserve"><value>Pause</value></data>
   <data name="SkipButton.Content" xml:space="preserve"><value>Skip</value></data>
