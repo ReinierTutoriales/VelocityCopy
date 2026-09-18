@@ -101,6 +101,7 @@ fire_and_forget MainWindow::BeginShellDestinationAsync(
                 return;
             }
 
+            self->pending_flow_operation_ = velocitycopy::FileOperation::Copy;
             self->dropped_items_ = std::move(items);
             self->flow_.begin(self->dropped_items_);
             self->DestinationStep().Visibility(Microsoft::UI::Xaml::Visibility::Visible);
@@ -121,6 +122,7 @@ fire_and_forget MainWindow::BeginShellLayoutAsync(velocitycopy::CopyJob job) {
     auto dispatcher = dispatcher_;
     const auto generation = ++shell_layout_generation_;
     const auto destination = job.destination;
+    const auto operation = job.operation;
     auto sources = std::move(job.sources);
 
     co_await winrt::resume_background();
@@ -152,6 +154,7 @@ fire_and_forget MainWindow::BeginShellLayoutAsync(velocitycopy::CopyJob job) {
         weak,
         generation,
         destination,
+        operation,
         items = std::move(items)]() mutable {
         if (auto self = weak.get()) {
             if (self->shell_layout_generation_ != generation) {
@@ -164,6 +167,7 @@ fire_and_forget MainWindow::BeginShellLayoutAsync(velocitycopy::CopyJob job) {
                 return;
             }
 
+            self->pending_flow_operation_ = operation;
             self->dropped_items_ = std::move(items);
             self->flow_.begin(self->dropped_items_);
             self->DestinationStep().Visibility(Microsoft::UI::Xaml::Visibility::Collapsed);
