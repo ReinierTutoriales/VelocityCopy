@@ -206,35 +206,6 @@ jobs:
 
           Copy-Item -LiteralPath "tools/Install-VelocityCopy-Test.ps1" -Destination $payload -Force
 
-      - name: Smoke install packaged MSIX bundle
-        shell: pwsh
-        timeout-minutes: 5
-        run: |
-          $payload = (Resolve-Path "artifacts/VelocityCopy-InstallerPayload").Path
-          $script = Join-Path $payload "Install-VelocityCopy-Test.ps1"
-          if (-not (Test-Path -LiteralPath $script -PathType Leaf)) {
-            throw "Staged VelocityCopy installer script was not found"
-          }
-
-          try {
-            & $script
-
-            $installed = Get-AppxPackage -Name "ReinierTutoriales.VelocityCopy" -ErrorAction SilentlyContinue |
-              Select-Object -First 1
-            if (-not $installed) {
-              throw "VelocityCopy package is absent after smoke installation"
-            }
-            if ($installed.PackageFamilyName -notmatch '^ReinierTutoriales\.VelocityCopy_') {
-              throw "Unexpected VelocityCopy package family: $($installed.PackageFamilyName)"
-            }
-            Write-Host "Smoke-installed $($installed.PackageFullName)"
-          }
-          finally {
-            if (Test-Path -LiteralPath $script -PathType Leaf) {
-              & $script -Uninstall
-            }
-          }
-
       - name: Build single-file Windows installer
         shell: pwsh
         timeout-minutes: 10
@@ -258,6 +229,48 @@ jobs:
           & $makensis "/DPAYLOAD_DIR=$payload" "/DOUTPUT_FILE=$output" "/DDISPLAY_VERSION=$env:VELOCITYCOPY_PACKAGE_VERSION" "tools/VelocityCopy-Test-Installer.nsi"
           if ($LASTEXITCODE -ne 0) { throw "VelocityCopy setup generation failed" }
           if (-not (Test-Path -LiteralPath $output -PathType Leaf)) { throw "VelocityCopy-Setup.exe was not produced" }
+
+      - name: Smoke install single-file Windows installer
+        shell: pwsh
+        timeout-minutes: 5
+        run: |
+          $setup = (Resolve-Path "artifacts/installer/VelocityCopy-Setup.exe").Path
+          $uninstaller = Join-Path $env:ProgramFiles "VelocityCopy\Uninstall.exe"
+
+          try {
+            $install = Start-Process -FilePath $setup -ArgumentList "/S" -Wait -PassThru
+            if ($install.ExitCode -ne 0) {
+              throw "VelocityCopy-Setup.exe silent install failed with exit code $($install.ExitCode)"
+            }
+
+            $installed = Get-AppxPackage -Name "ReinierTutoriales.VelocityCopy" -ErrorAction SilentlyContinue |
+              Select-Object -First 1
+            if (-not $installed) {
+              throw "VelocityCopy package is absent after setup smoke installation"
+            }
+            if ($installed.PackageFamilyName -notmatch '^ReinierTutoriales\.VelocityCopy_') {
+              throw "Unexpected VelocityCopy package family: $($installed.PackageFamilyName)"
+            }
+            if (-not (Test-Path -LiteralPath $uninstaller -PathType Leaf)) {
+              throw "VelocityCopy uninstaller was not produced by setup"
+            }
+            Write-Host "Setup smoke-installed $($installed.PackageFullName)"
+          }
+          finally {
+            if (Test-Path -LiteralPath $uninstaller -PathType Leaf) {
+              $uninstall = Start-Process -FilePath $uninstaller -ArgumentList "/S" -Wait -PassThru
+              if ($uninstall.ExitCode -ne 0) {
+                throw "VelocityCopy uninstaller silent run failed with exit code $($uninstall.ExitCode)"
+              }
+            }
+          }
+
+          $remaining = Get-AppxPackage -Name "ReinierTutoriales.VelocityCopy" -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+          if ($remaining) {
+            throw "VelocityCopy package remains installed after setup smoke uninstall"
+          }
+
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
