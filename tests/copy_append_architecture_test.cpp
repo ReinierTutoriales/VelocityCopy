@@ -220,7 +220,9 @@ int main() {
         !contains(shell, "const auto operation = job.operation") ||
         !contains(shell, "self->pending_flow_operation_ = operation") ||
         !contains(window, "pending_flow_operation_ = operation") ||
-        !contains(window, "preferred_drop_operation(args.DataView())") ||
+        !contains(window, "preferred_drop_operation(args.DataView(), args.Modifiers())") ||
+        !contains(window, "DragDropModifiers::Control") ||
+        !contains(window, "DragDropModifiers::Shift") ||
         !contains(append, "flow_.make_job(next_job_id_++, pending_flow_operation_)") ||
         !contains(append, "pending_flow_operation_ = velocitycopy::FileOperation::Copy")) {
         return fail(23, "Explorer Cut/Paste operation must survive the shared layout flow");
