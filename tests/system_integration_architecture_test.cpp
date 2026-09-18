@@ -113,7 +113,9 @@ int main() {
         !contains(installer, "Add-AppxPackage") ||
         !contains(installer, "Remove-AppxPackage") ||
         !contains(installer, "TrustedPeople") ||
-        !contains(installer, "Remove-Item -LiteralPath $trustedPath")) {
+        !contains(installer, "CurrentUser\\Root") ||
+        !contains(installer, "trustedPeoplePath") ||
+        !contains(installer, "trustedRootPath")) {
         return fail(9, "test package must install and clean its test certificate");
     }
 
