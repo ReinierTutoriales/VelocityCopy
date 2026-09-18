@@ -4,6 +4,7 @@
 using namespace winrt;
 using namespace Microsoft::UI::Xaml;
 using namespace Microsoft::UI::Xaml::Controls;
+using namespace Microsoft::UI::Xaml::Input;
 
 namespace winrt::VelocityCopyUI::implementation {
 
@@ -95,6 +96,31 @@ void MainWindow::RefreshQueueEditCommandState() {
 
 void MainWindow::OnQueueSelectionChanged(IInspectable const&, SelectionChangedEventArgs const&) {
     RefreshQueueEditCommandState();
+}
+
+void MainWindow::OnQueueKeyDown(IInspectable const&, KeyRoutedEventArgs const& args) {
+    if (!live_plan_ || SelectedPendingIds().empty()) return;
+
+    switch (args.Key()) {
+    case Windows::System::VirtualKey::Delete:
+        OnQueueRemoveClick(nullptr, nullptr);
+        args.Handled(true);
+        break;
+    case Windows::System::VirtualKey::Up:
+        if (InputKeyboardSource::GetKeyStateForCurrentThread(Windows::System::VirtualKey::Menu).HasFlag(Windows::UI::Core::CoreVirtualKeyStates::Down)) {
+            OnQueueMoveUpClick(nullptr, nullptr);
+            args.Handled(true);
+        }
+        break;
+    case Windows::System::VirtualKey::Down:
+        if (InputKeyboardSource::GetKeyStateForCurrentThread(Windows::System::VirtualKey::Menu).HasFlag(Windows::UI::Core::CoreVirtualKeyStates::Down)) {
+            OnQueueMoveDownClick(nullptr, nullptr);
+            args.Handled(true);
+        }
+        break;
+    default:
+        break;
+    }
 }
 
 void MainWindow::OnQueueClick(IInspectable const&, RoutedEventArgs const&) {
