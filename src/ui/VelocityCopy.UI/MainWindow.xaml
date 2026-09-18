@@ -234,6 +234,7 @@
                       Margin="0,6,0,0"
                       MaxHeight="{StaticResource QueueMaxHeightCompact}"
                       SelectionMode="Extended"
+                      SelectionChanged="OnQueueSelectionChanged"
                       IsItemClickEnabled="False"
                       IsSwipeEnabled="True"
                       CanDragItems="True"
