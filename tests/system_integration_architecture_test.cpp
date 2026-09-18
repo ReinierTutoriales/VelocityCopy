@@ -123,7 +123,8 @@ int main() {
         !contains(package_workflow, "Bundle and sign Windows test package") ||
         !contains(package_workflow, "makeappx bundle") ||
         !contains(package_workflow, "VelocityCopy.msixbundle") ||
-        !contains(package_workflow, "signtool verify /pa /v") ||
+        !contains(package_workflow, "Get-AuthenticodeSignature -FilePath $bundle") ||
+        !contains(package_workflow, "SignerCertificate.Thumbprint -ne $cert.Thumbprint") ||
         !contains(package_workflow, "signtool") ||
         !contains(package_workflow, "VelocityCopy-Test.cer") ||
         !contains(package_workflow, "VelocityCopy-Setup.exe") ||
