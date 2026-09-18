@@ -122,10 +122,19 @@ fire_and_forget MainWindow::HandleDropAsync(DataPackageView data_view) {
             if (path.empty()) {
                 continue;
             }
-            const auto kind = item.IsOfType(StorageItemTypes::Folder)
-                ? velocitycopy::DropItemKind::Directory
-                : velocitycopy::DropItemKind::File;
-            items.push_back({std::filesystem::path(path.c_str()), kind});
+
+            std::optional<velocitycopy::DropItemKind> kind;
+            if (item.IsOfType(StorageItemTypes::Folder)) {
+                kind = velocitycopy::DropItemKind::Directory;
+            } else if (item.IsOfType(StorageItemTypes::File)) {
+                kind = velocitycopy::DropItemKind::File;
+            }
+
+            if (!kind) {
+                continue;
+            }
+
+            items.push_back({std::filesystem::path(path.c_str()), *kind});
         }
 
         if (items.empty()) {
