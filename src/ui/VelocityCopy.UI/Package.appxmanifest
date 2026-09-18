@@ -63,17 +63,17 @@
         <desktop4:Extension Category="windows.fileExplorerContextMenus">
           <desktop4:FileExplorerContextMenus>
             <desktop5:ItemType Type="*">
-              <desktop5:Verb Id="VelocityCopy.Copy" Clsid="7E1D27A7-BA17-4EEA-9B93-967EE777BD21" />
-              <desktop5:Verb Id="VelocityCopy.CopyTo" Clsid="D0B92E7D-7A23-4C9A-9AE2-2B2A1A6F3A0D" />
+              <desktop5:Verb Id="VelocityCopyCopy" Clsid="7E1D27A7-BA17-4EEA-9B93-967EE777BD21" />
+              <desktop5:Verb Id="VelocityCopyCopyTo" Clsid="D0B92E7D-7A23-4C9A-9AE2-2B2A1A6F3A0D" />
             </desktop5:ItemType>
             <desktop5:ItemType Type="Directory">
-              <desktop5:Verb Id="VelocityCopy.CopyDirectory" Clsid="7E1D27A7-BA17-4EEA-9B93-967EE777BD21" />
-              <desktop5:Verb Id="VelocityCopy.CopyToDirectory" Clsid="D0B92E7D-7A23-4C9A-9AE2-2B2A1A6F3A0D" />
-              <desktop5:Verb Id="VelocityCopy.PasteDirectory" Clsid="CBBA1A7E-35B4-4708-9D03-9446D03FC843" />
+              <desktop5:Verb Id="VelocityCopyCopyDirectory" Clsid="7E1D27A7-BA17-4EEA-9B93-967EE777BD21" />
+              <desktop5:Verb Id="VelocityCopyCopyToDirectory" Clsid="D0B92E7D-7A23-4C9A-9AE2-2B2A1A6F3A0D" />
+              <desktop5:Verb Id="VelocityCopyPasteDirectory" Clsid="CBBA1A7E-35B4-4708-9D03-9446D03FC843" />
             </desktop5:ItemType>
             <desktop5:ItemType Type="Directory\Background">
-              <desktop5:Verb Id="VelocityCopy.PasteBackground" Clsid="CBBA1A7E-35B4-4708-9D03-9446D03FC843" />
-              <desktop5:Verb Id="VelocityCopy.OpenBackground" Clsid="A6209C12-10B0-4D25-8BF3-2D3C3E6A7B11" />
+              <desktop5:Verb Id="VelocityCopyPasteBackground" Clsid="CBBA1A7E-35B4-4708-9D03-9446D03FC843" />
+              <desktop5:Verb Id="VelocityCopyOpenBackground" Clsid="A6209C12-10B0-4D25-8BF3-2D3C3E6A7B11" />
             </desktop5:ItemType>
           </desktop4:FileExplorerContextMenus>
         </desktop4:Extension>
