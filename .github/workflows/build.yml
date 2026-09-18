@@ -19,13 +19,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Configure x64 Release
-        run: cmake -S . -B build -A x64
+        run: cmake -S . -B build/x64 -A x64
 
       - name: Build core
-        run: cmake --build build --config Release --parallel
+        run: cmake --build build/x64 --config Release --parallel
 
       - name: Test core
-        run: ctest --test-dir build -C Release --output-on-failure
+        run: ctest --test-dir build/x64 -C Release --output-on-failure
 
       - name: Stamp test package version
         shell: pwsh
