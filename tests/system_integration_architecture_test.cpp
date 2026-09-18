@@ -146,7 +146,7 @@ int main() {
         !contains(installer, "-DependencyPath $dependencies") ||
         !contains(installer, "Remove-AppxPackage") ||
         !contains(installer, "LocalMachine\\TrustedPeople") ||
-        !contains(installer, "signtool verify /pa /v $bundle") ||
+        !contains(installer, "$currentThumbprint = $bundledCert.Thumbprint") ||
         !contains(installer, "VelocityCopy.msixbundle") ||
         !contains(installer, "\"X64\" { \"x64\" }") ||
         !contains(installer, "\"Arm64\" { \"arm64\" }") ||
