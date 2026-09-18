@@ -283,6 +283,10 @@ void MainWindow::ResumeStoppedCopy() {
     current_file_skippable_ = false;
     cancel_requested_.store(false, std::memory_order_relaxed);
     presenter_.reset();
+    // Preserve the stopped session's aggregate progress until the resumed executor
+    // publishes its first authoritative snapshot. Reset only live telemetry.
+    SpeedText().Text(L"—");
+    EtaText().Text(L"—");
     last_queue_completed_files_ = live_plan_->completed_files();
     execution_control_ = std::make_shared<velocitycopy::ExecutionControl>();
     if (!append_gate_) append_gate_ = std::make_shared<AppendGate>();
