@@ -8,6 +8,7 @@ using namespace Microsoft::UI::Xaml::Controls;
 namespace winrt::VelocityCopyUI::implementation {
 
 void MainWindow::SetExecutionButtonsPlanning() {
+    SetEfficiencyMode(false);
     PauseButton().IsEnabled(false);
     SkipButton().IsEnabled(false);
     StopButton().IsEnabled(false);
@@ -18,6 +19,7 @@ void MainWindow::SetExecutionButtonsPlanning() {
 }
 
 void MainWindow::SetExecutionButtonsRunning() {
+    SetEfficiencyMode(false);
     PauseButton().IsEnabled(true);
     SkipButton().IsEnabled(false);
     StopButton().IsEnabled(true);
@@ -50,6 +52,7 @@ void MainWindow::SetExecutionButtonsIdle() {
         ToolTipService::SetToolTip(PauseButton(), box_value(label));
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), label);
     } catch (...) {}
+    RefreshEfficiencyMode();
 }
 
 void MainWindow::SetExecutionButtonsStopped() {
@@ -67,6 +70,7 @@ void MainWindow::SetExecutionButtonsStopped() {
         ToolTipService::SetToolTip(PauseButton(), box_value(label));
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), label);
     } catch (...) {}
+    RefreshEfficiencyMode();
 }
 
 void MainWindow::SetExecutionButtonsConflict() {
@@ -77,6 +81,7 @@ void MainWindow::SetExecutionButtonsConflict() {
     current_file_id_ = 0;
     current_file_skippable_ = false;
     paused_ = false;
+    RefreshEfficiencyMode();
 }
 
 velocitycopy::JobResult MainWindow::RunLivePlanSession(
