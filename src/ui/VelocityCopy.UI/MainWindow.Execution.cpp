@@ -387,6 +387,8 @@ void MainWindow::OnCancelClick(IInspectable const&, RoutedEventArgs const&) {
 void MainWindow::CancelCurrentSession() {
     cancel_requested_.store(true, std::memory_order_relaxed);
     resume_requested_ = false;
+    SpeedText().Text(L"—");
+    EtaText().Text(L"—");
     conflict_replace_file_id_ = 0;
     current_file_id_ = 0;
     current_file_skippable_ = false;
