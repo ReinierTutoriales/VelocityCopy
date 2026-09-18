@@ -5,6 +5,7 @@
 #include "velocitycopy/strategy_selector.hpp"
 
 #include <windows.h>
+#include <psapi.h>
 
 #include <algorithm>
 #include <chrono>
@@ -168,9 +169,15 @@ int wmain(int argc, wchar_t* argv[]) {
                    << L"\n";
     }
 
+    FILETIME create_time{}, exit_time{}, kernel_start{}, user_start{}, kernel_end{}, user_end{};
+    PROCESS_MEMORY_COUNTERS_EX memory{};
+    memory.cb = sizeof(memory);
+    (void)GetProcessTimes(GetCurrentProcess(), &create_time, &exit_time, &kernel_start, &user_start);
     const auto start = std::chrono::steady_clock::now();
     const auto result = executor.execute(live_plan, control, execution_options);
     const auto end = std::chrono::steady_clock::now();
+    (void)GetProcessTimes(GetCurrentProcess(), &create_time, &exit_time, &kernel_end, &user_end);
+    (void)GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&memory), sizeof(memory));
 
     if (!result.success) {
         std::wcerr << L"Benchmark copy failed. Windows status: 0x"
@@ -184,6 +191,11 @@ int wmain(int argc, wchar_t* argv[]) {
     const double files_per_second = elapsed.count() > 0.0
         ? static_cast<double>(workload.file_count) / elapsed.count()
         : 0.0;
+    const auto filetime_value = [](const FILETIME& value) noexcept -> std::uint64_t {
+        ULARGE_INTEGER ticks{}; ticks.LowPart = value.dwLowDateTime; ticks.HighPart = value.dwHighDateTime; return ticks.QuadPart;
+    };
+    const double cpu_seconds = static_cast<double>((filetime_value(kernel_end) - filetime_value(kernel_start)) + (filetime_value(user_end) - filetime_value(user_start))) / 10000000.0;
+    const double cpu_cores_used = elapsed.count() > 0.0 ? cpu_seconds / elapsed.count() : 0.0;
 
     if (json_output) {
         std::wcout << std::fixed << std::setprecision(6)
@@ -210,6 +222,11 @@ int wmain(int argc, wchar_t* argv[]) {
                    << L",\"elapsed_seconds\":" << elapsed.count()
                    << L",\"mib_per_second\":" << mib_per_second
                    << L",\"files_per_second\":" << files_per_second
+                   << L",\"cpu_seconds\":" << cpu_seconds
+                   << L",\"cpu_cores_used\":" << cpu_cores_used
+                   << L",\"working_set_bytes\":" << memory.WorkingSetSize
+                   << L",\"peak_working_set_bytes\":" << memory.PeakWorkingSetSize
+                   << L",\"private_usage_bytes\":" << memory.PrivateUsage
                    << L"}\n";
     } else {
         std::wcout << std::fixed << std::setprecision(2)
