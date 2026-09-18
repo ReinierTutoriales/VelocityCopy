@@ -76,12 +76,8 @@ int main() {
         !contains(tray, "CFSTR_PREFERREDDROPEFFECT") ||
         !contains(tray, "SC_MINIMIZE") ||
         !contains(tray, "WM_CLOSE") ||
-        !contains(tray, "SetWindowsHookExW") ||
-        !contains(tray, "WH_KEYBOARD_LL") ||
-        !contains(tray, "is_explorer_process") ||
-        !contains(tray, "IsClipboardFormatAvailable(CF_HDROP)") ||
-        !contains(tray, "explorer_folder_for_window") ||
-        !contains(tray, "CallNextHookEx") ||
+        contains(tray, "SetWindowsHookEx") ||
+        contains(tray, "WH_KEYBOARD_LL") ||
         !contains(tray, "ProcessPowerThrottling") ||
         !contains(tray, "PROCESS_POWER_THROTTLING_EXECUTION_SPEED") ||
         !contains(tray, "NOTIFYICON_VERSION_4") ||
@@ -91,7 +87,7 @@ int main() {
         !contains(tray, "WM_ENDSESSION") ||
         !contains(persistence, "VelocityCopy.Recovery.vcq") ||
         !contains(persistence, "QueueArchiveStore{}.save")) {
-        return fail(6, "resident UI must enforce tray, EcoQoS, Explorer paste and shutdown recovery contracts");
+        return fail(6, "resident UI must enforce tray, hook-free clipboard capture, EcoQoS and shutdown recovery contracts");
     }
 
     if (!contains(ipc, "ConvertSidToStringSidW") ||
