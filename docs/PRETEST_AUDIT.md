@@ -24,7 +24,7 @@ If a `PasteToFolder` request arrives with no staged sources, the app re-reads th
 
 ### Test certificate cleanup
 
-The test installer imports the self-signed package certificate for the current user. The matching test uninstall flow removes both the MSIX package and the exact bundled certificate from `CurrentUser\TrustedPeople`.
+The test installer imports the self-signed package certificate for the current user into both `CurrentUser\TrustedPeople` and `CurrentUser\Root`, because Windows must trust the self-signed root to install the test MSIX. The matching test uninstall flow removes the MSIX package and the exact bundled certificate from both stores.
 
 ## Known pre-release gap
 
