@@ -30,14 +30,22 @@ std::filesystem::path nearest_existing_path(std::filesystem::path path) noexcept
 }
 
 void query_device_number(const std::filesystem::path& volume_root, StorageProfile& profile) noexcept {
-    const auto root = volume_root.wstring();
-    if (root.size() < 2 || root[1] != L':') {
+    // GetVolumePathNameW may return a drive root or a mounted-folder root.
+    // Resolve that mount point to its stable volume GUID path before opening
+    // the volume. Microsoft documents that CreateFile must receive the GUID
+    // path without its trailing backslash when opening the volume itself.
+    std::array<wchar_t, 64> volume_name{};
+    if (GetVolumeNameForVolumeMountPointW(
+            volume_root.c_str(),
+            volume_name.data(),
+            static_cast<DWORD>(volume_name.size())) == 0) {
         return;
     }
 
-    std::wstring device_path = L"\\\\.\\";
-    device_path.push_back(root[0]);
-    device_path.push_back(L':');
+    std::wstring device_path = volume_name.data();
+    if (!device_path.empty() && device_path.back() == L'\\') {
+        device_path.pop_back();
+    }
 
     const HANDLE volume = CreateFileW(
         device_path.c_str(),
