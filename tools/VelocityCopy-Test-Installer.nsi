@@ -14,7 +14,7 @@ SetCompressor /SOLID lzma
 
 Name "VelocityCopy"
 OutFile "${OUTPUT_FILE}"
-InstallDir "$LOCALAPPDATA\VelocityCopy"
+InstallDir "$PROGRAMFILES64\VelocityCopy"
 BrandingText "VelocityCopy"
 ShowInstDetails show
 ShowUninstDetails show
@@ -37,5 +37,34 @@ Section "Install VelocityCopy" SEC_INSTALL
     Abort
   ${EndIf}
 
+  SetOutPath "$INSTDIR\InstallerSupport"
+  File "/oname=Install-VelocityCopy-Test.ps1" "${PAYLOAD_DIR}\Install-VelocityCopy-Test.ps1"
+  File "/oname=VelocityCopy-Test.cer" "${PAYLOAD_DIR}\VelocityCopy-Test.cer"
+
+  WriteUninstaller "$INSTDIR\Uninstall.exe"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "DisplayName" "VelocityCopy"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "Publisher" "ReinierTutoriales"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "UninstallString" '"$INSTDIR\Uninstall.exe"'
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "DisplayVersion" "0.20"
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "NoModify" 1
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "NoRepair" 1
+
   DetailPrint "VelocityCopy installation completed."
+SectionEnd
+
+Section "Uninstall"
+  DetailPrint "Removing VelocityCopy..."
+  nsExec::ExecToLog '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$INSTDIR\InstallerSupport\Install-VelocityCopy-Test.ps1" -Uninstall'
+  Pop $0
+  ${If} $0 != 0
+    MessageBox MB_ICONSTOP|MB_OK "VelocityCopy uninstall failed (exit code $0)."
+    Abort
+  ${EndIf}
+
+  Delete "$INSTDIR\InstallerSupport\Install-VelocityCopy-Test.ps1"
+  Delete "$INSTDIR\InstallerSupport\VelocityCopy-Test.cer"
+  RMDir "$INSTDIR\InstallerSupport"
+  Delete "$INSTDIR\Uninstall.exe"
+  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy"
+  RMDir "$INSTDIR"
 SectionEnd
