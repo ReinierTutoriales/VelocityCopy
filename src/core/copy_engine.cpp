@@ -127,7 +127,7 @@ CopyResult CopyEngine::copy_file(
 
     COPYFILE2_EXTENDED_PARAMETERS parameters{};
     parameters.dwSize = sizeof(parameters);
-    parameters.dwCopyFlags = options.copy_flags;
+    parameters.dwCopyFlags = options.copy_flags | COPY_FILE_COPY_SYMLINK;
     if (options.resume_from_pause) {
         parameters.dwCopyFlags |= COPY_FILE_RESUME_FROM_PAUSE;
     }
