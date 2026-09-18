@@ -25,3 +25,19 @@ jobs:
 
       - name: Test core
         run: ctest --test-dir build/x64 -C Release --output-on-failure
+
+  core-asan:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure x64 ASan
+        run: cmake -S . -B build/asan -A x64 -DVELOCITYCOPY_ENABLE_ASAN=ON
+
+      - name: Build Core and tests with ASan
+        run: cmake --build build/asan --config RelWithDebInfo --parallel
+
+      - name: Test Core with ASan
+        run: ctest --test-dir build/asan -C RelWithDebInfo --output-on-failure
