@@ -187,20 +187,32 @@ jobs:
           Copy-Item -LiteralPath $bundle -Destination $payload -Force
           Copy-Item -LiteralPath $certificate -Destination $payload -Force
 
+          $allowedDependencyPattern = '^Microsoft\.(VCLibs|WindowsAppRuntime).+\.(appx|msix)$'
           foreach ($architecture in @("x64", "arm64")) {
             $sourceRoot = if ($architecture -eq "x64") { "artifacts/AppPackages" } else { "artifacts/AppPackages-ARM64" }
             $dependencies = @(
               Get-ChildItem -LiteralPath $sourceRoot -Recurse -File |
                 Where-Object {
                   $_.FullName -match ("[\\/]Dependencies[\\/]" + $architecture + "[\\/]") -and
-                  $_.Extension -in ".appx", ".msix"
+                  $_.Extension -in ".appx", ".msix" -and
+                  $_.Name -match $allowedDependencyPattern
                 }
             )
-            if ($dependencies.Count -eq 0) { throw "$architecture package dependencies were not found" }
+            if ($dependencies.Count -eq 0) { throw "$architecture direct package dependencies were not found" }
+            if (-not ($dependencies | Where-Object { $_.Name -match '^Microsoft\.VCLibs' })) {
+              throw "Microsoft VCLibs $architecture dependency was not found"
+            }
+            if (-not ($dependencies | Where-Object { $_.Name -match '^Microsoft\.WindowsAppRuntime' })) {
+              throw "Microsoft Windows App Runtime $architecture dependency was not found"
+            }
+            if ($dependencies | Where-Object { $_.Name -match '^Microsoft\.UI\.Xaml' }) {
+              throw "Microsoft.UI.Xaml must not be staged as an explicit installer dependency"
+            }
 
             $dependencyStage = Join-Path $payload ("Dependencies\" + $architecture)
             New-Item -ItemType Directory -Force -Path $dependencyStage | Out-Null
             foreach ($dependency in $dependencies) {
+              Write-Host "Staging $architecture direct dependency: $($dependency.Name)"
               Copy-Item -LiteralPath $dependency.FullName -Destination $dependencyStage -Force
             }
           }
