@@ -180,6 +180,7 @@ private:
     std::uint64_t next_job_id_{1};
     std::uint64_t last_queue_completed_files_{};
     std::uint64_t shell_layout_generation_{};
+    std::uint64_t destination_navigation_generation_{};
     std::uint64_t current_file_id_{};
     std::uint64_t conflict_replace_file_id_{};
     HWND hwnd_{};
