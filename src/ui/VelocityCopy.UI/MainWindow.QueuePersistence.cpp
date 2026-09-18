@@ -50,6 +50,44 @@ bool merge_current_append_jobs(velocitycopy::QueueArchive& archive) {
 
 } // namespace
 
+void MainWindow::PersistRecoveryQueueNoThrow() noexcept {
+    try {
+        velocitycopy::QueueArchive archive{};
+
+        if (live_plan_) {
+            archive.current_plan = live_plan_->export_remaining_plan();
+            if (archive.current_plan->files.empty() && archive.current_plan->directories.empty()) {
+                archive.current_plan.reset();
+            }
+        }
+
+        archive.current_append_jobs.reserve(
+            deferred_same_destination_jobs_.size() + deferred_interrupted_jobs_.size());
+        archive.current_append_jobs.insert(
+            archive.current_append_jobs.end(),
+            deferred_same_destination_jobs_.begin(),
+            deferred_same_destination_jobs_.end());
+        archive.current_append_jobs.insert(
+            archive.current_append_jobs.end(),
+            deferred_interrupted_jobs_.begin(),
+            deferred_interrupted_jobs_.end());
+        archive.queued_jobs.assign(queued_sessions_.begin(), queued_sessions_.end());
+
+        if (!archive.current_plan &&
+            archive.current_append_jobs.empty() &&
+            archive.queued_jobs.empty()) {
+            return;
+        }
+
+        const auto folder = Windows::Storage::ApplicationData::Current().LocalFolder();
+        const auto path = std::filesystem::path(folder.Path().c_str()) /
+            L"VelocityCopy.Recovery.vcq";
+        (void)velocitycopy::QueueArchiveStore{}.save(path, archive);
+    } catch (...) {
+        // Shutdown must never be blocked by recovery persistence failure.
+    }
+}
+
 void MainWindow::ConfigureQueuePersistenceMenu() {
     try {
         queue_options_button_ = OptionsButton();
