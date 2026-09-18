@@ -159,8 +159,10 @@ int main() {
     }
 
     if (!contains(installer_exe, "RequestExecutionLevel admin") ||
-        !contains(installer_exe, "SilentInstall silent") ||
-        !contains(installer_exe, "SilentUnInstall silent") ||
+        !contains(installer_exe, "!include \"x64.nsh\"") ||
+        !contains(installer_exe, "${DisableX64FSRedirection}") ||
+        !contains(installer_exe, "${EnableX64FSRedirection}") ||
+        !contains(installer_exe, "/SD IDOK") ||
         !contains(installer_exe, "Install-VelocityCopy-Test.ps1") ||
         !contains(installer_exe, "PAYLOAD_DIR") ||
         !contains(installer_exe, "OUTPUT_FILE") ||
