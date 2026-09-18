@@ -6,7 +6,8 @@ VelocityCopy keeps Explorer integration out of process. Shell extensions only pa
 
 - One primary VelocityCopy instance per interactive Windows session.
 - Named pipe and single-instance mutex use an explicit protected DACL granting access only to the current user and LocalSystem.
-- The pipe rejects remote clients with `PIPE_REJECT_REMOTE_CLIENTS`; IPC is local-session only.
+- The pipe rejects remote clients with `PIPE_REJECT_REMOTE_CLIENTS`.
+- After connection, the server validates the client PID with `GetNamedPipeClientProcessId` and rejects clients whose Windows session differs from the server session. IPC is local-session only.
 - IPC uses a named pipe scoped by Windows session ID.
 - No TCP/UDP listener and no background broker process.
 - Requests are versioned and length-prefixed.
