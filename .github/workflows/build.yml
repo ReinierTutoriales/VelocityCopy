@@ -107,7 +107,6 @@ jobs:
 
           $stage = "artifacts/VelocityCopy-Windows-x64-Test"
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
-          Copy-Item -LiteralPath $exe.Directory.FullName -Destination "$stage/app" -Recurse
 
           $packageRoot = (Resolve-Path "artifacts/AppPackages").Path
           Get-ChildItem -LiteralPath $packageRoot -Recurse -File |
