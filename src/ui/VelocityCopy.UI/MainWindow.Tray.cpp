@@ -21,6 +21,7 @@ constexpr UINT kTrayOpenCommand = 1;
 constexpr UINT kTrayExitCommand = 2;
 
 MainWindow* g_explorer_keyboard_owner = nullptr;
+UINT g_taskbar_created_message = 0;
 
 bool is_explorer_process(HWND window) noexcept {
     if (window == nullptr) return false;
@@ -216,6 +217,15 @@ void MainWindow::InitializeTrayIntegration() {
         wcscpy_s(tray_data_.szTip, L"VelocityCopy");
 
         tray_added_ = Shell_NotifyIconW(NIM_ADD, &tray_data_) != FALSE;
+        if (tray_added_) {
+            tray_data_.uVersion = NOTIFYICON_VERSION_4;
+            tray_v4_ = Shell_NotifyIconW(NIM_SETVERSION, &tray_data_) != FALSE;
+        }
+        if (g_taskbar_created_message == 0) {
+            g_taskbar_created_message = RegisterWindowMessageW(L"TaskbarCreated");
+        }
+        tray_window_hidden_ = IsWindowVisible(hwnd_) == FALSE;
+        RefreshEfficiencyMode();
     } catch (...) {
         RemoveTrayIntegration();
     }
@@ -232,6 +242,8 @@ void MainWindow::RemoveTrayIntegration() noexcept {
         (void)Shell_NotifyIconW(NIM_DELETE, &tray_data_);
         tray_added_ = false;
     }
+    tray_v4_ = false;
+    SetEfficiencyMode(false);
 
     if (hwnd_ != nullptr) {
         (void)RemoveWindowSubclass(hwnd_, &MainWindow::TraySubclassProc, kTraySubclassId);
@@ -258,9 +270,11 @@ void MainWindow::HideToTray() noexcept {
 
     ShowWindow(hwnd_, SW_HIDE);
     tray_window_hidden_ = true;
+    RefreshEfficiencyMode();
 }
 
 void MainWindow::ShowFromTray() {
+    SetEfficiencyMode(false);
     if (hwnd_ == nullptr) {
         InitializeTrayIntegration();
     }
@@ -279,7 +293,7 @@ void MainWindow::ShowFromTray() {
     tray_window_hidden_ = false;
 }
 
-void MainWindow::ShowTrayMenu() noexcept {
+void MainWindow::ShowTrayMenu(POINT anchor) noexcept {
     if (hwnd_ == nullptr) {
         return;
     }
@@ -302,14 +316,15 @@ void MainWindow::ShowTrayMenu() noexcept {
     (void)AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     (void)AppendMenuW(menu, MF_STRING, kTrayExitCommand, exit_text.c_str());
 
-    POINT point{};
-    GetCursorPos(&point);
+    if (anchor.x == -1 && anchor.y == -1) {
+        GetCursorPos(&anchor);
+    }
     SetForegroundWindow(hwnd_);
     const UINT command = TrackPopupMenuEx(
         menu,
         TPM_RETURNCMD | TPM_NONOTIFY | TPM_RIGHTBUTTON,
-        point.x,
-        point.y,
+        anchor.x,
+        anchor.y,
         hwnd_,
         nullptr);
     DestroyMenu(menu);
@@ -323,6 +338,7 @@ void MainWindow::ShowTrayMenu() noexcept {
 
 void MainWindow::ExitFromTray() noexcept {
     tray_exit_requested_ = true;
+    SetEfficiencyMode(false);
     if (tray_added_) {
         (void)Shell_NotifyIconW(NIM_DELETE, &tray_data_);
         tray_added_ = false;
@@ -330,6 +346,49 @@ void MainWindow::ExitFromTray() noexcept {
     if (hwnd_ != nullptr) {
         PostMessageW(hwnd_, WM_CLOSE, 0, 0);
     }
+}
+
+void MainWindow::SetEfficiencyMode(const bool enabled) noexcept {
+    if (efficiency_mode_enabled_ == enabled) {
+        return;
+    }
+
+    PROCESS_POWER_THROTTLING_STATE state{};
+    state.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
+    state.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+    state.StateMask = enabled ? PROCESS_POWER_THROTTLING_EXECUTION_SPEED : 0;
+
+    if (SetProcessInformation(
+            GetCurrentProcess(),
+            ProcessPowerThrottling,
+            &state,
+            sizeof(state))) {
+        efficiency_mode_enabled_ = enabled;
+    }
+}
+
+bool MainWindow::HasActiveWorkForEfficiencyMode() noexcept {
+    if (execution_control_) {
+        return true;
+    }
+
+    if (append_gate_) {
+        std::lock_guard lock(append_gate_->mutex);
+        if (append_gate_->planning_count != 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void MainWindow::RefreshEfficiencyMode() noexcept {
+    const bool enable =
+        tray_window_hidden_ &&
+        !tray_exit_requested_ &&
+        !session_ending_ &&
+        !HasActiveWorkForEfficiencyMode();
+    SetEfficiencyMode(enable);
 }
 
 void MainWindow::CaptureClipboardFileSelection() noexcept {
@@ -488,15 +547,45 @@ LRESULT CALLBACK MainWindow::TraySubclassProc(
         return DefSubclassProc(hwnd, message, wparam, lparam);
     }
 
-    if (message == kTrayCallbackMessage && wparam == kTrayIconId) {
-        if (lparam == WM_LBUTTONUP || lparam == WM_LBUTTONDBLCLK) {
-            self->ShowFromTray();
-            return 0;
+    if (message == kTrayCallbackMessage) {
+        UINT notification = 0;
+        UINT icon_id = 0;
+        POINT anchor{-1, -1};
+
+        if (self->tray_v4_) {
+            notification = LOWORD(lparam);
+            icon_id = HIWORD(lparam);
+            anchor.x = static_cast<short>(LOWORD(wparam));
+            anchor.y = static_cast<short>(HIWORD(wparam));
+        } else {
+            notification = static_cast<UINT>(lparam);
+            icon_id = static_cast<UINT>(wparam);
         }
-        if (lparam == WM_RBUTTONUP || lparam == WM_CONTEXTMENU) {
-            self->ShowTrayMenu();
-            return 0;
+
+        if (icon_id == kTrayIconId) {
+            if (notification == WM_LBUTTONUP ||
+                notification == WM_LBUTTONDBLCLK ||
+                notification == NIN_SELECT ||
+                notification == NIN_KEYSELECT) {
+                self->ShowFromTray();
+                return 0;
+            }
+            if (notification == WM_RBUTTONUP || notification == WM_CONTEXTMENU) {
+                self->ShowTrayMenu(anchor);
+                return 0;
+            }
         }
+    }
+
+    if (g_taskbar_created_message != 0 && message == g_taskbar_created_message) {
+        self->tray_data_.uVersion = 0;
+        self->tray_added_ = Shell_NotifyIconW(NIM_ADD, &self->tray_data_) != FALSE;
+        self->tray_v4_ = false;
+        if (self->tray_added_) {
+            self->tray_data_.uVersion = NOTIFYICON_VERSION_4;
+            self->tray_v4_ = Shell_NotifyIconW(NIM_SETVERSION, &self->tray_data_) != FALSE;
+        }
+        return 0;
     }
 
     switch (message) {
@@ -517,6 +606,17 @@ LRESULT CALLBACK MainWindow::TraySubclassProc(
     case WM_CLIPBOARDUPDATE:
         self->CaptureClipboardFileSelection();
         return 0;
+
+    case WM_QUERYENDSESSION:
+        return TRUE;
+
+    case WM_ENDSESSION:
+        if (wparam != FALSE) {
+            self->session_ending_ = true;
+            self->SetEfficiencyMode(false);
+            self->PersistRecoveryQueueNoThrow();
+        }
+        break;
 
     case WM_DESTROY:
         self->RemoveTrayIntegration();
