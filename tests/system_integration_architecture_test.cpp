@@ -136,26 +136,31 @@ int main() {
         !contains(package_workflow, "Start-Process -FilePath $setup -ArgumentList \"/S\"") ||
         !contains(package_workflow, "Get-AppxPackage -Name \"ReinierTutoriales.VelocityCopy\"") ||
         !contains(package_workflow, "Start-Process -FilePath $uninstaller -ArgumentList \"/S\"") ||
-        !contains(package_workflow, "package remains installed after setup smoke uninstall")) {
-        return fail(9, "release packaging must build ARM64, create and sign the universal bundle, smoke install the actual setup EXE, uninstall it, and publish one installer EXE");
+        !contains(package_workflow, "package remains installed after setup smoke uninstall") ||
+        !contains(package_workflow, "VelocityCopy-Install.log")) {
+        return fail(9, "release packaging must build ARM64, create/sign the universal bundle, smoke install the actual setup EXE, emit deployment diagnostics, uninstall it, and publish one installer EXE");
     }
 
     if (!contains(installer, "Import-Certificate") ||
         !contains(installer, "Add-AppxPackage") ||
+        !contains(installer, "-DependencyPath $dependencies") ||
         !contains(installer, "Remove-AppxPackage") ||
         !contains(installer, "LocalMachine\\TrustedPeople") ||
         !contains(installer, "SignerCertificate.Thumbprint") ||
+        !contains(installer, "VelocityCopy.msixbundle") ||
         !contains(installer, "\"X64\" { \"x64\" }") ||
         !contains(installer, "\"Arm64\" { \"arm64\" }") ||
-        !contains(installer, "RuntimeInformation]::ProcessArchitecture") ||
+        !contains(installer, "RuntimeInformation]::OSArchitecture") ||
+        contains(installer, "RuntimeInformation]::ProcessArchitecture") ||
         contains(installer, "\"X86\" { \"x86\" }") ||
         !contains(installer, "Microsoft\\.VCLibs") ||
         !contains(installer, "Microsoft\\.WindowsAppRuntime") ||
         !contains(installer, "previousThumbprint") ||
         !contains(installer, "previousTrustedPath") ||
+        !contains(installer, "VelocityCopy-Install.log") ||
         !contains(installer, "Is64BitOperatingSystem") ||
         !contains(installer, "build 22000 or newer")) {
-        return fail(10, "embedded installer must trust the exact signer and select native x64/ARM64 dependencies without x86");
+        return fail(10, "embedded installer must use one AppX package-graph deployment with exact signer trust and native x64/ARM64 dependencies");
     }
 
     if (!contains(installer_exe, "RequestExecutionLevel admin") ||
@@ -164,6 +169,8 @@ int main() {
         !contains(installer_exe, "${EnableX64FSRedirection}") ||
         !contains(installer_exe, "/SD IDOK") ||
         !contains(installer_exe, "Install-VelocityCopy-Test.ps1") ||
+        !contains(installer_exe, "VelocityCopy-Install.log") ||
+        !contains(installer_exe, "SetErrorLevel $0") ||
         !contains(installer_exe, "PAYLOAD_DIR") ||
         !contains(installer_exe, "OUTPUT_FILE") ||
         !contains(installer_exe, "DISPLAY_VERSION") ||
@@ -172,7 +179,7 @@ int main() {
         !contains(installer_exe, "Windows\\CurrentVersion\\Uninstall\\VelocityCopy") ||
         !contains(package_workflow, "VELOCITYCOPY_PACKAGE_VERSION") ||
         !contains(package_workflow, "/DDISPLAY_VERSION=$env:VELOCITYCOPY_PACKAGE_VERSION")) {
-        return fail(11, "single-file installer must self-elevate and inherit the stamped package version");
+        return fail(11, "single-file installer must self-elevate, preserve deployment diagnostics and inherit the stamped package version");
     }
 
     if (!contains(shell_window, "PasteToFolder") ||
