@@ -159,6 +159,22 @@ bool read_all(HANDLE handle, void* data, std::uint32_t bytes) noexcept {
     return true;
 }
 
+bool connected_client_in_same_session(HANDLE pipe) noexcept {
+    ULONG client_process_id = 0;
+    if (!GetNamedPipeClientProcessId(pipe, &client_process_id) || client_process_id == 0) {
+        return false;
+    }
+
+    DWORD server_session = 0;
+    DWORD client_session = 0;
+    if (!ProcessIdToSessionId(GetCurrentProcessId(), &server_session) ||
+        !ProcessIdToSessionId(static_cast<DWORD>(client_process_id), &client_session)) {
+        return false;
+    }
+
+    return server_session == client_session;
+}
+
 } // namespace
 
 std::wstring shell_pipe_name() noexcept {
@@ -264,6 +280,12 @@ std::optional<ShellRequest> ShellIpcServer::receive() noexcept {
     HANDLE pipe = static_cast<HANDLE>(pipe_);
     const BOOL connected = ConnectNamedPipe(pipe, nullptr) ? TRUE : (GetLastError() == ERROR_PIPE_CONNECTED);
     if (!connected) {
+        (void)recreate_pipe_or_stop();
+        return std::nullopt;
+    }
+
+    if (!connected_client_in_same_session(pipe)) {
+        (void)DisconnectNamedPipe(pipe);
         (void)recreate_pipe_or_stop();
         return std::nullopt;
     }
