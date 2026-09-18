@@ -118,7 +118,11 @@ int main() {
         !contains(installer, "trustedRootPath") ||
         !contains(installer, "Dependencies[\\\\/]x64") ||
         contains(installer, "Dependencies[\\\\/]arm64") ||
-        contains(installer, "Dependencies[\\\\/]x86")) {
+        contains(installer, "Dependencies[\\\\/]x86") ||
+        !contains(installer, "Microsoft.VCLibs.140.00") ||
+        !contains(installer, "Microsoft.VCLibs.140.00.UWPDesktop") ||
+        !contains(installer, "Microsoft.WindowsAppRuntime.2") ||
+        !contains(installer, "Required x64 framework was not installed")) {
         return fail(9, "test package must trust/clean its certificate and install x64 dependencies only");
     }
 
