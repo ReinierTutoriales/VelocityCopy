@@ -111,8 +111,12 @@ int main() {
         !contains(workflow, "Build single-file Windows installer") ||
         !contains(workflow, "VelocityCopy-Setup-x64") ||
         !contains(workflow, "Stamp test package version") ||
-        !contains(workflow, "GITHUB_RUN_NUMBER")) {
-        return fail(8, "CI must build, sign and publish one installer EXE");
+        !contains(workflow, "GITHUB_RUN_NUMBER") ||
+        !contains(workflow, "Smoke install packaged MSIX") ||
+        !contains(workflow, "& $script") ||
+        !contains(workflow, "Get-AppxPackage -Name \"ReinierTutoriales.VelocityCopy\"") ||
+        !contains(workflow, "& $script -Uninstall")) {
+        return fail(8, "CI must build, sign, execute a real package smoke install/uninstall, and publish one installer EXE");
     }
 
     if (!contains(installer, "Import-Certificate") ||
