@@ -109,7 +109,9 @@ int main() {
         !contains(workflow, "VelocityCopy-Test.cer") ||
         !contains(workflow, "VelocityCopy-Setup-x64.exe") ||
         !contains(workflow, "Build single-file Windows installer") ||
-        !contains(workflow, "VelocityCopy-Setup-x64")) {
+        !contains(workflow, "VelocityCopy-Setup-x64") ||
+        !contains(workflow, "Stamp test package version") ||
+        !contains(workflow, "GITHUB_RUN_NUMBER")) {
         return fail(8, "CI must build, sign and publish one installer EXE");
     }
 
@@ -122,14 +124,18 @@ int main() {
         contains(installer, "Dependencies[\\\\/]arm64") ||
         contains(installer, "Dependencies[\\\\/]x86") ||
         !contains(installer, "Microsoft\\.VCLibs") ||
-        !contains(installer, "Microsoft\\.WindowsAppRuntime")) {
+        !contains(installer, "Microsoft\\.WindowsAppRuntime") ||
+        !contains(installer, "previousThumbprint") ||
+        !contains(installer, "previousTrustedPath")) {
         return fail(9, "embedded installer must trust exact signer and install x64 dependencies only");
     }
 
     if (!contains(installer_exe, "RequestExecutionLevel admin") ||
         !contains(installer_exe, "Install-VelocityCopy-Test.ps1") ||
         !contains(installer_exe, "PAYLOAD_DIR") ||
-        !contains(installer_exe, "OUTPUT_FILE")) {
+        !contains(installer_exe, "OUTPUT_FILE") ||
+        !contains(installer_exe, "WriteUninstaller") ||
+        !contains(installer_exe, "Windows\\CurrentVersion\\Uninstall\\VelocityCopy")) {
         return fail(10, "single-file installer must self-elevate and embed the full payload");
     }
 
