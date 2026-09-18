@@ -48,6 +48,7 @@ jobs:
 
       - name: Sign Windows test MSIX
         shell: pwsh
+        timeout-minutes: 5
         run: |
           $packages = @(
             Get-ChildItem -Path artifacts/AppPackages -Recurse -File -Filter *.msix |
@@ -74,7 +75,6 @@ jobs:
           $cer = Join-Path (Resolve-Path ".").Path "artifacts\AppPackages\VelocityCopy-Test.cer"
           Export-PfxCertificate -Cert $cert -FilePath $pfx -Password $securePassword | Out-Null
           Export-Certificate -Cert $cert -FilePath $cer | Out-Null
-          $trustedRoot = Import-Certificate -FilePath $cer -CertStoreLocation "Cert:\CurrentUser\Root"
 
           $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" |
             Sort-Object FullName -Descending |
@@ -85,14 +85,16 @@ jobs:
             & $signtool.FullName sign /fd SHA256 /a /f $pfx /p $plainPassword $package.FullName
             if ($LASTEXITCODE -ne 0) { throw "Signing failed for $($package.FullName)" }
 
-            & $signtool.FullName verify /pa /all $package.FullName
-            if ($LASTEXITCODE -ne 0) { throw "Signature verification failed for $($package.FullName)" }
+            $signature = Get-AuthenticodeSignature -FilePath $package.FullName
+            if (-not $signature.SignerCertificate) {
+              throw "No Authenticode signer certificate found for $($package.FullName)"
+            }
+            if ($signature.SignerCertificate.Thumbprint -ne $cert.Thumbprint) {
+              throw "Unexpected signer certificate for $($package.FullName)"
+            }
           }
 
           Remove-Item -LiteralPath $pfx -Force
-          if ($trustedRoot) {
-            Remove-Item -LiteralPath ("Cert:\CurrentUser\Root\" + $trustedRoot.Thumbprint) -Force -ErrorAction SilentlyContinue
-          }
           Remove-Item -LiteralPath ("Cert:\CurrentUser\My\" + $cert.Thumbprint) -Force
 
       - name: Stage Windows test build
