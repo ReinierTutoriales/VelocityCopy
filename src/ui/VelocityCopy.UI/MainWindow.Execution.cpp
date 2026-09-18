@@ -9,6 +9,9 @@ namespace winrt::VelocityCopyUI::implementation {
 
 void MainWindow::SetExecutionButtonsPlanning() {
     SetEfficiencyMode(false);
+    SpeedText().Text(L"—");
+    EtaText().Text(L"—");
+    PauseIcon().Glyph(L"\xE769");
     PauseButton().IsEnabled(false);
     SkipButton().IsEnabled(false);
     StopButton().IsEnabled(false);
@@ -78,6 +81,9 @@ void MainWindow::SetExecutionButtonsStopped() {
 }
 
 void MainWindow::SetExecutionButtonsConflict() {
+    SpeedText().Text(L"—");
+    EtaText().Text(L"—");
+    PauseIcon().Glyph(L"\xE769");
     PauseButton().IsEnabled(false);
     SkipButton().IsEnabled(false);
     StopButton().IsEnabled(false);
