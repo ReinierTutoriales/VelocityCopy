@@ -31,6 +31,7 @@ void MainWindow::RefreshQueue() {
         RefreshQueueCommandState();
         return;
     }
+    const auto selected_ids = SelectedPendingIds();
     queue_snapshot_ = std::move(view.pending_files);
 
     auto items = QueueList().Items();
@@ -55,6 +56,14 @@ void MainWindow::RefreshQueue() {
         row.Children().Append(name);
         row.Children().Append(location);
         items.Append(row);
+    }
+
+    if (!selected_ids.empty()) {
+        for (std::uint32_t index = 0; index < queue_snapshot_.size(); ++index) {
+            if (std::find(selected_ids.begin(), selected_ids.end(), queue_snapshot_[index].id) != selected_ids.end()) {
+                QueueList().SelectRange(Windows::Foundation::IndexRange(index, 1));
+            }
+        }
     }
 
     QueueCountText().Text(hstring(std::format(L"{}", view.pending_count)));
