@@ -14,9 +14,12 @@ if ($Uninstall) {
 
     if (Test-Path -LiteralPath $certificate -PathType Leaf) {
         $cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certificate)
-        $trustedPath = "Cert:\CurrentUser\TrustedPeople\$($cert.Thumbprint)"
-        if (Test-Path -LiteralPath $trustedPath) {
-            Remove-Item -LiteralPath $trustedPath -Force
+        $trustedPeoplePath = "Cert:\CurrentUser\TrustedPeople\$($cert.Thumbprint)"
+        $trustedRootPath = "Cert:\CurrentUser\Root\$($cert.Thumbprint)"
+        foreach ($path in @($trustedPeoplePath, $trustedRootPath)) {
+            if (Test-Path -LiteralPath $path) {
+                Remove-Item -LiteralPath $path -Force
+            }
         }
         $cert.Dispose()
     }
@@ -29,6 +32,7 @@ if (-not (Test-Path -LiteralPath $certificate -PathType Leaf)) {
 }
 
 Import-Certificate -FilePath $certificate -CertStoreLocation "Cert:\CurrentUser\TrustedPeople" | Out-Null
+Import-Certificate -FilePath $certificate -CertStoreLocation "Cert:\CurrentUser\Root" | Out-Null
 
 $packages = Get-ChildItem -LiteralPath $root -Recurse -File -Filter *.msix
 $main = $packages |
