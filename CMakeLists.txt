@@ -48,7 +48,7 @@ add_executable(VelocityCopyCli src/app/main.cpp)
 target_link_libraries(VelocityCopyCli PRIVATE velocitycopy_core)
 
 add_executable(VelocityCopyBenchmark tools/benchmark.cpp)
-target_link_libraries(VelocityCopyBenchmark PRIVATE velocitycopy_core)
+target_link_libraries(VelocityCopyBenchmark PRIVATE velocitycopy_core psapi)
 
 add_executable(VelocityCopyAppendBenchmark tools/benchmark_append.cpp)
 target_link_libraries(VelocityCopyAppendBenchmark PRIVATE velocitycopy_core)
