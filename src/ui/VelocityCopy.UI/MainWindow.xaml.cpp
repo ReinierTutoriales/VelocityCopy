@@ -126,26 +126,32 @@ void MainWindow::ResizeWindow(const int height_epx) {
 
 void MainWindow::OnDragEnter(IInspectable const&, DragEventArgs const& args) {
     const bool accepts_storage_items = args.DataView().Contains(StandardDataFormats::StorageItems());
-    const auto operation = accepts_storage_items ? preferred_drop_operation(args.DataView(), args.Modifiers()) : DataPackageOperation::None;
-    args.AcceptedOperation(operation);
-    if (operation != DataPackageOperation::None) {
+    const bool source_allows_copy =
+        (args.AllowedOperations() & DataPackageOperation::Copy) == DataPackageOperation::Copy;
+    const auto transport_operation =
+        accepts_storage_items && source_allows_copy ? DataPackageOperation::Copy : DataPackageOperation::None;
+    args.AcceptedOperation(transport_operation);
+    if (transport_operation != DataPackageOperation::None) {
         args.DragUIOverride().IsCaptionVisible(true);
         args.DragUIOverride().IsGlyphVisible(true);
     }
     DragOverlay().Visibility(
-        operation != DataPackageOperation::None ? Visibility::Visible : Visibility::Collapsed);
+        transport_operation != DataPackageOperation::None ? Visibility::Visible : Visibility::Collapsed);
 }
 
 void MainWindow::OnDragOver(IInspectable const&, DragEventArgs const& args) {
     const bool accepts_storage_items = args.DataView().Contains(StandardDataFormats::StorageItems());
-    const auto operation = accepts_storage_items ? preferred_drop_operation(args.DataView(), args.Modifiers()) : DataPackageOperation::None;
-    args.AcceptedOperation(operation);
-    if (operation != DataPackageOperation::None) {
+    const bool source_allows_copy =
+        (args.AllowedOperations() & DataPackageOperation::Copy) == DataPackageOperation::Copy;
+    const auto transport_operation =
+        accepts_storage_items && source_allows_copy ? DataPackageOperation::Copy : DataPackageOperation::None;
+    args.AcceptedOperation(transport_operation);
+    if (transport_operation != DataPackageOperation::None) {
         args.DragUIOverride().IsCaptionVisible(true);
         args.DragUIOverride().IsGlyphVisible(true);
     }
     DragOverlay().Visibility(
-        operation != DataPackageOperation::None ? Visibility::Visible : Visibility::Collapsed);
+        transport_operation != DataPackageOperation::None ? Visibility::Visible : Visibility::Collapsed);
 }
 
 void MainWindow::OnDragLeave(IInspectable const&, DragEventArgs const&) {
@@ -155,22 +161,31 @@ void MainWindow::OnDragLeave(IInspectable const&, DragEventArgs const&) {
 void MainWindow::OnDrop(IInspectable const&, DragEventArgs const& args) {
     DragOverlay().Visibility(Visibility::Collapsed);
     const bool accepts_storage_items = args.DataView().Contains(StandardDataFormats::StorageItems());
-    const auto operation = accepts_storage_items
-        ? preferred_drop_operation(args.DataView(), args.Modifiers())
-        : DataPackageOperation::None;
-    args.AcceptedOperation(operation);
-    if (operation == DataPackageOperation::None) {
+    const bool source_allows_copy =
+        (args.AllowedOperations() & DataPackageOperation::Copy) == DataPackageOperation::Copy;
+    if (!accepts_storage_items || !source_allows_copy) {
+        args.AcceptedOperation(DataPackageOperation::None);
         return;
     }
-    HandleDropAsync(args.DataView(), file_operation(operation));
+
+    // The OS drag transaction only stages sources into VelocityCopy. Report Copy to
+    // the source so a requested Move is not treated as completed before the user
+    // chooses a destination/layout and our own move engine succeeds.
+    const auto requested_operation = preferred_drop_operation(args.DataView(), args.Modifiers());
+    const auto operation = requested_operation == DataPackageOperation::Move
+        ? velocitycopy::FileOperation::Move
+        : velocitycopy::FileOperation::Copy;
+    args.AcceptedOperation(DataPackageOperation::Copy);
+    HandleDropAsync(args, operation);
 }
 
 fire_and_forget MainWindow::HandleDropAsync(
-    DataPackageView data_view,
+    DragEventArgs args,
     const velocitycopy::FileOperation operation) {
     auto lifetime = get_strong();
+    auto deferral = args.GetDeferral();
     try {
-        auto storage_items = co_await data_view.GetStorageItemsAsync();
+        auto storage_items = co_await args.DataView().GetStorageItemsAsync();
         std::vector<velocitycopy::DropItem> items;
         items.reserve(storage_items.Size());
 
@@ -196,6 +211,7 @@ fire_and_forget MainWindow::HandleDropAsync(
 
         if (items.empty()) {
             ShowError();
+            deferral.Complete();
             co_return;
         }
 
@@ -211,7 +227,9 @@ fire_and_forget MainWindow::HandleDropAsync(
         ErrorBar().IsOpen(false);
         LoadDestinations();
         DropFlowFlyout().ShowAt(RootGrid());
+        deferral.Complete();
     } catch (...) {
+        deferral.Complete();
         ShowError();
     }
 }
