@@ -147,6 +147,7 @@ private:
     std::vector<velocitycopy::DropItem> dropped_items_;
     std::filesystem::path current_destination_folder_;
     std::filesystem::path active_destination_;
+    velocitycopy::FileOperation pending_flow_operation_{velocitycopy::FileOperation::Copy};
     velocitycopy::FileOperation active_operation_{velocitycopy::FileOperation::Copy};
     std::deque<velocitycopy::CopyJob> deferred_same_destination_jobs_;
     std::deque<velocitycopy::CopyJob> deferred_interrupted_jobs_;
