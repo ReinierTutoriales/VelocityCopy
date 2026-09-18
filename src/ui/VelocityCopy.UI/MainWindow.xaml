@@ -235,6 +235,7 @@
                       MaxHeight="{StaticResource QueueMaxHeightCompact}"
                       SelectionMode="Extended"
                       SelectionChanged="OnQueueSelectionChanged"
+                      KeyDown="OnQueueKeyDown"
                       IsItemClickEnabled="False"
                       IsSwipeEnabled="True"
                       CanDragItems="True"
