@@ -147,6 +147,41 @@ jobs:
 
           Copy-Item -LiteralPath "tools/Install-VelocityCopy-Test.ps1" -Destination $payload -Force
 
+      - name: Smoke install packaged MSIX
+        shell: pwsh
+        timeout-minutes: 5
+        run: |
+          $payload = (Resolve-Path "artifacts/VelocityCopy-InstallerPayload").Path
+          $script = Join-Path $payload "Install-VelocityCopy-Test.ps1"
+          if (-not (Test-Path -LiteralPath $script -PathType Leaf)) {
+            throw "Staged VelocityCopy installer script was not found"
+          }
+
+          try {
+            & $script
+            if ($LASTEXITCODE -ne 0) {
+              throw "VelocityCopy smoke installation failed with exit code $LASTEXITCODE"
+            }
+
+            $installed = Get-AppxPackage -Name "ReinierTutoriales.VelocityCopy" -ErrorAction SilentlyContinue |
+              Select-Object -First 1
+            if (-not $installed) {
+              throw "VelocityCopy package is absent after smoke installation"
+            }
+            if ($installed.PackageFamilyName -notmatch '^ReinierTutoriales\.VelocityCopy_') {
+              throw "Unexpected VelocityCopy package family: $($installed.PackageFamilyName)"
+            }
+            Write-Host "Smoke-installed $($installed.PackageFullName)"
+          }
+          finally {
+            if (Test-Path -LiteralPath $script -PathType Leaf) {
+              & $script -Uninstall
+              if ($LASTEXITCODE -ne 0) {
+                Write-Warning "VelocityCopy smoke uninstall returned exit code $LASTEXITCODE"
+              }
+            }
+          }
+
       - name: Build single-file Windows installer
         shell: pwsh
         timeout-minutes: 10
