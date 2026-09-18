@@ -46,11 +46,15 @@ if (-not $main) {
 $dependencies = @(
     Get-ChildItem -LiteralPath $root -Recurse -File |
         Where-Object {
-            $_.FullName -match "[\\/]Dependencies[\\/]" -and
+            $_.FullName -match "[\\/]Dependencies[\\/]x64[\\/]" -and
             $_.Extension -in ".appx", ".msix"
         } |
         Select-Object -ExpandProperty FullName
 )
+
+if ($dependencies.Count -eq 0) {
+    throw "Required x64 package dependencies were not found."
+}
 
 $params = @{
     Path = $main.FullName
