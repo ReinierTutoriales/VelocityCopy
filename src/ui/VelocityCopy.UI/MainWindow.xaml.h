@@ -72,7 +72,7 @@ private:
     };
 
     winrt::fire_and_forget HandleDropAsync(
-        Windows::ApplicationModel::DataTransfer::DataPackageView data_view,
+        Microsoft::UI::Xaml::DragEventArgs args,
         velocitycopy::FileOperation operation);
     winrt::fire_and_forget BeginShellDestinationAsync(std::vector<std::filesystem::path> sources);
     winrt::fire_and_forget BeginShellLayoutAsync(velocitycopy::CopyJob job);
