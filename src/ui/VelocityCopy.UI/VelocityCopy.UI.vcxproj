@@ -21,6 +21,6 @@
   <ItemGroup><AppxManifest Include="Package.appxmanifest"><SubType>Designer</SubType></AppxManifest></ItemGroup>
   <ItemGroup><PRIResource Include="..\Strings\en-US\Resources.resw"><Link>Strings\en-US\Resources.resw</Link></PRIResource><PRIResource Include="..\Strings\es-ES\Resources.resw"><Link>Strings\es-ES\Resources.resw</Link></PRIResource></ItemGroup>
   <ItemGroup><Image Include="..\..\..\Logo\VelocityCopy.png"><Link>Assets\VelocityCopy.png</Link></Image><Content Include="..\..\..\build\$(Platform)\$(Configuration)\VelocityCopy.Shell.dll"><Link>VelocityCopy.Shell.dll</Link><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory><DeploymentContent>true</DeploymentContent></Content></ItemGroup>
-  <Target Name="BuildVelocityCopyCore" BeforeTargets="Link"><Exec Command="cmake -S &quot;$(ProjectDir)..\..\..&quot; -B &quot;$(ProjectDir)..\..\..\build\$(Platform)&quot; -A $(Platform)" /><Exec Command="cmake --build &quot;$(ProjectDir)..\..\..\build\$(Platform)&quot; --config $(Configuration) --target velocitycopy_core VelocityCopyShell" /></Target>
+  <Target Name="BuildVelocityCopyCore" BeforeTargets="CreateWinMD;Link"><Exec Command="cmake -S &quot;$(ProjectDir)..\..\..&quot; -B &quot;$(ProjectDir)..\..\..\build\$(Platform)&quot; -A $(Platform)" /><Exec Command="cmake --build &quot;$(ProjectDir)..\..\..\build\$(Platform)&quot; --config $(Configuration) --target velocitycopy_core VelocityCopyShell" /></Target>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
