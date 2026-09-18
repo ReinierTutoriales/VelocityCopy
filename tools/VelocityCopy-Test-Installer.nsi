@@ -43,7 +43,7 @@ Section "Install VelocityCopy" SEC_INSTALL
     ${EnableX64FSRedirection}
   ${EndIf}
   ${If} $0 != 0
-    MessageBox MB_ICONSTOP|MB_OK /SD IDOK "VelocityCopy installation failed (exit code $0). See the installer details for the failing step."
+    MessageBox MB_ICONSTOP|MB_OK "VelocityCopy installation failed (exit code $0). See the installer details for the failing step." /SD IDOK
     Abort
   ${EndIf}
 
@@ -67,7 +67,7 @@ Section "Uninstall"
   nsExec::ExecToLog '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$INSTDIR\InstallerSupport\Install-VelocityCopy-Test.ps1" -Uninstall'
   Pop $0
   ${If} $0 != 0
-    MessageBox MB_ICONSTOP|MB_OK /SD IDOK "VelocityCopy uninstall failed (exit code $0)."
+    MessageBox MB_ICONSTOP|MB_OK "VelocityCopy uninstall failed (exit code $0)." /SD IDOK
     Abort
   ${EndIf}
 
