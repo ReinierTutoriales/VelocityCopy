@@ -158,8 +158,8 @@ int main() {
         !contains(installer_exe, "${DISPLAY_VERSION}") ||
         !contains(installer_exe, "WriteUninstaller") ||
         !contains(installer_exe, "Windows\\CurrentVersion\\Uninstall\\VelocityCopy") ||
-        !contains(workflow, "VELOCITYCOPY_PACKAGE_VERSION") ||
-        !contains(workflow, "/DDISPLAY_VERSION=$env:VELOCITYCOPY_PACKAGE_VERSION")) {
+        !contains(package_workflow, "VELOCITYCOPY_PACKAGE_VERSION") ||
+        !contains(package_workflow, "/DDISPLAY_VERSION=$env:VELOCITYCOPY_PACKAGE_VERSION")) {
         return fail(11, "single-file installer must self-elevate and inherit the stamped package version");
     }
 
