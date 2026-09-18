@@ -218,6 +218,11 @@ void MainWindow::NavigateDestination(std::filesystem::path folder) {
         return;
     }
 
+    // Keep the current destination list visible while navigation runs, but prevent
+    // stale targets from accepting input until the authoritative result arrives.
+    DestinationItems().IsEnabled(false);
+    DestinationBackButton().IsEnabled(false);
+    ChooseCurrentFolderButton().IsEnabled(false);
     DestinationLoadingRing().Visibility(Visibility::Visible);
     DestinationLoadingRing().IsActive(true);
 
@@ -241,6 +246,9 @@ void MainWindow::ApplyDestinationNavigation(velocitycopy::DestinationNavigationR
     }
     DestinationLoadingRing().IsActive(false);
     DestinationLoadingRing().Visibility(Visibility::Collapsed);
+    DestinationItems().IsEnabled(true);
+    DestinationBackButton().IsEnabled(true);
+    ChooseCurrentFolderButton().IsEnabled(true);
     current_destination_folder_ = std::move(result.folder);
     DestinationBrowserHeader().Visibility(Visibility::Visible);
     ChooseCurrentFolderButton().Visibility(Visibility::Visible);
