@@ -3,6 +3,7 @@
 #include <windows.h>
 
 #include <system_error>
+#include <vector>
 
 namespace velocitycopy {
 namespace {
@@ -90,31 +91,41 @@ bool source_is_unsafe_reparse_point(const std::filesystem::path& source) noexcep
 }
 
 
-bool existing_path_is_safe_non_reparse(const std::filesystem::path& path) noexcept {
-    const HANDLE handle = CreateFileW(path.c_str(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
-    if (handle == INVALID_HANDLE_VALUE) return false;
-    FILE_ATTRIBUTE_TAG_INFO info{};
-    const bool queried = GetFileInformationByHandleEx(handle, FileAttributeTagInfo, &info, sizeof(info)) != 0;
-    CloseHandle(handle);
-    return queried && (info.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0;
-}
+struct DestinationPathGuard {
+    std::vector<HANDLE> parents;
 
-bool destination_chain_contains_reparse_point(const std::filesystem::path& destination) noexcept {
-    std::error_code ec;
-    auto probe = std::filesystem::absolute(destination, ec);
-    if (ec) return true;
-    const auto root = probe.root_path();
-    while (!probe.empty() && probe != root) {
-        const auto status = std::filesystem::symlink_status(probe, ec);
-        if (ec) {
-            if (ec == std::errc::no_such_file_or_directory) ec.clear();
-            else return true;
-        } else if (std::filesystem::exists(status) && !existing_path_is_safe_non_reparse(probe)) {
-            return true;
-        }
-        probe = probe.parent_path();
+    ~DestinationPathGuard() noexcept {
+        for (const HANDLE handle : parents) CloseHandle(handle);
     }
-    return false;
+
+    bool lock_non_reparse_parents(const std::filesystem::path& destination) noexcept {
+        std::error_code ec;
+        auto probe = std::filesystem::absolute(destination.parent_path(), ec);
+        if (ec) return false;
+        const auto root = probe.root_path();
+        while (!probe.empty() && probe != root) {
+            const HANDLE handle = CreateFileW(
+                probe.c_str(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING,
+                FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
+            if (handle == INVALID_HANDLE_VALUE) return false;
+
+            FILE_ATTRIBUTE_TAG_INFO info{};
+            if (GetFileInformationByHandleEx(handle, FileAttributeTagInfo, &info, sizeof(info)) == 0 ||
+                (info.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0) {
+                CloseHandle(handle);
+                return false;
+            }
+            parents.push_back(handle);
+            probe = probe.parent_path();
+        }
+        return true;
+    }
+};
+
+bool destination_chain_contains_reparse_point(
+    const std::filesystem::path& destination,
+    DestinationPathGuard& guard) noexcept {
+    return !guard.lock_non_reparse_parents(destination);
 }
 
 } // namespace
@@ -144,7 +155,9 @@ CopyResult CopyEngine::copy_file(
     // Revalidate immediately before CopyFile2 so a source that was safe at
     // planning time cannot be silently followed after being swapped for a
     // symlink/junction. This narrows the remaining TOCTOU window.
-    if (source_is_unsafe_reparse_point(source) || destination_chain_contains_reparse_point(destination)) {
+    DestinationPathGuard destination_guard;
+    if (source_is_unsafe_reparse_point(source) ||
+        destination_chain_contains_reparse_point(destination, destination_guard)) {
         return {
             false,
             static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_CANT_ACCESS_FILE)),
