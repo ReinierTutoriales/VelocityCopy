@@ -45,8 +45,12 @@ int main() {
         !contains(profiler_h, "bool device_number_available{}") ||
         !contains(profiler_cpp, "GetVolumeNameForVolumeMountPointW") ||
         !contains(profiler_cpp, "IOCTL_STORAGE_GET_DEVICE_NUMBER") ||
-        !contains(profiler_cpp, "device_path.pop_back()")) {
-        return fail(11, "storage profiling must resolve mounted volumes and expose physical device identity");
+        !contains(profiler_cpp, "device_path.pop_back()") ||
+        !contains(profiler_h, "std::vector<std::uint32_t> physical_disk_numbers") ||
+        !contains(profiler_h, "bool physical_disk_extents_available{}") ||
+        !contains(profiler_cpp, "IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS") ||
+        !contains(profiler_cpp, "ERROR_MORE_DATA")) {
+        return fail(11, "storage profiling must resolve mounted volumes and expose physical disk topology");
     }
 
     if (!contains(selector_h, "std::uint32_t copy_flags{}") ||
