@@ -96,6 +96,10 @@ void MainWindow::ResumeConflictCopy(const std::uint64_t replace_file_id) {
     current_file_skippable_ = false;
     cancel_requested_.store(false, std::memory_order_relaxed);
     presenter_.reset();
+    // Keep aggregate progress from the conflict point until the resumed executor
+    // publishes a fresh snapshot; only live telemetry becomes unknown.
+    SpeedText().Text(L"—");
+    EtaText().Text(L"—");
     last_queue_completed_files_ = live_plan_->completed_files();
     execution_control_ = std::make_shared<velocitycopy::ExecutionControl>();
     if (!append_gate_) append_gate_ = std::make_shared<AppendGate>();
