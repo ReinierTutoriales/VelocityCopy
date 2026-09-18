@@ -143,6 +143,7 @@ fire_and_forget MainWindow::HandleDropAsync(DataPackageView data_view) {
         }
 
         ++shell_layout_generation_;
+        pending_flow_operation_ = velocitycopy::FileOperation::Copy;
         dropped_items_ = std::move(items);
         flow_.begin(dropped_items_);
         DestinationStep().Visibility(Visibility::Visible);
