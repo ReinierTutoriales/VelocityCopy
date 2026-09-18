@@ -94,7 +94,9 @@ void MainWindow::RefreshQueue() {
 
     // Reapply selection by stable plan IDs. Clear first because incremental prefix
     // removal can leave index-based ListView selection attached to a different row.
-    QueueList().DeselectRange(Windows::Foundation::IndexRange(0, queue_snapshot_.empty() ? 0 : static_cast<std::uint32_t>(queue_snapshot_.size() - 1)));
+    if (!previous_snapshot.empty()) {
+        QueueList().DeselectRange(Windows::Foundation::IndexRange(0, static_cast<std::uint32_t>(previous_snapshot.size() - 1)));
+    }
     if (!selected_ids.empty()) {
         for (std::uint32_t index = 0; index < queue_snapshot_.size(); ++index) {
             if (std::find(selected_ids.begin(), selected_ids.end(), queue_snapshot_[index].id) != selected_ids.end()) {
