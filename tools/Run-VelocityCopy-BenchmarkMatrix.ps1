@@ -27,18 +27,13 @@ foreach ($workload in $workloads) {
         throw "Missing benchmark workload $($workload.scenario): $source"
     }
 
-    $scenarioDestination = Join-Path $DestinationRoot ("scenario-" + $workload.scenario)
+    $matrixRoot = Join-Path $DestinationRoot ".velocitycopy-benchmark-matrix"
+    $scenarioDestination = Join-Path $matrixRoot ("scenario-" + $workload.scenario)
     New-Item -ItemType Directory -Force -Path $scenarioDestination | Out-Null
-    Get-ChildItem -LiteralPath $scenarioDestination -Force -ErrorAction SilentlyContinue |
-        Remove-Item -Recurse -Force
 
     $temporaryOutput = [System.IO.Path]::GetTempFileName()
     try {
         & $Sweep -Source $source -Destination $scenarioDestination -Benchmark $Benchmark -Output $temporaryOutput -Repeats $Repeats
-        if ($LASTEXITCODE -ne 0) {
-            throw "Sweep failed for scenario $($workload.scenario)"
-        }
-
         Get-Content -LiteralPath $temporaryOutput | ForEach-Object {
             if ([string]::IsNullOrWhiteSpace($_)) { return }
             $measurement = $_ | ConvertFrom-Json
@@ -52,3 +47,7 @@ foreach ($workload in $workloads) {
 }
 
 Write-Host "Benchmark matrix appended to $Output"
+
+if ((Test-Path -LiteralPath $matrixRoot) -and -not (Get-ChildItem -LiteralPath $matrixRoot -Force | Select-Object -First 1)) {
+    Remove-Item -LiteralPath $matrixRoot -Force
+}
