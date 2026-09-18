@@ -99,6 +99,24 @@ bool existing_path_is_reparse_point(const std::filesystem::path& path) noexcept 
     return result;
 }
 
+bool destination_chain_contains_reparse_point(const std::filesystem::path& destination) noexcept {
+    std::error_code ec;
+    auto probe = std::filesystem::absolute(destination, ec);
+    if (ec) return true;
+    const auto root = probe.root_path();
+    while (!probe.empty() && probe != root) {
+        const auto status = std::filesystem::symlink_status(probe, ec);
+        if (ec) {
+            if (ec == std::errc::no_such_file_or_directory) ec.clear();
+            else return true;
+        } else if (std::filesystem::exists(status) && existing_path_is_reparse_point(probe)) {
+            return true;
+        }
+        probe = probe.parent_path();
+    }
+    return false;
+}
+
 } // namespace
 
 CopyResult CopyEngine::copy_file(
@@ -126,7 +144,7 @@ CopyResult CopyEngine::copy_file(
     // Revalidate immediately before CopyFile2 so a source that was safe at
     // planning time cannot be silently followed after being swapped for a
     // symlink/junction. This narrows the remaining TOCTOU window.
-    if (source_is_unsafe_reparse_point(source)) {
+    if (source_is_unsafe_reparse_point(source) || destination_chain_contains_reparse_point(destination)) {
         return {
             false,
             static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_CANT_ACCESS_FILE)),
