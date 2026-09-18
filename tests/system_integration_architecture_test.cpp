@@ -124,16 +124,17 @@ int main() {
         !contains(installer, "Remove-AppxPackage") ||
         !contains(installer, "LocalMachine\\TrustedPeople") ||
         !contains(installer, "SignerCertificate.Thumbprint") ||
-        !contains(installer, "Dependencies[\\\\/]x64") ||
-        contains(installer, "Dependencies[\\\\/]arm64") ||
-        contains(installer, "Dependencies[\\\\/]x86") ||
+        !contains(installer, "\"X64\" { \"x64\" }") ||
+        !contains(installer, "\"Arm64\" { \"arm64\" }") ||
+        !contains(installer, "RuntimeInformation]::ProcessArchitecture") ||
+        contains(installer, "\"X86\" { \"x86\" }") ||
         !contains(installer, "Microsoft\\.VCLibs") ||
         !contains(installer, "Microsoft\\.WindowsAppRuntime") ||
         !contains(installer, "previousThumbprint") ||
         !contains(installer, "previousTrustedPath") ||
         !contains(installer, "Is64BitOperatingSystem") ||
         !contains(installer, "build 22000 or newer")) {
-        return fail(9, "embedded installer must trust exact signer and install x64 dependencies only");
+        return fail(9, "embedded installer must trust the exact signer and select native x64/ARM64 dependencies without x86");
     }
 
     if (!contains(installer_exe, "RequestExecutionLevel admin") ||
