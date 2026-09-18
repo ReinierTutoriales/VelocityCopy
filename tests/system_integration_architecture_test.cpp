@@ -115,8 +115,11 @@ int main() {
         !contains(installer, "TrustedPeople") ||
         !contains(installer, "CurrentUser\\Root") ||
         !contains(installer, "trustedPeoplePath") ||
-        !contains(installer, "trustedRootPath")) {
-        return fail(9, "test package must install and clean its test certificate");
+        !contains(installer, "trustedRootPath") ||
+        !contains(installer, "Dependencies[\\\\/]x64") ||
+        contains(installer, "Dependencies[\\\\/]arm64") ||
+        contains(installer, "Dependencies[\\\\/]x86")) {
+        return fail(9, "test package must trust/clean its certificate and install x64 dependencies only");
     }
 
     if (!contains(shell_window, "PasteToFolder") ||
