@@ -28,6 +28,7 @@ struct MainWindow : MainWindowT<MainWindow> {
     void ShowFromTray();
     void HandleShellRequest(const velocitycopy::ShellRequest& request);
 
+    void OnDragEnter(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
     void OnDragOver(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
     void OnDragLeave(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
     void OnDrop(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
