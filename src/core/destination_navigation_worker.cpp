@@ -51,7 +51,9 @@ void DestinationNavigationWorker::run(const std::stop_token stop_token) noexcept
         DestinationNavigationResult result{};
         result.generation = request.generation;
         result.folder = request.folder;
-        result.children = browser_.list_children(request.folder);
+        auto listing = browser_.list_children(request.folder);
+        result.available = listing.available;
+        result.children = std::move(listing.children);
         if (request.include_capacity) {
             result.capacity = browser_.capacity(request.folder);
         }
