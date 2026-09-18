@@ -137,7 +137,8 @@ int main() {
 
     if (!contains(app, "SingleInstance") || !contains(app, "ShellIpcServer") ||
         !contains(app, "is_stage_only_activation") || !contains(app, "send_shell_request(*initial_request, 1000)") ||
-        !contains(app, "if (!is_stage_only_activation(initial_request))") || contains(cli, "--shell-runtime")) {
+        !contains(app, "if (!startup_activation && !is_stage_only_activation(initial_request))") ||
+        contains(cli, "--shell-runtime")) {
         return fail(14, "WinUI must be the sole Explorer activation host");
     }
 
