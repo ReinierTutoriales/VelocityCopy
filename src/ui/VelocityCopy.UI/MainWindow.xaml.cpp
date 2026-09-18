@@ -94,11 +94,20 @@ void MainWindow::ResizeWindow(const int height_epx) {
     }
 }
 
+void MainWindow::OnDragEnter(IInspectable const&, DragEventArgs const& args) {
+    const bool accepts_storage_items = args.DataView().Contains(StandardDataFormats::StorageItems());
+    args.AcceptedOperation(
+        accepts_storage_items ? DataPackageOperation::Copy : DataPackageOperation::None);
+    DragOverlay().Visibility(
+        accepts_storage_items ? Visibility::Visible : Visibility::Collapsed);
+}
+
 void MainWindow::OnDragOver(IInspectable const&, DragEventArgs const& args) {
-    if (args.DataView().Contains(StandardDataFormats::StorageItems())) {
-        args.AcceptedOperation(DataPackageOperation::Copy);
-        DragOverlay().Visibility(Visibility::Visible);
-    }
+    const bool accepts_storage_items = args.DataView().Contains(StandardDataFormats::StorageItems());
+    args.AcceptedOperation(
+        accepts_storage_items ? DataPackageOperation::Copy : DataPackageOperation::None);
+    DragOverlay().Visibility(
+        accepts_storage_items ? Visibility::Visible : Visibility::Collapsed);
 }
 
 void MainWindow::OnDragLeave(IInspectable const&, DragEventArgs const&) {
