@@ -119,11 +119,33 @@ try {
         throw "Required $dependencyArchitecture dependency directory was not found."
     }
 
-    $dependencies = @(
+    # MSBuild can emit transitive framework packages (for example Microsoft.UI.Xaml)
+    # beside the direct prerequisites. Passing every emitted package to
+    # Add-AppxPackage can force an update of a shared framework currently in use by
+    # another process, producing 0x80073D02. Only deploy the framework families
+    # VelocityCopy intentionally carries as installer prerequisites.
+    $allowedDependencyPattern = '^Microsoft\.(VCLibs|WindowsAppRuntime).+\.(appx|msix)$'
+    $allDependencyPackages = @(
         Get-ChildItem -LiteralPath $dependencyRoot -File |
-            Where-Object { $_.Extension -in ".appx", ".msix" } |
+            Where-Object { $_.Extension -in ".appx", ".msix" }
+    )
+    $dependencies = @(
+        $allDependencyPackages |
+            Where-Object { $_.Name -match $allowedDependencyPattern } |
             Select-Object -ExpandProperty FullName
     )
+    $excludedDependencies = @(
+        $allDependencyPackages |
+            Where-Object { $_.Name -notmatch $allowedDependencyPattern }
+    )
+
+    foreach ($excluded in $excludedDependencies) {
+        Write-InstallLog "Ignoring transitive dependency package: $($excluded.Name)"
+    }
+    foreach ($dependency in $dependencies) {
+        Write-InstallLog "Selected dependency package: $([IO.Path]::GetFileName($dependency))"
+    }
+
     if ($dependencies.Count -eq 0) {
         throw "Required $dependencyArchitecture runtime packages were not found."
     }
@@ -133,8 +155,11 @@ try {
     if (-not ($dependencies | Where-Object { $_ -match "Microsoft\.WindowsAppRuntime" })) {
         throw "Microsoft Windows App Runtime $dependencyArchitecture framework package was not found."
     }
+    if ($dependencies | Where-Object { $_ -match "Microsoft\.UI\.Xaml" }) {
+        throw "Microsoft.UI.Xaml must not be passed explicitly to Add-AppxPackage."
+    }
 
-    Write-InstallLog "Deploying VelocityCopy bundle for $dependencyArchitecture with $($dependencies.Count) dependency package(s)."
+    Write-InstallLog "Deploying VelocityCopy bundle for $dependencyArchitecture with $($dependencies.Count) direct dependency package(s)."
 
     # Let AppX Deployment resolve the package graph atomically. This handles
     # framework ordering and already-installed newer framework versions correctly.
