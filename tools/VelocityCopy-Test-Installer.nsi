@@ -11,6 +11,9 @@ SetCompressor /SOLID lzma
 !ifndef OUTPUT_FILE
   !error "OUTPUT_FILE is required"
 !endif
+!ifndef DISPLAY_VERSION
+  !error "DISPLAY_VERSION is required"
+!endif
 
 Name "VelocityCopy"
 OutFile "${OUTPUT_FILE}"
