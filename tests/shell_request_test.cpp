@@ -35,19 +35,19 @@ int main() {
         return 6;
     }
 
-    ShellRequest prompt{};
-    prompt.action = ShellAction::CopySelectionPromptDestination;
-    if (shell_request_valid(prompt)) {
+    velocitycopy::ShellRequest prompt{};
+    prompt.action = velocitycopy::ShellAction::CopySelectionPromptDestination;
+    if (velocitycopy::shell_request_valid(prompt)) {
         return 7;
     }
     prompt.sources = {L"C:\\Source\\prompt.txt"};
-    if (!shell_request_valid(prompt)) {
+    if (!velocitycopy::shell_request_valid(prompt)) {
         return 8;
     }
 
-    ShellRequest unknown{};
-    unknown.action = static_cast<ShellAction>(0xff);
-    if (shell_request_valid(unknown)) {
+    velocitycopy::ShellRequest unknown{};
+    unknown.action = static_cast<velocitycopy::ShellAction>(0xff);
+    if (velocitycopy::shell_request_valid(unknown)) {
         return 9;
     }
 
