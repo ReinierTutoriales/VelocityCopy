@@ -44,6 +44,15 @@ int main() {
         return fail(2, "source reparse point must be revalidated immediately before CopyFile2");
     }
 
+    const auto destination_check = engine.find("destination_chain_contains_reparse_point(destination)");
+    if (destination_check == std::string::npos ||
+        !contains(engine, "FILE_FLAG_OPEN_REPARSE_POINT") ||
+        !contains(engine, "FileAttributeTagInfo") ||
+        !contains(engine, "COPY_FILE_COPY_SYMLINK") ||
+        destination_check > copy_call) {
+        return fail(6, "destination reparse defenses must precede CopyFile2");
+    }
+
     if (contains(archive, "source_roots.reserve(static_cast<std::size_t>(roots))") ||
         contains(archive, "directories.reserve(static_cast<std::size_t>(directories))") ||
         contains(archive, "files.reserve(static_cast<std::size_t>(files))") ||
