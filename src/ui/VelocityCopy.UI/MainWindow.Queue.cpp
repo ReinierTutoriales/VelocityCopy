@@ -21,7 +21,12 @@ void MainWindow::RefreshQueue() {
 
     constexpr std::size_t kVisibleQueueItems = 256;
     auto view = live_plan_->queue_view(kVisibleQueueItems);
-    if (view.pending_files == queue_snapshot_) {
+    const bool unchanged = view.pending_files.size() == queue_snapshot_.size() &&
+        std::equal(view.pending_files.begin(), view.pending_files.end(), queue_snapshot_.begin(),
+            [](const velocitycopy::PlannedFile& left, const velocitycopy::PlannedFile& right) {
+                return left.id == right.id && left.source == right.source && left.destination == right.destination && left.size == right.size;
+            });
+    if (unchanged) {
         QueueCountText().Text(hstring(std::format(L"{}", view.pending_count)));
         RefreshQueueCommandState();
         return;
