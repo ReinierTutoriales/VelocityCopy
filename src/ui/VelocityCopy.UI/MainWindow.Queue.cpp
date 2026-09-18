@@ -13,6 +13,9 @@ void MainWindow::RefreshQueue() {
         QueueList().Items().Clear();
         QueueCountText().Text(L"0");
         RefreshQueueCommandState();
+        QueueMoveUpButton().IsEnabled(false);
+        QueueMoveDownButton().IsEnabled(false);
+        QueueRemoveButton().IsEnabled(false);
         return;
     }
 
@@ -46,6 +49,10 @@ void MainWindow::RefreshQueue() {
 
     QueueCountText().Text(hstring(std::format(L"{}", view.pending_count)));
     RefreshQueueCommandState();
+    const bool can_edit = !queue_snapshot_.empty();
+    QueueMoveUpButton().IsEnabled(can_edit);
+    QueueMoveDownButton().IsEnabled(can_edit);
+    QueueRemoveButton().IsEnabled(can_edit);
 }
 
 std::vector<std::uint64_t> MainWindow::SelectedPendingIds() {
