@@ -34,13 +34,14 @@ int main() {
     const auto window = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
     const auto tray = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Tray.cpp");
     const auto persistence = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.QueuePersistence.cpp");
-    const auto workflow = read_all(root / ".github/workflows/build.yml");
+    const auto ci_workflow = read_all(root / ".github/workflows/ci.yml");
+    const auto package_workflow = read_all(root / ".github/workflows/package.yml");
     const auto installer = read_all(root / "tools/Install-VelocityCopy-Test.ps1");
     const auto installer_exe = read_all(root / "tools/VelocityCopy-Test-Installer.nsi");
     const auto docs = read_all(root / "docs/SYSTEM_INTEGRATION.md");
 
     if (manifest.empty() || app.empty() || shell.empty() || shell_window.empty() || ipc.empty() ||
-        window.empty() || tray.empty() || persistence.empty() || workflow.empty() ||
+        window.empty() || tray.empty() || persistence.empty() || ci_workflow.empty() || package_workflow.empty() ||
         installer.empty() || installer_exe.empty() || docs.empty()) {
         return fail(1, "required integration source missing");
     }
@@ -103,20 +104,32 @@ int main() {
         return fail(7, "IPC pipe and mutex must use explicit local-user security");
     }
 
-    if (!contains(workflow, "GenerateAppxPackageOnBuild=true") ||
-        !contains(workflow, "Sign Windows test MSIX") ||
-        !contains(workflow, "signtool") ||
-        !contains(workflow, "VelocityCopy-Test.cer") ||
-        !contains(workflow, "VelocityCopy-Setup-x64.exe") ||
-        !contains(workflow, "Build single-file Windows installer") ||
-        !contains(workflow, "VelocityCopy-Setup-x64") ||
-        !contains(workflow, "Stamp test package version") ||
-        !contains(workflow, "GITHUB_RUN_NUMBER") ||
-        !contains(workflow, "Smoke install packaged MSIX") ||
-        !contains(workflow, "& $script") ||
-        !contains(workflow, "Get-AppxPackage -Name \"ReinierTutoriales.VelocityCopy\"") ||
-        !contains(workflow, "& $script -Uninstall")) {
-        return fail(8, "CI must build, sign, execute a real package smoke install/uninstall, and publish one installer EXE");
+    if (!contains(ci_workflow, "push:") ||
+        !contains(ci_workflow, "pull_request:") ||
+        !contains(ci_workflow, "cmake --build build/x64") ||
+        !contains(ci_workflow, "ctest --test-dir build/x64") ||
+        contains(ci_workflow, "GenerateAppxPackageOnBuild=true") ||
+        contains(ci_workflow, "signtool") ||
+        contains(ci_workflow, "Add-AppxPackage")) {
+        return fail(8, "commit CI must stay fast and validate the x64 core without packaging or installation");
+    }
+
+    if (!contains(package_workflow, "workflow_dispatch:") ||
+        !contains(package_workflow, "tags:") ||
+        !contains(package_workflow, "GenerateAppxPackageOnBuild=true") ||
+        !contains(package_workflow, "Sign Windows test MSIX") ||
+        !contains(package_workflow, "signtool") ||
+        !contains(package_workflow, "VelocityCopy-Test.cer") ||
+        !contains(package_workflow, "VelocityCopy-Setup-x64.exe") ||
+        !contains(package_workflow, "Build single-file Windows installer") ||
+        !contains(package_workflow, "VelocityCopy-Setup-x64") ||
+        !contains(package_workflow, "Stamp test package version") ||
+        !contains(package_workflow, "GITHUB_RUN_NUMBER") ||
+        !contains(package_workflow, "Smoke install packaged MSIX") ||
+        !contains(package_workflow, "& $script") ||
+        !contains(package_workflow, "Get-AppxPackage -Name \"ReinierTutoriales.VelocityCopy\"") ||
+        !contains(package_workflow, "& $script -Uninstall")) {
+        return fail(9, "release packaging must remain explicit and perform the real sign/install/uninstall/installer gate");
     }
 
     if (!contains(installer, "Import-Certificate") ||
@@ -134,7 +147,7 @@ int main() {
         !contains(installer, "previousTrustedPath") ||
         !contains(installer, "Is64BitOperatingSystem") ||
         !contains(installer, "build 22000 or newer")) {
-        return fail(9, "embedded installer must trust the exact signer and select native x64/ARM64 dependencies without x86");
+        return fail(10, "embedded installer must trust the exact signer and select native x64/ARM64 dependencies without x86");
     }
 
     if (!contains(installer_exe, "RequestExecutionLevel admin") ||
@@ -147,7 +160,7 @@ int main() {
         !contains(installer_exe, "Windows\\CurrentVersion\\Uninstall\\VelocityCopy") ||
         !contains(workflow, "VELOCITYCOPY_PACKAGE_VERSION") ||
         !contains(workflow, "/DDISPLAY_VERSION=$env:VELOCITYCOPY_PACKAGE_VERSION")) {
-        return fail(10, "single-file installer must self-elevate and inherit the stamped package version");
+        return fail(11, "single-file installer must self-elevate and inherit the stamped package version");
     }
 
     if (!contains(shell_window, "PasteToFolder") ||
