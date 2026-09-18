@@ -28,8 +28,9 @@ int main() {
     const std::filesystem::path root{VELOCITYCOPY_SOURCE_DIR};
     const auto engine = read_all(root / "src/core/copy_engine.cpp");
     const auto archive = read_all(root / "src/core/queue_archive.cpp");
+    const auto ipc = read_all(root / "src/core/ipc_protocol.cpp");
 
-    if (engine.empty() || archive.empty()) {
+    if (engine.empty() || archive.empty() || ipc.empty()) {
         return fail(1, "required core source missing");
     }
 
@@ -57,6 +58,12 @@ int main() {
         !contains(archive, "sources > kMaxEntries") ||
         !contains(archive, "count > kMaxEntries")) {
         return fail(4, "archive parser must preserve bounded entry-count validation");
+    }
+
+    if (contains(ipc, "request.sources.reserve(source_count)") ||
+        !contains(ipc, "source_count > kMaxShellSources") ||
+        !contains(ipc, "bytes.size() > kMaxShellMessageBytes")) {
+        return fail(5, "IPC parser must bound declared counts without preallocating from them");
     }
 
     return 0;
