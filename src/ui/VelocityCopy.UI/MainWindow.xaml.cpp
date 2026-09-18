@@ -128,24 +128,24 @@ void MainWindow::OnDragEnter(IInspectable const&, DragEventArgs const& args) {
     const bool accepts_storage_items = args.DataView().Contains(StandardDataFormats::StorageItems());
     const auto operation = accepts_storage_items ? preferred_drop_operation(args.DataView(), args.Modifiers()) : DataPackageOperation::None;
     args.AcceptedOperation(operation);
-    if (accepts_storage_items) {
+    if (operation != DataPackageOperation::None) {
         args.DragUIOverride().IsCaptionVisible(true);
         args.DragUIOverride().IsGlyphVisible(true);
     }
     DragOverlay().Visibility(
-        accepts_storage_items ? Visibility::Visible : Visibility::Collapsed);
+        operation != DataPackageOperation::None ? Visibility::Visible : Visibility::Collapsed);
 }
 
 void MainWindow::OnDragOver(IInspectable const&, DragEventArgs const& args) {
     const bool accepts_storage_items = args.DataView().Contains(StandardDataFormats::StorageItems());
     const auto operation = accepts_storage_items ? preferred_drop_operation(args.DataView(), args.Modifiers()) : DataPackageOperation::None;
     args.AcceptedOperation(operation);
-    if (accepts_storage_items) {
+    if (operation != DataPackageOperation::None) {
         args.DragUIOverride().IsCaptionVisible(true);
         args.DragUIOverride().IsGlyphVisible(true);
     }
     DragOverlay().Visibility(
-        accepts_storage_items ? Visibility::Visible : Visibility::Collapsed);
+        operation != DataPackageOperation::None ? Visibility::Visible : Visibility::Collapsed);
 }
 
 void MainWindow::OnDragLeave(IInspectable const&, DragEventArgs const&) {
