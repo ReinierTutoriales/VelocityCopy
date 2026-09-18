@@ -4,9 +4,20 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Test-IsAdministrator {
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = [Security.Principal.WindowsPrincipal]::new($identity)
+    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+if (-not (Test-IsAdministrator)) {
+    throw "VelocityCopy installer requires Administrator privileges."
+}
+
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $certificate = Join-Path $root "VelocityCopy-Test.cer"
 $packageName = "ReinierTutoriales.VelocityCopy"
+$machineStore = "Cert:\LocalMachine\TrustedPeople"
 
 if ($Uninstall) {
     Get-AppxPackage -Name $packageName -ErrorAction SilentlyContinue |
@@ -14,34 +25,47 @@ if ($Uninstall) {
 
     if (Test-Path -LiteralPath $certificate -PathType Leaf) {
         $cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certificate)
-        $trustedPeoplePath = "Cert:\CurrentUser\TrustedPeople\$($cert.Thumbprint)"
-        $trustedRootPath = "Cert:\CurrentUser\Root\$($cert.Thumbprint)"
-        foreach ($path in @($trustedPeoplePath, $trustedRootPath)) {
-            if (Test-Path -LiteralPath $path) {
-                Remove-Item -LiteralPath $path -Force
-            }
+        $trustedPath = "$machineStore\$($cert.Thumbprint)"
+        if (Test-Path -LiteralPath $trustedPath) {
+            Remove-Item -LiteralPath $trustedPath -Force
         }
         $cert.Dispose()
     }
 
-    Write-Host "VelocityCopy and its test signing certificate were removed for the current user."
+    Write-Host "VelocityCopy and its test signing trust were removed."
     exit 0
 }
+
 if (-not (Test-Path -LiteralPath $certificate -PathType Leaf)) {
     throw "VelocityCopy-Test.cer is missing."
 }
 
-Import-Certificate -FilePath $certificate -CertStoreLocation "Cert:\CurrentUser\TrustedPeople" | Out-Null
-Import-Certificate -FilePath $certificate -CertStoreLocation "Cert:\CurrentUser\Root" | Out-Null
-
-$packages = Get-ChildItem -LiteralPath $root -Recurse -File -Filter *.msix
-$main = $packages |
-    Where-Object { $_.FullName -notmatch "[\\/]Dependencies[\\/]" } |
-    Sort-Object Length -Descending |
-    Select-Object -First 1
-if (-not $main) {
-    throw "VelocityCopy MSIX package was not found."
+$packages = @(
+    Get-ChildItem -LiteralPath $root -Recurse -File -Filter *.msix |
+        Where-Object { $_.FullName -notmatch "[\\/]Dependencies[\\/]" }
+)
+if ($packages.Count -ne 1) {
+    throw "Expected exactly one VelocityCopy MSIX package, found $($packages.Count)."
 }
+$main = $packages[0]
+
+$bundledCert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certificate)
+$signature = Get-AuthenticodeSignature -FilePath $main.FullName
+if (-not $signature.SignerCertificate) {
+    $bundledCert.Dispose()
+    throw "VelocityCopy MSIX has no signer certificate."
+}
+if ($signature.SignerCertificate.Thumbprint -ne $bundledCert.Thumbprint) {
+    $bundledCert.Dispose()
+    throw "Bundled certificate does not match the VelocityCopy MSIX signer."
+}
+
+$trustedPath = "$machineStore\$($bundledCert.Thumbprint)"
+if (-not (Test-Path -LiteralPath $trustedPath)) {
+    Write-Host "Trusting VelocityCopy test signing certificate..."
+    Import-Certificate -FilePath $certificate -CertStoreLocation $machineStore | Out-Null
+}
+$bundledCert.Dispose()
 
 $dependencies = @(
     Get-ChildItem -LiteralPath $root -Recurse -File |
@@ -51,42 +75,31 @@ $dependencies = @(
         } |
         Select-Object -ExpandProperty FullName
 )
-
 if ($dependencies.Count -eq 0) {
-    throw "Required x64 package dependencies were not found."
+    throw "Required x64 runtime packages were not found."
 }
 
-# Install x64 framework dependencies first so runtime failures such as
-# MSVCP140.dll/VCRUNTIME140.dll missing are surfaced deterministically.
 $vclibs = @($dependencies | Where-Object { $_ -match "Microsoft\.VCLibs" })
 $appRuntime = @($dependencies | Where-Object { $_ -match "Microsoft\.WindowsAppRuntime" })
 $orderedDependencies = @($vclibs + $appRuntime)
+if ($vclibs.Count -eq 0) {
+    throw "Microsoft Visual C++ x64 runtime packages were not found."
+}
+if ($appRuntime.Count -eq 0) {
+    throw "Microsoft Windows App Runtime x64 package was not found."
+}
 
 foreach ($dependency in $orderedDependencies) {
     Write-Host "Installing dependency: $(Split-Path -Leaf $dependency)"
     Add-AppxPackage -Path $dependency -ErrorAction Stop
 }
 
-$params = @{
-    Path = $main.FullName
-    ForceApplicationShutdown = $true
-}
-Add-AppxPackage @params
+Write-Host "Installing VelocityCopy..."
+Add-AppxPackage -Path $main.FullName -ForceApplicationShutdown -ErrorAction Stop
 
-$requiredFrameworks = @(
-    "Microsoft.VCLibs.140.00",
-    "Microsoft.VCLibs.140.00.UWPDesktop",
-    "Microsoft.WindowsAppRuntime.2"
-)
-foreach ($framework in $requiredFrameworks) {
-    $installed = Get-AppxPackage -Name $framework -ErrorAction SilentlyContinue |
-        Where-Object { $_.Architecture -eq "X64" -or $_.Architecture -eq "Neutral" } |
-        Select-Object -First 1
-    if (-not $installed) {
-        throw "Required x64 framework was not installed: $framework"
-    }
+$installedApp = Get-AppxPackage -Name $packageName -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $installedApp) {
+    throw "VelocityCopy package did not register successfully."
 }
 
-Write-Host "VelocityCopy installed for the current user."
-Write-Host "Launch VelocityCopy once to register its enabled startup task."
-Write-Host "Windows may reload File Explorer integration after Explorer restart or sign-out/sign-in."
+Write-Host "VelocityCopy installed successfully."
