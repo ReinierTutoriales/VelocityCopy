@@ -30,6 +30,7 @@ add_library(velocitycopy_core STATIC
     src/core/queue_archive.cpp
     src/core/shell_session.cpp
     src/core/storage_profiler.cpp
+    src/core/storage_topology.cpp
     src/core/strategy_selector.cpp
     src/core/ui_snapshot.cpp
 )
@@ -96,6 +97,7 @@ add_velocitycopy_test(VelocityCopyDestinationBrowserTest tests/destination_brows
 add_velocitycopy_test(VelocityCopyDestinationNavigationWorkerTest tests/destination_navigation_worker_test.cpp velocitycopy_destination_navigation_worker)
 add_velocitycopy_test(VelocityCopyJobPlanningWorkerTest tests/job_planning_worker_test.cpp velocitycopy_job_planning_worker)
 add_velocitycopy_test(VelocityCopyStrategyTest tests/strategy_selector_test.cpp velocitycopy_strategy)
+add_velocitycopy_test(VelocityCopyStorageTopologyTest tests/storage_topology_test.cpp velocitycopy_storage_topology)
 add_velocitycopy_test(VelocityCopyShellRequestTest tests/shell_request_test.cpp velocitycopy_shell_request)
 add_velocitycopy_test(VelocityCopyIpcTest tests/ipc_test.cpp velocitycopy_ipc)
 add_velocitycopy_test(VelocityCopyShellSessionTest tests/shell_session_test.cpp velocitycopy_shell_session)
