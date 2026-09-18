@@ -36,9 +36,14 @@ jobs:
           $content = [regex]::Replace(
             $content,
             '(<Identity\s+Name="ReinierTutoriales\.VelocityCopy"\s+Publisher="CN=ReinierTutoriales"\s+Version=")[^"]+(")',
-            ('$1' + $version + '$2')
+            ('1' + $version + '2')
           )
           Set-Content -LiteralPath $manifest -Value $content -Encoding utf8
+
+          $stamped = Get-Content -LiteralPath $manifest -Raw
+          if ($stamped -notmatch ('Version="' + [regex]::Escape($version) + '"')) {
+            throw "Failed to stamp VelocityCopy package version $version"
+          }
           Write-Host "VelocityCopy test package version: $version"
 
       - name: Build WinUI 3 x64 Release and MSIX
