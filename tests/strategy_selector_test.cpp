@@ -31,6 +31,18 @@ int wmain() {
         return 1;
     }
 
+    auto unknown_source_geometry = local;
+    unknown_source_geometry.sector_info_available = false;
+    const auto large_unknown_source_geometry = selector.choose(unknown_source_geometry, local, {
+        8ull * 1024ull * 1024ull * 1024ull,
+        1,
+        8ull * 1024ull * 1024ull * 1024ull,
+    });
+    if (large_unknown_source_geometry.strategy != velocitycopy::CopyStrategyKind::WindowsCopyFile2 ||
+        (large_unknown_source_geometry.copy_flags & COPY_FILE_NO_BUFFERING) != 0) {
+        return 7;
+    }
+
     const auto small = selector.choose(local, local, {
         10000ull * 4096ull,
         10000,
