@@ -60,14 +60,17 @@ if (-not (Test-Path -LiteralPath $certificate -PathType Leaf)) {
     throw "VelocityCopy-Test.cer is missing."
 }
 
-$packages = @(
-    Get-ChildItem -LiteralPath $root -Recurse -File -Filter *.msix |
-        Where-Object { $_.FullName -notmatch "[\\/]Dependencies[\\/]" }
+$packageCandidates = @(
+    Get-ChildItem -LiteralPath $root -Recurse -File |
+        Where-Object {
+            $_.FullName -notmatch "[\\/]Dependencies[\\/]" -and
+            $_.Extension -in ".msix", ".msixbundle"
+        }
 )
-if ($packages.Count -ne 1) {
-    throw "Expected exactly one VelocityCopy MSIX package, found $($packages.Count)."
+if ($packageCandidates.Count -ne 1) {
+    throw "Expected exactly one VelocityCopy MSIX or MSIX bundle, found $($packageCandidates.Count)."
 }
-$main = $packages[0]
+$main = $packageCandidates[0]
 
 $bundledCert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certificate)
 $signature = Get-AuthenticodeSignature -FilePath $main.FullName
@@ -87,26 +90,34 @@ if (-not (Test-Path -LiteralPath $trustedPath)) {
 }
 $bundledCert.Dispose()
 
+$processArchitecture = [System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString()
+$dependencyArchitecture = switch ($processArchitecture) {
+    "X64" { "x64" }
+    "Arm64" { "arm64" }
+    default { throw "Unsupported Windows architecture: $processArchitecture" }
+}
+$dependencyPattern = "[\\/]Dependencies[\\/]" + [regex]::Escape($dependencyArchitecture) + "[\\/]"
+
 $dependencies = @(
     Get-ChildItem -LiteralPath $root -Recurse -File |
         Where-Object {
-            $_.FullName -match "[\\/]Dependencies[\\/]x64[\\/]" -and
+            $_.FullName -match $dependencyPattern -and
             $_.Extension -in ".appx", ".msix"
         } |
         Select-Object -ExpandProperty FullName
 )
 if ($dependencies.Count -eq 0) {
-    throw "Required x64 runtime packages were not found."
+    throw "Required $dependencyArchitecture runtime packages were not found."
 }
 
 $vclibs = @($dependencies | Where-Object { $_ -match "Microsoft\.VCLibs" })
 $appRuntime = @($dependencies | Where-Object { $_ -match "Microsoft\.WindowsAppRuntime" })
 $orderedDependencies = @($vclibs + $appRuntime)
 if ($vclibs.Count -eq 0) {
-    throw "Microsoft Visual C++ x64 runtime packages were not found."
+    throw "Microsoft Visual C++ $dependencyArchitecture runtime packages were not found."
 }
 if ($appRuntime.Count -eq 0) {
-    throw "Microsoft Windows App Runtime x64 package was not found."
+    throw "Microsoft Windows App Runtime $dependencyArchitecture package was not found."
 }
 
 foreach ($dependency in $orderedDependencies) {
