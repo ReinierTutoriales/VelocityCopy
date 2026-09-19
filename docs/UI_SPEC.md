@@ -140,3 +140,8 @@ Additional BCP-47 languages must require resources only, not changes to copy-eng
 ### Iconography contract
 
 Compact transfer actions use `FontIcon` with `Segoe Fluent Icons`; runtime state changes update the named icon glyph rather than replacing a button content with Unicode arrows or text symbols. Queue disclosure is always the named `QueueChevron`, so collapse/expand state cannot regress to improvised arrow characters.
+
+
+### Shell destination/layout flow
+
+Explorer commands that require destination or layout choices use a transient shell-command flyout. This flow is separate from whole-window drag/drop: active-transfer drops never open it. The flyout measures its own content and must not resize the compact copier HWND merely to avoid clipping. Legacy `DropFlowFlyout`/`DropFlowContent` UI names are prohibited because they incorrectly couple shell-command choices to drag/drop semantics.

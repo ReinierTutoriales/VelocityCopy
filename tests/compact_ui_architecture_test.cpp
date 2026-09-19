@@ -87,7 +87,11 @@ int main() {
         return fail(7, "UI specification must document the integrated copy bar concept");
     }
 
-    if (!contains(xaml, "x:Name=\"RootGrid\"") ||
+    if (contains(xaml, "DropFlowFlyout") ||
+        contains(xaml, "DropFlowContent") ||
+        !contains(xaml, "x:Name=\"ShellFlowFlyout\"") ||
+        !contains(xaml, "x:Name=\"ShellFlowContent\"") ||
+        !contains(xaml, "x:Name=\"RootGrid\"") ||
         !contains(xaml, "AllowDrop=\"True\"") ||
         !contains(xaml, "Background=\"Transparent\"") ||
         !contains(xaml, "DragEnter=\"OnDragEnter\"") ||

@@ -18,7 +18,7 @@
                     </VisualState.StateTriggers>
                     <VisualState.Setters>
                         <Setter Target="QueueList.MaxHeight" Value="{StaticResource QueueMaxHeightCompact}" />
-                        <Setter Target="DropFlowContent.Width" Value="{StaticResource DropFlyoutWidthCompact}" />
+                        <Setter Target="ShellFlowContent.Width" Value="{StaticResource DropFlyoutWidthCompact}" />
                     </VisualState.Setters>
                 </VisualState>
                 <VisualState x:Name="ComfortableState">
@@ -27,7 +27,7 @@
                     </VisualState.StateTriggers>
                     <VisualState.Setters>
                         <Setter Target="QueueList.MaxHeight" Value="{StaticResource QueueMaxHeightComfortable}" />
-                        <Setter Target="DropFlowContent.Width" Value="{StaticResource DropFlyoutWidthComfortable}" />
+                        <Setter Target="ShellFlowContent.Width" Value="{StaticResource DropFlyoutWidthComfortable}" />
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
@@ -280,8 +280,8 @@
 
         <Button x:Name="FlyoutAnchor" Visibility="Collapsed">
             <Button.Flyout>
-                <Flyout x:Name="DropFlowFlyout" Placement="Bottom">
-                    <Grid x:Name="DropFlowContent" Width="{StaticResource DropFlyoutWidthCompact}" MinHeight="176">
+                <Flyout x:Name="ShellFlowFlyout" Placement="Bottom">
+                    <Grid x:Name="ShellFlowContent" Width="{StaticResource DropFlyoutWidthCompact}" MinHeight="176">
                         <Grid x:Name="DestinationStep">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
