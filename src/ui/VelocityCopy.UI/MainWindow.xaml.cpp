@@ -181,52 +181,37 @@ void MainWindow::OnDrop(IInspectable const&, DragEventArgs const& args) {
 
 fire_and_forget MainWindow::HandleDropAsync(
     DragEventArgs args,
-    const velocitycopy::FileOperation operation) {
+    const velocitycopy::FileOperation) {
     auto lifetime = get_strong();
     auto deferral = args.GetDeferral();
     try {
-        auto storage_items = co_await args.DataView().GetStorageItemsAsync();
-        std::vector<velocitycopy::DropItem> items;
-        items.reserve(storage_items.Size());
-
-        for (auto const& item : storage_items) {
-            const auto path = item.Path();
-            if (path.empty()) {
-                continue;
-            }
-
-            std::optional<velocitycopy::DropItemKind> kind;
-            if (item.IsOfType(StorageItemTypes::Folder)) {
-                kind = velocitycopy::DropItemKind::Directory;
-            } else if (item.IsOfType(StorageItemTypes::File)) {
-                kind = velocitycopy::DropItemKind::File;
-            }
-
-            if (!kind) {
-                continue;
-            }
-
-            items.push_back({std::filesystem::path(path.c_str()), *kind});
-        }
-
-        if (items.empty()) {
-            ShowError();
+        // Drag/drop is append-only. It never opens destination/layout UI and it
+        // never creates a new transfer: an active destination is authoritative.
+        if (active_destination_.empty() || (!execution_control_ && !live_plan_)) {
             deferral.Complete();
             co_return;
         }
 
-        ++shell_layout_generation_;
-        pending_flow_operation_ = operation;
-        dropped_items_ = std::move(items);
-        flow_.begin(dropped_items_);
-        DestinationStep().Visibility(Visibility::Visible);
-        LayoutStep().Visibility(Visibility::Collapsed);
-        StartCopyButton().IsEnabled(false);
-        PreserveToggle().IsChecked(false);
-        DirectToggle().IsChecked(false);
-        ErrorBar().IsOpen(false);
-        LoadDestinations();
-        DropFlowFlyout().ShowAt(RootGrid());
+        auto storage_items = co_await args.DataView().GetStorageItemsAsync();
+        std::vector<std::filesystem::path> sources;
+        sources.reserve(storage_items.Size());
+        for (auto const& item : storage_items) {
+            const auto path = item.Path();
+            if (!path.empty()) {
+                sources.emplace_back(path.c_str());
+            }
+        }
+        if (sources.empty()) {
+            deferral.Complete();
+            co_return;
+        }
+
+        velocitycopy::CopyJob job{};
+        job.id = next_job_id_++;
+        job.sources = std::move(sources);
+        job.destination = active_destination_;
+        job.operation = active_operation_;
+        QueueOrStartCopy(std::move(job));
         deferral.Complete();
     } catch (...) {
         deferral.Complete();
