@@ -17,7 +17,8 @@ std::filesystem::path destination_root_for(
     const std::filesystem::path& source,
     const std::filesystem::path& destination,
     DestinationLayout layout,
-    const std::filesystem::file_status& status) {
+    const std::filesystem::file_status& status,
+    bool disambiguate_by_parent) {
     const bool is_directory = std::filesystem::is_directory(status);
     const bool is_regular_file = std::filesystem::is_regular_file(status);
 
@@ -31,9 +32,21 @@ std::filesystem::path destination_root_for(
     }
 
     if (is_regular_file) {
-        const auto immediate_parent = source.parent_path().filename();
-        if (!immediate_parent.empty()) {
-            return destination / immediate_parent / source.filename();
+        // Only invent a same-name parent folder when this job actually has
+        // more than one top-level source: that is the one case where two
+        // loose files sharing a filename from different folders would
+        // otherwise collide at destination/filename (OutputRegistry below
+        // throws on that). A single file/folder copy or move — by far the
+        // common case (Explorer "Copiar aqui"/"Mover aqui" on one item,
+        // Ctrl+X/Ctrl+V, a lone drag) — has nothing to disambiguate against,
+        // so it used to still get wrapped in a synthetic folder named after
+        // its source directory: copying just a file silently brought along
+        // a piece of the source's folder tree at the destination.
+        if (disambiguate_by_parent) {
+            const auto immediate_parent = source.parent_path().filename();
+            if (!immediate_parent.empty()) {
+                return destination / immediate_parent / source.filename();
+            }
         }
         return destination / source.filename();
     }
@@ -257,6 +270,7 @@ CopyPlan JobPlanner::build(const CopyJob& job) const {
     std::uint64_t next_file_id = 1;
     OutputRegistry outputs;
     std::unordered_set<std::wstring> preserved_roots;
+    const bool disambiguate_by_parent = job.sources.size() > 1;
 
     for (const auto& source : job.sources) {
         std::error_code ec;
@@ -268,7 +282,7 @@ CopyPlan JobPlanner::build(const CopyJob& job) const {
             throw_unsupported(source);
         }
 
-        const auto root = destination_root_for(source, job.destination, job.layout, status);
+        const auto root = destination_root_for(source, job.destination, job.layout, status, disambiguate_by_parent);
         if (job.layout == DestinationLayout::PreserveSourceFolder) {
             const auto root_key = normalized_path_key(root);
             if (root_key.empty() || !preserved_roots.insert(root_key).second) {
