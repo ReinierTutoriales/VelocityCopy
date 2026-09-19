@@ -148,3 +148,8 @@ Explorer commands that require destination or layout choices use a transient she
 
 
 The shell destination chooser keeps a bounded desktop width and a minimum scrollable destination-list viewport. Long destination paths remain single-line ellipsized metadata rather than forcing flyout width growth. Transitions between destination and layout steps remeasure the shell-flow content so controls are not clipped by dimensions inherited from the previous step.
+
+
+### Window movement
+
+The compact copier must remain directly movable with normal pointer dragging. Its custom title-bar drag region spans a practical 32 epx band across the top of the copier surface, while interactive controls remain above it in hit testing. Do not reduce the drag target to a decorative sliver; an 8 epx region is not an acceptable desktop drag affordance.
