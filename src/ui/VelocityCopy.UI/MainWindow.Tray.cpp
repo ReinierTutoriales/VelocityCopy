@@ -45,7 +45,11 @@ void MainWindow::InitializeTrayIntegration() {
             return;
         }
 
-        (void)AddClipboardFormatListener(hwnd_);
+        if (AddClipboardFormatListener(hwnd_)) {
+            // Explorer may already contain a file Copy/Cut operation when VelocityCopy starts.
+            // Seed staging immediately; later changes arrive through WM_CLIPBOARDUPDATE.
+            CaptureClipboardFileSelection();
+        }
 
         std::array<wchar_t, 32768> module_path{};
         SHFILEINFOW shell_info{};
