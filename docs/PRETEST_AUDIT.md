@@ -4,14 +4,17 @@ Status: pre-release manual test gate
 
 ## Confirmed automated baseline
 
-The Windows CI gate must be green before using an artifact for manual testing:
+The Windows CI and Package gates must be green before using an artifact for manual testing:
 
-- x64 Release configure/build
-- core test suite
+- x64 Release configure/build and core `ctest`
+- ARM64 Release configure/build of the core
+- RelWithDebInfo ASan compile (`VELOCITYCOPY_ENABLE_ASAN=ON`); ASan tests are not executed on GitHub-hosted runners
 - self-contained WinUI 3 Release builds for x64 and ARM64
-- classic NSIS installer generation for x64 and ARM64
+- classic NSIS installer generation for x64 and ARM64 without Chocolatey
 - x64 smoke install/uninstall
-- artifact upload
+- artifact upload of `VelocityCopy-Setup-x64.exe` and `VelocityCopy-Setup-ARM64.exe`
+
+See `docs/RELEASE_GATES.md` before changing workflows.
 
 ## Fixed during pre-test audit
 

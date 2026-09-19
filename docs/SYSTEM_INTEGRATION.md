@@ -103,3 +103,6 @@ A build is not ready for manual Explorer/startup testing unless packaging proves
 - classic NSIS installers are produced for both architectures
 - Explorer shell DLL is included in each installer payload
 - the x64 installer installs and uninstalls cleanly on x64 Windows
+- ASan remains a RelWithDebInfo compile gate; do not block releases on MSVC ASan test execution on GitHub-hosted runners
+
+See `docs/RELEASE_GATES.md` for the workflow tokens that architecture tests require.
