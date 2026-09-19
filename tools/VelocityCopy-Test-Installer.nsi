@@ -49,6 +49,8 @@ Section "Install VelocityCopy" SEC_INSTALL
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "DisplayVersion" "${DISPLAY_VERSION}"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "DisplayIcon" "$INSTDIR\VelocityCopy.WinUI.exe,0"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "InstallLocation" "$INSTDIR"
+  ; Installer owns startup registration. Runtime must never create/repair this value.
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "VelocityCopy" '"$INSTDIR\VelocityCopy.WinUI.exe" --startup'
   WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "NoModify" 1
   WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "NoRepair" 1
 SectionEnd
@@ -56,6 +58,7 @@ SectionEnd
 Section "Uninstall"
   Delete "$SMPROGRAMS\VelocityCopy\VelocityCopy.lnk"
   RMDir "$SMPROGRAMS\VelocityCopy"
+  DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "VelocityCopy"
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy"
   RMDir /r "$INSTDIR"
 SectionEnd
