@@ -195,7 +195,7 @@ void MainWindow::OnQueueKeyDown(IInspectable const&, KeyRoutedEventArgs const& a
 void MainWindow::OnQueueClick(IInspectable const&, RoutedEventArgs const&) {
     const bool expanding = QueuePanel().Visibility() != Visibility::Visible;
     QueuePanel().Visibility(expanding ? Visibility::Visible : Visibility::Collapsed);
-    QueueButton().Content(box_value(hstring(expanding ? L"▾" : L"▸")));
+    QueueChevron().Glyph(expanding ? L"\xE70E" : L"\xE70D");
     try {
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
         const auto label = loader.GetString(expanding ? L"ActionHideQueue" : L"ActionShowQueue");
