@@ -42,6 +42,11 @@ int main() {
         !contains(xaml, "x:Name=\"ProgressPercentText\"") ||
         !contains(xaml, "x:Name=\"BrandLogo\"") ||
         !contains(xaml, "Source=\"Assets/VelocityCopy.png\"") ||
+        !contains(xaml, "x:Name=\"PauseIcon\"") ||
+        !contains(xaml, "x:Name=\"SkipIcon\"") ||
+        !contains(xaml, "x:Name=\"StopIcon\"") ||
+        !contains(xaml, "x:Name=\"CancelIcon\"") ||
+        !contains(xaml, "x:Name=\"OptionsIcon\"") ||
         !contains(xaml, "x:Name=\"QueueButton\"") ||
         !contains(xaml, "x:Name=\"QueueChevron\"") ||
         !contains(xaml, "Glyph=\"&#xE70D;\"") ||
@@ -96,7 +101,10 @@ int main() {
         return fail(8, "whole-window drop surface must accept items only for an active transfer session");
     }
 
-    if (!contains(xaml, "Background=\"{ThemeResource AccentFillColorDefaultBrush}\"") ||
+    if (contains(execution, "QueueButton().Content") ||
+        contains(queue, "QueueButton().Content") ||
+        !contains(xaml, "FontFamily=\"Segoe Fluent Icons\"") ||
+        !contains(xaml, "Background=\"{ThemeResource AccentFillColorDefaultBrush}\"") ||
         contains(xaml, "x:Name=\"TransferSurface\" CornerRadius=") ||
         contains(xaml, "Background=\"#") || contains(xaml, "BorderBrush=\"#") ||
         contains(xaml, "Foreground=\"#")) {
