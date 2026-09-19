@@ -38,26 +38,31 @@ ShowUninstDetails show
 !insertmacro MUI_PAGE_FINISH
 !insertmacro MUI_LANGUAGE "English"
 
+; Some NSIS packages omit the LogicLib ${IsARM64} helper. Detect native ARM64
+; with IsWow64Process2 (IMAGE_FILE_MACHINE_ARM64 = 0xAA64 = 43620) instead.
 Function .onInit
   SetRegView 64
-  ${If} "${PAYLOAD_ARCH}" == "x64"
-    ${IfNot} ${RunningX64}
-      MessageBox MB_ICONSTOP "VelocityCopy requires 64-bit Windows."
-      Abort
-    ${EndIf}
-    ${If} ${IsARM64}
-      MessageBox MB_ICONSTOP "This installer is for x64 Windows. Use VelocityCopy-Setup-ARM64.exe."
-      Abort
-    ${EndIf}
-  ${ElseIf} "${PAYLOAD_ARCH}" == "ARM64"
-    ${IfNot} ${IsARM64}
-      MessageBox MB_ICONSTOP "This installer is for Windows on ARM. Use VelocityCopy-Setup-x64.exe."
-      Abort
-    ${EndIf}
-  ${Else}
-    MessageBox MB_ICONSTOP "Unknown VelocityCopy installer architecture."
+  System::Call "kernel32::GetCurrentProcess()p.r0"
+  System::Call "kernel32::IsWow64Process2(pr0,*i.r1,*i.r2)i.r3"
+!if "${PAYLOAD_ARCH}" == "x64"
+  ${IfNot} ${RunningX64}
+    MessageBox MB_ICONSTOP "VelocityCopy requires 64-bit Windows."
     Abort
   ${EndIf}
+  ${If} $3 <> 0
+  ${AndIf} $2 = 43620
+    MessageBox MB_ICONSTOP "This installer is for x64 Windows. Use VelocityCopy-Setup-ARM64.exe."
+    Abort
+  ${EndIf}
+!else if "${PAYLOAD_ARCH}" == "ARM64"
+  ${If} $3 = 0
+  ${OrIf} $2 <> 43620
+    MessageBox MB_ICONSTOP "This installer is for Windows on ARM. Use VelocityCopy-Setup-x64.exe."
+    Abort
+  ${EndIf}
+!else
+  !error "PAYLOAD_ARCH must be x64 or ARM64"
+!endif
 FunctionEnd
 
 Section "Install VelocityCopy" SEC_INSTALL
