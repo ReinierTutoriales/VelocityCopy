@@ -101,7 +101,7 @@
                             Padding="0"
                             BorderThickness="0"
                             Background="Transparent"
-                            Margin="8,0,2,0">
+                            Margin="12,0,4,0">
                         <FontIcon x:Name="PauseIcon"
                                   FontFamily="Segoe Fluent Icons"
                                   Glyph="&#xE769;"
@@ -117,7 +117,7 @@
                             Padding="0"
                             BorderThickness="0"
                             Background="Transparent"
-                            Margin="0,0,2,0">
+                            Margin="0,0,4,0">
                         <FontIcon x:Name="SkipIcon"
                                   FontFamily="Segoe Fluent Icons"
                                   Glyph="&#xE893;"
@@ -133,7 +133,7 @@
                             Padding="0"
                             BorderThickness="0"
                             Background="Transparent"
-                            Margin="0,0,2,0">
+                            Margin="0,0,4,0">
                         <FontIcon x:Name="StopIcon"
                                   FontFamily="Segoe Fluent Icons"
                                   Glyph="&#xE71A;"
@@ -149,7 +149,7 @@
                             Padding="0"
                             BorderThickness="0"
                             Background="Transparent"
-                            Margin="0,0,2,0">
+                            Margin="0,0,4,0">
                         <FontIcon x:Name="CancelIcon"
                                   FontFamily="Segoe Fluent Icons"
                                   Glyph="&#xE711;"
@@ -163,7 +163,7 @@
                             Padding="0"
                             BorderThickness="0"
                             Background="Transparent"
-                            Margin="0,0,4,0">
+                            Margin="0,0,10,0">
                         <FontIcon x:Name="OptionsIcon"
                                   FontFamily="Segoe Fluent Icons"
                                   Glyph="&#xE713;"
@@ -179,7 +179,7 @@
                             Padding="0"
                             BorderThickness="0"
                             Background="Transparent"
-                            Margin="2,0,0,0">
+                            Margin="0,0,0,0">
                         <FontIcon x:Name="QueueChevron"
                                   FontFamily="Segoe Fluent Icons"
                                   Glyph="&#xE70D;"
