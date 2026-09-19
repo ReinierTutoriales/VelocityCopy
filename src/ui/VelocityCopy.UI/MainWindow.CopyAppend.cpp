@@ -42,7 +42,7 @@ void MainWindow::OnQueueOrStartCopyClick(IInspectable const&, RoutedEventArgs co
     }
 
     pending_flow_operation_ = velocitycopy::FileOperation::Copy;
-    DropFlowFlyout().Hide();
+    ShellFlowFlyout().Hide();
     QueueOrStartCopy(std::move(*job));
 }
 

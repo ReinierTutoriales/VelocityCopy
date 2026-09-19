@@ -191,3 +191,8 @@ If two documents conflict, do not guess. Reconcile them in one documentation cha
 ### Regression lesson: removing named XAML controls
 
 When a named XAML control is removed, search every WinUI translation unit and architecture test for generated accessor usage before committing. A core-only build can stay green while the self-contained WinUI build fails later, so UI structural changes are not complete until the WinUI target compiles. Architecture tests must protect the behavior/ownership contract rather than require a removed implementation detail.
+
+
+### Regression lesson: generated XAML accessor renames
+
+Renaming an `x:Name` changes the generated C++ accessor. Before committing such a rename, search every WinUI translation unit for the old accessor, not only the file implementing the feature being renamed. Architecture coverage for a rename must scan all production files that can call that accessor; core-only CI does not compile the WinUI generated accessors.

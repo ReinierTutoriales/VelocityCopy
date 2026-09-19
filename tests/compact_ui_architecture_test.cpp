@@ -29,11 +29,13 @@ int main() {
     const auto xaml = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml");
     const auto execution = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Execution.cpp");
     const auto queue = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Queue.cpp");
+    const auto copy_append = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.CopyAppend.cpp");
+    const auto shell = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Shell.cpp");
     const auto window = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
     const auto tokens = read_all(root / "src/ui/DesignTokens.xaml");
     const auto spec = read_all(root / "docs/UI_SPEC.md");
 
-    if (xaml.empty() || execution.empty() || queue.empty() || window.empty() || tokens.empty() || spec.empty()) {
+    if (xaml.empty() || execution.empty() || queue.empty() || copy_append.empty() || shell.empty() || window.empty() || tokens.empty() || spec.empty()) {
         return fail(1, "required UI source missing");
     }
 
@@ -88,6 +90,8 @@ int main() {
     }
 
     if (contains(xaml, "DropFlowFlyout") ||
+        contains(copy_append, "DropFlowFlyout") ||
+        contains(shell, "DropFlowFlyout") ||
         contains(xaml, "DropFlowContent") ||
         !contains(xaml, "x:Name=\"ShellFlowFlyout\"") ||
         !contains(xaml, "x:Name=\"ShellFlowContent\"") ||
