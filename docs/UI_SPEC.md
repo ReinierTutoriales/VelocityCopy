@@ -87,6 +87,8 @@ The queue is collapsed by default. Expanding it must not create an entirely diff
 - controls: Subir, Bajar, Eliminar
 - Delete removes selected pending entries from the copy plan, never source files
 - current/completed entries are not reorderable
+- the expanded queue is a continuation of the same window surface: no queue card background, inner rounded container, or second visual shell
+- expansion measures the realized queue layout before resizing the existing HWND so header, list, and edit controls remain inside the visible client area
 
 For very large queues, never instantiate a visual element for every file.
 

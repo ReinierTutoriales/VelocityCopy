@@ -197,14 +197,14 @@
         <Grid x:Name="QueuePanel"
               Grid.Row="1"
               Visibility="Collapsed"
-              Padding="12,6,12,12">
+              Padding="12,8,12,12">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <Grid x:Name="QueueHeader">
+            <Grid x:Name="QueueHeader" MinHeight="28">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
@@ -219,7 +219,7 @@
 
             <ListView x:Name="QueueList"
                       Grid.Row="1"
-                      Margin="0,6,0,0"
+                      Margin="0,4,0,0"
                       MaxHeight="{StaticResource QueueMaxHeightCompact}"
                       SelectionMode="Extended"
                       SelectionChanged="OnQueueSelectionChanged"
@@ -232,7 +232,7 @@
                       DragItemsCompleted="OnQueueDragItemsCompleted"
                       HorizontalContentAlignment="Stretch" />
 
-            <Grid Grid.Row="2" Margin="0,8,0,0">
+            <Grid Grid.Row="2" Margin="0,6,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />

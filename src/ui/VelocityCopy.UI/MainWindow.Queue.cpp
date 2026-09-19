@@ -205,6 +205,7 @@ void MainWindow::OnQueueClick(IInspectable const&, RoutedEventArgs const&) {
     }
     if (expanding) {
         RefreshQueue();
+        QueueList().UpdateLayout();
         ResizeWindowToContent();
     } else {
         ResizeWindow(72);
