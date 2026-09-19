@@ -87,11 +87,11 @@ int main() {
         !contains(xaml, "DragOver=\"OnDragOver\"") ||
         !contains(xaml, "DragLeave=\"OnDragLeave\"") ||
         !contains(xaml, "Drop=\"OnDrop\"") ||
-        !contains(xaml, "x:Name=\"DragOverlay\"") ||
+        contains(xaml, "x:Name=\"DragOverlay\"") ||
         !contains(window, "void MainWindow::OnDragEnter") ||
-        !contains(window, "DataPackageOperation::None") ||
-        !contains(window, "transport_operation != DataPackageOperation::None ? Visibility::Visible : Visibility::Collapsed")) {
-        return fail(8, "whole-window drop surface must provide immediate validated drag feedback");
+        !contains(window, "active_session") ||
+        !contains(window, "DataPackageOperation::None")) {
+        return fail(8, "whole-window drop surface must accept items only for an active transfer session");
     }
 
     if (!contains(xaml, "Background=\"{ThemeResource AccentFillColorDefaultBrush}\"") ||
