@@ -34,7 +34,7 @@ jobs:
       - name: Configure and build core
         shell: pwsh
         run: |
-          cmake -S . -B build/x64 -A x64
+          cmake -S . -B build/x64 -A x64 -DVELOCITYCOPY_HYBRID_CRT=ON
           if ($LASTEXITCODE -ne 0) { throw "CMake configure failed" }
           cmake --build build/x64 --config Release --target velocitycopy_core VelocityCopyShell --parallel
           if ($LASTEXITCODE -ne 0) { throw "Core build failed" }
