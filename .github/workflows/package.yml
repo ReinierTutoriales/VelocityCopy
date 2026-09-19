@@ -36,7 +36,7 @@ jobs:
         run: |
           cmake -S . -B build/x64 -A x64
           if ($LASTEXITCODE -ne 0) { throw "CMake configure failed" }
-          cmake --build build/x64 --config Release --parallel
+          cmake --build build/x64 --config Release --target velocitycopy_core VelocityCopyShell --parallel
           if ($LASTEXITCODE -ne 0) { throw "Core build failed" }
 
       - name: Build self-contained WinUI x64
@@ -59,28 +59,16 @@ jobs:
           }
           if (-not $exe) { throw "VelocityCopy.WinUI.exe was not produced" }
           $source = $exe.Directory.FullName
-          $payload = "artifacts/portable-x64"
+          $payload = "artifacts/installer-payload-x64"
           Remove-Item $payload -Recurse -Force -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Force $payload | Out-Null
           Get-ChildItem $source -File | Where-Object { $_.Extension -notin '.pdb','.ilk','.lib','.exp','.iobj','.ipdb' } | Copy-Item -Destination $payload
           Get-ChildItem $source -Directory | ForEach-Object { Copy-Item $_.FullName -Destination $payload -Recurse }
-          if (-not (Test-Path "$payload/VelocityCopy.WinUI.exe")) { throw "Portable payload is missing executable" }
+          if (-not (Test-Path "$payload/VelocityCopy.WinUI.exe")) { throw "Installer payload is missing executable" }
           $forbidden = @(Get-ChildItem $payload -Recurse -File | Where-Object { $_.Extension -in '.msix','.msixbundle','.appx','.appxbundle','.cer','.pfx' })
-          if ($forbidden.Count) { throw "Portable payload contains package/certificate artifacts" }
+          if ($forbidden.Count) { throw "Installer payload contains package/certificate artifacts" }
           $size = (Get-ChildItem $payload -Recurse -File | Measure-Object Length -Sum).Sum
           Write-Host ("Self-contained x64 payload: {0:N1} MB" -f ($size / 1MB))
-
-      - name: Publish portable x64
-        shell: pwsh
-        run: Compress-Archive -Path artifacts/portable-x64/* -DestinationPath "artifacts/VelocityCopy-Portable-x64.zip" -CompressionLevel Optimal
-
-      - name: Upload portable x64
-        uses: actions/upload-artifact@v4
-        with:
-          name: VelocityCopy-Portable-x64-${{ env.VELOCITYCOPY_VERSION }}
-          path: artifacts/VelocityCopy-Portable-x64.zip
-          if-no-files-found: error
-          retention-days: 14
 
       - name: Build classic x64 installer
         shell: pwsh
@@ -89,7 +77,7 @@ jobs:
             Where-Object { Test-Path $_ } | Select-Object -First 1
           if (-not $makensis) { throw "NSIS is unavailable on the runner" }
           New-Item -ItemType Directory -Force artifacts/installer | Out-Null
-          $payload = (Resolve-Path artifacts/portable-x64).Path
+          $payload = (Resolve-Path artifacts/installer-payload-x64).Path
           $output = Join-Path (Resolve-Path artifacts/installer).Path "VelocityCopy-Setup-x64.exe"
           & $makensis "/DPAYLOAD_DIR=$payload" "/DOUTPUT_FILE=$output" "/DDISPLAY_VERSION=$env:VELOCITYCOPY_VERSION" tools/VelocityCopy-Test-Installer.nsi
           if ($LASTEXITCODE -ne 0 -or -not (Test-Path $output)) { throw "Classic installer build failed" }
