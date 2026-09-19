@@ -115,74 +115,28 @@ int main() {
     }
 
     if (!contains(package_workflow, "workflow_dispatch:") ||
-        !contains(package_workflow, "tags:") ||
-        !contains(package_workflow, "GenerateAppxPackageOnBuild=true") ||
-        !contains(package_workflow, "Build WinUI 3 ARM64 Release and MSIX") ||
-        !contains(package_workflow, "/p:Platform=ARM64") ||
-        !contains(package_workflow, "AppPackages-ARM64") ||
-        !contains(package_workflow, "Bundle and sign Windows test package") ||
-        !contains(package_workflow, "makeappx bundle") ||
-        !contains(package_workflow, "VelocityCopy.msixbundle") ||
-        !contains(package_workflow, "Get-AuthenticodeSignature -FilePath $bundle") ||
-        !contains(package_workflow, "SignerCertificate.Thumbprint -ne $cert.Thumbprint") ||
-        !contains(package_workflow, "signtool") ||
-        !contains(package_workflow, "VelocityCopy-Test.cer") ||
-        !contains(package_workflow, "VelocityCopy-Setup.exe") ||
-        !contains(package_workflow, "Build single-file Windows installer") ||
-        !contains(package_workflow, "VelocityCopy-Setup") ||
-        !contains(package_workflow, "Stamp test package version") ||
-        !contains(package_workflow, "GITHUB_RUN_NUMBER") ||
-        !contains(package_workflow, "Smoke install single-file Windows installer") ||
-        !contains(package_workflow, "Start-Process -FilePath $setup -ArgumentList \"/S\"") ||
-        !contains(package_workflow, "Get-AppxPackage -Name \"ReinierTutoriales.VelocityCopy\"") ||
-        !contains(package_workflow, "Start-Process -FilePath $uninstaller -ArgumentList \"/S\"") ||
-        !contains(package_workflow, "package remains installed after setup smoke uninstall") ||
-        !contains(package_workflow, "VelocityCopy-Install.log")) {
-        return fail(9, "release packaging must build ARM64, create/sign the universal bundle, smoke install the actual setup EXE, emit deployment diagnostics, uninstall it, and publish one installer EXE");
-    }
-
-    if (!contains(installer, "Import-Certificate") ||
-        !contains(installer, "Add-AppxPackage") ||
-        !contains(installer, "-DependencyPath $dependencies") ||
-        !contains(installer, "Remove-AppxPackage") ||
-        !contains(installer, "LocalMachine\\TrustedPeople") ||
-        !contains(installer, "$currentThumbprint = $bundledCert.Thumbprint") ||
-        !contains(installer, "VelocityCopy.msixbundle") ||
-        !contains(installer, "\"X64\" { \"x64\" }") ||
-        !contains(installer, "\"Arm64\" { \"arm64\" }") ||
-        !contains(installer, "RuntimeInformation]::OSArchitecture") ||
-        contains(installer, "RuntimeInformation]::ProcessArchitecture") ||
-        contains(installer, "\"X86\" { \"x86\" }") ||
-        !contains(package_workflow, "Audit generated MSIX manifests") ||
-        !contains(package_workflow, "PackageDependency") ||
-        !contains(package_workflow, "Identity.Name") ||
-        !contains(package_workflow, "Microsoft.UI.Xaml*") ||
-        !contains(package_workflow, "Staged dependency Identity Name") ||
-        !contains(installer, "previousThumbprint") ||
-        !contains(installer, "previousTrustedPath") ||
-        !contains(installer, "VelocityCopy-Install.log") ||
-        !contains(installer, "Is64BitOperatingSystem") ||
-        !contains(installer, "build 22000 or newer")) {
-        return fail(10, "embedded installer must use one AppX package-graph deployment with exact signer trust and native x64/ARM64 dependencies");
+        !contains(package_workflow, "Build self-contained WinUI x64") ||
+        !contains(package_workflow, "WindowsAppSDKSelfContained=true") ||
+        !contains(package_workflow, "Stage autonomous x64 payload") ||
+        !contains(package_workflow, "VelocityCopy-Portable-x64.zip") ||
+        !contains(package_workflow, "VelocityCopy-Setup-x64.exe") ||
+        !contains(package_workflow, "Smoke install classic x64 installer") ||
+        !contains(package_workflow, "Smoke uninstall classic x64 installer") ||
+        contains(package_workflow, "Add-AppxPackage") ||
+        contains(package_workflow, "GenerateAppxPackageOnBuild=true") ||
+        contains(package_workflow, "VelocityCopy.msixbundle")) {
+        return fail(9, "release packaging must build an autonomous portable payload and validate classic install/uninstall without AppX deployment");
     }
 
     if (!contains(installer_exe, "RequestExecutionLevel admin") ||
-        !contains(installer_exe, "!include \"x64.nsh\"") ||
-        !contains(installer_exe, "${DisableX64FSRedirection}") ||
-        !contains(installer_exe, "${EnableX64FSRedirection}") ||
-        !contains(installer_exe, "/SD IDOK") ||
-        !contains(installer_exe, "Install-VelocityCopy-Test.ps1") ||
-        !contains(installer_exe, "VelocityCopy-Install.log") ||
-        !contains(installer_exe, "SetErrorLevel $0") ||
         !contains(installer_exe, "PAYLOAD_DIR") ||
-        !contains(installer_exe, "OUTPUT_FILE") ||
-        !contains(installer_exe, "DISPLAY_VERSION") ||
-        !contains(installer_exe, "${DISPLAY_VERSION}") ||
+        !contains(installer_exe, "VelocityCopy.WinUI.exe") ||
         !contains(installer_exe, "WriteUninstaller") ||
-        !contains(installer_exe, "Windows\\CurrentVersion\\Uninstall\\VelocityCopy") ||
-        !contains(package_workflow, "VELOCITYCOPY_PACKAGE_VERSION") ||
-        !contains(package_workflow, "/DDISPLAY_VERSION=$env:VELOCITYCOPY_PACKAGE_VERSION")) {
-        return fail(11, "single-file installer must self-elevate, preserve deployment diagnostics and inherit the stamped package version");
+        !contains(installer_exe, "CreateShortcut") ||
+        !contains(installer_exe, "Windows\\\\CurrentVersion\\\\Uninstall\\\\VelocityCopy") ||
+        contains(installer_exe, "Install-VelocityCopy-Test.ps1") ||
+        contains(installer_exe, "Add-AppxPackage")) {
+        return fail(10, "classic installer must copy the autonomous payload, create shortcuts and register a conventional uninstaller");
     }
 
     if (!contains(shell_window, "PasteToFolder") ||
