@@ -424,7 +424,7 @@ void MainWindow::CancelCurrentSession() {
         QueueCountText().Text(L"0");
         QueueButton().IsEnabled(false);
         QueuePanel().Visibility(Visibility::Collapsed);
-        QueueButton().Content(box_value(hstring(L"▸")));
+        QueueChevron().Glyph(L"\xE70D");
         ResizeWindow(72);
         SetExecutionButtonsIdle();
         SpeedText().Text(L"—");
@@ -549,7 +549,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         RefreshQueue();
         QueueButton().IsEnabled(false);
         QueuePanel().Visibility(Visibility::Collapsed);
-        QueueButton().Content(box_value(hstring(L"▸")));
+        QueueChevron().Glyph(L"\xE70D");
         ResizeWindow(72);
         SetExecutionButtonsIdle();
         SpeedText().Text(L"—");
@@ -576,7 +576,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         RefreshQueue();
         QueueButton().IsEnabled(false);
         QueuePanel().Visibility(Visibility::Collapsed);
-        QueueButton().Content(box_value(hstring(L"▸")));
+        QueueChevron().Glyph(L"\xE70D");
         ResizeWindow(72);
         SetExecutionButtonsIdle();
         SpeedText().Text(L"—");
@@ -595,7 +595,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     RefreshQueue();
     QueueButton().IsEnabled(false);
     QueuePanel().Visibility(Visibility::Collapsed);
-    QueueButton().Content(box_value(hstring(L"▸")));
+    QueueChevron().Glyph(L"\xE70D");
     ResizeWindow(72);
     SetExecutionButtonsIdle();
     SpeedText().Text(L"—");
@@ -638,7 +638,7 @@ void MainWindow::FinalizeStoppedSessionIfEmpty() {
     RefreshQueue();
     QueueButton().IsEnabled(false);
     QueuePanel().Visibility(Visibility::Collapsed);
-    QueueButton().Content(box_value(hstring(L"▸")));
+    QueueChevron().Glyph(L"\xE70D");
     ResizeWindow(72);
     SetExecutionButtonsIdle();
     GlobalProgress().Value(100);
