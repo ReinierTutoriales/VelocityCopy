@@ -1,5 +1,6 @@
 param(
     [switch]$Uninstall,
+    [string]$SetupPath,
     [string]$LogPath = (Join-Path $env:TEMP "VelocityCopy-Install.log")
 )
 
@@ -21,222 +22,78 @@ function Test-IsAdministrator {
     return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
+function Get-NativeSetupName {
+    $osArchitecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+    switch ($osArchitecture) {
+        "X64" { return "VelocityCopy-Setup-x64.exe" }
+        "Arm64" { return "VelocityCopy-Setup-ARM64.exe" }
+        default { throw "Unsupported Windows architecture: $osArchitecture" }
+    }
+}
+
 try {
     if (Test-Path -LiteralPath $LogPath -PathType Leaf) {
         Remove-Item -LiteralPath $LogPath -Force -ErrorAction SilentlyContinue
     }
 
-    Write-InstallLog "VelocityCopy package operation started."
+    Write-InstallLog "VelocityCopy classic installer operation started."
 
     if (-not (Test-IsAdministrator)) {
         throw "VelocityCopy installer requires Administrator privileges."
     }
 
     if (-not [Environment]::Is64BitOperatingSystem) {
-        throw "VelocityCopy test builds require 64-bit Windows."
+        throw "VelocityCopy requires 64-bit Windows."
     }
 
     $windowsBuild = [Environment]::OSVersion.Version.Build
     if ($windowsBuild -lt 22000) {
-        throw "VelocityCopy test builds require Windows 11 (build 22000 or newer)."
+        throw "VelocityCopy requires Windows 11 (build 22000 or newer)."
     }
 
     $root = Split-Path -Parent $MyInvocation.MyCommand.Path
-    $certificate = Join-Path $root "VelocityCopy-Test.cer"
-    $packageName = "ReinierTutoriales.VelocityCopy"
-    $machineStore = "Cert:\LocalMachine\TrustedPeople"
-    $installedSupportCert = Join-Path $env:ProgramFiles "VelocityCopy\InstallerSupport\VelocityCopy-Test.cer"
-    $previousThumbprint = $null
-
-    if (Test-Path -LiteralPath $installedSupportCert -PathType Leaf) {
-        try {
-            $previousCert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($installedSupportCert)
-            $previousThumbprint = $previousCert.Thumbprint
-            $previousCert.Dispose()
-        } catch {
-            $previousThumbprint = $null
-        }
+    $setupName = Get-NativeSetupName
+    if (-not $SetupPath) {
+        $candidates = @(
+            (Join-Path $root $setupName),
+            (Join-Path (Split-Path -Parent $root) "artifacts\installer\$setupName")
+        )
+        $SetupPath = $candidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
     }
 
+    $installRoot = Join-Path $env:ProgramFiles "VelocityCopy"
+    $uninstaller = Join-Path $installRoot "Uninstall.exe"
+
     if ($Uninstall) {
-        Write-InstallLog "Removing VelocityCopy MSIX package."
-        Get-AppxPackage -Name $packageName -ErrorAction SilentlyContinue |
-            Remove-AppxPackage -ErrorAction Stop
-
-        if (Test-Path -LiteralPath $certificate -PathType Leaf) {
-            $cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certificate)
-            $trustedPath = "$machineStore\$($cert.Thumbprint)"
-            if (Test-Path -LiteralPath $trustedPath) {
-                Remove-Item -LiteralPath $trustedPath -Force
-            }
-            $cert.Dispose()
+        if (-not (Test-Path -LiteralPath $uninstaller -PathType Leaf)) {
+            Write-InstallLog "VelocityCopy is not installed."
+            exit 0
         }
-
-        Write-InstallLog "VelocityCopy and its test signing trust were removed."
+        Write-InstallLog "Running classic uninstaller."
+        $proc = Start-Process -FilePath $uninstaller -ArgumentList "/S" -Wait -PassThru
+        if ($proc.ExitCode -ne 0) {
+            throw "Uninstaller failed with exit code $($proc.ExitCode)."
+        }
+        Write-InstallLog "VelocityCopy was removed."
         exit 0
     }
 
-    if (-not (Test-Path -LiteralPath $certificate -PathType Leaf)) {
-        throw "VelocityCopy-Test.cer is missing."
+    if (-not $SetupPath -or -not (Test-Path -LiteralPath $SetupPath -PathType Leaf)) {
+        throw "Classic installer $setupName was not found. Build Windows Package first."
     }
 
-    $bundle = Join-Path $root "VelocityCopy.msixbundle"
-    if (-not (Test-Path -LiteralPath $bundle -PathType Leaf)) {
-        throw "VelocityCopy.msixbundle is missing."
+    Write-InstallLog "Installing $($setupName) from $SetupPath."
+    $proc = Start-Process -FilePath $SetupPath -ArgumentList "/S" -Wait -PassThru
+    if ($proc.ExitCode -ne 0) {
+        throw "Installer failed with exit code $($proc.ExitCode)."
     }
 
-    $bundledCert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certificate)
-    try {
-        # The bundle is signed by CI immediately before staging. The certificate
-        # thumbprint is the trust anchor we install; cryptographic bundle validation
-        # is performed by AppX deployment itself after that exact certificate is trusted.
-        $currentThumbprint = $bundledCert.Thumbprint
-    }
-    finally {
-        $bundledCert.Dispose()
+    $exe = Join-Path $installRoot "VelocityCopy.WinUI.exe"
+    if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) {
+        throw "Installed executable is missing."
     }
 
-    $trustedPath = "$machineStore\$currentThumbprint"
-    if (-not (Test-Path -LiteralPath $trustedPath)) {
-        Write-InstallLog "Trusting the exact VelocityCopy test signing certificate in LocalMachine\TrustedPeople."
-        Import-Certificate -FilePath $certificate -CertStoreLocation $machineStore | Out-Null
-    }
-
-    # Select dependencies for the native OS architecture, not the bitness of the
-    # PowerShell host that NSIS happened to launch.
-    $osArchitecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
-    $dependencyArchitecture = switch ($osArchitecture) {
-        "X64" { "x64" }
-        "Arm64" { "arm64" }
-        default { throw "Unsupported Windows architecture: $osArchitecture" }
-    }
-    $dependencyRoot = Join-Path $root ("Dependencies\" + $dependencyArchitecture)
-    if (-not (Test-Path -LiteralPath $dependencyRoot -PathType Container)) {
-        throw "Required $dependencyArchitecture dependency directory was not found."
-    }
-
-    # The CI staging gate resolves the application's declared dependency graph by
-    # package Identity Name. At install time, pass exactly that audited staged set.
-    # Do not reinterpret dependency filenames or maintain a second allow/deny policy.
-    $dependencies = @(
-        Get-ChildItem -LiteralPath $dependencyRoot -File |
-            Where-Object { $_.Extension -in ".appx", ".msix" } |
-            Select-Object -ExpandProperty FullName
-    )
-    if ($dependencies.Count -eq 0) {
-        throw "Required $dependencyArchitecture dependency packages were not found."
-    }
-    foreach ($dependency in $dependencies) {
-        Write-InstallLog "Using audited dependency package: $([IO.Path]::GetFileName($dependency))"
-    }
-
-    Write-InstallLog "Deploying VelocityCopy bundle for $dependencyArchitecture with $($dependencies.Count) direct dependency package(s)."
-
-    # Let AppX Deployment resolve the package graph atomically. This handles
-    # framework ordering and already-installed newer framework versions correctly.
-    Add-AppxPackage `
-        -Path $bundle `
-        -DependencyPath $dependencies `
-        -ForceApplicationShutdown `
-        -ErrorAction Stop
-
-    $installedApp = Get-AppxPackage -Name $packageName -ErrorAction SilentlyContinue |
-        Select-Object -First 1
-    if (-not $installedApp) {
-        throw "VelocityCopy package did not register successfully."
-    }
-
-    if ($previousThumbprint -and $previousThumbprint -ne $currentThumbprint) {
-        $previousTrustedPath = "$machineStore\$previousThumbprint"
-        if (Test-Path -LiteralPath $previousTrustedPath) {
-            Remove-Item -LiteralPath $previousTrustedPath -Force -ErrorAction SilentlyContinue
-        }
-    }
-
-    Write-InstallLog "VelocityCopy installed successfully as $($installedApp.PackageFullName)."
-    exit 0
-}
-catch {
-    Write-InstallLog ("ERROR: " + $_.Exception.Message)
-    if ($_.InvocationInfo -and $_.InvocationInfo.PositionMessage) {
-        Write-InstallLog $_.InvocationInfo.PositionMessage
-    }
-    exit 1
-}
- } |
-            Sort-Object FullName -Descending |
-            Select-Object -First 1 -ExpandProperty FullName
-        if (-not $signtool) {
-            throw "Windows SDK SignTool.exe was not found."
-        }
-        & $signtool verify /pa /v $bundle | Out-Null
-        if ($LASTEXITCODE -ne 0) {
-            throw "VelocityCopy bundle signature verification failed with exit code $LASTEXITCODE."
-        }
-        $currentThumbprint = $bundledCert.Thumbprint
-    }
-    finally {
-        $bundledCert.Dispose()
-    }
-
-    $trustedPath = "$machineStore\$currentThumbprint"
-    if (-not (Test-Path -LiteralPath $trustedPath)) {
-        Write-InstallLog "Trusting the exact VelocityCopy test signing certificate in LocalMachine\TrustedPeople."
-        Import-Certificate -FilePath $certificate -CertStoreLocation $machineStore | Out-Null
-    }
-
-    # Select dependencies for the native OS architecture, not the bitness of the
-    # PowerShell host that NSIS happened to launch.
-    $osArchitecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
-    $dependencyArchitecture = switch ($osArchitecture) {
-        "X64" { "x64" }
-        "Arm64" { "arm64" }
-        default { throw "Unsupported Windows architecture: $osArchitecture" }
-    }
-    $dependencyRoot = Join-Path $root ("Dependencies\" + $dependencyArchitecture)
-    if (-not (Test-Path -LiteralPath $dependencyRoot -PathType Container)) {
-        throw "Required $dependencyArchitecture dependency directory was not found."
-    }
-
-    # The CI staging gate resolves the application's declared dependency graph by
-    # package Identity Name. At install time, pass exactly that audited staged set.
-    # Do not reinterpret dependency filenames or maintain a second allow/deny policy.
-    $dependencies = @(
-        Get-ChildItem -LiteralPath $dependencyRoot -File |
-            Where-Object { $_.Extension -in ".appx", ".msix" } |
-            Select-Object -ExpandProperty FullName
-    )
-    if ($dependencies.Count -eq 0) {
-        throw "Required $dependencyArchitecture dependency packages were not found."
-    }
-    foreach ($dependency in $dependencies) {
-        Write-InstallLog "Using audited dependency package: $([IO.Path]::GetFileName($dependency))"
-    }
-
-    Write-InstallLog "Deploying VelocityCopy bundle for $dependencyArchitecture with $($dependencies.Count) direct dependency package(s)."
-
-    # Let AppX Deployment resolve the package graph atomically. This handles
-    # framework ordering and already-installed newer framework versions correctly.
-    Add-AppxPackage `
-        -Path $bundle `
-        -DependencyPath $dependencies `
-        -ForceApplicationShutdown `
-        -ErrorAction Stop
-
-    $installedApp = Get-AppxPackage -Name $packageName -ErrorAction SilentlyContinue |
-        Select-Object -First 1
-    if (-not $installedApp) {
-        throw "VelocityCopy package did not register successfully."
-    }
-
-    if ($previousThumbprint -and $previousThumbprint -ne $currentThumbprint) {
-        $previousTrustedPath = "$machineStore\$previousThumbprint"
-        if (Test-Path -LiteralPath $previousTrustedPath) {
-            Remove-Item -LiteralPath $previousTrustedPath -Force -ErrorAction SilentlyContinue
-        }
-    }
-
-    Write-InstallLog "VelocityCopy installed successfully as $($installedApp.PackageFullName)."
+    Write-InstallLog "VelocityCopy installed successfully for the native OS architecture."
     exit 0
 }
 catch {
