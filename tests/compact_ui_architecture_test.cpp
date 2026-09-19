@@ -90,13 +90,12 @@ int main() {
         !contains(xaml, "x:Name=\"DragOverlay\"") ||
         !contains(window, "void MainWindow::OnDragEnter") ||
         !contains(window, "DataPackageOperation::None") ||
-        !contains(window, "operation != DataPackageOperation::None ? Visibility::Visible : Visibility::Collapsed")) {
+        !contains(window, "transport_operation != DataPackageOperation::None ? Visibility::Visible : Visibility::Collapsed")) {
         return fail(8, "whole-window drop surface must provide immediate validated drag feedback");
     }
 
-    if (!contains(xaml, "Background=\"{ThemeResource CardBackgroundFillColorDefaultBrush}\"") ||
-        !contains(xaml, "BorderBrush=\"{ThemeResource CardStrokeColorDefaultBrush}\"") ||
-        !contains(xaml, "Background=\"{ThemeResource AccentFillColorDefaultBrush}\"") ||
+    if (!contains(xaml, "Background=\"{ThemeResource AccentFillColorDefaultBrush}\"") ||
+        contains(xaml, "x:Name=\"TransferSurface\" CornerRadius=") ||
         contains(xaml, "Background=\"#") || contains(xaml, "BorderBrush=\"#") ||
         contains(xaml, "Foreground=\"#")) {
         return fail(9, "custom transfer/drop surfaces must remain system-theme driven");
