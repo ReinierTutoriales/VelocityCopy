@@ -186,5 +186,12 @@ int main() {
         return fail(23, "Explorer Cut/Paste operation must survive the shared layout flow");
     }
 
+    if (contains(shell, "ShowAt(") || !contains(shell, "flow_.choose_layout") ||
+        !contains(shell, "DestinationLayout::PreserveSourceFolder") || !contains(shell, "flow_.make_job") ||
+        !contains(shell, "QueueOrStartCopy")) {
+        return fail(24, "Explorer transfer must apply the default layout and start directly, "
+            "never block on the destination/layout flyout");
+    }
+
     return 0;
 }
