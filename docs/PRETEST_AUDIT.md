@@ -19,9 +19,7 @@ See `docs/RELEASE_GATES.md` before changing workflows.
 
 ### Clipboard staging on demand
 
-`Paste with VelocityCopy` must not require VelocityCopy to have been resident when the user pressed Copy/Cut.
-
-If a `PasteToFolder` request arrives with no staged sources, the app re-reads the current `CF_HDROP` clipboard state before dispatching the shell job. This covers startup-disabled, first-run and on-demand activation cases.
+Explorer integration now carries a complete transfer snapshot. See EXPLORER_INTEGRATION.md for the SuperCopier-style default-selection mechanism and the mandatory automatic Ctrl+V gate.
 
 ### One-click test installer
 
@@ -70,9 +68,9 @@ This does not block basic copy/move UI testing, but shutdown-recovery testing is
 
 ### Explorer Copy/Cut handoff
 
-- With VelocityCopy resident: Explorer Ctrl+C -> Paste with VelocityCopy.
-- With VelocityCopy resident: Explorer Ctrl+X -> Paste with VelocityCopy and verify source removal only after successful destination copy.
-- With VelocityCopy not resident/startup disabled: Ctrl+C or Ctrl+X first, then Paste with VelocityCopy; on-demand activation must reconstruct clipboard staging.
+- With VelocityCopy resident: Explorer Ctrl+C -> ordinary Ctrl+V.
+- With VelocityCopy resident: Explorer Ctrl+X -> ordinary Ctrl+V and verify source removal only after successful destination copy.
+- With VelocityCopy not resident/startup disabled: Ctrl+C or Ctrl+X first, then ordinary Ctrl+V; on-demand activation must preserve the data-object snapshot.
 - Repeat a Copy paste to multiple destinations.
 - Attempt a stale Cut paste after the original source was moved and verify failure is contained.
 

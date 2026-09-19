@@ -72,7 +72,6 @@ private:
     };
 
     winrt::fire_and_forget HandleDropAsync(Microsoft::UI::Xaml::DragEventArgs args);
-    winrt::fire_and_forget BeginShellDestinationAsync(std::vector<std::filesystem::path> sources);
     winrt::fire_and_forget BeginShellLayoutAsync(velocitycopy::CopyJob job);
     winrt::fire_and_forget BrowseAsync();
     winrt::fire_and_forget ShowConflictDialogAsync(velocitycopy::JobResult conflict);
@@ -89,7 +88,6 @@ private:
     void RefreshEfficiencyMode() noexcept;
     [[nodiscard]] bool HasActiveWorkForEfficiencyMode() noexcept;
     void PersistRecoveryQueueNoThrow() noexcept;
-    void CaptureClipboardFileSelection() noexcept;
     static LRESULT CALLBACK TraySubclassProc(
         HWND hwnd,
         UINT message,

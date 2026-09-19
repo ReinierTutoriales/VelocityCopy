@@ -143,6 +143,7 @@ jobs:
         shell: pwsh
         run: |
           $setup = (Resolve-Path artifacts/installer/${{ matrix.setup_name }}).Path
+          & ./tools/Test-ShellRegistration.ps1 -Phase SeedLegacy
           $install = Start-Process $setup -ArgumentList "/S" -Wait -PassThru
           if ($install.ExitCode -ne 0) { throw "Installer failed: $($install.ExitCode)" }
           $root = Join-Path $env:ProgramFiles "VelocityCopy"
@@ -152,6 +153,7 @@ jobs:
           if (-not (Test-Path $exe)) { throw "Installed executable is missing" }
           if (-not (Test-Path $uninstaller)) { throw "Uninstaller is missing" }
           if (-not (Test-Path $shellDll)) { throw "Installed shell extension is missing" }
+          & ./tools/Test-ShellRegistration.ps1 -Phase Installed
           Write-Host "Installed payload validated at $root"
 
       - name: Smoke uninstall classic x64 installer
@@ -164,6 +166,7 @@ jobs:
           if ($p.ExitCode -ne 0) { throw "Uninstaller failed: $($p.ExitCode)" }
           Start-Sleep -Seconds 2
           if (Test-Path $root) { throw "Installation directory remains after uninstall" }
+          & ./tools/Test-ShellRegistration.ps1 -Phase Uninstalled
 
       - name: Upload validated installer
         uses: actions/upload-artifact@v4

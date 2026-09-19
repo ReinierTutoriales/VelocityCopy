@@ -9,7 +9,7 @@
 
 int wmain() {
     velocitycopy::ShellRequest request{};
-    request.action = velocitycopy::ShellAction::CopySelectionTo;
+    request.action = velocitycopy::ShellAction::Transfer;
     request.sources = {std::filesystem::path(L"C:\\Media\\Novela\\capitulo1.mkv")};
     request.destination = L"D:\\Backup";
     request.layout = velocitycopy::DestinationLayout::PreserveSourceFolder;

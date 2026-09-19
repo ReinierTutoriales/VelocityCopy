@@ -55,12 +55,6 @@ std::optional<velocitycopy::ShellRequest> inherited_shell_request() noexcept {
     return request;
 }
 
-bool is_stage_only_activation(const std::optional<velocitycopy::ShellRequest>& request) noexcept {
-    return request &&
-        request->action == velocitycopy::ShellAction::CopySelection &&
-        velocitycopy::shell_request_valid(*request);
-}
-
 // Classic deployment receives startup intent explicitly via --startup.
 bool is_startup_activation() noexcept {
     // Classic/unpackaged startup is explicit. The installer is the only component
@@ -123,7 +117,7 @@ void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
 
     auto main_window = winrt::make<MainWindow>();
     window_ = main_window;
-    if (!startup_activation && !is_stage_only_activation(initial_request)) {
+    if (!startup_activation) {
         if (auto* implementation = winrt::get_self<MainWindow>(main_window)) {
             implementation->ShowFromTray();
         }

@@ -144,7 +144,7 @@ Compact transfer actions use `FontIcon` with `Segoe Fluent Icons`; runtime state
 
 ### Shell destination/layout flow
 
-Explorer commands that require destination or layout choices use a transient shell-command flyout. This flow is separate from whole-window drag/drop: active-transfer drops never open it. The flyout measures its own content and must not resize the compact copier HWND merely to avoid clipping. Legacy `DropFlowFlyout`/`DropFlowContent` UI names are prohibited because they incorrectly couple shell-command choices to drag/drop semantics.
+Explorer transfer requests that require layout choices use a transient shell-command flyout. This flow is separate from whole-window drag/drop: active-transfer drops never open it. The flyout measures its own content and must not resize the compact copier HWND merely to avoid clipping. Legacy `DropFlowFlyout`/`DropFlowContent` UI names are prohibited because they incorrectly couple shell-command choices to drag/drop semantics.
 
 
 The shell destination chooser keeps a bounded desktop width and a minimum scrollable destination-list viewport. Long destination paths remain single-line ellipsized metadata rather than forcing flyout width growth. Transitions between destination and layout steps remeasure the shell-flow content so controls are not clipped by dimensions inherited from the previous step.

@@ -1,64 +1,44 @@
-# Explorer Integration Policy
+# Explorer integration
 
-VelocityCopy integrates with File Explorer as a guest, not as an execution host.
+## Current mechanism
 
-## Goals
+The classic x64/ARM64 installer registers one native COM class under Directory, Drive and Folder / shellex / DragDropHandlers. The adapter implements IShellExtInit and IContextMenu. Initialize snapshots CF_HDROP paths from IDataObject and resolves the actual target PIDL with SHGetPathFromIDListEx. Virtual targets and missing or malformed file lists are rejected. Explicit Copy here / Move here commands carry an explicit operation in protocol version 2.
 
-- Appear in the Windows 11 modern context menu using `IExplorerCommand`.
-- Support files, folders, multi-selection and folder background commands.
-- Provide actions equivalent to **Copy with VelocityCopy**, **Paste with VelocityCopy**, **Copy to...**, and **Open VelocityCopy**.
-- Reuse the same destination/layout semantics as drag and drop.
-- Start VelocityCopy on demand when no app instance is running.
+The former selection Copy, Paste, CopyTo and Open verb classes, their resources and staging-only IPC actions are retired. Upgrade and uninstall remove their machine-wide registrations. Tray, single-instance IPC, process activation, planning and the copy/move engine remain. Clipboard staging is removed because it has no consumer in this transfer-based design.
 
-## Stability rules
+## SuperCopier-style default selection
 
-1. The shell extension must remain tiny and synchronous work must be bounded.
-2. No file enumeration, hashing, benchmarking, network access or copy execution inside Explorer.
-3. No global keyboard hooks and no interception of Explorer's own Ctrl+C/Ctrl+V implementation.
-4. `GetTitle`, `GetIcon`, `GetState` and related menu-building calls must return quickly.
-5. `Invoke` only collects the current shell selection/context and forwards a versioned `ShellRequest` to VelocityCopy.
-6. The main process owns planning, queueing, collision policy, resume, copy execution and UI.
-7. Explorer integration must fail closed: if IPC or app launch fails, Explorer continues normally.
-8. The extension must not keep background threads, timers or polling loops alive inside Explorer.
+The implementation is original code. The conceptual reference is [SuperCopier2 DDShellExt.cpp](https://github.com/gligli/SuperCopier2/blob/861e9dd/SC2C%2B%2B/DDShellExt.cpp): it adds two transfer commands and uses SetMenuDefaultItem to redirect the existing default. Its historical mapping is command 1 = Copy and command 2 = Move. VelocityCopy applies this mapping only when a recognized native default exists and otherwise preserves the existing default. Explicit invocation always wins over Preferred DropEffect. No global keyboard hooks, process injection, copy hooks or filesystem watchers are used.
 
-## Process boundary
+**This is a compatibility technique, not a documented Windows 11 interception contract.** Microsoft documents DragDropHandlers as extensions of the right-button drop menu. The numeric default command IDs and whether Explorer routes ordinary Ctrl+V or left-button drops through this menu are implementation-dependent. A successful DLL test with a synthetic menu proves the adapter's logic, not automatic Ctrl+V interception.
 
-```text
-Explorer.exe
-   |
-   |  IExplorerCommand
-   v
-VelocityCopy.Shell.dll
-   |
-   |  small versioned IPC request
-   v
-VelocityCopy.exe
-   |
-   +-- JobPlanner
-   +-- editable queue
-   +-- CopyEngine / strategy selector
-```
+Automatic Ctrl+C/Ctrl+X -> Ctrl+V is a required product gate. This change must not be described as meeting that gate until an installed Windows 11 build is exercised end to end. If Explorer bypasses this handler, do not silently substitute a manual menu and mark the gate green.
 
-## Context menu surface
+## Ownership and failure
 
-Keep the top-level surface minimal. Prefer one app-attributed VelocityCopy entry with subcommands when supported:
+The extension validates and snapshots data; it does not enumerate directories or copy files. InvokeCommand dispatches to the existing user/session-local pipe, with on-demand activation of VelocityCopy.WinUI.exe when needed. The current transport's connection timeout does not bound all synchronous pipe writes; a hung receiver remains a transport limitation.
 
-- Copy with VelocityCopy
-- Paste with VelocityCopy
-- Copy to...
-- Open VelocityCopy
+The app owns layout selection, validation, queueing, conflicts, cancellation and source deletion after successful Move. Queue admission is not transfer completion: the extension never sends PASTESUCCEEDED or a performed MOVE back to the source. A failed handoff returns failure; automatic native retry is not assumed. Shell objects are released locally and never stored in IPC. An instance rejects duplicate invocation after a successful handoff.
 
-Commands only appear when their context is meaningful. Paste is shown for a folder/background destination; copy actions require one or more selected filesystem items.
+Drag/drop onto the VelocityCopy window still appends only to an active transfer. It is distinct from Explorer's folder drop target.
 
-## Copy/Paste behavior
+## Evidence and required Windows checks
 
-VelocityCopy will not replace Windows clipboard semantics globally. A user may invoke VelocityCopy commands from Explorer, and the shell adapter passes only the selected paths and destination context. The core then applies the same layout rules already used by drag and drop:
+Automated coverage: COM lifetime, source snapshot, Unicode/ANSI CF_HDROP, malformed offsets, missing destination, bounded menu IDs, default-only queries, unknown native defaults, Copy/Move through real IPC, duplicate invocation and no premature source completion. Protocol tests reject v1, invalid operations/layouts and truncated messages.
 
-- direct: place item/content directly in destination;
-- preserve: retain only the selected folder or the immediate containing folder for a loose file, never the full ancestral tree.
+On installed Windows 11 x64 and ARM64 verify:
+- Ctrl+C -> Ctrl+V and Ctrl+X -> Ctrl+V into a normal folder and drive root;
+- right-button and left-button drops, files, folders and multiselection;
+- resident app and on-demand startup, unavailable app and cancelled layout;
+- same-volume and cross-volume Move: no premature source deletion;
+- UNC and long paths, unsupported virtual folders and other handlers;
+- upgrade removes old verbs; uninstall removes the new registration;
+- Explorer restart/sign-out after replacing a loaded DLL.
 
-## Startup and availability
+Record exact OS build, architecture, commit SHA and observed route. CI/package success alone is insufficient.
 
-Installed builds register a classic HKCU Run entry that launches VelocityCopy with `--startup`. After installation, Windows can start the primary instance silently at user sign-in so Explorer handoff is immediate. The resident app remains idle on a blocking named pipe and performs no scanning, polling, hashing or copy work until a request arrives.
+## References
 
-The shell extension still treats the app as optional: it first connects to an existing primary instance through IPC; if none is available, it launches the app on demand. No permanently running Explorer helper, Windows service, global hook or worker thread inside Explorer is required. The user can disable VelocityCopy startup through Windows Settings or Task Manager.
+- [Microsoft: creating shortcut menu and drag/drop handlers](https://learn.microsoft.com/en-us/windows/win32/shell/context-menu-handlers)
+- [Microsoft: IShellExtInit::Initialize](https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-ishellextinit-initialize)
+- [Microsoft: Shell clipboard formats](https://learn.microsoft.com/en-us/windows/win32/shell/clipboard)

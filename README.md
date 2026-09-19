@@ -35,7 +35,7 @@ Open product gaps before calling it production:
 - One overall progress view with an expandable queue
 - Pause, resume, skip, stop, cancel
 - Save and load copy queues
-- Explorer `IExplorerCommand` verbs (copy, copy-to, paste, open)
+- Explorer transfer handler with SuperCopier-style default selection (automatic Ctrl+V requires installed Windows 11 validation; see docs/EXPLORER_INTEGRATION.md)
 - Silent startup via an installer-owned HKCU Run entry (`--startup`)
 - Tray residency with EcoQoS while idle and hidden
 
