@@ -1,3 +1,0 @@
-#include "resource.h"
-
-IDI_VELOCITYCOPY ICON "../../../Logo/VelocityCopy.ico"
