@@ -274,7 +274,16 @@ jobs:
             Remove-Item -LiteralPath $auditUnpack -Recurse -Force -ErrorAction SilentlyContinue
           }
 
+      - name: Publish installable test package
+        uses: actions/upload-artifact@v4
+        with:
+          name: VelocityCopy-Test-${{ env.VELOCITYCOPY_PACKAGE_VERSION }}
+          path: artifacts/VelocityCopy-InstallerPayload/
+          if-no-files-found: error
+          retention-days: 14
       - name: Build single-file Windows installer
+        id: build_installer
+        continue-on-error: true
         shell: pwsh
         timeout-minutes: 10
         run: |
@@ -297,14 +306,16 @@ jobs:
           if (-not (Test-Path -LiteralPath $output -PathType Leaf)) { throw "VelocityCopy-Setup.exe was not produced" }
 
       - name: Upload Windows installer
+        if: steps.build_installer.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
-          name: VelocityCopy-Setup
+          name: VelocityCopy-Setup-${{ env.VELOCITYCOPY_PACKAGE_VERSION }}
           path: artifacts/installer/VelocityCopy-Setup.exe
           if-no-files-found: error
           retention-days: 14
 
       - name: Smoke install single-file Windows installer
+        if: steps.build_installer.outcome == 'success'
         id: smoke_install
         continue-on-error: true
         shell: pwsh
@@ -376,6 +387,10 @@ jobs:
             throw "VelocityCopy package remains installed after setup smoke uninstall"
           }
 
+      - name: Report single-file installer build failure
+        if: steps.build_installer.outcome == 'failure'
+        shell: pwsh
+        run: Write-Error "Installable test package was published, but the optional single-file NSIS installer could not be built."
       - name: Fail job if smoke install did not pass
         if: steps.smoke_install.outcome == 'failure'
         shell: pwsh
