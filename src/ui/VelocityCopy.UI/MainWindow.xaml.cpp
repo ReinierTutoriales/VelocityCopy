@@ -69,8 +69,17 @@ MainWindow::MainWindow() {
 void MainWindow::OnTransferSurfaceSizeChanged(
     IInspectable const&,
     SizeChangedEventArgs const& args) {
-    const auto fraction = TransferSurface().ActualWidth() > 0.0
-        ? ProgressFill().Width() / TransferSurface().ActualWidth()
+    // By the time SizeChanged fires, ActualWidth already equals NewSize, so
+    // dividing by ActualWidth here would divide by the NEW width instead of
+    // the width the fill was drawn against — the fraction always comes back
+    // as (old fill px / new width), which multiplied by the new width just
+    // reproduces the old fill in pixels. The fill never rescales, so it
+    // silently drifts out of sync with the real percentage on every resize
+    // (window drag, CompactState/ComfortableState switch) until the next
+    // progress tick happens to overwrite it. Use PreviousSize instead.
+    const auto previous_width = args.PreviousSize().Width;
+    const auto fraction = previous_width > 0.0
+        ? ProgressFill().Width() / previous_width
         : 0.0;
     ProgressFill().Width(args.NewSize().Width * (std::clamp)(fraction, 0.0, 1.0));
 }

@@ -132,5 +132,12 @@ int main() {
         return fail(9, "custom transfer/drop surfaces must remain system-theme driven");
     }
 
+    if (!contains(window, "void MainWindow::OnTransferSurfaceSizeChanged") ||
+        !contains(window, "args.PreviousSize().Width") ||
+        contains(window, "ProgressFill().Width() / TransferSurface().ActualWidth()")) {
+        return fail(10, "the integrated fill must rescale against the surface's previous width on resize, "
+            "not its already-updated ActualWidth, or it silently desyncs from the real percentage");
+    }
+
     return 0;
 }
