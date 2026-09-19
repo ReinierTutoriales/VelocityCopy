@@ -35,6 +35,12 @@ ShowUninstDetails show
 !define MUI_ABORTWARNING
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_INSTFILES
+; Without MUI_FINISHPAGE_RUN the finish page has no "launch now" option at
+; all: the wizard just closes, autostart is only registered for the NEXT
+; login (HKCU\...\Run below), and the person has to go find the Start Menu
+; shortcut themselves to run it the first time. Offer to launch immediately
+; instead, checked by default like a normal installer.
+!define MUI_FINISHPAGE_RUN "$INSTDIR\VelocityCopy.WinUI.exe"
 !insertmacro MUI_PAGE_FINISH
 !insertmacro MUI_LANGUAGE "English"
 

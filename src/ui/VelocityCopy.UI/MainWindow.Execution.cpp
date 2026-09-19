@@ -608,6 +608,14 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
                     : L"StatusCompleted"));
         } catch (...) {
         }
+        // Nothing hid the window on a clean finish: it shrank to the 72px
+        // compact bar (ResizeWindow above) but stayed on screen showing
+        // "Copia completada" until the person closed it by hand — the tray
+        // icon it left behind made this look like the app "didn't close".
+        // Only the success path with an empty queue hides automatically;
+        // a failure leaves ErrorBar/CurrentItemText visible so the reason
+        // from ShowError() isn't hidden before the person reads it.
+        HideToTray();
         return;
     }
     StartNextQueuedSession();
