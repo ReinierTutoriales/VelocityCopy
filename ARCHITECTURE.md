@@ -4,7 +4,7 @@ VelocityCopy is built around one rule: the interface must never become the copy 
 
 ## Product target
 
-- Windows 11 x64 first.
+- Windows 11 x64 and ARM64.
 - Compact, native-feeling user experience.
 - One overall progress view.
 - Expandable queue and remaining-file details.

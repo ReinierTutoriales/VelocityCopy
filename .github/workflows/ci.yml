@@ -12,18 +12,28 @@ concurrency:
 jobs:
   core:
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            cmake_arch: x64
+            test: true
+          - arch: arm64
+            cmake_arch: ARM64
+            test: false
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure x64 Release
-        run: cmake -S . -B build/x64 -A x64
+      - name: Configure ${{ matrix.arch }} Release
+        run: cmake -S . -B build/${{ matrix.cmake_arch }} -A ${{ matrix.cmake_arch }}
 
       - name: Build core
-        run: cmake --build build/x64 --config Release --parallel
+        run: cmake --build build/${{ matrix.cmake_arch }} --config Release --parallel
 
       - name: Test core
+        if: ${{ matrix.test }}
         timeout-minutes: 10
         run: ctest --test-dir build/x64 -C Release --output-on-failure --timeout 120
-
