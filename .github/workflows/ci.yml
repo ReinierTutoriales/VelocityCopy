@@ -38,3 +38,19 @@ jobs:
         if: ${{ matrix.test }}
         timeout-minutes: 10
         run: ctest --test-dir build/x64 -C Release --output-on-failure --timeout 120
+
+  asan:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure x64 RelWithDebInfo ASan
+        run: cmake -S . -B build/asan -A x64 -DVELOCITYCOPY_ENABLE_ASAN=ON
+
+      - name: Build ASan core
+        run: cmake --build build/asan --config RelWithDebInfo --parallel
+
+      - name: Test ASan core
+        timeout-minutes: 15
+        run: ctest --test-dir build/asan -C RelWithDebInfo --output-on-failure --timeout 180

@@ -3,6 +3,7 @@ name: Windows Package
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     tags:
       - "v*"
 
@@ -89,22 +90,29 @@ jobs:
           $size = (Get-ChildItem $payload -Recurse -File | Measure-Object Length -Sum).Sum
           Write-Host ("Self-contained ${{ matrix.arch }} payload: {0:N1} MB" -f ($size / 1MB))
 
-      - name: Install NSIS
+      - name: Fetch portable NSIS
         shell: pwsh
         run: |
-          choco install nsis --yes --no-progress
-          if ($LASTEXITCODE -ne 0) { throw "NSIS installation failed" }
+          $tools = Join-Path $env:RUNNER_TEMP "nsis"
+          New-Item -ItemType Directory -Force $tools | Out-Null
+          $zip = Join-Path $tools "nsis-3.11.zip"
+          $url = "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.11/nsis-3.11.zip"
+          Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
+          if (-not (Test-Path $zip) -or ((Get-Item $zip).Length -lt 1MB)) { throw "NSIS zip download failed" }
+          Expand-Archive -Path $zip -DestinationPath $tools -Force
+          $makensis = Get-ChildItem $tools -Recurse -File -Filter makensis.exe | Select-Object -First 1
+          if (-not $makensis) { throw "makensis.exe missing from portable NSIS" }
+          "NSIS_MAKENSIS=$($makensis.FullName)" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "Using $($makensis.FullName)"
 
       - name: Build classic installer
         shell: pwsh
         run: |
-          $makensis = @("${env:ProgramFiles(x86)}\NSIS\makensis.exe", "$env:ProgramFiles\NSIS\makensis.exe") |
-            Where-Object { Test-Path $_ } | Select-Object -First 1
-          if (-not $makensis) { throw "NSIS is unavailable on the runner" }
+          if (-not $env:NSIS_MAKENSIS -or -not (Test-Path $env:NSIS_MAKENSIS)) { throw "Portable NSIS is unavailable" }
           New-Item -ItemType Directory -Force artifacts/installer | Out-Null
           $payload = (Resolve-Path artifacts/installer-payload-${{ matrix.arch }}).Path
           $output = Join-Path (Resolve-Path artifacts/installer).Path "${{ matrix.setup_name }}"
-          & $makensis "/DPAYLOAD_DIR=$payload" "/DOUTPUT_FILE=$output" "/DDISPLAY_VERSION=$env:VELOCITYCOPY_VERSION" "/DPAYLOAD_ARCH=${{ matrix.platform }}" tools/VelocityCopy-Test-Installer.nsi
+          & $env:NSIS_MAKENSIS "/DPAYLOAD_DIR=$payload" "/DOUTPUT_FILE=$output" "/DDISPLAY_VERSION=$env:VELOCITYCOPY_VERSION" "/DPAYLOAD_ARCH=${{ matrix.platform }}" tools/VelocityCopy-Test-Installer.nsi
           if ($LASTEXITCODE -ne 0 -or -not (Test-Path $output)) { throw "Classic ${{ matrix.arch }} installer build failed" }
 
       - name: Smoke install classic x64 installer
