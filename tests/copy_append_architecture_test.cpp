@@ -225,8 +225,12 @@ int main() {
         !contains(shell, "const auto operation = job.operation") ||
         !contains(shell, "self->pending_flow_operation_ = operation") ||
         !contains(window, "pending_flow_operation_ = operation") ||
+        !contains(window, "active_session") ||
         !contains(window, "args.AllowedOperations() & DataPackageOperation::Copy") ||
         !contains(window, "args.AcceptedOperation(DataPackageOperation::Copy)") ||
+        contains(window, "preferred_drop_operation") ||
+        contains(window, "DragDropModifiers::Control") ||
+        contains(window, "DragDropModifiers::Shift") ||
         !contains(window, "auto deferral = args.GetDeferral()") ||
         count_occurrences(window, "deferral.Complete()") < 3 ||
         !contains(header, "Microsoft::UI::Xaml::DragEventArgs args") ||
