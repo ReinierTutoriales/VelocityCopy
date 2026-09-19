@@ -101,7 +101,12 @@ int main() {
         return fail(8, "whole-window drop surface must accept items only for an active transfer session");
     }
 
-    if (contains(execution, "QueueButton().Content") ||
+    if (!contains(xaml, "x:Name=\"QueuePanel\"") ||
+        !contains(xaml, "x:Name=\"QueueHeader\" MinHeight=\"28\"") ||
+        !contains(queue, "QueueList().UpdateLayout()") ||
+        contains(xaml, "x:Name=\"QueuePanel\" CornerRadius=") ||
+        contains(xaml, "x:Name=\"QueuePanel\" Background=") ||
+        contains(execution, "QueueButton().Content") ||
         contains(queue, "QueueButton().Content") ||
         !contains(xaml, "FontFamily=\"Segoe Fluent Icons\"") ||
         !contains(xaml, "Background=\"{ThemeResource AccentFillColorDefaultBrush}\"") ||
