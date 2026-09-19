@@ -78,7 +78,8 @@ Use WinUI compact density where appropriate for this desktop-first utility. Pres
 The queue is collapsed by default. Expanding it must not create an entirely different application window.
 
 - target expanded height: ~300 epx
-- resizable later; 300 epx is the current default, not a fixed limit
+- expansion must size the existing HWND from the measured XAML content so the queue is not clipped by a hard-coded shell height
+- 300 epx remains a design target, not a clipping boundary; measured content wins when it needs more room
 - virtualized item presentation
 - drag/drop reordering
 - keyboard selection
