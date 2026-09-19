@@ -179,8 +179,20 @@ struct ConcurrentResultState {
             return;
         }
         first_error = code;
-        if (file != nullptr && is_destination_conflict(code)) {
-            destination_conflict = true;
+        // conflict_source/conflict_destination now capture whichever file
+        // triggered the FIRST failure, for any failure code, not only an
+        // actual destination conflict. destination_conflict itself stays
+        // gated on is_destination_conflict(code) exactly as before, so the
+        // dedicated conflict-resolution dialog (MainWindow.Conflict.cpp)
+        // still only opens for a real conflict. This just stops a plain
+        // failure (access denied, file not found, disk full, ...) from
+        // discarding which source/destination path it happened on — the UI
+        // was decoding the HRESULT but reporting it with no idea which of
+        // possibly hundreds of queued files it came from.
+        if (file != nullptr) {
+            if (is_destination_conflict(code)) {
+                destination_conflict = true;
+            }
             conflict_file_id = file->id;
             conflict_source = file->source;
             conflict_destination = file->destination;
