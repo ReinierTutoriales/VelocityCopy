@@ -44,21 +44,16 @@
 
         <Grid x:Name="TitleBarDragRegion" Grid.Row="0" Height="8" />
 
-        <Border x:Name="TransferSurface"
-                Grid.Row="1"
-                Height="46"
-                CornerRadius="23"
-                SizeChanged="OnTransferSurfaceSizeChanged"
-                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                BorderThickness="1">
+        <Grid x:Name="TransferSurface"
+              Grid.Row="1"
+              Height="46"
+              SizeChanged="OnTransferSurfaceSizeChanged">
             <Grid>
                 <Border x:Name="ProgressFill"
                         Width="0"
                         HorizontalAlignment="Left"
                         Background="{ThemeResource AccentFillColorDefaultBrush}"
-                        Opacity="0.16"
-                        CornerRadius="23" />
+                        Opacity="0.12" />
 
                 <ProgressBar x:Name="GlobalProgress"
                              Minimum="0"
@@ -90,7 +85,7 @@
                                Height="28"
                                Stretch="Uniform"
                                IsHitTestVisible="False" />
-                    </Border>
+                    </Grid>
 
                     <Grid Grid.Column="1" MinWidth="0" VerticalAlignment="Center">
                         <Grid.RowDefinitions>
@@ -186,23 +181,21 @@
                                   FontSize="14" />
                     </Button>
 
-                    <Border Grid.Column="7"
-                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                            BorderThickness="1,0,0,0"
-                            Padding="6,0,0,0"
-                            VerticalAlignment="Center">
-                        <Button x:Name="QueueButton"
-                                Click="OnQueueClick"
-                                IsEnabled="False"
-                                Content="▸"
-                                FontSize="15"
-                                FontWeight="SemiBold"
-                                Width="28"
-                                Height="30"
-                                Padding="0"
-                                BorderThickness="0"
-                                Background="Transparent" />
-                    </Border>
+                    <Button x:Name="QueueButton"
+                            Grid.Column="7"
+                            Click="OnQueueClick"
+                            IsEnabled="False"
+                            Width="30"
+                            Height="30"
+                            Padding="0"
+                            BorderThickness="0"
+                            Background="Transparent"
+                            Margin="2,0,0,0">
+                        <FontIcon x:Name="QueueChevron"
+                                  FontFamily="Segoe Fluent Icons"
+                                  Glyph="&#xE70D;"
+                                  FontSize="12" />
+                    </Button>
                 </Grid>
             </Grid>
         </Border>
