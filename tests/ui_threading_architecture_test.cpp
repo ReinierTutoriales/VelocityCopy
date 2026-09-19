@@ -62,12 +62,13 @@ int main() {
         return fail(5, "authoritative UI snapshot consumer missing");
     }
     const auto apply_body = execution.substr(apply, finish - apply);
-    if (!contains(apply_body, "GlobalProgress().Value") ||
-        !contains(apply_body, "ProgressFill().Width") ||
-        !contains(apply_body, "ProgressPercentText().Text") ||
+    if (!contains(apply_body, "SetProgressFraction(fraction)") ||
         !contains(apply_body, "SpeedText().Text") ||
-        !contains(apply_body, "EtaText().Text")) {
-        return fail(6, "progress controls must remain centralized in ApplySnapshot");
+        !contains(apply_body, "EtaText().Text") ||
+        !contains(window, "void MainWindow::SetProgressFraction") ||
+        !contains(window, "ProgressFill().Width") ||
+        !contains(window, "ProgressPercentText().Text")) {
+        return fail(6, "progress rendering must remain centralized behind the UI-thread snapshot consumer");
     }
 
     return 0;

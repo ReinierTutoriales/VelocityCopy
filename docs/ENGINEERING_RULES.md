@@ -186,3 +186,8 @@ Documentation authority for active work:
 6. `docs/PRETEST_AUDIT.md` — manual validation checklist, not a source for overriding newer product decisions.
 
 If two documents conflict, do not guess. Reconcile them in one documentation change before implementing the affected behavior.
+
+
+### Regression lesson: removing named XAML controls
+
+When a named XAML control is removed, search every WinUI translation unit and architecture test for generated accessor usage before committing. A core-only build can stay green while the self-contained WinUI build fails later, so UI structural changes are not complete until the WinUI target compiles. Architecture tests must protect the behavior/ownership contract rather than require a removed implementation detail.
