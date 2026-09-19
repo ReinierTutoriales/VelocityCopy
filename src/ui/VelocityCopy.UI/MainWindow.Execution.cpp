@@ -218,9 +218,7 @@ void MainWindow::StartCopy(velocitycopy::CopyJob job) {
     QueueButton().IsEnabled(false);
     QueuePanel().Visibility(Visibility::Collapsed);
     ResizeWindow(72);
-    GlobalProgress().Value(0);
-    ProgressFill().Width(0);
-    ProgressPercentText().Text(L"0%");
+    SetProgressFraction(0.0);
     SetExecutionButtonsPlanning();
     CurrentItemText().Text(job.display_name.empty() ? hstring(L"…") : hstring(job.display_name));
 
@@ -439,9 +437,7 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
         cancel_requested_.load(std::memory_order_relaxed)) return;
 
     const auto fraction = (std::clamp)(snapshot.fraction, 0.0, 1.0);
-    GlobalProgress().Value(fraction * 100.0);
-    ProgressFill().Width(TransferSurface().ActualWidth() * fraction);
-    ProgressPercentText().Text(hstring(std::format(L"{:.0f}%", fraction * 100.0)));
+    SetProgressFraction(fraction);
     current_file_id_ = snapshot.current_file_id;
     current_file_skippable_ = snapshot.current_file_skippable;
     SkipButton().IsEnabled(execution_control_ && current_file_id_ != 0 && current_file_skippable_ &&
@@ -601,9 +597,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     SpeedText().Text(L"—");
     EtaText().Text(L"—");
     if (queued_sessions_.empty()) {
-        GlobalProgress().Value(100);
-        ProgressFill().Width(TransferSurface().ActualWidth());
-        ProgressPercentText().Text(L"100%");
+        SetProgressFraction(1.0);
         try {
             Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
             CurrentItemText().Text(loader.GetString(
@@ -641,9 +635,7 @@ void MainWindow::FinalizeStoppedSessionIfEmpty() {
     QueueChevron().Glyph(L"\xE70D");
     ResizeWindow(72);
     SetExecutionButtonsIdle();
-    GlobalProgress().Value(100);
-    ProgressFill().Width(TransferSurface().ActualWidth());
-    ProgressPercentText().Text(L"100%");
+    SetProgressFraction(1.0);
     StartNextQueuedSession();
 }
 
