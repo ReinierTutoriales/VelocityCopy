@@ -7,7 +7,7 @@ VelocityCopy should feel native to Windows 11 and avoid owning visual policy tha
 - Follow Windows light/dark theme automatically.
 - Use WinUI theme resources instead of hard-coded foreground/background colors.
 - Use the Windows accent resource for selected states, drag-over emphasis, primary actions and focus indicators.
-- Never use accent color as a large permanent fill when a neutral Fluent surface is clearer.
+- During an active transfer, the copier surface itself may use the Windows accent as the proportional left-to-right progress fill behind all content. The fill is state-driven, subordinate to readable foreground content, and absent when no transfer progress is being represented.
 
 ## Materials
 
@@ -32,13 +32,14 @@ VelocityCopy should feel native to Windows 11 and avoid owning visual policy tha
 
 ## Drag and drop feedback
 
-The entire main window is a valid drop surface.
+The main copier surface accepts file-system StorageItems only while a transfer session with an active destination exists.
 
-- Drag enter: subtle accent border/surface treatment and localized "Drop to copy" prompt.
-- Drag over: no file-system enumeration or destination probing on the UI thread.
-- Drag leave: restore normal surface immediately.
-- Drop: capture the selected StorageItems/paths once and transition to the destination step.
-- Multiple files and folders are first-class; preserve incoming order and present only a bounded preview.
+- Drag enter/over: accept Copy only when an active transfer/destination exists and the data contains StorageItems.
+- Do not show destination, layout, copy/move, modifier-key, or confirmation menus for drag/drop.
+- Do not enumerate the file system or probe destinations on the UI thread during drag-over.
+- Drop: capture the StorageItems once and append them to the active transfer using that session's existing destination and operation.
+- If there is no active transfer/destination, reject the drop rather than inventing a destination.
+- Drag/drop is not a destination-selection workflow.
 
 ## Performance rule
 
