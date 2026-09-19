@@ -58,8 +58,16 @@ MainWindow::MainWindow() {
             presenter.IsMinimizable(true);
             presenter.IsMaximizable(false);
         }
+        // AppIcon.rc embeds VelocityCopy.ico into the exe (Explorer/shortcut/
+        // installer identity), but the compositor does not read that resource
+        // for the live window/taskbar/Alt-Tab representation — AppWindow needs
+        // its own SetIcon call, or it falls back to the generic default even
+        // though the exe itself has a real icon. Assets\VelocityCopy.ico is
+        // deployed next to the exe (see the Content item in the vcxproj) so
+        // this path resolves at runtime.
+        app_window.SetIcon(L"Assets\\VelocityCopy.ico");
     } catch (...) {
-        // Keep the native WinUI defaults if the presenter cannot be adjusted.
+        // Keep the native WinUI defaults if the presenter/icon cannot be adjusted.
     }
 
     ResizeWindow(72);
