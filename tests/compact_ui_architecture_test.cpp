@@ -43,7 +43,7 @@ int main() {
         !contains(xaml, "x:Name=\"BrandLogo\"") ||
         !contains(xaml, "Source=\"Assets/VelocityCopy.png\"") ||
         !contains(xaml, "x:Name=\"QueueButton\"") ||
-        !contains(xaml, "Content=\"▸\"") ||
+        !contains(xaml, "x:Name=\"QueueChevron\"") ||\n        !contains(xaml, "Glyph=\"&#xE70D;\"") ||
         !contains(xaml, "x:Name=\"OptionsButton\"")) {
         return fail(2, "collapsed copy bar must keep integrated progress, disclosure, and options");
     }
@@ -56,7 +56,7 @@ int main() {
 
     if (!contains(execution, "ProgressFill().Width(TransferSurface().ActualWidth() * fraction)") ||
         !contains(execution, "ProgressPercentText().Text") ||
-        !contains(queue, "QueueButton().Content(box_value(hstring(expanding ? L\"▾\" : L\"▸\")))")) {
+        !contains(queue, "QueueChevron().Glyph(expanding ? L\"\\xE70E\" : L\"\\xE70D\")")) {
         return fail(4, "runtime state must drive the integrated fill and disclosure direction");
     }
 
