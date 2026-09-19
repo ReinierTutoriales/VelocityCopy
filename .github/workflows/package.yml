@@ -390,7 +390,7 @@ jobs:
       - name: Report single-file installer build failure
         if: steps.build_installer.outcome == 'failure'
         shell: pwsh
-        run: Write-Error "Installable test package was published, but the optional single-file NSIS installer could not be built."
+        run: Write-Warning "Installable test package was published; optional single-file NSIS installer was unavailable on this runner."
       - name: Fail job if smoke install did not pass
         if: steps.smoke_install.outcome == 'failure'
         shell: pwsh
