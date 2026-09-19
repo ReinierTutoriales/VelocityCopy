@@ -88,21 +88,26 @@ int main() {
         !contains(ci_workflow, "cmake_arch: ARM64") ||
         !contains(ci_workflow, "cmake --build build/") ||
         !contains(ci_workflow, "ctest --test-dir build/x64") ||
+        !contains(ci_workflow, "VELOCITYCOPY_ENABLE_ASAN=ON") ||
+        !contains(ci_workflow, "RelWithDebInfo") ||
         contains(ci_workflow, "Add-AppxPackage") ||
         contains(ci_workflow, "makensis")) {
-        return fail(8, "commit CI must compile x64 and ARM64 core without packaging or installation");
+        return fail(8, "commit CI must compile x64/ARM64, run ASan, and stay free of packaging");
     }
 
     if (!contains(package_workflow, "workflow_dispatch:") ||
+        !contains(package_workflow, "branches: [main]") ||
         !contains(package_workflow, "WindowsAppSDKSelfContained=true") ||
         !contains(package_workflow, "VelocityCopy-Setup-x64.exe") ||
         !contains(package_workflow, "VelocityCopy-Setup-ARM64.exe") ||
         !contains(package_workflow, "PAYLOAD_ARCH") ||
+        !contains(package_workflow, "nsis-3.11.zip") ||
         !contains(package_workflow, "Smoke install classic x64 installer") ||
         !contains(package_workflow, "Smoke uninstall classic x64 installer") ||
+        contains(package_workflow, "choco ") ||
         contains(package_workflow, "Add-AppxPackage") ||
         contains(package_workflow, "VelocityCopy.msixbundle")) {
-        return fail(9, "release packaging must remain classic and self-contained for x64 and ARM64");
+        return fail(9, "packaging must run on main without Chocolatey and stay classic for x64 and ARM64");
     }
 
     if (!contains(installer_exe, "RequestExecutionLevel admin") ||
