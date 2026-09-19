@@ -62,13 +62,22 @@ bool is_stage_only_activation(const std::optional<velocitycopy::ShellRequest>& r
 }
 
 bool is_startup_activation() noexcept {
-    try {
-        const auto args = Microsoft::Windows::AppLifecycle::AppInstance::GetCurrent().GetActivatedEventArgs();
-        return args &&
-            args.Kind() == Microsoft::Windows::AppLifecycle::ExtendedActivationKind::StartupTask;
-    } catch (...) {
+    // Classic/unpackaged startup is explicit. The installer is the only component
+    // allowed to register the HKCU Run entry; runtime code must never repair it.
+    int argc = 0;
+    auto* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+    if (argv == nullptr) {
         return false;
     }
+    bool startup = false;
+    for (int index = 1; index < argc; ++index) {
+        if (std::wstring_view(argv[index]) == L"--startup") {
+            startup = true;
+            break;
+        }
+    }
+    LocalFree(argv);
+    return startup;
 }
 
 } // namespace
