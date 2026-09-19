@@ -535,9 +535,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     append_gate_.reset();
 
     if (result.cancelled) {
-        GlobalProgress().Value(0);
-        ProgressFill().Width(0);
-        ProgressPercentText().Text(L"0%");
+        SetProgressFraction(0.0);
         deferred_interrupted_jobs_.clear();
         queued_sessions_.clear();
         live_plan_.reset();
@@ -564,9 +562,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     }
 
     if (!result.success) {
-        GlobalProgress().Value(0);
-        ProgressFill().Width(0);
-        ProgressPercentText().Text(L"0%");
+        SetProgressFraction(0.0);
         live_plan_.reset();
         active_destination_.clear();
         RefreshQueue();

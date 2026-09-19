@@ -359,9 +359,7 @@ void MainWindow::StartCopyPlan(velocitycopy::CopyPlan plan) {
     QueueCountText().Text(L"0");
     QueuePanel().Visibility(Visibility::Collapsed);
     ResizeWindow(72);
-    GlobalProgress().Value(0);
-    ProgressFill().Width(0);
-    ProgressPercentText().Text(L"0%");
+    SetProgressFraction(0.0);
 
     auto live = std::make_shared<velocitycopy::LiveCopyPlan>(std::move(plan));
     live_plan_ = live;
