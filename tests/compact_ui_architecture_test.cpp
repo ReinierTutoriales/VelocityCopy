@@ -100,6 +100,9 @@ int main() {
         !contains(window, "ShellFlowContent().UpdateLayout()") ||
         !contains(window, "const bool valid = flow_.choose_layout") ||
         !contains(window, "StartCopyButton().IsEnabled(valid)") ||
+        !contains(xaml, "x:Name=\"TitleBarDragRegion\"") ||
+        !contains(xaml, "Height=\"32\"") ||
+        !contains(window, "SetTitleBar(TitleBarDragRegion())") ||
         !contains(xaml, "x:Name=\"RootGrid\"") ||
         !contains(xaml, "AllowDrop=\"True\"") ||
         !contains(xaml, "Background=\"Transparent\"") ||

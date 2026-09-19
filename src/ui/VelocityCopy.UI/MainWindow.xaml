@@ -188,9 +188,12 @@
                 </Grid>
 
                 <Grid x:Name="TitleBarDragRegion"
-                      Height="8"
+                      Height="32"
                       VerticalAlignment="Top"
-                      HorizontalAlignment="Stretch" />
+                      HorizontalAlignment="Stretch"
+                      Background="Transparent"
+                      IsHitTestVisible="True"
+                      Canvas.ZIndex="-1" />
             </Grid>
         </Grid>
 
