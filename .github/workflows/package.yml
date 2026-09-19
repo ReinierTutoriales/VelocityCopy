@@ -93,17 +93,40 @@ jobs:
       - name: Fetch portable NSIS
         shell: pwsh
         run: |
-          $tools = Join-Path $env:RUNNER_TEMP "nsis"
-          New-Item -ItemType Directory -Force $tools | Out-Null
-          $zip = Join-Path $tools "nsis-3.11.zip"
-          $url = "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.11/nsis-3.11.zip"
-          Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
-          if (-not (Test-Path $zip) -or ((Get-Item $zip).Length -lt 1MB)) { throw "NSIS zip download failed" }
-          Expand-Archive -Path $zip -DestinationPath $tools -Force
-          $makensis = Get-ChildItem $tools -Recurse -File -Filter makensis.exe | Select-Object -First 1
-          if (-not $makensis) { throw "makensis.exe missing from portable NSIS" }
-          "NSIS_MAKENSIS=$($makensis.FullName)" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
-          Write-Host "Using $($makensis.FullName)"
+          $makensis = @(
+            "${env:ProgramFiles(x86)}\NSIS\makensis.exe",
+            "$env:ProgramFiles\NSIS\makensis.exe"
+          ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $makensis) {
+            $tools = Join-Path $env:RUNNER_TEMP "nsis"
+            New-Item -ItemType Directory -Force $tools | Out-Null
+            $zip = Join-Path $tools "nsis-3.11.zip"
+            $urls = @(
+              "https://sourceforge.net/projects/nsis/files/NSIS%203/3.11/nsis-3.11.zip/download",
+              "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.11/nsis-3.11.zip"
+            )
+            foreach ($url in $urls) {
+              Write-Host "Downloading NSIS from $url"
+              & curl.exe -L --fail --retry 4 --retry-all-errors -A "Mozilla/5.0" --output $zip $url
+              if ((Test-Path $zip) -and ((Get-Item $zip).Length -gt 1MB)) { break }
+              Remove-Item $zip -Force -ErrorAction SilentlyContinue
+            }
+            if ((Test-Path $zip) -and ((Get-Item $zip).Length -gt 1MB)) {
+              Expand-Archive -Path $zip -DestinationPath $tools -Force
+              $found = Get-ChildItem $tools -Recurse -File -Filter makensis.exe | Select-Object -First 1
+              if ($found) { $makensis = $found.FullName }
+            }
+          }
+          if (-not $makensis) {
+            winget install --id NSIS.NSIS -e --accept-package-agreements --accept-source-agreements --disable-interactivity
+            $makensis = @(
+              "${env:ProgramFiles(x86)}\NSIS\makensis.exe",
+              "$env:ProgramFiles\NSIS\makensis.exe"
+            ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+          }
+          if (-not $makensis) { throw "NSIS is unavailable without Chocolatey" }
+          "NSIS_MAKENSIS=$makensis" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "Using $makensis"
 
       - name: Build classic installer
         shell: pwsh
