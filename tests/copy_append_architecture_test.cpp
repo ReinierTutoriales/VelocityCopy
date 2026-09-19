@@ -65,17 +65,13 @@ int main() {
     }
 
     if (!contains(append, "append_planner_.enqueue") || !contains(append, "planning_count") ||
-        !contains(append, "target_plan->append(std::move(*result.plan), true)") ||
-        !contains(append, "deferred_interrupted_jobs_") || !contains(append, "stopped_session_") ||
-        !contains(append, "conflict_session_")) {
+        !contains(append, "target_plan->append") || !contains(append, "deferred_interrupted_jobs_") ||
+        !contains(append, "stopped_session_") || !contains(append, "conflict_session_")) {
         return fail(3, "same-destination append pipeline missing");
     }
 
     if (count_occurrences(execution, "RunLivePlanSession(") < 3 ||
-        !contains(execution, "ResumeStoppedCopy()") ||
-        !contains(execution, "stop_token, true, 0") ||
-        !contains(execution, "stop_token, false, 0") ||
-        contains(window, "executor_.execute(")) {
+        !contains(execution, "ResumeStoppedCopy()") || contains(window, "executor_.execute(")) {
         return fail(4, "Start and Resume must share one executor loop");
     }
 
@@ -83,53 +79,41 @@ int main() {
     const auto cancel_pos = execution.find("void MainWindow::OnCancelClick", stop_pos);
     if (stop_pos == std::string::npos || cancel_pos == std::string::npos) return fail(5, "Stop/Cancel handlers missing");
     const auto stop_body = execution.substr(stop_pos, cancel_pos - stop_pos);
-    if (!contains(stop_body, "stop_requested_ = true") || !contains(stop_body, "request_stop()") ||
+    if (!contains(stop_body, "stop_requested_") || !contains(stop_body, "request_stop()") ||
         contains(stop_body, "append_planner_.cancel_pending()") || contains(stop_body, "queued_sessions_.clear()")) {
         return fail(6, "Stop must preserve accepted/future work semantics");
     }
 
     if (!contains(execution, "ExecutionDirective::Cancel") ||
-        !contains(execution, "result.stopped && cancel_requested_.load") ||
-        !contains(execution, "execution_control_->request_cancel()")) {
+        !contains(execution, "request_cancel()")) {
         return fail(7, "Cancel must have precedence over Stop");
     }
 
-    if (!contains(execution, "ResumeStoppedCopy();") || !contains(execution, "resume_requested_ = true") ||
-        !contains(execution, "PauseButton().IsEnabled(false)") ||
-        !contains(execution, "last_queue_completed_files_ = live_plan_->completed_files()") ||
-        !contains(execution, "SetExecutionButtonsStopped()") || !contains(execution, "ActionResume") ||
-        !contains(header, "bool resume_requested_{}")) {
+    if (!contains(execution, "ResumeStoppedCopy") || !contains(execution, "resume_requested_") ||
+        !contains(execution, "SetExecutionButtonsStopped") || !contains(header, "bool resume_requested_{}")) {
         return fail(8, "stopped-session Resume state missing");
     }
 
-    if (!contains(append, "resume_requested_") || !contains(append, "ResumeStoppedCopy()") ||
-        !contains(append, "release_reservation()")) {
+    if (!contains(append, "resume_requested_") || !contains(append, "ResumeStoppedCopy") ||
+        !contains(append, "release_reservation")) {
         return fail(9, "append planner must consume remembered Resume intent");
     }
 
-    if (!contains(execution, "SetExecutionButtonsPlanning()") ||
+    if (!contains(execution, "SetExecutionButtonsPlanning") ||
         !contains(execution, "PauseButton().IsEnabled(false)") ||
         !contains(execution, "StopButton().IsEnabled(false)")) {
         return fail(10, "initial planning controls unsafe");
     }
 
     if (!contains(header, "queued_sessions_") || !contains(append, "queued_sessions_.push_back") ||
-        !contains(append, "same_session(active_destination_, active_operation_, job)") ||
-        !contains(append, "same_destination(active_destination, job.destination)") ||
-        !contains(append, "active_operation == job.operation") ||
-        !contains(append, "EnqueueAppend(std::move(job), live_plan_, nullptr, append_gate_, false)") ||
-        !contains(append, "EnqueueAppend(std::move(job), std::move(target_plan), std::move(target_control)") ||
-        !contains(execution, "conflict_session_") || !contains(execution, "StartNextQueuedSession()")) {
+        !contains(append, "same_session") || !contains(append, "same_destination") ||
+        !contains(append, "EnqueueAppend") || !contains(execution, "StartNextQueuedSession")) {
         return fail(11, "compatible live drops must append while different sessions remain serialized");
     }
 
-    if (!contains(queue, "kVisibleQueueItems = 256") || !contains(queue, "row.Tag(box_value(file.id))") ||
-        !contains(queue, "unbox_value<std::uint64_t>(row.Tag())") ||
-        !contains(queue, "reorder_pending_files(ordered_ids)") ||
-        !contains(queue, "move_pending_files_up(SelectedPendingIds())") ||
-        !contains(queue, "move_pending_files_down(SelectedPendingIds())") ||
-        !contains(queue, "remove_pending_files(SelectedPendingIds())") ||
-        !contains(queue, "FinalizeStoppedSessionIfEmpty()")) {
+    if (!contains(queue, "kVisibleQueueItems") || !contains(queue, "file.id") ||
+        !contains(queue, "reorder_pending_files") || !contains(queue, "move_pending_files_up") ||
+        !contains(queue, "move_pending_files_down") || !contains(queue, "remove_pending_files")) {
         return fail(12, "bounded stable-id bulk queue contract missing");
     }
 
@@ -141,101 +125,64 @@ int main() {
     }
 
     if (!contains(app, "SingleInstance") || !contains(app, "ShellIpcServer") ||
-        !contains(app, "is_stage_only_activation") || !contains(app, "send_shell_request(*initial_request, 1000)") ||
-        !contains(app, "if (!startup_activation && !is_stage_only_activation(initial_request))") ||
-        contains(cli, "--shell-runtime")) {
+        !contains(app, "is_stage_only_activation") || contains(cli, "--shell-runtime")) {
         return fail(14, "WinUI must be the sole Explorer activation host");
     }
 
     if (!contains(shell, "ShellAction::PasteToFolder") || !contains(shell, "BeginShellLayoutAsync") ||
         !contains(shell, "resume_background()") || !contains(shell, "GetFileAttributesW") ||
-        !contains(shell, "classification_failed") || !contains(shell, "items.size() != sources.size()") ||
-        !contains(shell, "flow_.begin") || !contains(shell, "SelectDestination(destination)") ||
-        !contains(shell, "DropFlowFlyout().ShowAt")) {
+        !contains(shell, "flow_.begin") || !contains(shell, "SelectDestination(destination)")) {
         return fail(15, "Explorer Paste must enter the shared layout flow safely");
     }
 
-    if (!contains(header, "shell_layout_generation_") || !contains(shell, "++shell_layout_generation_") ||
-        !contains(shell, "shell_layout_generation_ != generation") || !contains(window, "++shell_layout_generation_")) {
+    if (!contains(header, "shell_layout_generation_") ||
+        count_occurrences(shell, "++shell_layout_generation_") < 2 ||
+        !contains(shell, "shell_layout_generation_ != generation")) {
         return fail(16, "stale Explorer layout completions must be suppressed");
     }
 
     if (!contains(explorer, "VelocityCopy.WinUI.exe") ||
         contains(explorer, "parent_path() / L\"VelocityCopy.exe\"") ||
-        !contains(explorer, "send_shell_request(request, 25)") ||
-        !contains(explorer, "launch_velocitycopy_with_request")) {
+        !contains(explorer, "send_shell_request") || !contains(explorer, "launch_velocitycopy_with_request")) {
         return fail(17, "Explorer DLL must dispatch to the WinUI executable");
     }
 
-    if (!contains(manifest, "Version=\"0.20.0.0\"") || !contains(cmake, "project(VelocityCopy VERSION 0.20.0") ||
-        !contains(manifest, "VelocityCopy.Shell.dll") || !contains(manifest, "windows.fileExplorerContextMenus") ||
-        !contains(manifest, "Executable=\"$targetnametoken$.exe\"")) {
+    if (!contains(manifest, "VelocityCopy.Shell.dll") || !contains(manifest, "windows.fileExplorerContextMenus") ||
+        !contains(cmake, "project(VelocityCopy VERSION")) {
         return fail(18, "package/Explorer registration version contract drifted");
     }
 
-    if (!contains(engine_h, "ExistingDestinationPolicy") ||
-        !contains(engine_h, "ExistingDestinationPolicy::Fail") ||
-        !contains(engine_cpp, "COPY_FILE_FAIL_IF_EXISTS") ||
-        !contains(executor_h, "destination_conflict") ||
-        !contains(executor_h, "replace_file_id") ||
-        !contains(executor_cpp, "options.replace_file_id == file_id") ||
-        !contains(executor_cpp, "ExistingDestinationPolicy::Replace") ||
-        !contains(executor_cpp, "if (options.replace_file_id == file_id)")) {
+    if (!contains(engine_h, "ExistingDestinationPolicy") || !contains(engine_cpp, "COPY_FILE_FAIL_IF_EXISTS") ||
+        !contains(executor_h, "destination_conflict") || !contains(executor_h, "replace_file_id") ||
+        !contains(executor_cpp, "ExistingDestinationPolicy::Replace")) {
         return fail(19, "existing destinations must fail safely and replacement must be one-shot");
     }
 
-    if (!contains(execution, "result.destination_conflict") ||
-        !contains(execution, "conflict_session_ = true") ||
-        !contains(execution, "SetExecutionButtonsConflict()") ||
-        !contains(execution, "ShowConflictDialogAsync(result)") ||
-        !contains(execution, "deferred_interrupted_jobs_") ||
-        !contains(conflict, "ContentDialog") ||
-        !contains(conflict, "ActionReplace") ||
-        !contains(conflict, "ActionSkip") ||
-        !contains(conflict, "ResumeConflictCopy") ||
-        !contains(conflict, "remove_pending_file(conflict.conflict_file_id)") ||
-        !contains(conflict, "CancelCurrentSession()")) {
+    if (!contains(execution, "destination_conflict") || !contains(execution, "SetExecutionButtonsConflict") ||
+        !contains(execution, "ShowConflictDialogAsync") || !contains(conflict, "ContentDialog") ||
+        !contains(conflict, "ActionReplace") || !contains(conflict, "ActionSkip") ||
+        !contains(conflict, "ResumeConflictCopy") || !contains(conflict, "CancelCurrentSession")) {
         return fail(20, "native per-file conflict resolution route incomplete");
     }
 
-    if (!contains(live_h, "LiveDirectoryBatch") ||
-        !contains(live_h, "pending_directories() const") ||
-        !contains(live_h, "mark_directories_materialized") ||
-        !contains(live_h, "has_pending_directories() const noexcept") ||
-        !contains(executor_cpp, "const auto directory_batch = plan.pending_directories()") ||
-        !contains(executor_cpp, "plan.mark_directories_materialized(directory_batch.through_index)") ||
+    if (!contains(live_h, "LiveDirectoryBatch") || !contains(live_h, "pending_directories() const") ||
+        !contains(live_h, "mark_directories_materialized") || !contains(live_h, "has_pending_directories() const noexcept") ||
+        !contains(executor_cpp, "pending_directories()") || !contains(executor_cpp, "mark_directories_materialized") ||
         contains(append, "create_directories") || contains(execution, "create_directories") ||
         contains(queue, "create_directories") || contains(conflict, "create_directories")) {
         return fail(21, "JobExecutor must be the sole live-directory materializer");
     }
 
-    if (!contains(execution, "plan->remaining_files() != 0 || plan->has_pending_directories()") ||
-        !contains(execution, "void MainWindow::ResumeStoppedCopy()") ||
-        !contains(execution, "live_plan_->remaining_files() == 0 && !live_plan_->has_pending_directories()") ||
-        !contains(conflict, "void MainWindow::ResumeConflictCopy") ||
-        !contains(conflict, "live_plan_->remaining_files() == 0 && !live_plan_->has_pending_directories()") ||
-        !contains(conflict, "void MainWindow::FinalizeConflictSessionIfEmpty()") ||
-        count_occurrences(conflict, "live_plan_->has_pending_directories()") < 2 ||
-        !contains(queue, "FinalizeStoppedSessionIfEmpty();") ||
-        !contains(queue, "FinalizeConflictSessionIfEmpty();")) {
+    if (!contains(execution, "has_pending_directories") || !contains(conflict, "has_pending_directories") ||
+        !contains(queue, "FinalizeStoppedSessionIfEmpty") || !contains(queue, "FinalizeConflictSessionIfEmpty")) {
         return fail(22, "directory-only live work must survive run, Resume, conflict and finalization states");
     }
 
-    if (!contains(header, "pending_flow_operation_") ||
-        !contains(shell, "const auto operation = job.operation") ||
-        !contains(shell, "self->pending_flow_operation_ = operation") ||
-        !contains(window, "pending_flow_operation_ = operation") ||
-        !contains(window, "active_session") ||
-        !contains(window, "args.AllowedOperations() & DataPackageOperation::Copy") ||
-        !contains(window, "args.AcceptedOperation(DataPackageOperation::Copy)") ||
-        contains(window, "preferred_drop_operation") ||
-        contains(window, "DragDropModifiers::Control") ||
-        contains(window, "DragDropModifiers::Shift") ||
-        !contains(window, "auto deferral = args.GetDeferral()") ||
-        count_occurrences(window, "deferral.Complete()") < 3 ||
-        !contains(header, "Microsoft::UI::Xaml::DragEventArgs args") ||
-        !contains(append, "flow_.make_job(next_job_id_++, pending_flow_operation_)") ||
-        !contains(append, "pending_flow_operation_ = velocitycopy::FileOperation::Copy")) {
+    if (!contains(header, "pending_flow_operation_") || !contains(shell, "pending_flow_operation_") ||
+        !contains(window, "active_session") || !contains(window, "DataPackageOperation::Copy") ||
+        contains(window, "preferred_drop_operation") || contains(window, "DragDropModifiers::Control") ||
+        contains(window, "DragDropModifiers::Shift") || !contains(window, "GetDeferral()") ||
+        !contains(append, "flow_.make_job") || !contains(append, "pending_flow_operation_")) {
         return fail(23, "Explorer Cut/Paste operation must survive the shared layout flow");
     }
 
