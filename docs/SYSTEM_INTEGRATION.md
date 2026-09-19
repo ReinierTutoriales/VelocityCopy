@@ -6,7 +6,7 @@ VelocityCopy integrates deeply enough to feel native on Windows 11 without repla
 
 - Distribution target: classic self-contained NSIS installers for Windows 11 x64 and ARM64 (`VelocityCopy-Setup-x64.exe` and `VelocityCopy-Setup-ARM64.exe`).
 - Each installer copies the autonomous WinUI payload, registers Explorer `IExplorerCommand` handlers and a conventional Add/Remove Programs entry.
-- The installer owns startup registration through `HKCU\\...\\Run\\VelocityCopy` with `--startup`. Runtime code must never create or repair that value.
+- The installer owns startup registration through HKCU Run (`VelocityCopy`) with `--startup`. Runtime code must never create or repair that value.
 - Use the installer that matches the native OS architecture. The x64 setup refuses ARM64 Windows and the ARM64 setup refuses x64 Windows.
 
 ## Startup behavior
