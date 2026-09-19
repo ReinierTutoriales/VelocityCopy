@@ -70,6 +70,12 @@ jobs:
           $size = (Get-ChildItem $payload -Recurse -File | Measure-Object Length -Sum).Sum
           Write-Host ("Self-contained x64 payload: {0:N1} MB" -f ($size / 1MB))
 
+      - name: Install NSIS
+        shell: pwsh
+        run: |
+          choco install nsis --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { throw "NSIS installation failed" }
+
       - name: Build classic x64 installer
         shell: pwsh
         run: |
