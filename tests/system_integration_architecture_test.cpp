@@ -102,14 +102,13 @@ int main() {
         !contains(package_workflow, "Build self-contained WinUI x64") ||
         !contains(package_workflow, "WindowsAppSDKSelfContained=true") ||
         !contains(package_workflow, "Stage autonomous x64 payload") ||
-        !contains(package_workflow, "VelocityCopy-Portable-x64.zip") ||
         !contains(package_workflow, "VelocityCopy-Setup-x64.exe") ||
         !contains(package_workflow, "Smoke install classic x64 installer") ||
         !contains(package_workflow, "Smoke uninstall classic x64 installer") ||
         contains(package_workflow, "Add-AppxPackage") ||
         contains(package_workflow, "GenerateAppxPackageOnBuild=true") ||
         contains(package_workflow, "VelocityCopy.msixbundle")) {
-        return fail(9, "release packaging must build an autonomous portable payload and validate classic install/uninstall without AppX deployment");
+        return fail(9, "release packaging must build one autonomous x64 installer and validate classic install/uninstall without AppX deployment");
     }
 
     if (!contains(installer_exe, "RequestExecutionLevel admin") ||
@@ -117,7 +116,7 @@ int main() {
         !contains(installer_exe, "VelocityCopy.WinUI.exe") ||
         !contains(installer_exe, "WriteUninstaller") ||
         !contains(installer_exe, "CreateShortcut") ||
-        !contains(installer_exe, "Windows\\\\CurrentVersion\\\\Uninstall\\\\VelocityCopy") ||
+        !contains(installer_exe, "Windows\\CurrentVersion\\Uninstall\\VelocityCopy") ||
         contains(installer_exe, "Install-VelocityCopy-Test.ps1") ||
         contains(installer_exe, "Add-AppxPackage")) {
         return fail(10, "classic installer must copy the autonomous payload, create shortcuts and register a conventional uninstaller");
