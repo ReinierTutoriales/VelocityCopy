@@ -281,20 +281,6 @@
                  VerticalAlignment="Top"
                  Margin="0,32,0,0" />
 
-        <Border x:Name="DragOverlay"
-                Grid.RowSpan="3"
-                Visibility="Collapsed"
-                Background="{ThemeResource AccentFillColorDefaultBrush}"
-                Opacity="0.12"
-                CornerRadius="8"
-                IsHitTestVisible="False">
-            <TextBlock x:Uid="DropOverlayText"
-                       HorizontalAlignment="Center"
-                       VerticalAlignment="Center"
-                       FontSize="18"
-                       FontWeight="SemiBold" />
-        </Border>
-
         <Button x:Name="FlyoutAnchor" Visibility="Collapsed">
             <Button.Flyout>
                 <Flyout x:Name="DropFlowFlyout" Placement="Bottom">
