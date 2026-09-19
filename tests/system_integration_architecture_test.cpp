@@ -93,21 +93,29 @@ int main() {
     if (!contains(package_workflow, "workflow_dispatch:") ||
         !contains(package_workflow, "WindowsAppSDKSelfContained=true") ||
         !contains(package_workflow, "VelocityCopy-Setup-x64.exe") ||
+        !contains(package_workflow, "VelocityCopy-Setup-ARM64.exe") ||
+        !contains(package_workflow, "PAYLOAD_ARCH") ||
         !contains(package_workflow, "Smoke install classic x64 installer") ||
         !contains(package_workflow, "Smoke uninstall classic x64 installer") ||
         contains(package_workflow, "Add-AppxPackage") ||
         contains(package_workflow, "VelocityCopy.msixbundle")) {
-        return fail(9, "release packaging must remain classic and self-contained");
+        return fail(9, "release packaging must remain classic and self-contained for x64 and ARM64");
     }
 
     if (!contains(installer_exe, "RequestExecutionLevel admin") ||
         !contains(installer_exe, "PAYLOAD_DIR") ||
+        !contains(installer_exe, "PAYLOAD_ARCH") ||
+        !contains(installer_exe, "IsARM64") ||
         !contains(installer_exe, "VelocityCopy.WinUI.exe") ||
         !contains(installer_exe, "WriteUninstaller") ||
         !contains(installer_exe, "CreateShortcut") ||
         !contains(installer_exe, "Windows\\CurrentVersion\\Uninstall\\VelocityCopy") ||
         contains(installer_exe, "Add-AppxPackage")) {
         return fail(10, "classic installer must copy the autonomous payload and register a conventional uninstaller");
+    }
+
+    if (contains(app, "\\nbool is_startup_activation")) {
+        return fail(11, "startup source must not comment out is_startup_activation with a literal escape");
     }
 
     if (!contains(shell_window, "PasteToFolder") ||
