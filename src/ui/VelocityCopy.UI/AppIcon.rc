@@ -1,0 +1,13 @@
+// Embeds the application icon into VelocityCopy.WinUI.exe as resource ID
+// IDI_APPICON (1). This is what Explorer, Alt-Tab, taskbar pinning, shortcut
+// icons, and the installer's "DisplayIcon" registry value (which points at
+// VelocityCopy.WinUI.exe,0) all read. Without this .rc entry the exe carries
+// no icon resource at all, so every one of those surfaces falls back to the
+// generic Windows executable icon — this is exactly that gap.
+//
+// This is a plain Win32 resource script, not a WinUI/XAML resource: no
+// UseWinUI-specific handling is required for the compiler to pick it up,
+// only the <ResourceCompile> item in the vcxproj.
+#define IDI_APPICON 1
+
+IDI_APPICON ICON "Assets\\VelocityCopy.ico"
