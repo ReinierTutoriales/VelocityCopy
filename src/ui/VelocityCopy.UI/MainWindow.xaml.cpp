@@ -387,8 +387,74 @@ void MainWindow::OnBackClick(IInspectable const&, RoutedEventArgs const&) {
     }
 }
 
-void MainWindow::ShowError() {
+void MainWindow::ShowError(hstring const& message) {
+    // ErrorBar previously opened with no Title/Message at all: WinUI's InfoBar
+    // renders an empty red bar when neither is set, so the person saw a bare
+    // strip with no text. StatusFailed (shown separately in CurrentItemText)
+    // is the only string that ever appeared, and it is a fixed generic label
+    // with no diagnostic content. Give ErrorBar an actual reason whenever the
+    // caller has one; fall back to the generic label when it does not (e.g.
+    // validation failures that never reached the copy engine and have no
+    // native error code to report).
+    if (!message.empty()) {
+        ErrorBar().Message(message);
+    } else {
+        try {
+            Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
+            ErrorBar().Message(loader.GetString(L"StatusFailed"));
+        } catch (...) {
+            ErrorBar().Message(L"");
+        }
+    }
     ErrorBar().IsOpen(true);
+}
+
+hstring MainWindow::FormatFailureReason(std::int32_t native_code) {
+    // native_code is either S_OK-family HRESULT-wrapped Win32 error (from
+    // JobResult::native_code, set by the copy engine via
+    // HRESULT_FROM_WIN32(GetLastError())) or a bare HRESULT such as E_FAIL.
+    // Decode it into readable text so the person sees why the transfer
+    // failed instead of just that it failed.
+    if (native_code == 0) {
+        return {};
+    }
+
+    const auto hr = static_cast<HRESULT>(native_code);
+    DWORD win32_code = 0;
+    if (HRESULT_FACILITY(hr) == FACILITY_WIN32) {
+        win32_code = static_cast<DWORD>(HRESULT_CODE(hr));
+    }
+
+    if (win32_code != 0) {
+        LPWSTR buffer = nullptr;
+        const DWORD length = FormatMessageW(
+            FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_ALLOCATE_BUFFER,
+            nullptr,
+            win32_code,
+            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+            reinterpret_cast<LPWSTR>(&buffer),
+            0,
+            nullptr);
+        if (length != 0 && buffer != nullptr) {
+            std::wstring text(buffer, length);
+            LocalFree(buffer);
+            // FormatMessage output is CR/LF-terminated; trim trailing whitespace
+            // so it sits cleanly on the InfoBar's single line.
+            while (!text.empty() && (text.back() == L'\r' || text.back() == L'\n' || text.back() == L' ')) {
+                text.pop_back();
+            }
+            if (!text.empty()) {
+                text += hstring(std::format(L" (0x{:08X})", static_cast<unsigned long>(win32_code)));
+                return hstring(text);
+            }
+        } else if (buffer != nullptr) {
+            LocalFree(buffer);
+        }
+    }
+
+    // Unmapped or non-Win32 HRESULT: still surface the raw code rather than
+    // nothing, so the person has something concrete to report or search.
+    return hstring(std::format(L"0x{:08X}", static_cast<unsigned long>(hr)));
 }
 
 hstring MainWindow::PreviewText(const velocitycopy::DropChoicePreview& preview) {

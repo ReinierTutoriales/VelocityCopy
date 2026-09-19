@@ -137,7 +137,8 @@ private:
     void FinalizeConflictSessionIfEmpty();
     void ApplySnapshot(const velocitycopy::UiSnapshot& snapshot);
     void FinishCopy(const velocitycopy::JobResult& result);
-    void ShowError();
+    void ShowError(hstring const& message = {});
+    static hstring FormatFailureReason(std::int32_t native_code);
     static hstring PreviewText(const velocitycopy::DropChoicePreview& preview);
     static hstring FormatCapacity(const velocitycopy::DestinationCapacity& capacity);
     static hstring FormatSpeed(double bytes_per_second);

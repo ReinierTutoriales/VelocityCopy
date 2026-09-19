@@ -578,7 +578,13 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
             CurrentItemText().Text(loader.GetString(L"StatusFailed"));
         } catch (...) {
         }
-        ShowError();
+        // result.native_code carries the actual HRESULT/Win32 error the copy
+        // engine recorded (see ConcurrentResultState::record_error in
+        // job_executor.cpp) but it was being discarded here: ShowError() opened
+        // an InfoBar with no Message at all. Decode it so a failed transfer
+        // (including an Explorer Cut/Move that failed mid-copy) tells the
+        // person why, not just that it failed.
+        ShowError(FormatFailureReason(result.native_code));
         return;
     }
 
