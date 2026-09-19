@@ -19,7 +19,11 @@ These are defaults, not architectural limits. The layout must remain responsive 
 
 ## Collapsed composition
 
-The collapsed window is a single compact transfer surface:
+The collapsed window is a single compact transfer surface. The top-level window and the copier surface are the same visual body: do not inset a second rounded/card-like transfer container inside the HWND. The custom title-bar drag region belongs to this surface rather than consuming a separate decorative band.
+
+The compact body occupies the full collapsed height; internal padding belongs to its content, not to an outer wrapper around the copier.
+
+The collapsed composition is:
 
 1. the VelocityCopy brand mark anchored at the far left
 2. current item name
