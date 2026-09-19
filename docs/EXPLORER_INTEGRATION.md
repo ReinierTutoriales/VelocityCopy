@@ -59,6 +59,6 @@ VelocityCopy will not replace Windows clipboard semantics globally. A user may i
 
 ## Startup and availability
 
-Installed builds register a packaged startup task for the main VelocityCopy app. After the app has been launched once, Windows can start the primary instance silently at user sign-in so Explorer handoff is immediate. The resident app remains idle on a blocking named pipe and performs no scanning, polling, hashing or copy work until a request arrives.
+Installed builds register a classic HKCU Run entry that launches VelocityCopy with `--startup`. After installation, Windows can start the primary instance silently at user sign-in so Explorer handoff is immediate. The resident app remains idle on a blocking named pipe and performs no scanning, polling, hashing or copy work until a request arrives.
 
 The shell extension still treats the app as optional: it first connects to an existing primary instance through IPC; if none is available, it launches the app on demand. No permanently running Explorer helper, Windows service, global hook or worker thread inside Explorer is required. The user can disable VelocityCopy startup through Windows Settings or Task Manager.
