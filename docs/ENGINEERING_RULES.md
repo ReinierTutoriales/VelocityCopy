@@ -196,3 +196,8 @@ When a named XAML control is removed, search every WinUI translation unit and ar
 ### Regression lesson: generated XAML accessor renames
 
 Renaming an `x:Name` changes the generated C++ accessor. Before committing such a rename, search every WinUI translation unit for the old accessor, not only the file implementing the feature being renamed. Architecture coverage for a rename must scan all production files that can call that accessor; core-only CI does not compile the WinUI generated accessors.
+
+
+### Choice-state integrity
+
+A visual selection state must only be committed after the underlying controller accepts the choice. Toggle/check state and action enablement must derive from the same validation result; never show an option selected when the flow rejected it. Entering a new shell layout step resets stale selection and disables Start until a valid layout is chosen.

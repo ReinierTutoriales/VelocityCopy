@@ -98,6 +98,8 @@ int main() {
         !contains(xaml, "MinWidth=\"360\" MaxWidth=\"520\"") ||
         !contains(xaml, "MinHeight=\"120\"") ||
         !contains(window, "ShellFlowContent().UpdateLayout()") ||
+        !contains(window, "const bool valid = flow_.choose_layout") ||
+        !contains(window, "StartCopyButton().IsEnabled(valid)") ||
         !contains(xaml, "x:Name=\"RootGrid\"") ||
         !contains(xaml, "AllowDrop=\"True\"") ||
         !contains(xaml, "Background=\"Transparent\"") ||

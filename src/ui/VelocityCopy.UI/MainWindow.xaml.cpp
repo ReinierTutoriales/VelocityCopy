@@ -340,21 +340,28 @@ void MainWindow::SelectDestination(std::filesystem::path destination) {
     SelectedDestinationText().Text(hstring(destination.wstring()));
     PreservePreview().Text(PreviewText(flow_.menu()->preserve));
     DirectPreview().Text(PreviewText(flow_.menu()->direct));
+    PreserveToggle().IsChecked(false);
+    DirectToggle().IsChecked(false);
+    StartCopyButton().IsEnabled(false);
     DestinationStep().Visibility(Visibility::Collapsed);
     LayoutStep().Visibility(Visibility::Visible);
     ShellFlowContent().UpdateLayout();
 }
 
 void MainWindow::OnPreserveClick(IInspectable const&, RoutedEventArgs const&) {
-    PreserveToggle().IsChecked(true);
+    const bool valid = flow_.choose_layout(velocitycopy::DestinationLayout::PreserveSourceFolder);
+    PreserveToggle().IsChecked(valid);
     DirectToggle().IsChecked(false);
-    StartCopyButton().IsEnabled(flow_.choose_layout(velocitycopy::DestinationLayout::PreserveSourceFolder));
+    StartCopyButton().IsEnabled(valid);
+    if (!valid) ShowError();
 }
 
 void MainWindow::OnDirectClick(IInspectable const&, RoutedEventArgs const&) {
+    const bool valid = flow_.choose_layout(velocitycopy::DestinationLayout::ContentsOnly);
     PreserveToggle().IsChecked(false);
-    DirectToggle().IsChecked(true);
-    StartCopyButton().IsEnabled(flow_.choose_layout(velocitycopy::DestinationLayout::ContentsOnly));
+    DirectToggle().IsChecked(valid);
+    StartCopyButton().IsEnabled(valid);
+    if (!valid) ShowError();
 }
 
 void MainWindow::OnBackClick(IInspectable const&, RoutedEventArgs const&) {
