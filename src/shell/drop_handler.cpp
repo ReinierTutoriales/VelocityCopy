@@ -177,7 +177,8 @@ public:
         if (!ready_ || !offered_ || invoked_) return E_UNEXPECTED;
         UINT command = 2;
         if (HIWORD(reinterpret_cast<ULONG_PTR>(info->lpVerb)) == 0) command = LOWORD(reinterpret_cast<ULONG_PTR>(info->lpVerb));
-        else if (info->cbSize >= sizeof(CMINVOKECOMMANDINFOEX) && (info->fMask & CMIC_MASK_UNICODE)) {
+        // CMIC_MASK_UNICODE is SEE_MASK_UNICODE (0x4000). Current SDKs dropped the name.
+        else if (info->cbSize >= sizeof(CMINVOKECOMMANDINFOEX) && (info->fMask & 0x00004000u)) {
             auto* ex = reinterpret_cast<const CMINVOKECOMMANDINFOEX*>(info);
             if (ex->lpVerbW && HIWORD(reinterpret_cast<ULONG_PTR>(ex->lpVerbW))) {
                 if (!lstrcmpiW(ex->lpVerbW, L"velocitycopy.copy")) command = 0;
