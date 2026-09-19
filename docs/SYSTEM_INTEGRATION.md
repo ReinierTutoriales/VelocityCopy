@@ -4,15 +4,15 @@ VelocityCopy integrates deeply enough to feel native on Windows 11 without repla
 
 ## Installation
 
-- Distribution target: signed MSIX for Windows 11 x64.
-- The package owns application identity, Explorer COM registration, context-menu registration, assets and startup registration.
-- Test builds use an ephemeral self-signed certificate and include only the public `.cer`; production builds must use a trusted production signing identity.
-- Updating an installed build must preserve the same package identity.
+- Distribution target: classic self-contained NSIS installers for Windows 11 x64 and ARM64 (`VelocityCopy-Setup-x64.exe` and `VelocityCopy-Setup-ARM64.exe`).
+- Each installer copies the autonomous WinUI payload, registers Explorer `IExplorerCommand` handlers and a conventional Add/Remove Programs entry.
+- The installer owns startup registration through `HKCU\\...\\Run\\VelocityCopy` with `--startup`. Runtime code must never create or repair that value.
+- Use the installer that matches the native OS architecture. The x64 setup refuses ARM64 Windows and the ARM64 setup refuses x64 Windows.
 
 ## Startup behavior
 
-- VelocityCopy declares a packaged `windows.startupTask` named `VelocityCopyStartup`.
-- The task starts enabled for packaged desktop builds after the app has been launched at least once.
+- Classic/unpackaged builds receive startup intent explicitly via `--startup`.
+- The installer-created Run entry starts enabled after installation.
 - Startup activation is silent: it creates the primary application instance and IPC endpoint but does not show the copy window.
 - A later normal launch redirects `OpenVelocityCopy` to the existing primary instance and shows that window.
 - There is never more than one primary VelocityCopy process per interactive Windows session.
@@ -59,12 +59,11 @@ Any future idle feature must preserve this near-zero-CPU design and must not app
 
 ## File Explorer integration
 
-Explorer integration uses the Windows 11 packaged desktop model:
+Explorer integration uses an unpackaged in-process COM server:
 
 - native COM DLL implementing `IExplorerCommand`
-- `windows.comServer` registration in the MSIX manifest
-- `windows.fileExplorerContextMenus` registration for files, folders and folder backgrounds
-- x64 shell DLL for x64 Explorer
+- classic installer registration of the CLSID and Explorer verb handlers
+- architecture-matched shell DLL (x64 DLL for x64 Explorer, ARM64 DLL for ARM64 Explorer)
 - synchronous menu-construction methods remain bounded and cheap
 - `Invoke` packages intent into a versioned `ShellRequest` and returns
 - all enumeration, planning, conflicts, queue state and I/O remain in the VelocityCopy app process
@@ -79,7 +78,7 @@ Paste remains on supported Explorer integration surfaces: Paste with VelocityCop
 ```text
 Windows sign-in
     |
-    +-- packaged StartupTask -> VelocityCopy.WinUI.exe (hidden primary)
+    +-- HKCU Run --startup -> VelocityCopy.WinUI.exe (hidden primary)
                                |
                                +-- local named-pipe IPC server (blocking idle)
 
@@ -97,12 +96,10 @@ User launch
 
 ## Test gate
 
-A build is not ready for manual Explorer/startup testing unless CI proves all of the following:
+A build is not ready for manual Explorer/startup testing unless packaging proves all of the following:
 
 - core tests pass
-- WinUI Release builds
-- MSIX package is produced
-- MSIX is signed
-- Explorer shell DLL is included in the package output
-- install/uninstall helper is staged
-- startup and Explorer registrations remain present in the manifest
+- self-contained WinUI Release builds for x64 and ARM64
+- classic NSIS installers are produced for both architectures
+- Explorer shell DLL is included in each installer payload
+- the x64 installer installs and uninstalls cleanly on x64 Windows

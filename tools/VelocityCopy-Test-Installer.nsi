@@ -15,6 +15,9 @@ SetCompressor /SOLID lzma
 !ifndef DISPLAY_VERSION
   !error "DISPLAY_VERSION is required"
 !endif
+!ifndef PAYLOAD_ARCH
+  !error "PAYLOAD_ARCH is required"
+!endif
 
 Name "VelocityCopy"
 OutFile "${OUTPUT_FILE}"
@@ -35,7 +38,30 @@ ShowUninstDetails show
 !insertmacro MUI_PAGE_FINISH
 !insertmacro MUI_LANGUAGE "English"
 
+Function .onInit
+  SetRegView 64
+  ${If} "${PAYLOAD_ARCH}" == "x64"
+    ${IfNot} ${RunningX64}
+      MessageBox MB_ICONSTOP "VelocityCopy requires 64-bit Windows."
+      Abort
+    ${EndIf}
+    ${If} ${IsARM64}
+      MessageBox MB_ICONSTOP "This installer is for x64 Windows. Use VelocityCopy-Setup-ARM64.exe."
+      Abort
+    ${EndIf}
+  ${ElseIf} "${PAYLOAD_ARCH}" == "ARM64"
+    ${IfNot} ${IsARM64}
+      MessageBox MB_ICONSTOP "This installer is for Windows on ARM. Use VelocityCopy-Setup-x64.exe."
+      Abort
+    ${EndIf}
+  ${Else}
+    MessageBox MB_ICONSTOP "Unknown VelocityCopy installer architecture."
+    Abort
+  ${EndIf}
+FunctionEnd
+
 Section "Install VelocityCopy" SEC_INSTALL
+  SetRegView 64
   SetOutPath "$INSTDIR"
   File /r "${PAYLOAD_DIR}\*.*"
 
@@ -83,6 +109,7 @@ Section "Install VelocityCopy" SEC_INSTALL
 SectionEnd
 
 Section "Uninstall"
+  SetRegView 64
   Delete "$SMPROGRAMS\VelocityCopy\VelocityCopy.lnk"
   RMDir "$SMPROGRAMS\VelocityCopy"
   DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "VelocityCopy"

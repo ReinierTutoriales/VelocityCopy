@@ -61,7 +61,8 @@ bool is_stage_only_activation(const std::optional<velocitycopy::ShellRequest>& r
         velocitycopy::shell_request_valid(*request);
 }
 
-// Classic deployment receives startup intent explicitly via --startup.\nbool is_startup_activation() noexcept {
+// Classic deployment receives startup intent explicitly via --startup.
+bool is_startup_activation() noexcept {
     // Classic/unpackaged startup is explicit. The installer is the only component
     // allowed to register the HKCU Run entry; runtime code must never repair it.
     int argc = 0;

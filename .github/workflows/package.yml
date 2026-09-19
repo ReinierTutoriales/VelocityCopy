@@ -11,8 +11,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-x64:
+  build:
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            cmake_arch: x64
+            platform: x64
+            setup_name: VelocityCopy-Setup-x64.exe
+            smoke: true
+          - arch: arm64
+            cmake_arch: ARM64
+            platform: ARM64
+            setup_name: VelocityCopy-Setup-ARM64.exe
+            smoke: false
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,41 +41,53 @@ jobs:
       - name: Configure and build core
         shell: pwsh
         run: |
-          cmake -S . -B build/x64 -A x64 -DVELOCITYCOPY_HYBRID_CRT=ON
-          if ($LASTEXITCODE -ne 0) { throw "CMake configure failed" }
-          cmake --build build/x64 --config Release --target velocitycopy_core VelocityCopyShell --parallel
-          if ($LASTEXITCODE -ne 0) { throw "Core build failed" }
+          cmake -S . -B build/${{ matrix.cmake_arch }} -A ${{ matrix.cmake_arch }} -DVELOCITYCOPY_HYBRID_CRT=ON
+          if ($LASTEXITCODE -ne 0) { throw "CMake configure failed for ${{ matrix.arch }}" }
+          cmake --build build/${{ matrix.cmake_arch }} --config Release --target velocitycopy_core VelocityCopyShell --parallel
+          if ($LASTEXITCODE -ne 0) { throw "Core build failed for ${{ matrix.arch }}" }
 
-      - name: Build self-contained WinUI x64
+      - name: Build self-contained WinUI
         shell: pwsh
         run: |
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $msbuild = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\MSBuild.exe" | Select-Object -First 1
           if (-not $msbuild) { throw "MSBuild was not found" }
-          & $msbuild src/ui/VelocityCopy.UI/VelocityCopy.UI.vcxproj /restore /m /p:Configuration=Release /p:Platform=x64 /p:AppxPackage=false /p:WindowsPackageType=None /p:WindowsAppSDKSelfContained=true /p:SelfContained=true /p:EnableMsixTooling=true /p:SkipVelocityCopyCoreBuild=true
-          if ($LASTEXITCODE -ne 0) { throw "Self-contained WinUI build failed" }
+          & $msbuild src/ui/VelocityCopy.UI/VelocityCopy.UI.vcxproj /restore /m /p:Configuration=Release /p:Platform=${{ matrix.platform }} /p:AppxPackage=false /p:WindowsPackageType=None /p:WindowsAppSDKSelfContained=true /p:SelfContained=true /p:EnableMsixTooling=true /p:SkipVelocityCopyCoreBuild=true
+          if ($LASTEXITCODE -ne 0) { throw "Self-contained WinUI ${{ matrix.arch }} build failed" }
 
-      - name: Stage autonomous x64 payload
+      - name: Stage autonomous payload
         shell: pwsh
         run: |
+          $platform = "${{ matrix.platform }}"
           $exe = Get-ChildItem src/ui/VelocityCopy.UI -Recurse -File -Filter VelocityCopy.WinUI.exe |
-            Where-Object { $_.FullName -match '[\\/]x64[\\/].*[\\/]Release[\\/]' -or $_.FullName -match '[\\/]Release[\\/].*[\\/]x64[\\/]' } |
+            Where-Object {
+              $_.FullName -match "[\\/]$platform[\\/].*[\\/]Release[\\/]" -or
+              $_.FullName -match "[\\/]Release[\\/].*[\\/]$platform[\\/]"
+            } |
             Select-Object -First 1
           if (-not $exe) {
             $exe = Get-ChildItem src/ui/VelocityCopy.UI -Recurse -File -Filter VelocityCopy.WinUI.exe | Select-Object -First 1
           }
-          if (-not $exe) { throw "VelocityCopy.WinUI.exe was not produced" }
+          if (-not $exe) { throw "VelocityCopy.WinUI.exe was not produced for ${{ matrix.arch }}" }
           $source = $exe.Directory.FullName
-          $payload = "artifacts/installer-payload-x64"
+          $payload = "artifacts/installer-payload-${{ matrix.arch }}"
           Remove-Item $payload -Recurse -Force -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Force $payload | Out-Null
           Get-ChildItem $source -File | Where-Object { $_.Extension -notin '.pdb','.ilk','.lib','.exp','.iobj','.ipdb' } | Copy-Item -Destination $payload
           Get-ChildItem $source -Directory | ForEach-Object { Copy-Item $_.FullName -Destination $payload -Recurse }
           if (-not (Test-Path "$payload/VelocityCopy.WinUI.exe")) { throw "Installer payload is missing executable" }
+          $shellDll = Join-Path $payload "VelocityCopy.Shell.dll"
+          if (-not (Test-Path $shellDll)) {
+            $builtShell = "build/${{ matrix.cmake_arch }}/Release/VelocityCopy.Shell.dll"
+            if (Test-Path $builtShell) {
+              Copy-Item $builtShell -Destination $shellDll
+            }
+          }
+          if (-not (Test-Path $shellDll)) { throw "Installer payload is missing VelocityCopy.Shell.dll" }
           $forbidden = @(Get-ChildItem $payload -Recurse -File | Where-Object { $_.Extension -in '.msix','.msixbundle','.appx','.appxbundle','.cer','.pfx' })
           if ($forbidden.Count) { throw "Installer payload contains package/certificate artifacts" }
           $size = (Get-ChildItem $payload -Recurse -File | Measure-Object Length -Sum).Sum
-          Write-Host ("Self-contained x64 payload: {0:N1} MB" -f ($size / 1MB))
+          Write-Host ("Self-contained ${{ matrix.arch }} payload: {0:N1} MB" -f ($size / 1MB))
 
       - name: Install NSIS
         shell: pwsh
@@ -68,32 +95,36 @@ jobs:
           choco install nsis --yes --no-progress
           if ($LASTEXITCODE -ne 0) { throw "NSIS installation failed" }
 
-      - name: Build classic x64 installer
+      - name: Build classic installer
         shell: pwsh
         run: |
           $makensis = @("${env:ProgramFiles(x86)}\NSIS\makensis.exe", "$env:ProgramFiles\NSIS\makensis.exe") |
             Where-Object { Test-Path $_ } | Select-Object -First 1
           if (-not $makensis) { throw "NSIS is unavailable on the runner" }
           New-Item -ItemType Directory -Force artifacts/installer | Out-Null
-          $payload = (Resolve-Path artifacts/installer-payload-x64).Path
-          $output = Join-Path (Resolve-Path artifacts/installer).Path "VelocityCopy-Setup-x64.exe"
-          & $makensis "/DPAYLOAD_DIR=$payload" "/DOUTPUT_FILE=$output" "/DDISPLAY_VERSION=$env:VELOCITYCOPY_VERSION" tools/VelocityCopy-Test-Installer.nsi
-          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $output)) { throw "Classic installer build failed" }
+          $payload = (Resolve-Path artifacts/installer-payload-${{ matrix.arch }}).Path
+          $output = Join-Path (Resolve-Path artifacts/installer).Path "${{ matrix.setup_name }}"
+          & $makensis "/DPAYLOAD_DIR=$payload" "/DOUTPUT_FILE=$output" "/DDISPLAY_VERSION=$env:VELOCITYCOPY_VERSION" "/DPAYLOAD_ARCH=${{ matrix.platform }}" tools/VelocityCopy-Test-Installer.nsi
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $output)) { throw "Classic ${{ matrix.arch }} installer build failed" }
 
       - name: Smoke install classic x64 installer
+        if: ${{ matrix.smoke }}
         shell: pwsh
         run: |
-          $setup = (Resolve-Path artifacts/installer/VelocityCopy-Setup-x64.exe).Path
+          $setup = (Resolve-Path artifacts/installer/${{ matrix.setup_name }}).Path
           $install = Start-Process $setup -ArgumentList "/S" -Wait -PassThru
           if ($install.ExitCode -ne 0) { throw "Installer failed: $($install.ExitCode)" }
           $root = Join-Path $env:ProgramFiles "VelocityCopy"
           $exe = Join-Path $root "VelocityCopy.WinUI.exe"
           $uninstaller = Join-Path $root "Uninstall.exe"
+          $shellDll = Join-Path $root "VelocityCopy.Shell.dll"
           if (-not (Test-Path $exe)) { throw "Installed executable is missing" }
           if (-not (Test-Path $uninstaller)) { throw "Uninstaller is missing" }
+          if (-not (Test-Path $shellDll)) { throw "Installed shell extension is missing" }
           Write-Host "Installed payload validated at $root"
 
       - name: Smoke uninstall classic x64 installer
+        if: ${{ matrix.smoke }}
         shell: pwsh
         run: |
           $root = Join-Path $env:ProgramFiles "VelocityCopy"
@@ -103,10 +134,10 @@ jobs:
           Start-Sleep -Seconds 2
           if (Test-Path $root) { throw "Installation directory remains after uninstall" }
 
-      - name: Upload validated x64 installer
+      - name: Upload validated installer
         uses: actions/upload-artifact@v4
         with:
-          name: VelocityCopy-Setup-x64-${{ env.VELOCITYCOPY_VERSION }}
-          path: artifacts/installer/VelocityCopy-Setup-x64.exe
+          name: VelocityCopy-Setup-${{ matrix.arch }}-${{ env.VELOCITYCOPY_VERSION }}
+          path: artifacts/installer/${{ matrix.setup_name }}
           if-no-files-found: error
           retention-days: 14
