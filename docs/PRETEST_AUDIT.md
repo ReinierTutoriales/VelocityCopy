@@ -7,12 +7,11 @@ Status: pre-release manual test gate
 The Windows CI and Package gates must be green before using an artifact for manual testing:
 
 - x64 Release configure/build and core `ctest`
-- ARM64 Release configure/build of the core
-- RelWithDebInfo ASan compile (`VELOCITYCOPY_ENABLE_ASAN=ON`); ASan tests are not executed on GitHub-hosted runners
-- self-contained WinUI 3 Release builds for x64 and ARM64
-- classic NSIS installer generation for x64 and ARM64 without Chocolatey
+- x64 Release configure/build and core `ctest`
+- self-contained WinUI 3 Release build for x64 when packaging is requested
+- classic NSIS x64 installer generation
 - x64 smoke install/uninstall
-- artifact upload of `VelocityCopy-Setup-x64.exe` and `VelocityCopy-Setup-ARM64.exe`
+- ARM64 follows only after the x64 stabilization gate is green; it must reuse the same recipe with architecture-specific changes only
 
 See `docs/RELEASE_GATES.md` before changing workflows.
 
@@ -26,7 +25,7 @@ If a `PasteToFolder` request arrives with no staged sources, the app re-reads th
 
 ### One-click test installer
 
-Manual testing uses the architecture-matched classic installer: `VelocityCopy-Setup-x64.exe` or `VelocityCopy-Setup-ARM64.exe`.
+During the current stabilization phase, manual testing uses the classic x64 installer `VelocityCopy-Setup-x64.exe`. ARM64 packaging is re-enabled after the x64 path is stable.
 
 The setup requests elevation through UAC and copies the self-contained WinUI payload, including `VelocityCopy.WinUI.exe` and `VelocityCopy.Shell.dll`, into Program Files. Testers do not run PowerShell, certificates, MSIX files or framework packages manually.
 
@@ -123,7 +122,7 @@ This does not block basic copy/move UI testing, but shutdown-recovery testing is
 
 ### UI
 
-- collapsed capsule 460x72 behavior
+- single-surface compact window around the 460x72 target; the window itself is the copier, with no nested decorative capsule
 - logo at far left
 - queue disclosure at far right
 - whole-body progress fill

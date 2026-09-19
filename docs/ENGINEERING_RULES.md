@@ -161,3 +161,28 @@ Until the project requirements explicitly change:
 - The window itself is the copier surface; later visual work must not reintroduce a nested decorative copier/card as the primary surface.
 
 If a future implementation decision conflicts with these rules, resolve the conflict explicitly before changing production code.
+
+
+## 13. Documentation is part of the change
+
+Every material product, architecture, workflow, packaging, UI-contract, or engineering-process decision must update the relevant repository documentation in the same coherent change.
+
+Before implementing a change:
+- identify the canonical document that owns the affected contract;
+- check other documents for contradictory legacy requirements;
+- resolve contradictions before treating any document as implementation authority.
+
+After implementing a change:
+- update the canonical contract and validation/checklist when behavior changed;
+- record new regression-prevention rules when a failure exposed a reusable lesson;
+- do not preserve obsolete instructions merely because tests or old workflows mention them.
+
+Documentation authority for active work:
+1. `docs/ENGINEERING_RULES.md` — engineering/process safety rules.
+2. `docs/IMPLEMENTATION_LINE.md` — current ordered execution line and stabilization gates.
+3. `docs/UI_SPEC.md` + `docs/UI_ARCHITECTURE.md` — current UI product/architecture contract.
+4. `docs/SYSTEM_INTEGRATION.md` + `docs/EXPLORER_INTEGRATION.md` + `docs/IPC.md` — Windows integration contracts.
+5. `docs/RELEASE_GATES.md` — current CI/package/release gates.
+6. `docs/PRETEST_AUDIT.md` — manual validation checklist, not a source for overriding newer product decisions.
+
+If two documents conflict, do not guess. Reconcile them in one documentation change before implementing the affected behavior.

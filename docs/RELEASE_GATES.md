@@ -1,38 +1,61 @@
 # VelocityCopy release gates
 
-These rules exist so packaging and CI do not regress the way they did during the x64/ARM64 installer work.
+These gates define the current stabilization/release pipeline. They must agree with `docs/ENGINEERING_RULES.md` and `docs/IMPLEMENTATION_LINE.md`.
 
-## What must stay green
+## Current stabilization gate
 
-- Windows CI on `main`: x64 Release configure, build and `ctest`.
-- Windows CI on `main`: ARM64 Release configure and build. Do not run ARM64 tests on `windows-latest`; the runner is x64.
-- Windows CI on `main`: ASan is a compile-only RelWithDebInfo gate (`-DVELOCITYCOPY_ENABLE_ASAN=ON`). Do not execute the full suite under MSVC ASan on GitHub-hosted runners; those processes hang.
-- Windows Package on every `main` push, `v*` tag and `workflow_dispatch`: `VelocityCopy-Setup-x64.exe` and `VelocityCopy-Setup-ARM64.exe`.
-- x64 Package smoke-installs and uninstalls the classic setup. ARM64 Package only builds the installer.
+- `main` must pass Windows CI: x64 Release configure, build and `ctest`.
+- Normal source commits must not trigger full installer packaging.
+- Packaging is intentionally separated from commit CI and is invoked by `workflow_dispatch` or a `v*` tag.
+- x64 is the mandatory stabilization path.
+- ARM64 is the next architecture after x64 is healthy. It must use the same source/build/package recipe with architecture-specific parameters only and must not destabilize x64.
+- Do not claim ARM64 packaging is available until its workflow and artifact have actually been restored and verified.
 
 ## Packaging rules
 
 - Distribution is classic self-contained NSIS, not MSIX.
-- Do not add Chocolatey as a required step. NSIS comes from curl/SourceForge zip or winget.
-- Do not use `${If} ${IsARM64}`. Detect native ARM64 with `IsWow64Process2` (0xAA64).
-- WinUI must stay unpackaged and self-contained (`WindowsAppSDKSelfContained=true`, `AppxPackage=false`).
-- Each payload must include `VelocityCopy.WinUI.exe` and `VelocityCopy.Shell.dll` and must not contain `.msix` / `.cer` / `.pfx`.
-- After editing `App.xaml.cpp` or other UI sources, search for a literal `\n` in front of a declaration. That swallows functions and breaks both architectures.
+- No x86 and no portable distribution.
+- WinUI remains unpackaged and self-contained (`WindowsAppSDKSelfContained=true`, `AppxPackage=false`).
+- The x64 payload must include both `VelocityCopy.WinUI.exe` and `VelocityCopy.Shell.dll`.
+- If the installer registers a file, DLL, executable or resource, the packaging workflow must assert that the referenced payload actually exists before NSIS runs.
+- The x64 package gate must smoke-install and uninstall the classic setup.
+- Do not add Chocolatey, AppX/MSIX deployment, certificates, or unrelated package managers to the required path.
 
-## How to change workflows without breaking architecture tests
+## Workflow-change safety
 
-`tests/system_integration_architecture_test.cpp` inspects workflow text. Keep these tokens:
+Architecture tests may inspect workflow contracts, but tests must validate durable behavior rather than arbitrary YAML wording.
 
-- CI: `cmake_arch: x64`, `cmake_arch: ARM64`, `ctest --test-dir build/x64`, `VELOCITYCOPY_ENABLE_ASAN=ON`, `RelWithDebInfo`
-- Package: `branches: [main]`, `workflow_dispatch:`, `VelocityCopy-Setup-x64.exe`, `VelocityCopy-Setup-ARM64.exe`, `PAYLOAD_ARCH`, `nsis-3.11.zip`
-- Package must not contain `choco ` or `Add-AppxPackage`
+Required commit-CI behavior:
+- x64 configure/build;
+- x64 `ctest`;
+- no AppX installation;
+- no full packaging on every ordinary source commit.
 
-Change surrounding YAML freely. Do not drop those strings.
+Required package behavior:
+- manual/tag trigger;
+- self-contained WinUI payload;
+- classic `VelocityCopy-Setup-x64.exe`;
+- payload verification before installer construction;
+- smoke install/uninstall.
 
-## Branch hygiene
+When ARM64 is restored, document and test its gate here in the same coherent change.
 
-`main` is the only long-lived branch. After a PR merges, delete the head branch. Do not keep `tmp-*`, `tmp-unused*` or merged `fix/*` / `docs/*` branches. They cancel CI, clutter clones and hide which SHA is the baseline.
+## Branch and commit hygiene
 
-## One change at a time
+- `main` is the only intended long-lived branch.
+- Do not create temporary branches unless isolation is actually required.
+- Remove obsolete temporary branches through the available repository administration path when possible.
+- One logical change should produce one coherent commit.
+- Do not push known-broken intermediate states merely to assemble a multi-file feature.
 
-Do not mix engine work, installer work and sanitizer work in the same PR. If Package is red, look at NSIS/download/payload first. If only ASan is red, do not rewrite the copy engine.
+## Failure triage
+
+If CI/package is red, classify the failure before editing:
+1. configure/build;
+2. production test;
+3. architecture-contract test;
+4. payload/package;
+5. installer smoke;
+6. runtime/Windows integration.
+
+Do not rewrite unrelated engine/UI code to fix a packaging or test-contract failure.
