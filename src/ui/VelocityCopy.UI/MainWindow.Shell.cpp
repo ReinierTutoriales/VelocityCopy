@@ -77,10 +77,27 @@ fire_and_forget MainWindow::BeginShellLayoutAsync(velocitycopy::CopyJob job) {
             self->ErrorBar().IsOpen(false);
 
             self->SelectDestination(destination);
-            if (self->flow_.stage() == velocitycopy::DropFlowStage::Layout) {
-                self->ShellFlowContent().UpdateLayout();
-                self->ShellFlowFlyout().ShowAt(self->RootGrid());
+            // Explorer already resolved a single, unambiguous destination
+            // (Copy here / Move here). Unlike multi-root drag/drop onto the
+            // window, there is no real layout question to ask, so apply the
+            // default layout and start immediately instead of opening the
+            // destination/layout flyout: on the compact window that flyout
+            // can exceed the visible surface, blocking the transfer on a
+            // prompt the user cannot dismiss or answer.
+            if (self->flow_.stage() != velocitycopy::DropFlowStage::Layout) {
+                return; // SelectDestination already surfaced the error.
             }
+            if (!self->flow_.choose_layout(velocitycopy::DestinationLayout::PreserveSourceFolder)) {
+                self->ShowError();
+                return;
+            }
+            auto shell_job = self->flow_.make_job(self->next_job_id_++, operation);
+            if (!shell_job) {
+                self->ShowError();
+                return;
+            }
+            self->pending_flow_operation_ = velocitycopy::FileOperation::Copy;
+            self->QueueOrStartCopy(std::move(*shell_job));
         }
     });
 }

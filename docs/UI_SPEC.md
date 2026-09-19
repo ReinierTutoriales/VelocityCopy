@@ -144,10 +144,9 @@ Compact transfer actions use `FontIcon` with `Segoe Fluent Icons`; runtime state
 
 ### Shell destination/layout flow
 
-Explorer transfer requests that require layout choices use a transient shell-command flyout. This flow is separate from whole-window drag/drop: active-transfer drops never open it. The flyout measures its own content and must not resize the compact copier HWND merely to avoid clipping. Legacy `DropFlowFlyout`/`DropFlowContent` UI names are prohibited because they incorrectly couple shell-command choices to drag/drop semantics.
+Explorer `Copy here` / `Move here` always resolves one unambiguous destination, so the transfer applies the default layout (`PreserveSourceFolder`) and starts immediately; it never opens a prompt asking how to lay the transfer out. A destination/layout flyout (`ShellFlowFlyout`/`ShellFlowContent`) exists in the compact window and is driven by `DropFlowController`, but no current product path opens it — it previously fired unconditionally on every Explorer transfer, and on the compact HWND its content could exceed the visible surface, leaving the user unable to reach `StartCopyButton` to actually start the copy. This flow is separate from whole-window drag/drop: active-transfer drops must never open it either. Legacy `DropFlowFlyout`/`DropFlowContent` UI names are prohibited because they incorrectly couple shell-command choices to drag/drop semantics.
 
-
-The shell destination chooser keeps a bounded desktop width and a minimum scrollable destination-list viewport. Long destination paths remain single-line ellipsized metadata rather than forcing flyout width growth. Transitions between destination and layout steps remeasure the shell-flow content so controls are not clipped by dimensions inherited from the previous step.
+Before this flyout is wired to any future trigger (for example, a real multi-root-destination ambiguity), it must keep a bounded desktop width and a minimum scrollable destination-list viewport, with long destination paths remaining single-line ellipsized metadata rather than forcing flyout width growth, and transitions between destination and layout steps must remeasure the shell-flow content so controls are not clipped by dimensions inherited from the previous step. Do not reintroduce an unconditional flyout prompt for a single-destination Explorer transfer.
 
 
 ### Window movement

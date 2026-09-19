@@ -201,3 +201,8 @@ Renaming an `x:Name` changes the generated C++ accessor. Before committing such 
 ### Choice-state integrity
 
 A visual selection state must only be committed after the underlying controller accepts the choice. Toggle/check state and action enablement must derive from the same validation result; never show an option selected when the flow rejected it. Entering a new shell layout step resets stale selection and disables Start until a valid layout is chosen.
+
+
+### Regression lesson: do not gate a required action behind an unproven flyout
+
+An Explorer `Copy here`/`Move here` transfer unconditionally opened a destination/layout flyout on the compact window before the copy could start, even though the destination was already unambiguous. On the compact HWND that flyout's content could exceed the visible surface, leaving `StartCopyButton` unreachable: the product-required action (start the transfer) was blocked by a step that answered a question nobody needed to ask. When a step in a flow is not actually ambiguous for a given entry point, skip it and apply the deterministic default instead of rendering a chooser "just in case." If a flyout can gate a required action, its sizing on the smallest supported surface must be proven, on real Windows, before it ships unconditionally; until then, prefer not showing it. See `docs/UI_SPEC.md` "Shell destination/layout flow."
