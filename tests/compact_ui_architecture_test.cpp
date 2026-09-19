@@ -95,6 +95,9 @@ int main() {
         contains(xaml, "DropFlowContent") ||
         !contains(xaml, "x:Name=\"ShellFlowFlyout\"") ||
         !contains(xaml, "x:Name=\"ShellFlowContent\"") ||
+        !contains(xaml, "MinWidth=\"360\" MaxWidth=\"520\"") ||
+        !contains(xaml, "MinHeight=\"120\"") ||
+        !contains(window, "ShellFlowContent().UpdateLayout()") ||
         !contains(xaml, "x:Name=\"RootGrid\"") ||
         !contains(xaml, "AllowDrop=\"True\"") ||
         !contains(xaml, "Background=\"Transparent\"") ||

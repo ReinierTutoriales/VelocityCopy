@@ -342,6 +342,7 @@ void MainWindow::SelectDestination(std::filesystem::path destination) {
     DirectPreview().Text(PreviewText(flow_.menu()->direct));
     DestinationStep().Visibility(Visibility::Collapsed);
     LayoutStep().Visibility(Visibility::Visible);
+    ShellFlowContent().UpdateLayout();
 }
 
 void MainWindow::OnPreserveClick(IInspectable const&, RoutedEventArgs const&) {
@@ -366,6 +367,7 @@ void MainWindow::OnBackClick(IInspectable const&, RoutedEventArgs const&) {
         StartCopyButton().IsEnabled(false);
         PreserveToggle().IsChecked(false);
         DirectToggle().IsChecked(false);
+        ShellFlowContent().UpdateLayout();
     }
 }
 
