@@ -11,6 +11,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(VELOCITYCOPY_ENABLE_ASAN "Enable MSVC AddressSanitizer for CMake targets" OFF)
+option(VELOCITYCOPY_HYBRID_CRT "Use static MSVC runtime/STL with the Windows Universal CRT for autonomous deployment" OFF)
+if(MSVC AND VELOCITYCOPY_HYBRID_CRT)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    add_link_options("/NODEFAULTLIB:libucrt.lib" "/DEFAULTLIB:ucrt.lib")
+endif()
+
 if(MSVC AND VELOCITYCOPY_ENABLE_ASAN)
     # MSVC ASan supports optimized builds; use RelWithDebInfo in CI to avoid
     # Debug-only /RTC, which Microsoft documents as incompatible with ASan.
