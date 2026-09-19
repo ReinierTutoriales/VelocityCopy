@@ -128,6 +128,7 @@ private:
     void RefreshQueueEditCommandState();
     [[nodiscard]] std::vector<std::uint64_t> SelectedPendingIds();
     void ResizeWindow(int height_epx);
+    void ResizeWindowToContent();
     void SetExecutionButtonsPlanning();
     void SetExecutionButtonsRunning();
     void SetExecutionButtonsIdle();

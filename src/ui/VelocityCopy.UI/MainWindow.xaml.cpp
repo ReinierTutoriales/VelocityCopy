@@ -93,6 +93,12 @@ void MainWindow::ResizeWindow(const int height_epx) {
     }
 }
 
+void MainWindow::ResizeWindowToContent() {
+    RootGrid().UpdateLayout();
+    const auto content_height = static_cast<int>(std::ceil(RootGrid().ActualHeight()));
+    ResizeWindow((std::max)(72, content_height));
+}
+
 void MainWindow::OnDragEnter(IInspectable const&, DragEventArgs const& args) {
     const bool active_session = !active_destination_.empty() && (execution_control_ || live_plan_);
     const bool accepts_storage_items = args.DataView().Contains(StandardDataFormats::StorageItems());
