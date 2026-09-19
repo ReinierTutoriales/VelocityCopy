@@ -198,7 +198,7 @@
                     </Button>
                 </Grid>
             </Grid>
-        </Border>
+        </Grid>
 
         <Grid x:Name="QueuePanel"
               Grid.Row="2"
