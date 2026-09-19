@@ -29,6 +29,10 @@ These rules exist so packaging and CI do not regress the way they did during the
 
 Change surrounding YAML freely. Do not drop those strings.
 
+## Branch hygiene
+
+`main` is the only long-lived branch. After a PR merges, delete the head branch. Do not keep `tmp-*`, `tmp-unused*` or merged `fix/*` / `docs/*` branches. They cancel CI, clutter clones and hide which SHA is the baseline.
+
 ## One change at a time
 
 Do not mix engine work, installer work and sanitizer work in the same PR. If Package is red, look at NSIS/download/payload first. If only ASan is red, do not rewrite the copy engine.
