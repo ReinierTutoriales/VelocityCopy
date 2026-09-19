@@ -111,6 +111,10 @@ fire_and_forget MainWindow::BeginShellDestinationAsync(
             self->DirectToggle().IsChecked(false);
             self->ErrorBar().IsOpen(false);
             self->LoadDestinations();
+            // The destination browser is application content, not a flyout. Grow the
+            // compact window before opening it so the menu is never clipped by the
+            // 72px transfer surface shell.
+            self->ResizeWindow(430);
             self->DropFlowFlyout().ShowAt(self->RootGrid());
         }
     });
@@ -179,6 +183,7 @@ fire_and_forget MainWindow::BeginShellLayoutAsync(velocitycopy::CopyJob job) {
 
             self->SelectDestination(destination);
             if (self->flow_.stage() == velocitycopy::DropFlowStage::Layout) {
+                self->ResizeWindow(360);
                 self->DropFlowFlyout().ShowAt(self->RootGrid());
             }
         }
