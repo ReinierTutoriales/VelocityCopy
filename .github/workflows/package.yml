@@ -298,6 +298,14 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "VelocityCopy setup generation failed" }
           if (-not (Test-Path -LiteralPath $output -PathType Leaf)) { throw "VelocityCopy-Setup.exe was not produced" }
 
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: VelocityCopy-Setup
+          path: artifacts/installer/VelocityCopy-Setup.exe
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Smoke install single-file Windows installer
         id: smoke_install
         continue-on-error: true
@@ -369,15 +377,6 @@ jobs:
           if ($remaining) {
             throw "VelocityCopy package remains installed after setup smoke uninstall"
           }
-
-      - name: Upload Windows installer
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: VelocityCopy-Setup
-          path: artifacts/installer/VelocityCopy-Setup.exe
-          if-no-files-found: error
-          retention-days: 14
 
       - name: Fail job if smoke install did not pass
         if: steps.smoke_install.outcome == 'failure'
