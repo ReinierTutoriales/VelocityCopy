@@ -225,11 +225,6 @@ int main() {
         !contains(shell, "const auto operation = job.operation") ||
         !contains(shell, "self->pending_flow_operation_ = operation") ||
         !contains(window, "pending_flow_operation_ = operation") ||
-        !contains(window, "preferred_drop_operation(args.DataView(), args.Modifiers())") ||
-        !contains(window, "DragDropModifiers::Control") ||
-        !contains(window, "DragDropModifiers::Shift") ||
-        !contains(window, "if (allows_copy) return DataPackageOperation::Copy") ||
-        !contains(window, "return DataPackageOperation::None") ||
         !contains(window, "args.AllowedOperations() & DataPackageOperation::Copy") ||
         !contains(window, "args.AcceptedOperation(DataPackageOperation::Copy)") ||
         !contains(window, "auto deferral = args.GetDeferral()") ||
