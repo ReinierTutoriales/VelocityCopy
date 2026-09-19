@@ -3,14 +3,6 @@ name: Windows Package
 on:
   workflow_dispatch:
   push:
-    branches: [main]
-    paths:
-      - ".github/workflows/package.yml"
-      - "CMakeLists.txt"
-      - "src/core/**"
-      - "src/shell/**"
-      - "src/ui/**"
-      - "tools/VelocityCopy-Test-Installer.nsi"
     tags:
       - "v*"
 
