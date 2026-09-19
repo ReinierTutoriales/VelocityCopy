@@ -135,16 +135,32 @@ HRESULT site_folder_paths(IUnknown* site, std::vector<std::filesystem::path>& pa
         return FAILED(hr) ? hr : E_NOINTERFACE;
     }
 
-    IShellItemArray* folder_items = nullptr;
-    hr = folder_view->GetFolder(IID_PPV_ARGS(&folder_items));
+    IShellItem* folder = nullptr;
+    hr = folder_view->GetFolder(IID_PPV_ARGS(&folder));
     folder_view->Release();
-    if (FAILED(hr) || folder_items == nullptr) {
+    if (FAILED(hr) || folder == nullptr) {
         return FAILED(hr) ? hr : E_FAIL;
     }
 
-    hr = shell_item_paths(folder_items, paths);
-    folder_items->Release();
-    return hr;
+    PWSTR path = nullptr;
+    hr = folder->GetDisplayName(SIGDN_FILESYSPATH, &path);
+    folder->Release();
+    if (FAILED(hr) || path == nullptr) {
+        if (path != nullptr) {
+            CoTaskMemFree(path);
+        }
+        return FAILED(hr) ? hr : E_FAIL;
+    }
+
+    try {
+        paths.clear();
+        paths.emplace_back(path);
+        CoTaskMemFree(path);
+        return S_OK;
+    } catch (...) {
+        CoTaskMemFree(path);
+        return E_OUTOFMEMORY;
+    }
 }
 
 bool dispatch_request(const velocitycopy::ShellRequest& request) noexcept {
