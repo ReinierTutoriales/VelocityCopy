@@ -8,10 +8,9 @@ The Windows CI gate must be green before using an artifact for manual testing:
 
 - x64 Release configure/build
 - core test suite
-- WinUI 3 Release build
-- MSIX generation
-- test MSIX signing
-- staging
+- self-contained WinUI 3 Release builds for x64 and ARM64
+- classic NSIS installer generation for x64 and ARM64
+- x64 smoke install/uninstall
 - artifact upload
 
 ## Fixed during pre-test audit
@@ -24,9 +23,9 @@ If a `PasteToFolder` request arrives with no staged sources, the app re-reads th
 
 ### One-click test installer
 
-Manual testing uses one file: `VelocityCopy-Setup-x64.exe`.
+Manual testing uses the architecture-matched classic installer: `VelocityCopy-Setup-x64.exe` or `VelocityCopy-Setup-ARM64.exe`.
 
-The setup requests elevation through UAC, extracts its embedded payload to a temporary directory, verifies that the bundled certificate thumbprint exactly matches the MSIX signer, trusts that certificate in `LocalMachine\TrustedPeople`, installs only the bundled x64 VCLibs and Windows App Runtime packages, then installs the VelocityCopy MSIX. Testers do not run PowerShell, CMD, certificates, MSIX files or framework packages manually.
+The setup requests elevation through UAC and copies the self-contained WinUI payload, including `VelocityCopy.WinUI.exe` and `VelocityCopy.Shell.dll`, into Program Files. Testers do not run PowerShell, certificates, MSIX files or framework packages manually.
 
 ## Known pre-release gap
 
@@ -142,6 +141,6 @@ Manual testing should stop and return to engineering if any of these occur:
 - duplicate primary processes
 - startup window flash on sign-in
 - tray icon cannot recover after Explorer restart
-- MSIX install/uninstall leaves broken shell registration
+- classic install/uninstall leaves broken shell registration
 - malformed queue/IPC input crashes the process
 - active copy remains in EcoQoS after work begins
