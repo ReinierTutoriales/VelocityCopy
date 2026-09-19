@@ -278,16 +278,14 @@ jobs:
         shell: pwsh
         timeout-minutes: 10
         run: |
-          choco install nsis -y --no-progress
-          if ($LASTEXITCODE -ne 0) { throw "NSIS installation failed" }
-
           $candidates = @(
             "${env:ProgramFiles(x86)}\NSIS\makensis.exe",
             "$env:ProgramFiles\NSIS\makensis.exe"
           )
           $makensis = $candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
-          if (-not $makensis) { throw "makensis.exe was not found" }
-
+          if (-not $makensis) {
+            throw "makensis.exe is not available on the GitHub Windows runner; packaging must not depend on a live Chocolatey feed"
+          }
           $payload = (Resolve-Path "artifacts/VelocityCopy-InstallerPayload").Path
           $outputDir = "artifacts/installer"
           New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
