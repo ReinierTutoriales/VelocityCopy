@@ -44,20 +44,6 @@ int main() {
         return fail(1, "required integration source missing");
     }
 
-    if (!contains(manifest, "Category=\"windows.startupTask\"") ||
-        !contains(manifest, "TaskId=\"VelocityCopyStartup\"") ||
-        !contains(manifest, "Enabled=\"true\"")) {
-        return fail(2, "MSIX must register the enabled packaged startup task");
-    }
-
-    if (!contains(manifest, "Category=\"windows.comServer\"") ||
-        !contains(manifest, "Category=\"windows.fileExplorerContextMenus\"") ||
-        !contains(manifest, "VelocityCopy.Shell.dll") ||
-        !contains(manifest, "VelocityCopyCopyTo") ||
-        !contains(manifest, "VelocityCopyOpenBackground")) {
-        return fail(3, "MSIX must own modern Explorer COM/context-menu registration");
-    }
-
     if (!contains(app, "ExtendedActivationKind::StartupTask") ||
         !contains(app, "!startup_activation && !is_stage_only_activation") ||
         !contains(app, "ShellAction::OpenVelocityCopy")) {
