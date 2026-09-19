@@ -11,37 +11,6 @@ using namespace Microsoft::UI::Xaml;
 using namespace Microsoft::UI::Xaml::Controls;
 
 namespace winrt::VelocityCopyUI::implementation {
-namespace {
-
-DataPackageOperation preferred_drop_operation(
-    const DataPackageView& data_view,
-    const Microsoft::UI::Input::DragDrop::DragDropModifiers modifiers) {
-    const auto requested = data_view.RequestedOperation();
-    const bool allows_copy = (requested & DataPackageOperation::Copy) == DataPackageOperation::Copy;
-    const bool allows_move = (requested & DataPackageOperation::Move) == DataPackageOperation::Move;
-    const bool control = (modifiers & Microsoft::UI::Input::DragDrop::DragDropModifiers::Control) ==
-        Microsoft::UI::Input::DragDrop::DragDropModifiers::Control;
-    const bool shift = (modifiers & Microsoft::UI::Input::DragDrop::DragDropModifiers::Shift) ==
-        Microsoft::UI::Input::DragDrop::DragDropModifiers::Shift;
-
-    // Windows documents Ctrl/Shift as user overrides for drag/drop operation.
-    // Never synthesize an operation the source did not advertise.
-    if (control && allows_copy) return DataPackageOperation::Copy;
-    if (shift && allows_move) return DataPackageOperation::Move;
-    if (requested == DataPackageOperation::Move) return DataPackageOperation::Move;
-    if (allows_copy) return DataPackageOperation::Copy;
-    if (allows_move) return DataPackageOperation::Move;
-    return DataPackageOperation::None;
-}
-
-velocitycopy::FileOperation file_operation(const DataPackageOperation operation) {
-    return operation == DataPackageOperation::Move
-        ? velocitycopy::FileOperation::Move
-        : velocitycopy::FileOperation::Copy;
-}
-
-} // namespace
-
 MainWindow::MainWindow() {
     InitializeComponent();
     dispatcher_ = Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
@@ -125,63 +94,38 @@ void MainWindow::ResizeWindow(const int height_epx) {
 }
 
 void MainWindow::OnDragEnter(IInspectable const&, DragEventArgs const& args) {
+    const bool active_session = !active_destination_.empty() && (execution_control_ || live_plan_);
     const bool accepts_storage_items = args.DataView().Contains(StandardDataFormats::StorageItems());
     const bool source_allows_copy =
         (args.AllowedOperations() & DataPackageOperation::Copy) == DataPackageOperation::Copy;
-    const auto transport_operation =
-        accepts_storage_items && source_allows_copy ? DataPackageOperation::Copy : DataPackageOperation::None;
-    args.AcceptedOperation(transport_operation);
-    if (transport_operation != DataPackageOperation::None) {
-        args.DragUIOverride().IsCaptionVisible(true);
-        args.DragUIOverride().IsGlyphVisible(true);
-    }
-    DragOverlay().Visibility(
-        transport_operation != DataPackageOperation::None ? Visibility::Visible : Visibility::Collapsed);
+    args.AcceptedOperation(
+        active_session && accepts_storage_items && source_allows_copy
+            ? DataPackageOperation::Copy
+            : DataPackageOperation::None);
 }
 
 void MainWindow::OnDragOver(IInspectable const&, DragEventArgs const& args) {
-    const bool accepts_storage_items = args.DataView().Contains(StandardDataFormats::StorageItems());
-    const bool source_allows_copy =
-        (args.AllowedOperations() & DataPackageOperation::Copy) == DataPackageOperation::Copy;
-    const auto transport_operation =
-        accepts_storage_items && source_allows_copy ? DataPackageOperation::Copy : DataPackageOperation::None;
-    args.AcceptedOperation(transport_operation);
-    if (transport_operation != DataPackageOperation::None) {
-        args.DragUIOverride().IsCaptionVisible(true);
-        args.DragUIOverride().IsGlyphVisible(true);
-    }
-    DragOverlay().Visibility(
-        transport_operation != DataPackageOperation::None ? Visibility::Visible : Visibility::Collapsed);
+    OnDragEnter(nullptr, args);
 }
 
 void MainWindow::OnDragLeave(IInspectable const&, DragEventArgs const&) {
-    DragOverlay().Visibility(Visibility::Collapsed);
 }
 
 void MainWindow::OnDrop(IInspectable const&, DragEventArgs const& args) {
-    DragOverlay().Visibility(Visibility::Collapsed);
+    const bool active_session = !active_destination_.empty() && (execution_control_ || live_plan_);
     const bool accepts_storage_items = args.DataView().Contains(StandardDataFormats::StorageItems());
     const bool source_allows_copy =
         (args.AllowedOperations() & DataPackageOperation::Copy) == DataPackageOperation::Copy;
-    if (!accepts_storage_items || !source_allows_copy) {
+    if (!active_session || !accepts_storage_items || !source_allows_copy) {
         args.AcceptedOperation(DataPackageOperation::None);
         return;
     }
 
-    // The OS drag transaction only stages sources into VelocityCopy. Report Copy to
-    // the source so a requested Move is not treated as completed before the user
-    // chooses a destination/layout and our own move engine succeeds.
-    const auto requested_operation = preferred_drop_operation(args.DataView(), args.Modifiers());
-    const auto operation = requested_operation == DataPackageOperation::Move
-        ? velocitycopy::FileOperation::Move
-        : velocitycopy::FileOperation::Copy;
     args.AcceptedOperation(DataPackageOperation::Copy);
-    HandleDropAsync(args, operation);
+    HandleDropAsync(args);
 }
 
-fire_and_forget MainWindow::HandleDropAsync(
-    DragEventArgs args,
-    const velocitycopy::FileOperation) {
+fire_and_forget MainWindow::HandleDropAsync(DragEventArgs args) {
     auto lifetime = get_strong();
     auto deferral = args.GetDeferral();
     try {
