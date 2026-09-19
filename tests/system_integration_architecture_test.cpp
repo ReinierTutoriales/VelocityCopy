@@ -44,7 +44,7 @@ int main() {
         return fail(1, "required integration source missing");
     }
 
-    if (!contains(app, "ExtendedActivationKind::StartupTask") ||
+    if (!contains(app, "L\"--startup\"") ||
         !contains(app, "!startup_activation && !is_stage_only_activation") ||
         !contains(app, "ShellAction::OpenVelocityCopy")) {
         return fail(4, "startup must remain hidden and later launches must wake the primary instance");
@@ -137,11 +137,12 @@ int main() {
         return fail(13, "system-impact constraints must remain documented");
     }
 
-    if (!contains(window, "item.IsOfType(StorageItemTypes::Folder)") ||
-        !contains(window, "item.IsOfType(StorageItemTypes::File)") ||
-        !contains(window, "if (!kind)") ||
-        contains(window, "? velocitycopy::DropItemKind::Directory\n                : velocitycopy::DropItemKind::File")) {
-        return fail(14, "drag-and-drop must classify only supported files and folders explicitly");
+    if (!contains(window, "StandardDataFormats::StorageItems()") ||
+        !contains(window, "active_destination_.empty()") ||
+        !contains(window, "job.destination = active_destination_") ||
+        !contains(window, "job.operation = active_operation_") ||
+        !contains(window, "QueueOrStartCopy(std::move(job))")) {
+        return fail(14, "drag-and-drop must append storage items only to the active transfer session");
     }
 
     return 0;
