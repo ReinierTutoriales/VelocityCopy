@@ -43,7 +43,8 @@ int main() {
         !contains(xaml, "x:Name=\"BrandLogo\"") ||
         !contains(xaml, "Source=\"Assets/VelocityCopy.png\"") ||
         !contains(xaml, "x:Name=\"QueueButton\"") ||
-        !contains(xaml, "x:Name=\"QueueChevron\"") ||\n        !contains(xaml, "Glyph=\"&#xE70D;\"") ||
+        !contains(xaml, "x:Name=\"QueueChevron\"") ||
+        !contains(xaml, "Glyph=\"&#xE70D;\"") ||
         !contains(xaml, "x:Name=\"OptionsButton\"")) {
         return fail(2, "collapsed copy bar must keep integrated progress, disclosure, and options");
     }
