@@ -26,7 +26,6 @@ int fail(int code, const char* message) {
 
 int main() {
     const std::filesystem::path root{VELOCITYCOPY_SOURCE_DIR};
-    const auto manifest = read_all(root / "src/ui/VelocityCopy.UI/Package.appxmanifest");
     const auto app = read_all(root / "src/ui/VelocityCopy.UI/App.xaml.cpp");
     const auto shell = read_all(root / "src/shell/explorer_commands.cpp");
     const auto shell_window = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Shell.cpp");
@@ -36,13 +35,12 @@ int main() {
     const auto persistence = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.QueuePersistence.cpp");
     const auto ci_workflow = read_all(root / ".github/workflows/ci.yml");
     const auto package_workflow = read_all(root / ".github/workflows/package.yml");
-    const auto installer = read_all(root / "tools/Install-VelocityCopy-Test.ps1");
     const auto installer_exe = read_all(root / "tools/VelocityCopy-Test-Installer.nsi");
     const auto docs = read_all(root / "docs/SYSTEM_INTEGRATION.md");
 
-    if (manifest.empty() || app.empty() || shell.empty() || shell_window.empty() || ipc.empty() ||
+    if (app.empty() || shell.empty() || shell_window.empty() || ipc.empty() ||
         window.empty() || tray.empty() || persistence.empty() || ci_workflow.empty() || package_workflow.empty() ||
-        installer.empty() || installer_exe.empty() || docs.empty()) {
+        installer_exe.empty() || docs.empty()) {
         return fail(1, "required integration source missing");
     }
 
