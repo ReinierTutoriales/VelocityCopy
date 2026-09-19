@@ -49,12 +49,6 @@
                         Background="{ThemeResource AccentFillColorDefaultBrush}"
                         Opacity="0.12" />
 
-                <ProgressBar x:Name="GlobalProgress"
-                             Minimum="0"
-                             Maximum="100"
-                             Value="0"
-                             Visibility="Collapsed" />
-
                 <Grid Padding="12,8,12,4">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />

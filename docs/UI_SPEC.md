@@ -44,7 +44,8 @@ The logo remains visible at the far left in every compact state. The disclosure 
 
 ## Integrated progress surface
 
-- There is one global progress indicator only.
+- There is one global progress indication only: the copier surface fill itself.
+- Do not keep a hidden or visible ProgressBar as a second progress model; runtime progress drives the surface fill and percentage text from the same fraction.
 - Do not draw a separate progress strip in the collapsed window.
 - Progress fills the compact transfer surface from left to right behind its content.
 - Keep the fill visually subordinate so text, logo, icons and focus visuals retain contrast.

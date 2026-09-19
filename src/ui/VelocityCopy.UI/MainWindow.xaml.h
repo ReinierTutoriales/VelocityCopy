@@ -129,6 +129,7 @@ private:
     [[nodiscard]] std::vector<std::uint64_t> SelectedPendingIds();
     void ResizeWindow(int height_epx);
     void ResizeWindowToContent();
+    void SetProgressFraction(double fraction);
     void SetExecutionButtonsPlanning();
     void SetExecutionButtonsRunning();
     void SetExecutionButtonsIdle();

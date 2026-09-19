@@ -49,14 +49,15 @@ int main() {
         return fail(2, "collapsed copy bar must keep integrated progress, disclosure, and options");
     }
 
-    if (!contains(xaml, "x:Name=\"GlobalProgress\"") ||
-        !contains(xaml, "Visibility=\"Collapsed\"") ||
+    if (contains(xaml, "x:Name=\"GlobalProgress\"") ||
+        contains(xaml, "<ProgressBar") ||
         contains(xaml, "x:Name=\"ActionStrip\"")) {
-        return fail(3, "collapsed mode must not regress to a separate visible progress/action strip");
+        return fail(3, "collapsed mode must use the copier surface itself for progress");
     }
 
-    if (!contains(execution, "ProgressFill().Width(TransferSurface().ActualWidth() * fraction)") ||
-        !contains(execution, "ProgressPercentText().Text") ||
+    if (!contains(window, "void MainWindow::SetProgressFraction") ||
+        !contains(window, "ProgressFill().Width(TransferSurface().ActualWidth() * clamped)") ||
+        !contains(execution, "SetProgressFraction(fraction)") ||
         !contains(queue, "QueueChevron().Glyph(expanding ? L\"\\xE70E\" : L\"\\xE70D\")")) {
         return fail(4, "runtime state must drive the integrated fill and disclosure direction");
     }

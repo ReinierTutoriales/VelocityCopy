@@ -69,8 +69,10 @@ MainWindow::MainWindow() {
 void MainWindow::OnTransferSurfaceSizeChanged(
     IInspectable const&,
     SizeChangedEventArgs const& args) {
-    const auto fraction = (std::clamp)(GlobalProgress().Value() / 100.0, 0.0, 1.0);
-    ProgressFill().Width(args.NewSize().Width * fraction);
+    const auto fraction = TransferSurface().ActualWidth() > 0.0
+        ? ProgressFill().Width() / TransferSurface().ActualWidth()
+        : 0.0;
+    ProgressFill().Width(args.NewSize().Width * (std::clamp)(fraction, 0.0, 1.0));
 }
 
 void MainWindow::ResizeWindow(const int height_epx) {
@@ -97,6 +99,12 @@ void MainWindow::ResizeWindowToContent() {
     RootGrid().UpdateLayout();
     const auto content_height = static_cast<int>(std::ceil(RootGrid().ActualHeight()));
     ResizeWindow((std::max)(72, content_height));
+}
+
+void MainWindow::SetProgressFraction(const double fraction) {
+    const auto clamped = (std::clamp)(fraction, 0.0, 1.0);
+    ProgressFill().Width(TransferSurface().ActualWidth() * clamped);
+    ProgressPercentText().Text(hstring(std::format(L"{:.0f}%", clamped * 100.0)));
 }
 
 void MainWindow::OnDragEnter(IInspectable const&, DragEventArgs const& args) {
