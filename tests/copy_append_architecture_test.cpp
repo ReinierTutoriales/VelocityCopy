@@ -41,8 +41,8 @@ int main() {
     const auto execution = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Execution.cpp");
     const auto queue = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Queue.cpp");
     const auto project = read_all(root / "src/ui/VelocityCopy.UI/VelocityCopy.UI.vcxproj");
-    const auto manifest = read_all(root / "src/ui/VelocityCopy.UI/Package.appxmanifest");
-    const auto explorer = read_all(root / "src/shell/explorer_commands.cpp");
+    const auto manifest = read_all(root / "tools/VelocityCopy-Test-Installer.nsi");
+    const auto explorer = read_all(root / "src/shell/drop_handler.cpp");
     const auto cli = read_all(root / "src/app/main.cpp");
     const auto cmake = read_all(root / "CMakeLists.txt");
     const auto engine_h = read_all(root / "src/core/include/velocitycopy/copy_engine.hpp");
@@ -58,7 +58,7 @@ int main() {
         return fail(1, "required production source missing");
     }
 
-    if (!contains(shell, "QueueOrStartCopy(std::move(*dispatch.job))") ||
+    if (!contains(shell, "BeginShellLayoutAsync(std::move(*dispatch.job))") || !contains(window, "QueueOrStartCopy") ||
         !contains(xaml, "OnQueueOrStartCopyClick") || contains(xaml, "OnStartCopyClick") ||
         contains(header, "OnStartCopyClick") || contains(window, "OnStartCopyClick")) {
         return fail(2, "Explorer/drop must share queue-aware start route");
@@ -125,18 +125,18 @@ int main() {
     }
 
     if (!contains(app, "SingleInstance") || !contains(app, "ShellIpcServer") ||
-        !contains(app, "is_stage_only_activation") || contains(cli, "--shell-runtime")) {
+        contains(cli, "--shell-runtime")) {
         return fail(14, "WinUI must be the sole Explorer activation host");
     }
 
-    if (!contains(shell, "ShellAction::PasteToFolder") || !contains(shell, "BeginShellLayoutAsync") ||
+    if (!contains(shell, "BeginShellLayoutAsync") ||
         !contains(shell, "resume_background()") || !contains(shell, "GetFileAttributesW") ||
         !contains(shell, "flow_.begin") || !contains(shell, "SelectDestination(destination)")) {
-        return fail(15, "Explorer Paste must enter the shared layout flow safely");
+        return fail(15, "Explorer transfer must enter the shared layout flow safely");
     }
 
     if (!contains(header, "shell_layout_generation_") ||
-        count_occurrences(shell, "++shell_layout_generation_") < 2 ||
+        count_occurrences(shell, "++shell_layout_generation_") < 1 ||
         !contains(shell, "shell_layout_generation_ != generation")) {
         return fail(16, "stale Explorer layout completions must be suppressed");
     }
@@ -147,7 +147,7 @@ int main() {
         return fail(17, "Explorer DLL must dispatch to the WinUI executable");
     }
 
-    if (!contains(manifest, "VelocityCopy.Shell.dll") || !contains(manifest, "windows.fileExplorerContextMenus") ||
+    if (!contains(manifest, "VelocityCopy.Shell.dll") || !contains(manifest, "DragDropHandlers") ||
         !contains(cmake, "project(VelocityCopy VERSION")) {
         return fail(18, "package/Explorer registration version contract drifted");
     }

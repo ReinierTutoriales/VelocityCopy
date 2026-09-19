@@ -45,11 +45,6 @@ void MainWindow::InitializeTrayIntegration() {
             return;
         }
 
-        if (AddClipboardFormatListener(hwnd_)) {
-            // Explorer may already contain a file Copy/Cut operation when VelocityCopy starts.
-            // Seed staging immediately; later changes arrive through WM_CLIPBOARDUPDATE.
-            CaptureClipboardFileSelection();
-        }
 
         std::array<wchar_t, 32768> module_path{};
         SHFILEINFOW shell_info{};
@@ -95,9 +90,6 @@ void MainWindow::InitializeTrayIntegration() {
 }
 
 void MainWindow::RemoveTrayIntegration() noexcept {
-    if (hwnd_ != nullptr) {
-        (void)RemoveClipboardFormatListener(hwnd_);
-    }
 
     if (tray_added_) {
         (void)Shell_NotifyIconW(NIM_DELETE, &tray_data_);
@@ -253,57 +245,6 @@ void MainWindow::RefreshEfficiencyMode() noexcept {
     SetEfficiencyMode(enable);
 }
 
-void MainWindow::CaptureClipboardFileSelection() noexcept {
-    if (hwnd_ == nullptr || !OpenClipboard(hwnd_)) {
-        return;
-    }
-
-    std::vector<std::filesystem::path> sources;
-    velocitycopy::FileOperation operation = velocitycopy::FileOperation::Copy;
-
-    if (const auto drop = static_cast<HDROP>(GetClipboardData(CF_HDROP)); drop != nullptr) {
-        const UINT count = DragQueryFileW(drop, 0xFFFFFFFF, nullptr, 0);
-        try {
-            sources.reserve(count);
-            for (UINT index = 0; index < count; ++index) {
-                const UINT length = DragQueryFileW(drop, index, nullptr, 0);
-                if (length == 0) {
-                    continue;
-                }
-                std::wstring path(length + 1, L'\0');
-                if (DragQueryFileW(drop, index, path.data(), length + 1) != 0) {
-                    path.resize(length);
-                    sources.emplace_back(std::move(path));
-                }
-            }
-        } catch (...) {
-            sources.clear();
-        }
-    }
-
-    const UINT preferred_effect_format = RegisterClipboardFormatW(CFSTR_PREFERREDDROPEFFECT);
-    if (preferred_effect_format != 0) {
-        if (const auto effect_data = static_cast<HGLOBAL>(GetClipboardData(preferred_effect_format));
-            effect_data != nullptr) {
-            if (const auto effect = static_cast<const DWORD*>(GlobalLock(effect_data)); effect != nullptr) {
-                if ((*effect & DROPEFFECT_MOVE) != 0) {
-                    operation = velocitycopy::FileOperation::Move;
-                }
-                GlobalUnlock(effect_data);
-            }
-        }
-    }
-
-    CloseClipboard();
-
-    if (!sources.empty()) {
-        try {
-            shell_session_.stage_sources(std::move(sources), operation);
-        } catch (...) {
-        }
-    }
-}
-
 LRESULT CALLBACK MainWindow::TraySubclassProc(
     HWND hwnd,
     UINT message,
@@ -372,9 +313,6 @@ LRESULT CALLBACK MainWindow::TraySubclassProc(
         }
         break;
 
-    case WM_CLIPBOARDUPDATE:
-        self->CaptureClipboardFileSelection();
-        return 0;
 
     case WM_QUERYENDSESSION:
         return TRUE;

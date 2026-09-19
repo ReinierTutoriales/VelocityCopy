@@ -5,7 +5,7 @@ VelocityCopy integrates deeply enough to feel native on Windows 11 without repla
 ## Installation
 
 - Distribution target: classic self-contained NSIS installers for Windows 11 x64 and ARM64 (`VelocityCopy-Setup-x64.exe` and `VelocityCopy-Setup-ARM64.exe`).
-- Each installer copies the autonomous WinUI payload, registers Explorer `IExplorerCommand` handlers and a conventional Add/Remove Programs entry.
+- Each installer copies the autonomous WinUI payload, registers Explorer `DragDropHandlers` and a conventional Add/Remove Programs entry.
 - The installer owns startup registration through HKCU Run (`VelocityCopy`) with `--startup`. Runtime code must never create or repair that value.
 - Use the installer that matches the native OS architecture. The x64 setup refuses ARM64 Windows and the ARM64 setup refuses x64 Windows.
 
@@ -38,7 +38,7 @@ The resident process exists only to provide near-instant Explorer handoff and st
 - no hashing while idle
 - no network polling
 - no filesystem watcher farm
-- clipboard file capture uses AddClipboardFormatListener events, not polling
+- transfer snapshots come from IDataObject; no idle clipboard listener
 - no global keyboard or mouse hooks
 - no process injection, DLL injection, or generic keystroke capture
 - no periodic benchmark
@@ -61,18 +61,15 @@ Any future idle feature must preserve this near-zero-CPU design and must not app
 
 Explorer integration uses an unpackaged in-process COM server:
 
-- native COM DLL implementing `IExplorerCommand`
-- classic installer registration of the CLSID and Explorer verb handlers
+- native COM DLL implementing `IShellExtInit` and `IContextMenu`
+- classic installer registration of the CLSID and Explorer drop handlers
 - architecture-matched shell DLL (x64 DLL for x64 Explorer, ARM64 DLL for ARM64 Explorer)
 - synchronous menu-construction methods remain bounded and cheap
 - `Invoke` packages intent into a versioned `ShellRequest` and returns
 - all enumeration, planning, conflicts, queue state and I/O remain in the VelocityCopy app process
 - IPC or launch failure must never destabilize Explorer
 
-VelocityCopy does not patch or inject into explorer.exe, install a kernel driver, add a permanently active helper service, or install a global keyboard hook. It observes normal file Copy/Cut clipboard updates using AddClipboardFormatListener and stages CF_HDROP paths, including Preferred DropEffect so Cut becomes Move.
-
-Paste remains on supported Explorer integration surfaces: Paste with VelocityCopy, Copy to... with VelocityCopy, drag/drop and direct app flows. Global Ctrl+V remains owned by Windows until there is a supported interception path that does not require a system-wide low-level keyboard hook.
-
+The shell uses the SuperCopier-style default drop-menu selection technique described in EXPLORER_INTEGRATION.md. The command-ID mapping is historical and not a documented Windows 11 guarantee. Automatic Ctrl+V remains a required installed-Windows validation gate. No global hooks, injection or resident clipboard staging are used.
 ## Process model
 
 ```text
@@ -84,7 +81,7 @@ Windows sign-in
 
 Explorer.exe
     |
-    +-- VelocityCopy.Shell.dll / IExplorerCommand
+    +-- VelocityCopy.Shell.dll / IShellExtInit + IContextMenu
             |
             +-- ShellRequest -> existing primary instance
                 or bounded on-demand launch if no primary exists

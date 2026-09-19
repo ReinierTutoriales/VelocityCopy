@@ -34,7 +34,8 @@ int wmain() {
     using namespace velocitycopy;
 
     ShellRequest request{};
-    request.action = ShellAction::CopySelectionTo;
+    request.action = ShellAction::Transfer;
+    request.operation = FileOperation::Move;
     request.sources = {
         std::filesystem::path(L"C:\\Test\\Novela\\capitulo1.mkv"),
         std::filesystem::path(L"C:\\Test\\Novela\\capitulo2.mkv")};
@@ -45,7 +46,7 @@ int wmain() {
     if (!encoded) return 1;
     const auto decoded = deserialize_shell_request(*encoded);
     if (!decoded || decoded->sources != request.sources || decoded->destination != request.destination ||
-        decoded->action != request.action || decoded->layout != request.layout) return 2;
+        decoded->operation != request.operation || decoded->action != request.action || decoded->layout != request.layout) return 2;
 
     auto corrupted = *encoded;
     corrupted[0] ^= 0xffu;
@@ -63,7 +64,7 @@ int wmain() {
     if (!send_shell_request(request, 2000)) return 6;
     receiver.join();
     if (!received || received->sources != request.sources || received->destination != request.destination ||
-        received->action != request.action || received->layout != request.layout) return 7;
+        received->operation != request.operation || received->action != request.action || received->layout != request.layout) return 7;
 
     // Malformed client data is a protocol rejection, not a transport shutdown.
     std::optional<ShellRequest> malformed_result;

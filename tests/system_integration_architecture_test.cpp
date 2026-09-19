@@ -27,7 +27,7 @@ int fail(int code, const char* message) {
 int main() {
     const std::filesystem::path root{VELOCITYCOPY_SOURCE_DIR};
     const auto app = read_all(root / "src/ui/VelocityCopy.UI/App.xaml.cpp");
-    const auto shell = read_all(root / "src/shell/explorer_commands.cpp");
+    const auto shell = read_all(root / "src/shell/drop_handler.cpp");
     const auto shell_window = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Shell.cpp");
     const auto ipc = read_all(root / "src/core/ipc_transport.cpp");
     const auto window = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
@@ -60,8 +60,6 @@ int main() {
     if (!contains(window, "IsMinimizable(true)") ||
         !contains(window, "IsMaximizable(false)") ||
         !contains(tray, "Shell_NotifyIconW(NIM_ADD") ||
-        !contains(tray, "AddClipboardFormatListener") ||
-        !contains(tray, "CFSTR_PREFERREDDROPEFFECT") ||
         !contains(tray, "SC_MINIMIZE") ||
         !contains(tray, "WM_CLOSE") ||
         contains(tray, "SetWindowsHookEx") ||
@@ -126,18 +124,14 @@ int main() {
         return fail(11, "startup source must not comment out is_startup_activation with a literal escape");
     }
 
-    if (!contains(shell_window, "PasteToFolder") ||
-        !contains(shell_window, "staged_sources().empty()") ||
-        !contains(shell_window, "CaptureClipboardFileSelection()")) {
-        return fail(12, "Explorer paste must reconstruct clipboard staging when app starts on demand");
+    if (!contains(shell_window, "BeginShellLayoutAsync") ||
+        contains(shell_window, "CaptureClipboardFileSelection") ||
+        contains(tray, "AddClipboardFormatListener")) {
+        return fail(12, "transfer handoff must use its own snapshot, never stale clipboard staging");
     }
-
-    if (!contains(docs, "IExplorerCommand") ||
-        !contains(docs, "AddClipboardFormatListener") ||
-        !contains(docs, "EcoQoS")) {
-        return fail(13, "system-impact constraints must remain documented");
+    if (!contains(docs, "IShellExtInit") || !contains(docs, "EcoQoS")) {
+        return fail(13, "integration constraints must remain documented");
     }
-
     if (!contains(window, "StandardDataFormats::StorageItems()") ||
         !contains(window, "active_session") ||
         !contains(window, "job.destination = active_destination_") ||
@@ -149,12 +143,12 @@ int main() {
         return fail(14, "drag-and-drop must append storage items only to the active transfer session");
     }
 
-    if (!contains(shell, "IFolderView") ||
-        !contains(shell, "IShellItem* folder") ||
-        !contains(shell, "SIGDN_FILESYSPATH") ||
-        contains(shell, "IShellItemArray* folder_items")) {
-        return fail(15, "Explorer paste target must resolve the current folder as one shell item");
+    if (!contains(shell, "SHGetPathFromIDListEx") ||
+        !contains(shell, "CF_HDROP") || !contains(shell, "IContextMenu") ||
+        contains(shell, "IExplorerCommand") ||
+        contains(installer_exe, "ExplorerCommandHandler") ||
+        !contains(installer_exe, "DragDropHandlers")) {
+        return fail(15, "only the drop-handler registration and data-object contract may remain");
     }
-
     return 0;
 }

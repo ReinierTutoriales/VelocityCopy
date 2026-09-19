@@ -16,6 +16,13 @@ VelocityCopy keeps Explorer integration out of process. Shell extensions only pa
 - Maximum sources per request: 65,535.
 - Invalid, oversized, truncated or unknown-version messages are rejected before dispatch.
 - Explorer-side callers must use a short timeout and must never wait for the copy operation itself.
-- The pipe transfers intent only; scanning, planning, conflicts, UI and copy I/O remain in `VelocityCopy.exe`.
+- The pipe transfers intent only; scanning, planning, conflicts, UI and copy I/O remain in `VelocityCopy.WinUI.exe`.
 
-`VelocityCopyIpcHost` exists as a minimal development host for exercising the transport. It is not the final UI process and does not replace the main application.
+
+## Wire version 2
+
+The existing VCP1 magic identifies the protocol family; the version field is now 2. Header bytes are magic (u32 LE), version (u32 LE), action (u8), layout (u8), operation (u8), reserved zero (u8), then source count (u32 LE), length-prefixed UTF-16 sources and destination.
+
+Actions: Transfer=0 (requires sources and destination), OpenVelocityCopy=1 (no paths). Operations: Copy=0, Move=1. Version 1 and the retired stage/paste/prompt actions are rejected. New DLL and app must be upgraded together; exit the old resident app and unload old Explorer DLLs before relying on the new contract. Paths must be absolute and contain no embedded NUL. Unknown operation/layout/reserved bytes are rejected.
+
+Transport handoff is not a durable admission/completion acknowledgement. Neither pipe success nor process creation proves execution completed; the extension must not tell IDataObject to delete sources.

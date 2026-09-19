@@ -41,7 +41,7 @@ bool append_path(std::vector<std::uint8_t>& out, const std::filesystem::path& pa
 bool read_path(
     std::span<const std::uint8_t> bytes,
     std::size_t& offset,
-    std::filesystem::path& path) noexcept {
+    std::filesystem::path& path) {
     std::uint32_t chars = 0;
     if (!read_u32(bytes, offset, chars) || chars > kMaxShellPathChars) {
         return false;
@@ -73,7 +73,7 @@ std::optional<std::vector<std::uint8_t>> serialize_shell_request(const ShellRequ
         append_u32(out, request.version);
         out.push_back(static_cast<std::uint8_t>(request.action));
         out.push_back(static_cast<std::uint8_t>(request.layout));
-        out.push_back(0);
+        out.push_back(static_cast<std::uint8_t>(request.operation));
         out.push_back(0);
         append_u32(out, static_cast<std::uint32_t>(request.sources.size()));
 
@@ -110,7 +110,8 @@ std::optional<ShellRequest> deserialize_shell_request(std::span<const std::uint8
         request.version = version;
         request.action = static_cast<ShellAction>(bytes[offset++]);
         request.layout = static_cast<DestinationLayout>(bytes[offset++]);
-        offset += 2;
+        request.operation = static_cast<FileOperation>(bytes[offset++]);
+        if (bytes[offset++] != 0) return std::nullopt;
 
         if (!read_u32(bytes, offset, source_count) || source_count > kMaxShellSources) {
             return std::nullopt;

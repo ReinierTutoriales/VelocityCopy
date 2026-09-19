@@ -37,8 +37,6 @@
   <data name="LayoutKeepFolder" xml:space="preserve"><value>Mantener carpeta</value></data>
   <data name="ActionChooseDestination" xml:space="preserve"><value>Elegir destino</value></data>
   <data name="ActionStartCopy" xml:space="preserve"><value>Copiar</value></data>
-  <data name="ShellCopy" xml:space="preserve"><value>Copiar con VelocityCopy</value></data>
-  <data name="ShellPaste" xml:space="preserve"><value>Pegar con VelocityCopy</value></data>
   <data name="RecoveryTitle" xml:space="preserve"><value>¿Reanudar la transferencia interrumpida?</value></data>
   <data name="RecoveryMessage" xml:space="preserve"><value>VelocityCopy encontró trabajo guardado durante el apagado de Windows. No se reanudará nada hasta que elijas Reanudar.</value></data>
   <data name="RecoveryResume" xml:space="preserve"><value>Reanudar</value></data>
