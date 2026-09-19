@@ -41,7 +41,6 @@ Section "Install VelocityCopy" SEC_INSTALL
 
   CreateDirectory "$SMPROGRAMS\VelocityCopy"
   CreateShortcut "$SMPROGRAMS\VelocityCopy\VelocityCopy.lnk" "$INSTDIR\VelocityCopy.WinUI.exe" "" "$INSTDIR\VelocityCopy.WinUI.exe" 0
-  CreateShortcut "$DESKTOP\VelocityCopy.lnk" "$INSTDIR\VelocityCopy.WinUI.exe" "" "$INSTDIR\VelocityCopy.WinUI.exe" 0
 
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "DisplayName" "VelocityCopy"
@@ -55,7 +54,6 @@ Section "Install VelocityCopy" SEC_INSTALL
 SectionEnd
 
 Section "Uninstall"
-  Delete "$DESKTOP\VelocityCopy.lnk"
   Delete "$SMPROGRAMS\VelocityCopy\VelocityCopy.lnk"
   RMDir "$SMPROGRAMS\VelocityCopy"
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy"
