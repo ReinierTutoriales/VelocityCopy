@@ -8,141 +8,63 @@
 
 **Simple when you need it. Powerful when you want more.**
 
-<br>
-
 </div>
 
-## What is VelocityCopy?
+## Status
 
-VelocityCopy is a modern file-copying experience designed to feel at home on Windows 11.
+VelocityCopy is a **pre-release** Windows 11 app. The copy engine, compact WinUI shell, Explorer commands and classic installers exist and are built on every `main` commit. It is not a 1.0 product yet.
 
-The goal is simple: make copying and moving files **fast, clear, and effortless** without filling the screen with unnecessary controls.
+Current automated baseline (`main`):
 
-Drop your files, choose where they should go, and let VelocityCopy handle the rest.
+- x64 Release tests
+- ARM64 core compile
+- ASan RelWithDebInfo compile
+- self-contained unpackaged WinUI for x64 and ARM64
+- `VelocityCopy-Setup-x64.exe` and `VelocityCopy-Setup-ARM64.exe`
 
-## Designed around simplicity
+Download the latest installers from [Actions → Windows Package](https://github.com/ReinierTutoriales/VelocityCopy/actions/workflows/package.yml). Use the setup that matches the PC: x64 setup refuses ARM64 Windows, and the ARM64 setup refuses x64 Windows.
 
-VelocityCopy is being designed as a compact companion to Windows rather than a large file manager.
+Open product gaps before calling it production:
 
-- **Drag & drop** files and folders directly into VelocityCopy.
-- Choose the **destination** before the copy begins.
-- Decide whether to **keep the original folder** or copy its contents directly into the destination.
-- See the entire operation through **one clean progress bar**.
-- Expand the window only when you want to see **what is still waiting to be copied**.
-- Keep multiple copy operations organized in a **simple queue**.
-- **Pause, resume, skip, stop, or cancel** without losing control of the transfer.
-- **Save and load copy queues** when you want to continue later.
+- [#1](https://github.com/ReinierTutoriales/VelocityCopy/issues/1) shutdown recovery has no Resume/Discard UI
+- [#2](https://github.com/ReinierTutoriales/VelocityCopy/issues/2) no transparent Explorer paste without a global keyboard hook
 
-## Made to feel like Windows 11
+## What it does today
 
-The interface is planned around the visual language of Windows 11: compact, familiar, minimal, and focused on the task in front of you.
+- Drag and drop files into a compact WinUI 3 window
+- One overall progress view with an expandable queue
+- Pause, resume, skip, stop, cancel
+- Save and load copy queues
+- Explorer `IExplorerCommand` verbs (copy, copy-to, paste, open)
+- Silent startup via an installer-owned HKCU Run entry (`--startup`)
+- Tray residency with EcoQoS while idle and hidden
 
-The main view stays small and clean. Extra information remains hidden until you ask for it.
-
-```text
-┌──────────────────────────────────────────┐
-│ VelocityCopy                         ▾   │
-│ Copying 8,421 files                      │
-│ ████████████████████░░░░░░  72%         │
-│ 684 MB/s · 1 min 42 s                    │
-│                                          │
-│   Pause   Skip   Stop   Cancel      ⋯    │
-└──────────────────────────────────────────┘
-```
-
-Open the details only when you need them:
+## Repository layout
 
 ```text
-┌──────────────────────────────────────────┐
-│ 2,318 files remaining · 46.2 GB          │
-│                                          │
-│ movie.mkv                         8.3 GB  │
-│ backup.zip                        4.1 GB  │
-│ IMG_8721.CR3                       82 MB  │
-│ Documents                     1,204 items │
-└──────────────────────────────────────────┘
+src/core     copy engine, planner, queue, IPC
+src/ui       unpackaged WinUI 3 shell
+src/shell    Explorer in-process COM server
+tools        NSIS script, install helper, benchmarks
+tests        core and architecture contracts
+docs         product and release-gate rules
+.github      Windows CI and Windows Package
 ```
 
-## Smart drag & drop
+Keep work on short-lived PR branches. Merge to `main` and delete the branch. Do not keep `tmp-*` or merged `fix/*` branches.
 
-VelocityCopy is intended to make drag-and-drop copying more useful than a simple "copy here" action.
+Before changing CI or Package, read [docs/RELEASE_GATES.md](docs/RELEASE_GATES.md). Those workflows are string-checked by architecture tests.
 
-When you drop something into the app, you will be able to choose how it should arrive at the destination.
+## Build locally
 
-For example:
-
-```text
-Source
-D:\Photos\Vacation\
-
-Destination
-E:\Backup\
-
-Keep original folder
-E:\Backup\Vacation\...
-
-Copy contents only
-E:\Backup\...
+```bat
+cmake -S . -B build/x64 -A x64
+cmake --build build/x64 --config Release --parallel
+ctest --test-dir build/x64 -C Release --output-on-failure
 ```
 
-The choice stays clear without turning a simple copy into a complicated setup process.
-
-## One copy. One progress view.
-
-Even when several items are waiting in the queue, VelocityCopy keeps the main window focused on the overall operation.
-
-You see one progress bar for the complete copy. The detailed queue and remaining files stay available behind the expandable view.
-
-## Project principles
-
-**Fast**  
-Copying should feel immediate and responsive.
-
-**Lightweight**  
-VelocityCopy should stay out of the way when you are not using it.
-
-**Simple**  
-The most common actions should never require navigating through complicated menus.
-
-**Familiar**  
-It should look and behave like it belongs on Windows 11.
-
-**In control**  
-Pause, resume, skip, stop, cancel, save, and continue when you want.
-
-## Project status
-
-> **VelocityCopy is currently in early development.**
-
-The project is being built from the ground up. The current repository represents the beginning of the product, and features shown here describe the intended experience rather than a finished release.
-
-### Initial direction
-
-- Compact Windows 11-style interface
-- Drag & drop workflow
-- Smart destination choices
-- Single overall progress bar
-- Expandable remaining-file list
-- Copy queue
-- Pause and resume
-- Skip, stop, and cancel controls
-- Save and load queues
-- Clear conflict handling
-- Windows Explorer integration
-
-## Windows
-
-VelocityCopy is being created primarily for **Windows 11**.
+Installers are produced by GitHub Actions, not by the local CMake tree.
 
 ## License
 
 VelocityCopy is available under the [MIT License](LICENSE).
-
----
-
-<div align="center">
-
-**VelocityCopy**  
-*Copy less complicated.*
-
-</div>
