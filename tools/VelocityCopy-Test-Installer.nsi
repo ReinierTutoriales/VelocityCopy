@@ -20,6 +20,12 @@ Name "VelocityCopy"
 OutFile "${OUTPUT_FILE}"
 InstallDir "$PROGRAMFILES64\VelocityCopy"
 BrandingText "VelocityCopy"
+VIProductVersion "${DISPLAY_VERSION}"
+VIAddVersionKey "ProductName" "VelocityCopy"
+VIAddVersionKey "FileDescription" "VelocityCopy Installer"
+VIAddVersionKey "CompanyName" "ReinierTutoriales"
+VIAddVersionKey "FileVersion" "${DISPLAY_VERSION}"
+VIAddVersionKey "ProductVersion" "${DISPLAY_VERSION}"
 ShowInstDetails show
 ShowUninstDetails show
 
@@ -34,14 +40,16 @@ Section "Install VelocityCopy" SEC_INSTALL
   File /r "${PAYLOAD_DIR}\*.*"
 
   CreateDirectory "$SMPROGRAMS\VelocityCopy"
-  CreateShortcut "$SMPROGRAMS\VelocityCopy\VelocityCopy.lnk" "$INSTDIR\VelocityCopy.WinUI.exe"
-  CreateShortcut "$DESKTOP\VelocityCopy.lnk" "$INSTDIR\VelocityCopy.WinUI.exe"
+  CreateShortcut "$SMPROGRAMS\VelocityCopy\VelocityCopy.lnk" "$INSTDIR\VelocityCopy.WinUI.exe" "" "$INSTDIR\VelocityCopy.WinUI.exe" 0
+  CreateShortcut "$DESKTOP\VelocityCopy.lnk" "$INSTDIR\VelocityCopy.WinUI.exe" "" "$INSTDIR\VelocityCopy.WinUI.exe" 0
 
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "DisplayName" "VelocityCopy"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "Publisher" "ReinierTutoriales"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "UninstallString" '"$INSTDIR\Uninstall.exe"'
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "DisplayVersion" "${DISPLAY_VERSION}"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "DisplayIcon" "$INSTDIR\VelocityCopy.WinUI.exe,0"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "InstallLocation" "$INSTDIR"
   WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "NoModify" 1
   WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "NoRepair" 1
 SectionEnd
