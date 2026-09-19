@@ -584,7 +584,22 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         // an InfoBar with no Message at all. Decode it so a failed transfer
         // (including an Explorer Cut/Move that failed mid-copy) tells the
         // person why, not just that it failed.
-        ShowError(FormatFailureReason(result.native_code));
+        //
+        // record_error now also captures which file the FIRST failure
+        // happened on for any error, not only an actual destination
+        // conflict (conflict_file_id/conflict_source stay repurposed as
+        // "the failing file", destination_conflict itself is unchanged and
+        // still gates the dedicated conflict dialog). A decoded HRESULT
+        // with no path was nearly useless for a queue of more than one
+        // file: "file not found" doesn't say which of possibly hundreds of
+        // queued files vanished.
+        auto reason = FormatFailureReason(result.native_code);
+        if (result.conflict_file_id != 0 && !result.conflict_source.empty()) {
+            reason = reason.empty()
+                ? hstring(result.conflict_source.wstring())
+                : reason + L" — " + hstring(result.conflict_source.wstring());
+        }
+        ShowError(reason);
         return;
     }
 
