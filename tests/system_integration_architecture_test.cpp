@@ -84,10 +84,13 @@ int main() {
 
     if (!contains(ci_workflow, "push:") ||
         !contains(ci_workflow, "pull_request:") ||
-        !contains(ci_workflow, "cmake --build build/x64") ||
+        !contains(ci_workflow, "cmake_arch: x64") ||
+        !contains(ci_workflow, "cmake_arch: ARM64") ||
+        !contains(ci_workflow, "cmake --build build/") ||
         !contains(ci_workflow, "ctest --test-dir build/x64") ||
-        contains(ci_workflow, "Add-AppxPackage")) {
-        return fail(8, "commit CI must stay fast and validate x64 without packaging or installation");
+        contains(ci_workflow, "Add-AppxPackage") ||
+        contains(ci_workflow, "makensis")) {
+        return fail(8, "commit CI must compile x64 and ARM64 core without packaging or installation");
     }
 
     if (!contains(package_workflow, "workflow_dispatch:") ||
