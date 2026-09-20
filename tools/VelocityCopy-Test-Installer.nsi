@@ -85,8 +85,19 @@ FunctionEnd
   DeleteRegKey HKLM "Software\Classes\CLSID\{A6209C12-10B0-4D25-8BF3-2D3C3E6A7B11}"
 !macroend
 
+; VelocityCopy deliberately treats WM_CLOSE as hide-to-tray, so an upgrade or
+; uninstall cannot rely on a polite window close. Stop the resident process
+; before touching installed binaries. taskkill is part of Windows and nsExec is
+; bundled with NSIS; a non-zero result is harmless when no process is running.
+!macro CloseRunningApp
+  DetailPrint "Closing VelocityCopy if it is running..."
+  nsExec::ExecToLog '"$SYSDIR\taskkill.exe" /IM VelocityCopy.WinUI.exe /F'
+  Sleep 500
+!macroend
+
 Section "Install VelocityCopy" SEC_INSTALL
   SetRegView 64
+  !insertmacro CloseRunningApp
   SetOutPath "$INSTDIR"
   File /r "${PAYLOAD_DIR}\*.*"
 
@@ -119,6 +130,7 @@ SectionEnd
 
 Section "Uninstall"
   SetRegView 64
+  !insertmacro CloseRunningApp
   Delete "$SMPROGRAMS\VelocityCopy\VelocityCopy.lnk"
   RMDir "$SMPROGRAMS\VelocityCopy"
   DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "VelocityCopy"

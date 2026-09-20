@@ -33,14 +33,17 @@ int main() {
     const auto window = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
     const auto tray = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Tray.cpp");
     const auto persistence = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.QueuePersistence.cpp");
+    const auto recovery = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Recovery.cpp");
+    const auto conflict = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Conflict.cpp");
     const auto ci_workflow = read_all(root / ".github/workflows/ci.yml");
     const auto package_workflow = read_all(root / ".github/workflows/package.yml");
     const auto installer_exe = read_all(root / "tools/VelocityCopy-Test-Installer.nsi");
+    const auto installer_smoke = read_all(root / "tools/Install-VelocityCopy-Test.ps1");
     const auto docs = read_all(root / "docs/SYSTEM_INTEGRATION.md");
 
     if (app.empty() || shell.empty() || shell_window.empty() || ipc.empty() ||
-        window.empty() || tray.empty() || persistence.empty() || ci_workflow.empty() || package_workflow.empty() ||
-        installer_exe.empty() || docs.empty()) {
+        window.empty() || tray.empty() || persistence.empty() || recovery.empty() || conflict.empty() ||
+        ci_workflow.empty() || package_workflow.empty() || installer_exe.empty() || installer_smoke.empty() || docs.empty()) {
         return fail(1, "required integration source missing");
     }
 
@@ -116,8 +119,13 @@ int main() {
         !contains(installer_exe, "WriteUninstaller") ||
         !contains(installer_exe, "CreateShortcut") ||
         !contains(installer_exe, "Windows\\CurrentVersion\\Uninstall\\VelocityCopy") ||
+        !contains(installer_exe, "!macro CloseRunningApp") ||
+        !contains(installer_exe, "taskkill.exe") ||
+        !contains(installer_exe, "/IM VelocityCopy.WinUI.exe /F") ||
+        !contains(installer_smoke, "Launching VelocityCopy in startup/tray mode before uninstall smoke test") ||
+        !contains(installer_smoke, "the install directory still exists") ||
         contains(installer_exe, "Add-AppxPackage")) {
-        return fail(10, "classic installer must copy the autonomous payload and register a conventional uninstaller");
+        return fail(10, "classic install/uninstall must stop the resident app and prove Program Files cleanup");
     }
 
     if (contains(app, "\\nbool is_startup_activation")) {
@@ -152,6 +160,14 @@ int main() {
         contains(installer_exe, "ExplorerCommandHandler") ||
         !contains(installer_exe, "DragDropHandlers")) {
         return fail(15, "only the drop-handler registration and data-object contract may remain");
+    }
+
+    if (contains(recovery, "ContentDialog") || contains(recovery, "XamlRoot(") ||
+        contains(conflict, "ContentDialog") ||
+        !contains(recovery, "ShowNativeDecisionDialog") ||
+        !contains(conflict, "ShowNativeDecisionDialog") ||
+        !contains(conflict, "TaskDialogIndirect")) {
+        return fail(16, "modal conflict and recovery decisions must remain native top-level dialogs outside the compact XAML surface");
     }
     return 0;
 }
