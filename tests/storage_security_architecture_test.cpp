@@ -35,6 +35,7 @@ int main() {
     }
 
     const auto reparse_check = engine.find("source_is_unsafe_reparse_point(source)");
+    const auto destination_check = engine.find("destination_chain_contains_reparse_point(destination, destination_guard)");
     const auto copy_call = engine.find("CopyFile2(");
     if (reparse_check == std::string::npos ||
         !contains(engine, "FILE_ATTRIBUTE_REPARSE_POINT") ||
@@ -44,15 +45,19 @@ int main() {
         return fail(2, "source reparse point must be revalidated immediately before CopyFile2");
     }
 
-    const auto destination_check = engine.find("destination_chain_contains_reparse_point(destination, destination_guard)");
     if (destination_check == std::string::npos ||
         !contains(engine, "FILE_FLAG_OPEN_REPARSE_POINT") ||
         !contains(engine, "FileAttributeTagInfo") ||
-        !contains(engine, "COPY_FILE_COPY_SYMLINK") ||
-        !contains(engine, "FILE_SHARE_READ | FILE_SHARE_WRITE") ||
-        contains(engine, "FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING,\n                FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT") ||
+        !contains(engine, "FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE") ||
+        contains(engine, "COPY_FILE_COPY_SYMLINK") ||
         destination_check > copy_call) {
-        return fail(6, "destination reparse defenses must precede CopyFile2");
+        return fail(6, "destination reparse defenses must precede CopyFile2 without re-enabling symlink traversal");
+    }
+
+    if (!contains(engine, "COPYFILE2_EXTENDED_PARAMETERS_V2") ||
+        !contains(engine, "parameters.ioDesiredSize") ||
+        !contains(engine, "COPYFILE2_CALLBACK_POLL_CONTINUE")) {
+        return fail(7, "interactive CopyFile2 path must keep bounded I/O cycles and heartbeat callbacks");
     }
 
     if (contains(archive, "source_roots.reserve(static_cast<std::size_t>(roots))") ||
