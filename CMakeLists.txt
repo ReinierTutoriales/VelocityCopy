@@ -18,19 +18,13 @@ if(MSVC AND VELOCITYCOPY_HYBRID_CRT)
 endif()
 
 if(MSVC AND VELOCITYCOPY_ENABLE_ASAN)
-    # MSVC ASan supports optimized builds; use RelWithDebInfo in CI to avoid
-    # Debug-only /RTC, which Microsoft documents as incompatible with ASan.
     add_compile_options(/fsanitize=address /Zi)
     add_link_options(/INCREMENTAL:NO)
 endif()
 
 add_library(velocitycopy_core STATIC
     src/core/copy_engine.cpp
-    src/core/destination_browser.cpp
     src/core/destination_catalog.cpp
-    src/core/destination_navigation_worker.cpp
-    src/core/drop_flow.cpp
-    src/core/drop_menu_model.cpp
     src/core/execution_control.cpp
     src/core/ipc_protocol.cpp
     src/core/ipc_transport.cpp
@@ -50,7 +44,6 @@ add_library(velocitycopy_core STATIC
 )
 
 target_include_directories(velocitycopy_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/core/include)
-
 target_compile_definitions(velocitycopy_core PUBLIC UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0A00 WINVER=0x0A00)
 target_link_libraries(velocitycopy_core PUBLIC shell32 advapi32)
 
@@ -103,12 +96,7 @@ add_velocitycopy_test(VelocityCopySkipTest tests/skip_test.cpp velocitycopy_skip
 add_velocitycopy_test(VelocityCopyExistingDestinationTest tests/existing_destination_test.cpp velocitycopy_existing_destination)
 add_velocitycopy_test(VelocityCopyQueueArchiveTest tests/queue_archive_test.cpp velocitycopy_queue_archive)
 add_velocitycopy_test(VelocityCopyDropLayoutTest tests/drop_layout_test.cpp velocitycopy_drop_layout)
-add_velocitycopy_test(VelocityCopyDropMenuModelTest tests/drop_menu_model_test.cpp velocitycopy_drop_menu_model)
-add_velocitycopy_test(VelocityCopyDropFlowTest tests/drop_flow_test.cpp velocitycopy_drop_flow)
-add_velocitycopy_test(VelocityCopyDropFlowMultiselectTest tests/drop_flow_multiselect_test.cpp velocitycopy_drop_flow_multiselect)
 add_velocitycopy_test(VelocityCopyDestinationCatalogTest tests/destination_catalog_test.cpp velocitycopy_destination_catalog)
-add_velocitycopy_test(VelocityCopyDestinationBrowserTest tests/destination_browser_test.cpp velocitycopy_destination_browser)
-add_velocitycopy_test(VelocityCopyDestinationNavigationWorkerTest tests/destination_navigation_worker_test.cpp velocitycopy_destination_navigation_worker)
 add_velocitycopy_test(VelocityCopyJobPlanningWorkerTest tests/job_planning_worker_test.cpp velocitycopy_job_planning_worker)
 add_velocitycopy_test(VelocityCopyStrategyTest tests/strategy_selector_test.cpp velocitycopy_strategy)
 add_velocitycopy_test(VelocityCopyStorageTopologyTest tests/storage_topology_test.cpp velocitycopy_storage_topology)

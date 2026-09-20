@@ -50,13 +50,7 @@ Prefer checks for:
 - packaging/install contracts;
 - copy/move correctness and queue behavior.
 
-Avoid tests whose only purpose is to require:
-- comments;
-- whitespace;
-- exact local variable names;
-- exact expression spelling;
-- decorative glyph literals;
-- arbitrary implementation details that can change without changing behavior.
+Avoid tests whose only purpose is to require comments, whitespace, exact local variable names, exact expression spelling, decorative glyph literals, or arbitrary implementation details.
 
 Never add comments, dead strings, or unreachable code solely to satisfy a textual test.
 
@@ -79,7 +73,6 @@ Do not mix a broad UI redesign into functional stabilization.
 
 - Do not introduce global keyboard hooks to emulate Explorer integration.
 - Explorer integration must use documented Windows shell/clipboard mechanisms.
-- Clipboard Copy/Cut semantics must preserve the operation through staging and execution.
 - Drag/drop onto VelocityCopy only appends StorageItems to the currently active transfer destination/session. It must not invent a destination or open destination/layout prompts.
 - Validate Explorer commands, tray restoration, startup behavior, installed executable resources, and installer registration on real Windows before calling those paths complete.
 
@@ -91,15 +84,7 @@ Normal commit CI should remain deterministic and relatively fast. Packaging belo
 
 x64 is the stabilization gate. ARM64 follows the same source and packaging recipe after x64 is healthy; ARM64-specific failures must not destabilize the x64 path.
 
-A release candidate requires:
-- clean build;
-- automated tests green;
-- expected payload present;
-- shell DLL present when registration references it;
-- installer succeeds;
-- uninstall succeeds;
-- installed executable launches;
-- real Windows integration checks for features that CI cannot prove.
+A release candidate requires clean build, automated tests green, expected payload present, shell DLL present when registration references it, installer/uninstaller success, installed executable launch, and real-Windows integration checks for features CI cannot prove.
 
 ## 8. CI evidence
 
@@ -111,12 +96,7 @@ After a commit intended to fix CI:
 - do not treat missing commit statuses as success;
 - do not start unrelated feature work while the stabilization gate remains red.
 
-Record the distinction between:
-- compile failure;
-- test failure;
-- packaging failure;
-- installer failure;
-- runtime/integration failure.
+Record whether a failure is compile, test, packaging, installer, or runtime/integration.
 
 ## 9. Resource and icon changes are atomic
 
@@ -138,13 +118,7 @@ Do not replace one level with another. Source inspection is not runtime validati
 
 ## 11. Stop conditions
 
-Stop adding new changes and investigate when:
-- `main` is red;
-- a build dependency/resource is missing;
-- the expected installer payload is incomplete;
-- implementation and tests disagree about the intended product behavior;
-- a Windows API contract is uncertain and materially affects correctness;
-- a proposed fix would merely hide a failure rather than resolve its cause.
+Stop adding new changes and investigate when `main` is red, a build dependency/resource is missing, the expected installer payload is incomplete, implementation/tests disagree about intended behavior, a Windows API contract is uncertain and affects correctness, or a proposed fix only hides a failure.
 
 ## 12. VelocityCopy product invariants
 
@@ -162,47 +136,36 @@ Until the project requirements explicitly change:
 
 If a future implementation decision conflicts with these rules, resolve the conflict explicitly before changing production code.
 
-
 ## 13. Documentation is part of the change
 
 Every material product, architecture, workflow, packaging, UI-contract, or engineering-process decision must update the relevant repository documentation in the same coherent change.
 
-Before implementing a change:
-- identify the canonical document that owns the affected contract;
-- check other documents for contradictory legacy requirements;
-- resolve contradictions before treating any document as implementation authority.
-
-After implementing a change:
-- update the canonical contract and validation/checklist when behavior changed;
-- record new regression-prevention rules when a failure exposed a reusable lesson;
-- do not preserve obsolete instructions merely because tests or old workflows mention them.
+Before implementing a change, identify the canonical document owning the contract, check other documents for contradictory legacy requirements, and reconcile contradictions instead of guessing.
 
 Documentation authority for active work:
-1. `docs/ENGINEERING_RULES.md` — engineering/process safety rules.
-2. `docs/IMPLEMENTATION_LINE.md` — current ordered execution line and stabilization gates.
-3. `docs/UI_SPEC.md` + `docs/UI_ARCHITECTURE.md` — current UI product/architecture contract.
-4. `docs/SYSTEM_INTEGRATION.md` + `docs/EXPLORER_INTEGRATION.md` + `docs/IPC.md` — Windows integration contracts.
-5. `docs/RELEASE_GATES.md` — current CI/package/release gates.
-6. `docs/PRETEST_AUDIT.md` — manual validation checklist, not a source for overriding newer product decisions.
+1. `docs/ENGINEERING_RULES.md`
+2. `docs/IMPLEMENTATION_LINE.md`
+3. `docs/UI_SPEC.md` + `docs/UI_ARCHITECTURE.md`
+4. `docs/SYSTEM_INTEGRATION.md` + `docs/EXPLORER_INTEGRATION.md` + `docs/IPC.md`
+5. `docs/RELEASE_GATES.md`
+6. `docs/PRETEST_AUDIT.md`
 
-If two documents conflict, do not guess. Reconcile them in one documentation change before implementing the affected behavior.
+### Regression lesson: structural UI deletion must include the linked WinUI surface
 
+Removing a XAML flow is not complete when the controls disappear. Audit generated-accessor callers, translation-unit helper definitions, generated `.g.cpp` integration, localization resources, build targets, tests, and documentation in the same block. A CMake/core build can be green while the self-contained WinUI executable fails at link time, so structural UI cleanup must pass the real WinUI link before it is considered complete.
 
-### Regression lesson: removing named XAML controls
+### Regression lesson: obsolete flow infrastructure must leave the build graph
 
-When a named XAML control is removed, search every WinUI translation unit and architecture test for generated accessor usage before committing. A core-only build can stay green while the self-contained WinUI build fails later, so UI structural changes are not complete until the WinUI target compiles. Architecture tests must protect the behavior/ownership contract rather than require a removed implementation detail.
-
+When a product flow is removed permanently, remove its controller/model/worker sources and dedicated tests from the build graph after confirming no supported path depends on them. Keeping destination/menu machinery compiled but unreachable increases maintenance cost and creates stale contracts that later cleanups accidentally preserve.
 
 ### Regression lesson: generated XAML accessor renames
 
-Renaming an `x:Name` changes the generated C++ accessor. Before committing such a rename, search every WinUI translation unit for the old accessor, not only the file implementing the feature being renamed. Architecture coverage for a rename must scan all production files that can call that accessor; core-only CI does not compile the WinUI generated accessors.
-
+Renaming an `x:Name` changes the generated C++ accessor. Search every WinUI translation unit for the old accessor and compile the self-contained WinUI target before committing.
 
 ### Choice-state integrity
 
-A visual selection state must only be committed after the underlying controller accepts the choice. Toggle/check state and action enablement must derive from the same validation result; never show an option selected when the flow rejected it. Entering a new shell layout step resets stale selection and disables Start until a valid layout is chosen.
-
+A visual selection state must only be committed after the underlying controller accepts the choice. Toggle/check state and action enablement must derive from the same validation result; never show an option selected when the flow rejected it.
 
 ### Regression lesson: do not gate a required action behind an unproven flyout
 
-An Explorer `Copy here`/`Move here` transfer unconditionally opened a destination/layout flyout on the compact window before the copy could start, even though the destination was already unambiguous. On the compact HWND that flyout's content could exceed the visible surface, leaving `StartCopyButton` unreachable: the product-required action (start the transfer) was blocked by a step that answered a question nobody needed to ask. When a step in a flow is not actually ambiguous for a given entry point, skip it and apply the deterministic default instead of rendering a chooser "just in case." If a flyout can gate a required action, its sizing on the smallest supported surface must be proven, on real Windows, before it ships unconditionally; until then, prefer not showing it. See `docs/UI_SPEC.md` "Shell destination/layout flow."
+A resolved Explorer transfer must not be blocked by a destination/layout chooser. If an entry point already has an authoritative destination and operation, dispatch directly into the transfer queue. Drag/drop onto the copier likewise never opens destination/layout UI.
