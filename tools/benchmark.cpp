@@ -32,12 +32,6 @@ const wchar_t* storage_name(const velocitycopy::StorageKind kind) noexcept {
     }
 }
 
-const wchar_t* strategy_name(const velocitycopy::CopyStrategyKind kind) noexcept {
-    return kind == velocitycopy::CopyStrategyKind::WindowsCopyFile2NoBuffering
-        ? L"CopyFile2 (unbuffered)"
-        : L"CopyFile2 (buffered)";
-}
-
 const wchar_t* seek_name(const velocitycopy::StorageProfile& profile) noexcept {
     if (!profile.seek_penalty_available) return L"unknown";
     return profile.incurs_seek_penalty ? L"rotational/seek penalty" : L"nonrotational";
@@ -128,10 +122,9 @@ int wmain(int argc, wchar_t* argv[]) {
                    << destination_profile.physical_sector_bytes << L" | disks ";
         write_disk_numbers(std::wcout, destination_profile);
         std::wcout << L" | shared physical disk " << (shared_physical_disk ? L"yes" : (topology_known ? L"no" : L"unknown")) << L"\n";
-        std::wcout << L"Strategy candidate: " << strategy_name(recommendation.strategy)
+        std::wcout << L"Strategy candidate: CopyFile2 (buffered)"
                    << L" | suggested QD " << recommendation.suggested_queue_depth
-                   << L" | buffer " << recommendation.suggested_buffer_bytes
-                   << L" | async candidate " << (recommendation.async_iocp_candidate ? L"yes" : L"no") << L"\n";
+                   << L" | I/O request " << recommendation.suggested_buffer_bytes << L" bytes\n";
     }
 
     const auto total_bytes = plan.total_bytes;
@@ -145,12 +138,11 @@ int wmain(int argc, wchar_t* argv[]) {
     }
 
     if (!json_output) {
-        std::wcout << L"Production execution: " << strategy_name(execution_options.strategy)
+        std::wcout << L"Production execution: CopyFile2 (buffered)"
                    << L" | workers " << execution_options.worker_count
                    << L" | recommended workers " << recommended_workers
                    << L" | flags 0x" << std::hex << execution_options.copy_flags << std::dec
-                   << L" | buffer " << execution_options.suggested_buffer_bytes
-                   << L" | async candidate " << (execution_options.async_iocp_candidate ? L"yes" : L"no")
+                   << L" | I/O request " << execution_options.suggested_buffer_bytes << L" bytes"
                    << L" | compressed traffic "
                    << (((execution_options.copy_flags & COPY_FILE_REQUEST_COMPRESSED_TRAFFIC) != 0) ? L"yes" : L"no")
                    << L"\n";
@@ -197,13 +189,12 @@ int wmain(int argc, wchar_t* argv[]) {
                    << L",\"total_bytes\":" << total_bytes
                    << L",\"file_count\":" << workload.file_count
                    << L",\"largest_file_bytes\":" << workload.largest_file_bytes
-                   << L",\"strategy\":\"" << strategy_name(execution_options.strategy)
-                   << L"\",\"workers\":" << execution_options.worker_count
+                   << L",\"strategy\":\"CopyFile2 (buffered)\""
+                   << L",\"workers\":" << execution_options.worker_count
                    << L",\"recommended_workers\":" << recommended_workers
                    << L",\"workers_overridden\":" << (forced_workers != 0 ? L"true" : L"false")
                    << L",\"copy_flags\":" << execution_options.copy_flags
                    << L",\"buffer_bytes\":" << execution_options.suggested_buffer_bytes
-                   << L",\"async_candidate\":" << (execution_options.async_iocp_candidate ? L"true" : L"false")
                    << L",\"compressed_traffic\":"
                    << (((execution_options.copy_flags & COPY_FILE_REQUEST_COMPRESSED_TRAFFIC) != 0) ? L"true" : L"false")
                    << L",\"elapsed_seconds\":" << elapsed.count()

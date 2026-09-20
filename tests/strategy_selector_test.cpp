@@ -25,9 +25,9 @@ int wmain() {
         1,
         8ull * 1024ull * 1024ull * 1024ull,
     });
-    if (large.strategy != velocitycopy::CopyStrategyKind::WindowsCopyFile2 ||
-        (large.copy_flags & COPY_FILE_NO_BUFFERING) != 0 || !large.async_iocp_candidate ||
-        large.suggested_queue_depth != 1 || large.suggested_buffer_bytes != 4u * 1024u * 1024u) {
+    if ((large.copy_flags & COPY_FILE_NO_BUFFERING) != 0 ||
+        large.suggested_queue_depth != 1 ||
+        large.suggested_buffer_bytes != 4u * 1024u * 1024u) {
         return 1;
     }
 
@@ -38,9 +38,9 @@ int wmain() {
         1,
         8ull * 1024ull * 1024ull * 1024ull,
     });
-    if (large_unknown_source_geometry.strategy != velocitycopy::CopyStrategyKind::WindowsCopyFile2 ||
-        (large_unknown_source_geometry.copy_flags & COPY_FILE_NO_BUFFERING) != 0 ||
-        large_unknown_source_geometry.suggested_queue_depth != 1) {
+    if ((large_unknown_source_geometry.copy_flags & COPY_FILE_NO_BUFFERING) != 0 ||
+        large_unknown_source_geometry.suggested_queue_depth != 1 ||
+        large_unknown_source_geometry.suggested_buffer_bytes != 4u * 1024u * 1024u) {
         return 7;
     }
 
@@ -49,14 +49,14 @@ int wmain() {
         10000,
         4096,
     });
-    if (small.strategy != velocitycopy::CopyStrategyKind::WindowsCopyFile2 ||
-        !small.async_iocp_candidate || small.suggested_queue_depth != 2) {
+    if (small.suggested_queue_depth != 2 ||
+        small.suggested_buffer_bytes != 512u * 1024u) {
         return 2;
     }
 
     const auto remote = selector.choose(network, network, {1024, 1, 1024});
     if ((remote.copy_flags & COPY_FILE_REQUEST_COMPRESSED_TRAFFIC) == 0 ||
-        remote.async_iocp_candidate || remote.suggested_queue_depth != 1) {
+        remote.suggested_queue_depth != 1 || remote.suggested_buffer_bytes != 0) {
         return 3;
     }
 
@@ -65,7 +65,8 @@ int wmain() {
         8,
         64ull * 1024ull * 1024ull,
     });
-    if (!normal.async_iocp_candidate || normal.suggested_queue_depth != 4) {
+    if (normal.suggested_queue_depth != 4 ||
+        normal.suggested_buffer_bytes != 2u * 1024u * 1024u) {
         return 4;
     }
 
@@ -74,7 +75,7 @@ int wmain() {
         8,
         64ull * 1024ull * 1024ull,
     });
-    if (hdd.async_iocp_candidate || hdd.suggested_queue_depth != 1) {
+    if (hdd.suggested_queue_depth != 1 || hdd.suggested_buffer_bytes != 0) {
         return 5;
     }
 
@@ -85,7 +86,7 @@ int wmain() {
         8,
         64ull * 1024ull * 1024ull,
     });
-    if (unknown.async_iocp_candidate || unknown.suggested_queue_depth != 1) {
+    if (unknown.suggested_queue_depth != 1 || unknown.suggested_buffer_bytes != 0) {
         return 6;
     }
 

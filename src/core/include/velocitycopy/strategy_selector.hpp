@@ -6,11 +6,6 @@
 
 namespace velocitycopy {
 
-enum class CopyStrategyKind {
-    WindowsCopyFile2,
-    WindowsCopyFile2NoBuffering,
-};
-
 struct WorkloadProfile {
     std::uint64_t total_bytes{};
     std::uint64_t file_count{};
@@ -18,11 +13,9 @@ struct WorkloadProfile {
 };
 
 struct StrategyRecommendation {
-    CopyStrategyKind strategy{CopyStrategyKind::WindowsCopyFile2};
     std::uint32_t copy_flags{};
     std::uint32_t suggested_buffer_bytes{};
     std::uint32_t suggested_queue_depth{1};
-    bool async_iocp_candidate{};
 };
 
 class StrategySelector final {
