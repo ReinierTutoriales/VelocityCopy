@@ -30,6 +30,7 @@ struct CopyOptions {
     bool resume_from_pause{};
     ExistingDestinationPolicy existing_destination{ExistingDestinationPolicy::Fail};
     std::uint32_t copy_flags{};
+    std::uint32_t io_size_bytes{};
 };
 
 struct CopyResult {

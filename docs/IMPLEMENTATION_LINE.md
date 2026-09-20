@@ -123,9 +123,17 @@ No optimization is accepted because it merely looks cleaner or faster. State the
 
 Windows 11 `CopyFile2` is allowed to own the actual file/stream semantics, but VelocityCopy must bound requested I/O-cycle size instead of leaving large transfers entirely to the OS default. Large ISO/image transfers must continue to emit useful progress/control opportunities rather than appearing frozen for long intervals. `COPYFILE2_CALLBACK_POLL_CONTINUE` is also treated as a control heartbeat using the last authoritative byte count so Pause/Stop/Cancel do not depend exclusively on the next completed chunk.
 
+Storage-profile tuning is production data, not decorative metadata. A non-zero `StrategyRecommendation::suggested_buffer_bytes` must flow through `JobExecutionOptions` and `CopyOptions` into `COPYFILE2_EXTENDED_PARAMETERS_V2::ioDesiredSize`. Do not calculate tuning values that the copy engine silently discards.
+
+Interactive production uses buffered `CopyFile2`. Do not keep unreachable strategy enums or speculative async/IOCP flags merely for a possible future implementation. If a second execution strategy is introduced later, add its enum/state in the same change that adds a real executable path and tests for it.
+
+Stop is an active-file control, not only a between-files check. An in-flight `CopyFile2` callback must observe `ExecutionDirective::Stop`; if CopyFile2 aborts that new destination, discard the partial destination, release the file back to the live plan and return a stopped session so Resume restarts it cleanly.
+
 Do not reintroduce unconditional `COPY_FILE_COPY_SYMLINK`: source reparse points are rejected before execution, so asking CopyFile2 to preserve symlinks contradicts the storage-safety contract.
 
 Append planning is part of the same cancellation contract as the primary planner. `JobPlanningWorker::cancel_pending()` must cancel the currently enumerating request as well as queued requests, and explicit cancellation must still release caller reservations through completion callbacks. A cancelled planner is a control transition, not an error banner.
+
+Large live queues must not remove from the front of a contiguous `std::vector`. The production pending queue uses constant-time front removal semantics; tests must exercise a large synthetic drain so an accidental O(n^2) front-erasure implementation is caught before release.
 
 ## Documentation rule
 

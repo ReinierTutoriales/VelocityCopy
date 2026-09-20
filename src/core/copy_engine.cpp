@@ -128,7 +128,12 @@ std::uint64_t source_size_no_throw(const std::filesystem::path& source) noexcept
     return ec ? 0 : size;
 }
 
-ULONG desired_io_size(const std::uint64_t source_size) noexcept {
+ULONG desired_io_size(
+    const std::uint64_t source_size,
+    const std::uint32_t requested_io_size) noexcept {
+    if (requested_io_size != 0) {
+        return static_cast<ULONG>(requested_io_size);
+    }
     return source_size >= kLargeFileThreshold ? kLargeFileIoSize : kDefaultIoSize;
 }
 
@@ -212,9 +217,9 @@ CopyResult CopyEngine::copy_file(
     callback_context.has_progress = source_size != 0;
 
     // VelocityCopy targets Windows 11, so use CopyFile2 V2 deliberately. Keep
-    // I/O cycles bounded so callbacks remain frequent enough for live controls
-    // and seed the callback state with the source size so POLL_CONTINUE can act
-    // as a control heartbeat before byte progress has been reported.
+    // I/O cycles bounded so callbacks remain frequent enough for live controls.
+    // StrategySelector can override the fallback size through CopyOptions; this
+    // makes the storage-profile recommendation part of the production path.
     COPYFILE2_EXTENDED_PARAMETERS_V2 parameters{};
     parameters.dwSize = sizeof(parameters);
     parameters.dwCopyFlags = options.copy_flags;
@@ -224,7 +229,7 @@ CopyResult CopyEngine::copy_file(
     if (options.existing_destination == ExistingDestinationPolicy::Fail) {
         parameters.dwCopyFlags |= COPY_FILE_FAIL_IF_EXISTS;
     }
-    parameters.ioDesiredSize = desired_io_size(source_size);
+    parameters.ioDesiredSize = desired_io_size(source_size, options.io_size_bytes);
     if (progress) {
         parameters.pProgressRoutine = copy_progress_routine;
         parameters.pvCallbackContext = &callback_context;

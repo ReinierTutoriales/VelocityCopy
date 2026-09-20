@@ -179,16 +179,6 @@ struct ConcurrentResultState {
             return;
         }
         first_error = code;
-        // conflict_source/conflict_destination now capture whichever file
-        // triggered the FIRST failure, for any failure code, not only an
-        // actual destination conflict. destination_conflict itself stays
-        // gated on is_destination_conflict(code) exactly as before, so the
-        // dedicated conflict-resolution dialog (MainWindow.Conflict.cpp)
-        // still only opens for a real conflict. This just stops a plain
-        // failure (access denied, file not found, disk full, ...) from
-        // discarding which source/destination path it happened on — the UI
-        // was decoding the HRESULT but reporting it with no idea which of
-        // possibly hundreds of queued files it came from.
         if (file != nullptr) {
             if (is_destination_conflict(code)) {
                 destination_conflict = true;
@@ -252,10 +242,8 @@ JobExecutionOptions recommend_for_roots(
     std::uint32_t worker_count = kMaxCopyWorkers;
     std::uint32_t shared_copy_flags = 0;
     std::uint32_t shared_buffer_bytes = 0;
-    bool shared_async_candidate = false;
     bool first_recommendation = true;
     bool source_destination_share_disk = false;
-
 
     for (const auto& source_path : source_roots) {
         const auto source = profiler.inspect(source_path);
@@ -268,20 +256,13 @@ JobExecutionOptions recommend_for_roots(
         if (first_recommendation) {
             shared_copy_flags = recommendation.copy_flags;
             shared_buffer_bytes = recommendation.suggested_buffer_bytes;
-            shared_async_candidate = recommendation.async_iocp_candidate;
             first_recommendation = false;
         } else {
             shared_copy_flags &= recommendation.copy_flags;
             shared_buffer_bytes = std::min(shared_buffer_bytes, recommendation.suggested_buffer_bytes);
-            shared_async_candidate = shared_async_candidate && recommendation.async_iocp_candidate;
         }
     }
 
-    // Physical topology is a guardrail, not a synthetic performance claim.
-    // When source and destination share a physical disk, parallel CopyFile2
-    // operations can compete for the same device; serialize that workload.
-    // For independent devices, retain the selector's measured/heuristic depth
-    // rather than increasing concurrency merely because more disks exist.
     if (source_destination_share_disk) {
         worker_count = 1;
     }
@@ -291,11 +272,7 @@ JobExecutionOptions recommend_for_roots(
         1,
         static_cast<std::uint32_t>(std::min<std::uint64_t>(workload.file_count, kMaxCopyWorkers)));
     options.copy_flags = shared_copy_flags;
-    options.strategy = (shared_copy_flags & COPY_FILE_NO_BUFFERING) != 0
-        ? CopyStrategyKind::WindowsCopyFile2NoBuffering
-        : CopyStrategyKind::WindowsCopyFile2;
     options.suggested_buffer_bytes = shared_buffer_bytes;
-    options.async_iocp_candidate = shared_async_candidate;
     return options;
 }
 
@@ -324,9 +301,6 @@ JobResult JobExecutor::execute(
     const CopyPlan& plan,
     const JobProgressCallback& progress) const noexcept {
     try {
-        // Compatibility adapter only. All production execution is owned by the
-        // LiveCopyPlan path so strategy selection, controls, concurrency,
-        // conflicts and progress semantics cannot diverge.
         LiveCopyPlan live_plan(plan);
         return execute(live_plan, progress);
     } catch (const std::filesystem::filesystem_error& error) {
@@ -538,7 +512,12 @@ JobResult JobExecutor::execute(
                             const auto result = engine_.copy_file(
                                 file->source,
                                 file->destination,
-                                CopyOptions{resume_from_pause, existing_policy, options.copy_flags},
+                                CopyOptions{
+                                    resume_from_pause,
+                                    existing_policy,
+                                    options.copy_flags,
+                                    options.suggested_buffer_bytes,
+                                },
                                 [&](const CopyProgress& file_progress) {
                                     progress_state.update_active(*file, file_progress.transferred_bytes);
                                     if (skip_allowed && control.consume_skip(file_id)) {
@@ -548,6 +527,9 @@ JobResult JobExecutor::execute(
                                     const auto current = control.directive();
                                     if (current == ExecutionDirective::Pause) {
                                         return CopyDecision::Pause;
+                                    }
+                                    if (current == ExecutionDirective::Stop) {
+                                        return CopyDecision::Stop;
                                     }
                                     if (current == ExecutionDirective::Cancel) {
                                         return CopyDecision::Cancel;
@@ -596,13 +578,33 @@ JobResult JobExecutor::execute(
                                     };
                                     return;
                                 }
+                                if (next == ExecutionDirective::Stop) {
+                                    progress_state.release(file_id);
+                                    if (skip_allowed) {
+                                        remove_partial_destination(file->destination);
+                                    }
+                                    plan.release_active(file_id);
+                                    worker_results[worker_index] = {false, false, S_OK, true};
+                                    return;
+                                }
                                 resume_from_pause = true;
                                 continue;
                             }
 
-                            progress_state.release(file_id);
-                            const bool cancelled = result.native_code ==
+                            const bool aborted = result.native_code ==
                                 static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED));
+                            if (aborted && control.directive() == ExecutionDirective::Stop) {
+                                progress_state.release(file_id);
+                                if (skip_allowed) {
+                                    remove_partial_destination(file->destination);
+                                }
+                                plan.release_active(file_id);
+                                worker_results[worker_index] = {false, false, S_OK, true};
+                                return;
+                            }
+
+                            progress_state.release(file_id);
+                            const bool cancelled = aborted;
                             if (cancelled && skip_allowed) {
                                 remove_partial_destination(file->destination);
                             }

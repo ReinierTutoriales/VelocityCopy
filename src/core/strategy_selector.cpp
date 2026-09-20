@@ -2,8 +2,6 @@
 
 #include <windows.h>
 
-#include <algorithm>
-
 namespace velocitycopy {
 
 StrategyRecommendation StrategySelector::choose(
@@ -30,19 +28,17 @@ StrategyRecommendation StrategySelector::choose(
         return recommendation;
     }
 
-    // Keep the interactive production path on buffered CopyFile2. Microsoft
-    // explicitly discourages pausing COPY_FILE_NO_BUFFERING copies, while
-    // VelocityCopy exposes Pause/Stop/Cancel throughout a live transfer.
-    // A large-file optimization must never trade away predictable controls.
+    // Interactive transfers stay on buffered CopyFile2 because Microsoft
+    // discourages pausing COPY_FILE_NO_BUFFERING copies. Tune the actual
+    // CopyFile2 V2 I/O request size instead of advertising an unreachable
+    // second strategy.
     if (very_large_file && local_fixed) {
         recommendation.suggested_buffer_bytes = 4u * 1024u * 1024u;
         recommendation.suggested_queue_depth = 1;
-        recommendation.async_iocp_candidate = known_nonrotational;
         return recommendation;
     }
 
     if (local_fixed && known_nonrotational) {
-        recommendation.async_iocp_candidate = true;
         recommendation.suggested_buffer_bytes = many_small_files
             ? 512u * 1024u
             : 2u * 1024u * 1024u;
