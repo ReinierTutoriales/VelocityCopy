@@ -1,11 +1,75 @@
 #include "pch.h"
 #include "MainWindow.xaml.h"
 
+#include <commctrl.h>
+
 using namespace winrt;
 using namespace Microsoft::UI::Xaml;
 using namespace Microsoft::UI::Xaml::Controls;
 
 namespace winrt::VelocityCopyUI::implementation {
+namespace {
+
+constexpr int kConflictReplace = 1001;
+constexpr int kConflictSkip = 1002;
+
+int ShowNativeConflictDialog(
+    HWND owner,
+    const std::wstring& title,
+    const std::wstring& message,
+    const std::wstring& replace_label,
+    const std::wstring& skip_label,
+    const std::wstring& cancel_label) noexcept {
+    try {
+        HMODULE module = LoadLibraryExW(L"comctl32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+        if (module != nullptr) {
+            using TaskDialogIndirectFn = HRESULT (WINAPI*)(
+                const TASKDIALOGCONFIG*, int*, int*, BOOL*);
+            auto task_dialog = reinterpret_cast<TaskDialogIndirectFn>(
+                GetProcAddress(module, "TaskDialogIndirect"));
+
+            if (task_dialog != nullptr) {
+                TASKDIALOG_BUTTON buttons[] = {
+                    {kConflictReplace, replace_label.c_str()},
+                    {kConflictSkip, skip_label.c_str()},
+                    {IDCANCEL, cancel_label.c_str()},
+                };
+
+                TASKDIALOGCONFIG config{};
+                config.cbSize = sizeof(config);
+                config.hwndParent = owner;
+                config.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION | TDF_SIZE_TO_CONTENT;
+                config.pszWindowTitle = L"VelocityCopy";
+                config.pszMainInstruction = title.c_str();
+                config.pszContent = message.c_str();
+                config.cButtons = static_cast<UINT>(std::size(buttons));
+                config.pButtons = buttons;
+                config.nDefaultButton = kConflictReplace;
+
+                int selected = IDCANCEL;
+                const HRESULT hr = task_dialog(&config, &selected, nullptr, nullptr);
+                FreeLibrary(module);
+                if (SUCCEEDED(hr)) {
+                    return selected;
+                }
+            } else {
+                FreeLibrary(module);
+            }
+        }
+
+        const int fallback = MessageBoxW(
+            owner,
+            message.c_str(),
+            title.c_str(),
+            MB_YESNOCANCEL | MB_ICONWARNING | MB_DEFBUTTON1);
+        if (fallback == IDYES) return kConflictReplace;
+        if (fallback == IDNO) return kConflictSkip;
+    } catch (...) {
+    }
+    return IDCANCEL;
+}
+
+} // namespace
 
 fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conflict) {
     auto lifetime = get_strong();
@@ -17,29 +81,30 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
         }
 
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-        ContentDialog dialog;
-        dialog.XamlRoot(RootGrid().XamlRoot());
-        dialog.Title(box_value(loader.GetString(L"ConflictTitle")));
+        const std::wstring title = loader.GetString(L"ConflictTitle").c_str();
+        const std::wstring replace_label = loader.GetString(L"ActionReplace").c_str();
+        const std::wstring skip_label = loader.GetString(L"ActionSkip").c_str();
+        const std::wstring cancel_label = loader.GetString(L"ActionCancel").c_str();
 
         std::wstring message = loader.GetString(L"ConflictMessage").c_str();
         if (!conflict.conflict_destination.empty()) {
             message.append(L"\n\n");
             message.append(conflict.conflict_destination.wstring());
         }
-        dialog.Content(box_value(hstring(message)));
-        dialog.PrimaryButtonText(loader.GetString(L"ActionReplace"));
-        dialog.SecondaryButtonText(loader.GetString(L"ActionSkip"));
-        dialog.CloseButtonText(loader.GetString(L"ActionCancel"));
-        dialog.DefaultButton(ContentDialogButton::Primary);
 
-        const auto choice = co_await dialog.ShowAsync();
+        // Conflict choices are a separate native top-level dialog, not XAML
+        // content constrained by the compact copier HWND. This prevents the
+        // choice UI from being clipped or forcing the copier to be resized.
+        const int choice = ShowNativeConflictDialog(
+            hwnd_, title, message, replace_label, skip_label, cancel_label);
+
         if (!conflict_session_ || !live_plan_) co_return;
 
         switch (choice) {
-        case ContentDialogResult::Primary:
+        case kConflictReplace:
             ResumeConflictCopy(conflict.conflict_file_id);
             co_return;
-        case ContentDialogResult::Secondary:
+        case kConflictSkip:
             if (!live_plan_->remove_pending_file(conflict.conflict_file_id)) {
                 ShowError();
                 CancelCurrentSession();
@@ -48,7 +113,7 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
             RefreshQueue();
             ResumeConflictCopy(0);
             co_return;
-        case ContentDialogResult::None:
+        case IDCANCEL:
         default:
             CancelCurrentSession();
             co_return;

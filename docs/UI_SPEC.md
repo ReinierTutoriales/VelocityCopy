@@ -53,18 +53,28 @@ Explorer/Shell integration delivers a resolved `CopyJob` to the UI process. The 
 - No `ShellFlowFlyout`, destination browser, preserve/direct layout choice, or Start button is part of the runtime transfer path.
 - No dormant destination/layout chooser should remain in `MainWindow.xaml` waiting for a future trigger. If a future product requirement truly needs destination selection, it must be designed as a separate explicit entry point rather than being coupled to drag/drop or normal Explorer transfer execution.
 - Shell integration and drag/drop therefore converge at `QueueOrStartCopy`, not at a chooser flow.
+- An accepted transfer must become visible immediately in the compact UI even while planning/enumeration is still running. The queue disclosure remains usable during this phase and shows a read-only preview of the accepted top-level sources until the authoritative `LiveCopyPlan` replaces it.
 
 ## Queue panel
 
 The queue is collapsed by default and expands in the same HWND.
 
-- Clicking the disclosure must always make the list visible when a live plan exists; changing the chevron alone is not a successful expansion.
+- Clicking the disclosure must make useful queue content visible whenever VelocityCopy has accepted work, including the initial planning phase before a `LiveCopyPlan` exists. Changing the chevron alone is not a successful expansion.
+- During initial planning the list is read-only and represents accepted top-level sources; editing/reordering becomes available only after the live plan exists.
 - The current collapsed HWND height is a layout constraint, not a measurement source. Measure `QueuePanel` independently with unconstrained vertical space, use `DesiredSize`, then resize the HWND.
 - Keep the expanded height bounded (roughly 176–340 epx) so short queues do not create empty space and long queues scroll instead of growing without limit.
 - Queue rows use a compact two-line hierarchy: filename first, source location secondary. Avoid card-per-row decoration.
 - Virtualized list, drag/drop reordering, keyboard selection, move up/down/remove controls.
 - Removing a queue entry never deletes the source file.
 - No card background or second rounded shell around the queue.
+
+## Modal choices and menus
+
+The compact copier surface must never be resized merely to make a modal decision UI fit.
+
+- File-conflict decisions (`Replace`, `Skip`, `Cancel`) use a separate native top-level dialog owned by the VelocityCopy HWND. They must not be a XAML `ContentDialog` embedded inside the 72 epx copier surface.
+- Modal choice windows may be centered/owned by VelocityCopy, but they remain separate windows so their content cannot be clipped by the copier's current size.
+- Lightweight command flyouts such as the options menu may use normal popup/flyout presentation because they are not laid out inside the copier surface.
 
 ## Window movement
 
@@ -81,7 +91,7 @@ The compact copier must remain movable with normal pointer dragging. Keep a prac
 
 ## Performance
 
-- Defer queue visuals until expanded.
+- Defer expensive queue realization where possible, but never make accepted work invisible during planning.
 - Avoid per-file progress controls and per-file animation.
 - Do not update UI on every I/O completion.
 - Keep core transfer state independent of concrete WinUI controls.

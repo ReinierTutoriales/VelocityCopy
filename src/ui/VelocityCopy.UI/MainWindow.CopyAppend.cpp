@@ -67,7 +67,15 @@ void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
     auto target_gate = append_gate_;
 
     if (!target_control || !target_gate) {
+        auto preview_sources = job.sources;
         StartCopy(std::move(job));
+
+        // Planning can take noticeable time for large directory trees. Keep the
+        // disclosure useful immediately instead of leaving it disabled until the
+        // complete LiveCopyPlan has been materialized.
+        planning_sources_ = std::move(preview_sources);
+        QueueButton().IsEnabled(!planning_sources_.empty());
+        RefreshQueue();
         return;
     }
 

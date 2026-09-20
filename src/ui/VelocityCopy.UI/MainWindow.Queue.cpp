@@ -9,14 +9,72 @@ using namespace Microsoft::UI::Xaml::Input;
 namespace winrt::VelocityCopyUI::implementation {
 
 void MainWindow::RefreshQueue() {
+    auto items = QueueList().Items();
+
+    auto append_visual = [&](const std::filesystem::path& source, const std::optional<std::uint64_t> id) {
+        StackPanel row;
+        row.Spacing(2);
+        row.Margin(Thickness{8, 5, 8, 5});
+        row.HorizontalAlignment(HorizontalAlignment::Stretch);
+        if (id) {
+            row.Tag(box_value(*id));
+        }
+
+        TextBlock name;
+        name.Text(hstring(source.filename().wstring()));
+        name.TextTrimming(TextTrimming::CharacterEllipsis);
+        name.MaxLines(1);
+        name.FontWeight(Windows::UI::Text::FontWeights::SemiBold());
+        name.FontSize(12);
+
+        TextBlock location;
+        location.Text(hstring(source.parent_path().wstring()));
+        location.TextTrimming(TextTrimming::CharacterEllipsis);
+        location.MaxLines(1);
+        location.Opacity(0.56);
+        location.FontSize(10.5);
+
+        row.Children().Append(name);
+        row.Children().Append(location);
+
+        std::wstring accessible_name = source.filename().wstring();
+        const auto parent = source.parent_path().wstring();
+        if (!parent.empty()) {
+            accessible_name += L", ";
+            accessible_name += parent;
+        }
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(row, hstring(accessible_name));
+        items.Append(row);
+    };
+
     if (!live_plan_) {
         queue_snapshot_.clear();
-        QueueList().Items().Clear();
+        items.Clear();
+
+        // During initial planning there is not yet a LiveCopyPlan, but the
+        // accepted top-level sources are already authoritative. Expose them as
+        // a read-only preview so the queue disclosure remains useful instead of
+        // appearing broken until enumeration finishes.
+        if (execution_control_ && !planning_sources_.empty()) {
+            constexpr std::size_t kPlanningPreviewLimit = 256;
+            const auto visible = (std::min)(planning_sources_.size(), kPlanningPreviewLimit);
+            for (std::size_t index = 0; index < visible; ++index) {
+                append_visual(planning_sources_[index], std::nullopt);
+            }
+            QueueCountText().Text(hstring(std::format(L"{}", planning_sources_.size())));
+            RefreshQueueCommandState();
+            RefreshQueueEditCommandState();
+            return;
+        }
+
+        planning_sources_.clear();
         QueueCountText().Text(L"0");
         RefreshQueueCommandState();
         RefreshQueueEditCommandState();
         return;
     }
+
+    planning_sources_.clear();
 
     constexpr std::size_t kVisibleQueueItems = 256;
     auto view = live_plan_->queue_view(kVisibleQueueItems);
@@ -51,7 +109,6 @@ void MainWindow::RefreshQueue() {
     const auto previous_snapshot = std::move(queue_snapshot_);
     queue_snapshot_ = std::move(view.pending_files);
 
-    auto items = QueueList().Items();
     std::size_t completed_prefix = 0;
     if (!previous_snapshot.empty() && items.Size() == previous_snapshot.size()) {
         while (completed_prefix < previous_snapshot.size() &&
@@ -87,37 +144,7 @@ void MainWindow::RefreshQueue() {
 
     for (std::size_t file_index = append_from_index; file_index < queue_snapshot_.size(); ++file_index) {
         const auto& file = queue_snapshot_[file_index];
-        StackPanel row;
-        row.Spacing(2);
-        row.Margin(Thickness{8, 5, 8, 5});
-        row.HorizontalAlignment(HorizontalAlignment::Stretch);
-        row.Tag(box_value(file.id));
-
-        TextBlock name;
-        name.Text(hstring(file.source.filename().wstring()));
-        name.TextTrimming(TextTrimming::CharacterEllipsis);
-        name.MaxLines(1);
-        name.FontWeight(Windows::UI::Text::FontWeights::SemiBold());
-        name.FontSize(12);
-
-        TextBlock location;
-        location.Text(hstring(file.source.parent_path().wstring()));
-        location.TextTrimming(TextTrimming::CharacterEllipsis);
-        location.MaxLines(1);
-        location.Opacity(0.56);
-        location.FontSize(10.5);
-
-        row.Children().Append(name);
-        row.Children().Append(location);
-
-        std::wstring accessible_name = file.source.filename().wstring();
-        const auto parent = file.source.parent_path().wstring();
-        if (!parent.empty()) {
-            accessible_name += L", ";
-            accessible_name += parent;
-        }
-        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(row, hstring(accessible_name));
-        items.Append(row);
+        append_visual(file.source, file.id);
     }
 
     const auto selected_ranges = QueueList().SelectedRanges();
@@ -167,7 +194,7 @@ std::vector<std::uint64_t> MainWindow::SelectedPendingIds() {
 }
 
 void MainWindow::RefreshQueueEditCommandState() {
-    const bool has_selection = !SelectedPendingIds().empty();
+    const bool has_selection = live_plan_ && !SelectedPendingIds().empty();
     QueueMoveUpButton().IsEnabled(has_selection);
     QueueMoveDownButton().IsEnabled(has_selection);
     QueueRemoveButton().IsEnabled(has_selection);

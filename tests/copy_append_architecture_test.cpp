@@ -152,10 +152,11 @@ int main() {
     }
 
     if (!contains(execution, "destination_conflict") || !contains(execution, "SetExecutionButtonsConflict") ||
-        !contains(execution, "ShowConflictDialogAsync") || !contains(conflict, "ContentDialog") ||
+        !contains(execution, "ShowConflictDialogAsync") || !contains(conflict, "TaskDialogIndirect") ||
+        contains(conflict, "ContentDialog") || contains(conflict, ".XamlRoot(") ||
         !contains(conflict, "ActionReplace") || !contains(conflict, "ActionSkip") ||
         !contains(conflict, "ResumeConflictCopy") || !contains(conflict, "CancelCurrentSession")) {
-        return fail(19, "native per-file conflict resolution route incomplete");
+        return fail(19, "conflict resolution must use a separate native dialog and preserve replace/skip/cancel semantics");
     }
 
     if (!contains(live_h, "LiveDirectoryBatch") || !contains(live_h, "pending_directories() const") ||
@@ -171,7 +172,7 @@ int main() {
         return fail(21, "directory-only live work must survive run, Resume, conflict and finalization states");
     }
 
-    if (!contains(window, "active_session") || !contains(window, "DataPackageOperation::Copy") ||
+    if (!contains(window, "accepts_active_transfer_drop") || !contains(window, "DataPackageOperation::Copy") ||
         contains(window, "preferred_drop_operation") || contains(window, "DragDropModifiers::Control") ||
         contains(window, "DragDropModifiers::Shift") || !contains(window, "GetDeferral()") ||
         contains(header, "pending_flow_operation_") || contains(append, "pending_flow_operation_") ||
@@ -182,6 +183,13 @@ int main() {
     if (contains(shell, "ShowAt(") || contains(shell, "choose_layout") || contains(shell, "flow_.make_job") ||
         !contains(shell, "QueueOrStartCopy")) {
         return fail(23, "Explorer transfer must start directly and never block on destination/layout UI");
+    }
+
+    if (!contains(header, "planning_sources_") || !contains(append, "preview_sources") ||
+        !contains(append, "QueueButton().IsEnabled(!planning_sources_.empty())") ||
+        !contains(queue, "kPlanningPreviewLimit") ||
+        !contains(queue, "execution_control_ && !planning_sources_.empty()")) {
+        return fail(24, "accepted sources must be inspectable from the queue while initial planning is still running");
     }
 
     return 0;
