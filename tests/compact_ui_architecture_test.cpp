@@ -56,9 +56,7 @@ int main() {
         return fail(2, "collapsed copy bar must keep integrated progress, disclosure, and options");
     }
 
-    if (contains(xaml, "x:Name=\"GlobalProgress\"") ||
-        contains(xaml, "<ProgressBar") ||
-        contains(xaml, "x:Name=\"ActionStrip\"")) {
+    if (contains(xaml, "x:Name=\"GlobalProgress\"") || contains(xaml, "<ProgressBar") || contains(xaml, "x:Name=\"ActionStrip\"")) {
         return fail(3, "collapsed mode must use the copier surface itself for progress");
     }
 
@@ -77,67 +75,46 @@ int main() {
     const auto logo_pos = xaml.find("x:Name=\"BrandLogo\"");
     const auto current_item_pos = xaml.find("x:Name=\"CurrentItemText\"");
     const auto queue_pos = xaml.find("x:Name=\"QueueButton\"");
-    if (logo_pos == std::string::npos || current_item_pos == std::string::npos ||
-        queue_pos == std::string::npos || !(logo_pos < current_item_pos && current_item_pos < queue_pos)) {
+    if (logo_pos == std::string::npos || current_item_pos == std::string::npos || queue_pos == std::string::npos ||
+        !(logo_pos < current_item_pos && current_item_pos < queue_pos)) {
         return fail(6, "compact copy bar must keep logo left, content center, and queue disclosure right");
     }
 
     if (!contains(spec, "Integrated progress surface") ||
-        !contains(spec, "brand mark anchored at the far left") ||
-        !contains(spec, "queue disclosure triangle anchored at the far right") ||
-        !contains(spec, "Progress fills the compact transfer surface")) {
+        !contains(spec, "brand mark at the far left") ||
+        !contains(spec, "queue disclosure triangle at the far right") ||
+        !contains(spec, "Progress fills left-to-right behind the content")) {
         return fail(7, "UI specification must document the integrated copy bar concept");
     }
 
-    if (contains(xaml, "ShellFlowFlyout") ||
-        contains(xaml, "ShellFlowContent") ||
-        contains(xaml, "DestinationStep") ||
-        contains(xaml, "LayoutStep") ||
-        contains(xaml, "StartCopyButton") ||
-        contains(xaml, "PreserveToggle") ||
-        contains(xaml, "DirectToggle") ||
-        contains(window, "LoadDestinations") ||
-        contains(window, "SelectDestination") ||
-        contains(window, "choose_layout") ||
-        contains(copy_append, "ShellFlowFlyout") ||
-        contains(shell, "BeginShellLayoutAsync")) {
+    if (contains(xaml, "ShellFlowFlyout") || contains(xaml, "ShellFlowContent") || contains(xaml, "DestinationStep") ||
+        contains(xaml, "LayoutStep") || contains(xaml, "StartCopyButton") || contains(xaml, "PreserveToggle") ||
+        contains(xaml, "DirectToggle") || contains(window, "LoadDestinations") || contains(window, "SelectDestination") ||
+        contains(window, "choose_layout") || contains(copy_append, "ShellFlowFlyout") || contains(shell, "BeginShellLayoutAsync")) {
         return fail(8, "drag/drop and shell transfers must not expose destination/layout menus in the copier window");
     }
 
-    if (!contains(xaml, "x:Name=\"TitleBarDragRegion\"") ||
-        !contains(xaml, "Height=\"32\"") ||
-        !contains(window, "SetTitleBar(TitleBarDragRegion())") ||
-        !contains(xaml, "x:Name=\"RootGrid\"") ||
-        !contains(xaml, "AllowDrop=\"True\"") ||
-        !contains(xaml, "Background=\"Transparent\"") ||
-        !contains(xaml, "DragEnter=\"OnDragEnter\"") ||
-        !contains(xaml, "DragOver=\"OnDragOver\"") ||
-        !contains(xaml, "DragLeave=\"OnDragLeave\"") ||
-        !contains(xaml, "Drop=\"OnDrop\"") ||
-        contains(xaml, "x:Name=\"DragOverlay\"") ||
-        !contains(window, "void MainWindow::OnDragEnter") ||
-        !contains(window, "active_session") ||
-        !contains(window, "DataPackageOperation::None")) {
+    if (!contains(xaml, "x:Name=\"TitleBarDragRegion\"") || !contains(xaml, "Height=\"32\"") ||
+        !contains(window, "SetTitleBar(TitleBarDragRegion())") || !contains(xaml, "x:Name=\"RootGrid\"") ||
+        !contains(xaml, "AllowDrop=\"True\"") || !contains(xaml, "Background=\"Transparent\"") ||
+        !contains(xaml, "DragEnter=\"OnDragEnter\"") || !contains(xaml, "DragOver=\"OnDragOver\"") ||
+        !contains(xaml, "DragLeave=\"OnDragLeave\"") || !contains(xaml, "Drop=\"OnDrop\"") ||
+        contains(xaml, "x:Name=\"DragOverlay\"") || !contains(window, "void MainWindow::OnDragEnter") ||
+        !contains(window, "active_session") || !contains(window, "DataPackageOperation::None")) {
         return fail(9, "whole-window drop surface must append only to an active transfer session");
     }
 
-    if (!contains(xaml, "x:Name=\"QueuePanel\"") ||
-        !contains(xaml, "x:Name=\"QueueHeader\" MinHeight=\"28\"") ||
-        !contains(queue, "QueueList().UpdateLayout()") ||
-        contains(xaml, "x:Name=\"QueuePanel\" CornerRadius=") ||
-        contains(xaml, "x:Name=\"QueuePanel\" Background=") ||
-        contains(execution, "QueueButton().Content") ||
-        contains(queue, "QueueButton().Content") ||
-        !contains(xaml, "FontFamily=\"Segoe Fluent Icons\"") ||
+    if (!contains(xaml, "x:Name=\"QueuePanel\"") || !contains(xaml, "x:Name=\"QueueHeader\" MinHeight=\"28\"") ||
+        !contains(queue, "QueueList().UpdateLayout()") || contains(xaml, "x:Name=\"QueuePanel\" CornerRadius=") ||
+        contains(xaml, "x:Name=\"QueuePanel\" Background=") || contains(execution, "QueueButton().Content") ||
+        contains(queue, "QueueButton().Content") || !contains(xaml, "FontFamily=\"Segoe Fluent Icons\"") ||
         !contains(xaml, "Background=\"{ThemeResource AccentFillColorDefaultBrush}\"") ||
-        contains(xaml, "x:Name=\"TransferSurface\" CornerRadius=") ||
-        contains(xaml, "Background=\"#") || contains(xaml, "BorderBrush=\"#") ||
-        contains(xaml, "Foreground=\"#")) {
+        contains(xaml, "x:Name=\"TransferSurface\" CornerRadius=") || contains(xaml, "Background=\"#") ||
+        contains(xaml, "BorderBrush=\"#") || contains(xaml, "Foreground=\"#")) {
         return fail(10, "custom transfer/drop surfaces must remain system-theme driven");
     }
 
-    if (!contains(window, "void MainWindow::OnTransferSurfaceSizeChanged") ||
-        !contains(window, "args.PreviousSize().Width") ||
+    if (!contains(window, "void MainWindow::OnTransferSurfaceSizeChanged") || !contains(window, "args.PreviousSize().Width") ||
         contains(window, "ProgressFill().Width() / TransferSurface().ActualWidth()")) {
         return fail(11, "the integrated fill must rescale against the surface's previous width on resize");
     }

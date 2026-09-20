@@ -5,7 +5,6 @@
 #include <cwctype>
 
 using namespace winrt;
-using namespace Microsoft::UI::Xaml;
 
 namespace winrt::VelocityCopyUI::implementation {
 namespace {
@@ -33,18 +32,6 @@ bool same_session(
 }
 
 } // namespace
-
-void MainWindow::OnQueueOrStartCopyClick(IInspectable const&, RoutedEventArgs const&) {
-    auto job = flow_.make_job(next_job_id_++, pending_flow_operation_);
-    if (!job) {
-        ShowError();
-        return;
-    }
-
-    pending_flow_operation_ = velocitycopy::FileOperation::Copy;
-    ShellFlowFlyout().Hide();
-    QueueOrStartCopy(std::move(*job));
-}
 
 void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
     SetEfficiencyMode(false);
