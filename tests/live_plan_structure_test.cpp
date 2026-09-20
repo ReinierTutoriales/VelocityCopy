@@ -1,5 +1,6 @@
 #include "velocitycopy/live_copy_plan.hpp"
 
+#include <chrono>
 #include <filesystem>
 #include <limits>
 
@@ -89,6 +90,30 @@ int main() {
         after_exhausted_append.total_bytes != before_exhausted_append.total_bytes ||
         after_exhausted_append.directories.size() != before_exhausted_append.directories.size() ||
         after_exhausted_append.source_roots != before_exhausted_append.source_roots) return 10;
+
+    // Regression guard for the former vector front-erasure path. A large synthetic
+    // queue must drain by repeatedly acquiring from the front without shifting all
+    // remaining PlannedFile objects on every acquisition.
+    constexpr std::uint64_t scale_count = 50000;
+    CopyPlan scale{};
+    scale.destination_root = destination;
+    scale.files.reserve(static_cast<std::size_t>(scale_count));
+    for (std::uint64_t id = 1; id <= scale_count; ++id) {
+        scale.files.push_back({id, source_a / L"bulk.bin", destination / (std::to_wstring(id) + L".bin"), 1});
+    }
+    scale.total_bytes = scale_count;
+    scale.largest_file_bytes = 1;
+    LiveCopyPlan large_queue(std::move(scale));
+
+    const auto drain_start = std::chrono::steady_clock::now();
+    for (std::uint64_t index = 0; index < scale_count; ++index) {
+        auto file = large_queue.acquire_next();
+        if (!file) return 11;
+        large_queue.complete_active(file->id);
+    }
+    const auto drain_elapsed = std::chrono::steady_clock::now() - drain_start;
+    if (large_queue.remaining_files() != 0 || large_queue.completed_files() != scale_count) return 12;
+    if (drain_elapsed > std::chrono::seconds(10)) return 13;
 
     return 0;
 }

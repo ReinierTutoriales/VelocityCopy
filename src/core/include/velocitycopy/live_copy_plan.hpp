@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <filesystem>
 #include <mutex>
 #include <optional>
@@ -103,7 +104,7 @@ public:
     [[nodiscard]] std::uint64_t largest_file_bytes() const noexcept;
 
 private:
-    [[nodiscard]] std::vector<PlannedFile>::iterator find_pending(std::uint64_t file_id) noexcept;
+    [[nodiscard]] std::deque<PlannedFile>::iterator find_pending(std::uint64_t file_id) noexcept;
     [[nodiscard]] std::vector<PlannedFile>::iterator find_active(std::uint64_t file_id) noexcept;
     void recompute_largest_file_bytes_locked() noexcept;
 
@@ -113,7 +114,7 @@ private:
     std::filesystem::path destination_root_;
     FileOperation operation_{FileOperation::Copy};
     mutable std::mutex mutex_;
-    std::vector<PlannedFile> pending_files_;
+    std::deque<PlannedFile> pending_files_;
     std::vector<PlannedFile> active_files_;
     std::unordered_set<std::wstring> reserved_destination_keys_;
     std::uint64_t total_bytes_{};

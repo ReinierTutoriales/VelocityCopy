@@ -38,7 +38,8 @@ LiveCopyPlan::LiveCopyPlan(CopyPlan plan)
       source_roots_(std::move(plan.source_roots)),
       destination_root_(std::move(plan.destination_root)),
       operation_(plan.operation),
-      pending_files_(std::move(plan.files)),
+      pending_files_(std::make_move_iterator(plan.files.begin()),
+                     std::make_move_iterator(plan.files.end())),
       total_bytes_(plan.total_bytes),
       total_files_(pending_files_.size()),
       largest_file_bytes_(plan.largest_file_bytes) {
@@ -73,10 +74,14 @@ FileOperation LiveCopyPlan::operation() const noexcept {
 
 LiveCopyPlanSnapshot LiveCopyPlan::snapshot() const {
     std::lock_guard lock(mutex_);
-    return {
-        pending_files_, active_files_, total_bytes_, total_files_,
-        completed_bytes_, completed_files_,
-    };
+    LiveCopyPlanSnapshot snapshot{};
+    snapshot.pending_files.assign(pending_files_.begin(), pending_files_.end());
+    snapshot.active_files = active_files_;
+    snapshot.total_bytes = total_bytes_;
+    snapshot.total_files = total_files_;
+    snapshot.completed_bytes = completed_bytes_;
+    snapshot.completed_files = completed_files_;
+    return snapshot;
 }
 
 LiveQueueView LiveCopyPlan::queue_view(const std::size_t max_items) const {
@@ -129,7 +134,6 @@ LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan, const bool allow_draine
             incoming_keys.push_back(std::move(key));
         }
 
-        pending_files_.reserve(pending_files_.size() + plan.files.size());
         directories_.reserve(directories_.size() + plan.directories.size());
         source_roots_.reserve(source_roots_.size() + plan.source_roots.size());
 
@@ -168,7 +172,7 @@ LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan, const bool allow_draine
     }
 }
 
-std::vector<PlannedFile>::iterator LiveCopyPlan::find_pending(const std::uint64_t file_id) noexcept {
+std::deque<PlannedFile>::iterator LiveCopyPlan::find_pending(const std::uint64_t file_id) noexcept {
     return std::find_if(pending_files_.begin(), pending_files_.end(), [file_id](const PlannedFile& file) {
         return file.id == file_id;
     });
@@ -343,7 +347,7 @@ std::optional<PlannedFile> LiveCopyPlan::acquire_next() noexcept {
     std::lock_guard lock(mutex_);
     if (pending_files_.empty()) return std::nullopt;
     PlannedFile file = std::move(pending_files_.front());
-    pending_files_.erase(pending_files_.begin());
+    pending_files_.pop_front();
     active_files_.push_back(file);
     return file;
 }
@@ -364,7 +368,7 @@ void LiveCopyPlan::release_active(const std::uint64_t file_id) noexcept {
     if (it == active_files_.end()) return;
     PlannedFile file = std::move(*it);
     active_files_.erase(it);
-    pending_files_.insert(pending_files_.begin(), std::move(file));
+    pending_files_.push_front(std::move(file));
 }
 
 bool LiveCopyPlan::skip_active(const std::uint64_t file_id) noexcept {
