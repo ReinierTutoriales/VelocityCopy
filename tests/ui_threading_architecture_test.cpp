@@ -51,14 +51,13 @@ int main() {
     }
 
     if (!contains(append, "dispatcher.TryEnqueue") ||
-        !contains(shell, "dispatcher.TryEnqueue")) {
-        return fail(4, "append and shell background completions must marshal through DispatcherQueue");
+        contains(shell, "resume_background()") || contains(shell, "dispatcher.TryEnqueue")) {
+        return fail(4, "append planner completions marshal through DispatcherQueue; shell dispatch stays synchronously on UI thread");
     }
 
     const auto apply = execution.find("void MainWindow::ApplySnapshot");
     const auto finish = execution.find("void MainWindow::FinishCopy", apply);
-    if (apply == std::string::npos || finish == std::string::npos ||
-        finish <= apply) {
+    if (apply == std::string::npos || finish == std::string::npos || finish <= apply) {
         return fail(5, "authoritative UI snapshot consumer missing");
     }
     const auto apply_body = execution.substr(apply, finish - apply);

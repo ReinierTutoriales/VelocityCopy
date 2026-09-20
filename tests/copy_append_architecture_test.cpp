@@ -58,10 +58,12 @@ int main() {
         return fail(1, "required production source missing");
     }
 
-    if (!contains(shell, "BeginShellLayoutAsync(std::move(*dispatch.job))") || !contains(window, "QueueOrStartCopy") ||
-        !contains(xaml, "OnQueueOrStartCopyClick") || contains(xaml, "OnStartCopyClick") ||
-        contains(header, "OnStartCopyClick") || contains(window, "OnStartCopyClick")) {
-        return fail(2, "Explorer/drop must share queue-aware start route");
+    if (!contains(shell, "QueueOrStartCopy(std::move(*dispatch.job))") ||
+        !contains(window, "QueueOrStartCopy(std::move(job))") ||
+        contains(xaml, "OnQueueOrStartCopyClick") || contains(xaml, "OnStartCopyClick") ||
+        contains(header, "OnQueueOrStartCopyClick") || contains(header, "OnStartCopyClick") ||
+        contains(append, "OnQueueOrStartCopyClick") || contains(append, "OnStartCopyClick")) {
+        return fail(2, "Explorer and active-session drop must converge directly on QueueOrStartCopy without chooser handlers");
     }
 
     if (!contains(append, "append_planner_.enqueue") || !contains(append, "planning_count") ||
@@ -84,8 +86,7 @@ int main() {
         return fail(6, "Stop must preserve accepted/future work semantics");
     }
 
-    if (!contains(execution, "ExecutionDirective::Cancel") ||
-        !contains(execution, "request_cancel()")) {
+    if (!contains(execution, "ExecutionDirective::Cancel") || !contains(execution, "request_cancel()")) {
         return fail(7, "Cancel must have precedence over Stop");
     }
 
@@ -124,45 +125,37 @@ int main() {
         return fail(13, "WinUI translation-unit cutover incomplete");
     }
 
-    if (!contains(app, "SingleInstance") || !contains(app, "ShellIpcServer") ||
-        contains(cli, "--shell-runtime")) {
+    if (!contains(app, "SingleInstance") || !contains(app, "ShellIpcServer") || contains(cli, "--shell-runtime")) {
         return fail(14, "WinUI must be the sole Explorer activation host");
     }
 
-    if (!contains(shell, "BeginShellLayoutAsync") ||
-        !contains(shell, "resume_background()") || !contains(shell, "GetFileAttributesW") ||
-        !contains(shell, "flow_.begin") || !contains(shell, "SelectDestination(destination)")) {
-        return fail(15, "Explorer transfer must enter the shared layout flow safely");
-    }
-
-    if (!contains(header, "shell_layout_generation_") ||
-        count_occurrences(shell, "++shell_layout_generation_") < 1 ||
-        !contains(shell, "shell_layout_generation_ != generation")) {
-        return fail(16, "stale Explorer layout completions must be suppressed");
+    if (contains(shell, "resume_background()") || contains(shell, "GetFileAttributesW") ||
+        contains(shell, "flow_.") || contains(shell, "SelectDestination") || contains(shell, "BeginShellLayoutAsync")) {
+        return fail(15, "Explorer jobs are already resolved and must not re-enter the removed chooser/layout pipeline");
     }
 
     if (!contains(explorer, "VelocityCopy.WinUI.exe") ||
         contains(explorer, "parent_path() / L\"VelocityCopy.exe\"") ||
         !contains(explorer, "send_shell_request") || !contains(explorer, "launch_velocitycopy_with_request")) {
-        return fail(17, "Explorer DLL must dispatch to the WinUI executable");
+        return fail(16, "Explorer DLL must dispatch to the WinUI executable");
     }
 
     if (!contains(manifest, "VelocityCopy.Shell.dll") || !contains(manifest, "DragDropHandlers") ||
         !contains(cmake, "project(VelocityCopy VERSION")) {
-        return fail(18, "package/Explorer registration version contract drifted");
+        return fail(17, "package/Explorer registration version contract drifted");
     }
 
     if (!contains(engine_h, "ExistingDestinationPolicy") || !contains(engine_cpp, "COPY_FILE_FAIL_IF_EXISTS") ||
         !contains(executor_h, "destination_conflict") || !contains(executor_h, "replace_file_id") ||
         !contains(executor_cpp, "ExistingDestinationPolicy::Replace")) {
-        return fail(19, "existing destinations must fail safely and replacement must be one-shot");
+        return fail(18, "existing destinations must fail safely and replacement must be one-shot");
     }
 
     if (!contains(execution, "destination_conflict") || !contains(execution, "SetExecutionButtonsConflict") ||
         !contains(execution, "ShowConflictDialogAsync") || !contains(conflict, "ContentDialog") ||
         !contains(conflict, "ActionReplace") || !contains(conflict, "ActionSkip") ||
         !contains(conflict, "ResumeConflictCopy") || !contains(conflict, "CancelCurrentSession")) {
-        return fail(20, "native per-file conflict resolution route incomplete");
+        return fail(19, "native per-file conflict resolution route incomplete");
     }
 
     if (!contains(live_h, "LiveDirectoryBatch") || !contains(live_h, "pending_directories() const") ||
@@ -170,27 +163,25 @@ int main() {
         !contains(executor_cpp, "pending_directories()") || !contains(executor_cpp, "mark_directories_materialized") ||
         contains(append, "create_directories") || contains(execution, "create_directories") ||
         contains(queue, "create_directories") || contains(conflict, "create_directories")) {
-        return fail(21, "JobExecutor must be the sole live-directory materializer");
+        return fail(20, "JobExecutor must be the sole live-directory materializer");
     }
 
     if (!contains(execution, "has_pending_directories") || !contains(conflict, "has_pending_directories") ||
         !contains(queue, "FinalizeStoppedSessionIfEmpty") || !contains(queue, "FinalizeConflictSessionIfEmpty")) {
-        return fail(22, "directory-only live work must survive run, Resume, conflict and finalization states");
+        return fail(21, "directory-only live work must survive run, Resume, conflict and finalization states");
     }
 
-    if (!contains(header, "pending_flow_operation_") || !contains(shell, "pending_flow_operation_") ||
-        !contains(window, "active_session") || !contains(window, "DataPackageOperation::Copy") ||
+    if (!contains(window, "active_session") || !contains(window, "DataPackageOperation::Copy") ||
         contains(window, "preferred_drop_operation") || contains(window, "DragDropModifiers::Control") ||
         contains(window, "DragDropModifiers::Shift") || !contains(window, "GetDeferral()") ||
-        !contains(append, "flow_.make_job") || !contains(append, "pending_flow_operation_")) {
-        return fail(23, "Explorer Cut/Paste operation must survive the shared layout flow");
+        contains(header, "pending_flow_operation_") || contains(append, "pending_flow_operation_") ||
+        contains(header, "flow_") || contains(append, "flow_.make_job")) {
+        return fail(22, "window drag/drop must be append-only and chooser state must be fully removed");
     }
 
-    if (contains(shell, "ShowAt(") || !contains(shell, "flow_.choose_layout") ||
-        !contains(shell, "DestinationLayout::PreserveSourceFolder") || !contains(shell, "flow_.make_job") ||
+    if (contains(shell, "ShowAt(") || contains(shell, "choose_layout") || contains(shell, "flow_.make_job") ||
         !contains(shell, "QueueOrStartCopy")) {
-        return fail(24, "Explorer transfer must apply the default layout and start directly, "
-            "never block on the destination/layout flyout");
+        return fail(23, "Explorer transfer must start directly and never block on destination/layout UI");
     }
 
     return 0;
