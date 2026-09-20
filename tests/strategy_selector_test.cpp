@@ -25,9 +25,9 @@ int wmain() {
         1,
         8ull * 1024ull * 1024ull * 1024ull,
     });
-    if (large.strategy != velocitycopy::CopyStrategyKind::WindowsCopyFile2NoBuffering ||
-        (large.copy_flags & COPY_FILE_NO_BUFFERING) == 0 || !large.async_iocp_candidate ||
-        large.suggested_queue_depth != 1) {
+    if (large.strategy != velocitycopy::CopyStrategyKind::WindowsCopyFile2 ||
+        (large.copy_flags & COPY_FILE_NO_BUFFERING) != 0 || !large.async_iocp_candidate ||
+        large.suggested_queue_depth != 1 || large.suggested_buffer_bytes != 4u * 1024u * 1024u) {
         return 1;
     }
 
@@ -39,7 +39,8 @@ int wmain() {
         8ull * 1024ull * 1024ull * 1024ull,
     });
     if (large_unknown_source_geometry.strategy != velocitycopy::CopyStrategyKind::WindowsCopyFile2 ||
-        (large_unknown_source_geometry.copy_flags & COPY_FILE_NO_BUFFERING) != 0) {
+        (large_unknown_source_geometry.copy_flags & COPY_FILE_NO_BUFFERING) != 0 ||
+        large_unknown_source_geometry.suggested_queue_depth != 1) {
         return 7;
     }
 

@@ -22,7 +22,7 @@ int fail(const int code, const char* message) {
     std::cerr << "strategy architecture contract " << code << ": " << message << '\n';
     return code;
 }
-} // namespace
+}
 
 int main() {
     const std::filesystem::path root{VELOCITYCOPY_SOURCE_DIR};
@@ -65,9 +65,10 @@ int main() {
     }
 
     if (!contains(selector_h, "std::uint32_t copy_flags{}") ||
-        !contains(selector_cpp, "recommendation.copy_flags = COPY_FILE_NO_BUFFERING") ||
-        !contains(selector_cpp, "recommendation.copy_flags = COPY_FILE_REQUEST_COMPRESSED_TRAFFIC")) {
-        return fail(2, "strategy selector must emit native CopyFile2 flags");
+        contains(selector_cpp, "recommendation.copy_flags = COPY_FILE_NO_BUFFERING") ||
+        !contains(selector_cpp, "recommendation.copy_flags = COPY_FILE_REQUEST_COMPRESSED_TRAFFIC") ||
+        !contains(selector_cpp, "interactive production path on buffered CopyFile2")) {
+        return fail(2, "interactive strategy selection must preserve responsive controls and only emit proven native flags");
     }
 
     if (!contains(executor_h, "std::uint32_t copy_flags{}") ||
