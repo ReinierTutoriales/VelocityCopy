@@ -52,6 +52,12 @@ struct MainWindow : MainWindowT<MainWindow> {
         Microsoft::UI::Xaml::SizeChangedEventArgs const&);
 
 private:
+    enum class NativeDialogChoice : std::uint8_t {
+        Cancel,
+        Primary,
+        Secondary,
+    };
+
     struct AppendGate {
         std::mutex mutex;
         std::condition_variable_any condition;
@@ -64,6 +70,14 @@ private:
     winrt::fire_and_forget SaveQueueAsync();
     winrt::fire_and_forget LoadQueueAsync();
     winrt::fire_and_forget MaybeOfferRecoveryAsync();
+    static NativeDialogChoice ShowNativeDecisionDialog(
+        HWND owner,
+        const std::wstring& title,
+        const std::wstring& message,
+        const std::wstring& primary_label,
+        const std::wstring& secondary_label,
+        bool include_cancel,
+        const std::wstring& cancel_label = {}) noexcept;
     void ConfigureQueuePersistenceMenu();
     void InitializeTrayIntegration();
     void RemoveTrayIntegration() noexcept;

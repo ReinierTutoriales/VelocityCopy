@@ -3,7 +3,6 @@
 
 using namespace winrt;
 using namespace Microsoft::UI::Xaml;
-using namespace Microsoft::UI::Xaml::Controls;
 
 namespace winrt::VelocityCopyUI::implementation {
 namespace {
@@ -174,30 +173,25 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
     } catch (...) {
     }
 
-    ContentDialog dialog;
-    dialog.XamlRoot(RootGrid().XamlRoot());
-    dialog.Title(box_value(title));
-    dialog.Content(box_value(message));
-    dialog.PrimaryButtonText(resume);
-    dialog.SecondaryButtonText(discard);
-    dialog.DefaultButton(ContentDialogButton::Primary);
+    // Recovery is a modal decision just like conflict handling. Keep it in a
+    // native top-level dialog owned by the copier HWND so the 72 epx XAML root
+    // never clips or resizes itself to host the prompt.
+    const auto choice = ShowNativeDecisionDialog(
+        hwnd_,
+        std::wstring(title.c_str()),
+        std::wstring(message.c_str()),
+        std::wstring(resume.c_str()),
+        std::wstring(discard.c_str()),
+        false);
 
-    ContentDialogResult result = ContentDialogResult::None;
-    try {
-        result = co_await dialog.ShowAsync();
-    } catch (...) {
-        recovery_prompt_active_ = false;
-        co_return;
-    }
-
-    if (result == ContentDialogResult::Secondary) {
+    if (choice == NativeDialogChoice::Secondary) {
         retire_recovery_checkpoint(path);
         recovery_prompt_active_ = false;
         recovery_prompt_checked_ = true;
         co_return;
     }
 
-    if (result != ContentDialogResult::Primary) {
+    if (choice != NativeDialogChoice::Primary) {
         recovery_prompt_active_ = false;
         co_return;
     }

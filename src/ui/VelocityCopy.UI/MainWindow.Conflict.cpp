@@ -8,18 +8,18 @@ using namespace Microsoft::UI::Xaml;
 using namespace Microsoft::UI::Xaml::Controls;
 
 namespace winrt::VelocityCopyUI::implementation {
-namespace {
 
-constexpr int kConflictReplace = 1001;
-constexpr int kConflictSkip = 1002;
-
-int ShowNativeConflictDialog(
+MainWindow::NativeDialogChoice MainWindow::ShowNativeDecisionDialog(
     HWND owner,
     const std::wstring& title,
     const std::wstring& message,
-    const std::wstring& replace_label,
-    const std::wstring& skip_label,
+    const std::wstring& primary_label,
+    const std::wstring& secondary_label,
+    const bool include_cancel,
     const std::wstring& cancel_label) noexcept {
+    constexpr int kPrimary = 1001;
+    constexpr int kSecondary = 1002;
+
     try {
         HMODULE module = LoadLibraryExW(L"comctl32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
         if (module != nullptr) {
@@ -30,8 +30,8 @@ int ShowNativeConflictDialog(
 
             if (task_dialog != nullptr) {
                 TASKDIALOG_BUTTON buttons[] = {
-                    {kConflictReplace, replace_label.c_str()},
-                    {kConflictSkip, skip_label.c_str()},
+                    {kPrimary, primary_label.c_str()},
+                    {kSecondary, secondary_label.c_str()},
                     {IDCANCEL, cancel_label.c_str()},
                 };
 
@@ -42,34 +42,33 @@ int ShowNativeConflictDialog(
                 config.pszWindowTitle = L"VelocityCopy";
                 config.pszMainInstruction = title.c_str();
                 config.pszContent = message.c_str();
-                config.cButtons = static_cast<UINT>(std::size(buttons));
+                config.cButtons = include_cancel ? 3u : 2u;
                 config.pButtons = buttons;
-                config.nDefaultButton = kConflictReplace;
+                config.nDefaultButton = kPrimary;
 
                 int selected = IDCANCEL;
                 const HRESULT hr = task_dialog(&config, &selected, nullptr, nullptr);
                 FreeLibrary(module);
                 if (SUCCEEDED(hr)) {
-                    return selected;
+                    if (selected == kPrimary) return NativeDialogChoice::Primary;
+                    if (selected == kSecondary) return NativeDialogChoice::Secondary;
+                    return NativeDialogChoice::Cancel;
                 }
             } else {
                 FreeLibrary(module);
             }
         }
 
-        const int fallback = MessageBoxW(
-            owner,
-            message.c_str(),
-            title.c_str(),
-            MB_YESNOCANCEL | MB_ICONWARNING | MB_DEFBUTTON1);
-        if (fallback == IDYES) return kConflictReplace;
-        if (fallback == IDNO) return kConflictSkip;
+        const UINT flags = include_cancel
+            ? (MB_YESNOCANCEL | MB_ICONWARNING | MB_DEFBUTTON1)
+            : (MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON1);
+        const int fallback = MessageBoxW(owner, message.c_str(), title.c_str(), flags);
+        if (fallback == IDYES) return NativeDialogChoice::Primary;
+        if (fallback == IDNO) return NativeDialogChoice::Secondary;
     } catch (...) {
     }
-    return IDCANCEL;
+    return NativeDialogChoice::Cancel;
 }
-
-} // namespace
 
 fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conflict) {
     auto lifetime = get_strong();
@@ -92,19 +91,18 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
             message.append(conflict.conflict_destination.wstring());
         }
 
-        // Conflict choices are a separate native top-level dialog, not XAML
-        // content constrained by the compact copier HWND. This prevents the
-        // choice UI from being clipped or forcing the copier to be resized.
-        const int choice = ShowNativeConflictDialog(
-            hwnd_, title, message, replace_label, skip_label, cancel_label);
+        // All modal decisions use a separate native top-level dialog owned by
+        // VelocityCopy. Never constrain a modal choice to the compact XAML root.
+        const auto choice = ShowNativeDecisionDialog(
+            hwnd_, title, message, replace_label, skip_label, true, cancel_label);
 
         if (!conflict_session_ || !live_plan_) co_return;
 
         switch (choice) {
-        case kConflictReplace:
+        case NativeDialogChoice::Primary:
             ResumeConflictCopy(conflict.conflict_file_id);
             co_return;
-        case kConflictSkip:
+        case NativeDialogChoice::Secondary:
             if (!live_plan_->remove_pending_file(conflict.conflict_file_id)) {
                 ShowError();
                 CancelCurrentSession();
@@ -113,7 +111,7 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
             RefreshQueue();
             ResumeConflictCopy(0);
             co_return;
-        case IDCANCEL:
+        case NativeDialogChoice::Cancel:
         default:
             CancelCurrentSession();
             co_return;

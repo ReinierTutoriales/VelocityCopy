@@ -10,7 +10,7 @@ The Windows CI and Package gates must be green before using an artifact for manu
 - x64 Release configure/build and core `ctest`
 - self-contained WinUI 3 Release build for x64 when packaging is requested
 - classic NSIS x64 installer generation
-- x64 smoke install/uninstall
+- x64 smoke install/uninstall, including uninstall while the resident tray process is running and verification that the install directory is gone
 - ARM64 follows only after the x64 stabilization gate is green; it must reuse the same recipe with architecture-specific changes only
 
 See `docs/RELEASE_GATES.md` before changing workflows.
@@ -27,22 +27,11 @@ During the current stabilization phase, manual testing uses the classic x64 inst
 
 The setup requests elevation through UAC and copies the self-contained WinUI payload, including `VelocityCopy.WinUI.exe` and `VelocityCopy.Shell.dll`, into Program Files. Testers do not run PowerShell, certificates, MSIX files or framework packages manually.
 
-## Known pre-release gap
+The installer and uninstaller must force-close the resident `VelocityCopy.WinUI.exe` before replacing or removing installed files. A normal `WM_CLOSE` is insufficient because VelocityCopy intentionally hides to tray. The package smoke gate must launch the app in `--startup` mode before uninstall and must fail if the process remains alive or `$ProgramFiles\VelocityCopy` still exists afterward.
 
-### P1: shutdown recovery has no restore UX yet
+### Shutdown recovery prompt
 
-VelocityCopy writes `VelocityCopy.Recovery.vcq` to packaged LocalState on confirmed `WM_ENDSESSION`, but the next launch does not currently discover that checkpoint or offer a controlled restore.
-
-Required behavior before calling recovery complete:
-
-1. detect a valid recovery archive at normal user launch;
-2. never auto-resume file I/O silently;
-3. offer Resume / Discard;
-4. revalidate all source paths before resume;
-5. delete or rotate the checkpoint after successful restore/discard;
-6. keep malformed/stale recovery archives from blocking normal startup.
-
-This does not block basic copy/move UI testing, but shutdown-recovery testing is incomplete until this is implemented.
+VelocityCopy discovers `VelocityCopy.Recovery.vcq`, validates the saved work, and offers Resume / Discard without silently restarting file I/O. The recovery decision uses the same native top-level dialog path as conflict handling; it must never use an in-surface XAML `ContentDialog` inside the compact copier HWND.
 
 ## Manual test matrix
 
@@ -51,9 +40,11 @@ This does not block basic copy/move UI testing, but shutdown-recovery testing is
 - Double-click `VelocityCopy-Setup-x64.exe` and accept the UAC prompt.
 - Confirm VelocityCopy appears in installed apps.
 - Launch once and confirm the tray icon appears.
-- Confirm Explorer modern context menu entries appear for files, folders and folder background.
+- Confirm Explorer transfer handling is registered for Directory/Drive/Folder drag-drop targets.
 - Restart Explorer and confirm the tray icon re-registers.
-- Uninstall VelocityCopy from Windows Installed apps and confirm shell registration is removed.
+- Re-run the installer while VelocityCopy is resident and confirm the installed files are replaced cleanly.
+- Uninstall VelocityCopy from Windows Installed apps while it is resident in the tray.
+- Confirm the VelocityCopy process is gone, shell registration is removed, and `C:\Program Files\VelocityCopy` no longer exists.
 
 ### Resident startup and tray
 
@@ -117,6 +108,7 @@ This does not block basic copy/move UI testing, but shutdown-recovery testing is
 - very large declared entry counts with tiny payload
 - v1 queue archive migration defaults to Copy
 - v2 Copy/Move roundtrip
+- create a shutdown recovery checkpoint, relaunch collapsed, and confirm Resume / Discard appears in a separate native window rather than inside the 72 epx copier
 
 ### UI
 
@@ -141,6 +133,7 @@ Manual testing should stop and return to engineering if any of these occur:
 - duplicate primary processes
 - startup window flash on sign-in
 - tray icon cannot recover after Explorer restart
-- classic install/uninstall leaves broken shell registration
+- classic install/uninstall leaves VelocityCopy running, leaves `$ProgramFiles\VelocityCopy`, or leaves broken shell registration
+- a modal decision is clipped inside or forces resizing of the compact copier surface
 - malformed queue/IPC input crashes the process
 - active copy remains in EcoQoS after work begins
