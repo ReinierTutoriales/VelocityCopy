@@ -113,13 +113,16 @@ int main() {
     }
 
     if (!contains(recovery, "VelocityCopy.Recovery.vcq") ||
-        !contains(recovery, "ContentDialogResult::Primary") ||
-        !contains(recovery, "ContentDialogResult::Secondary") ||
+        !contains(recovery, "ShowNativeDecisionDialog(") ||
+        !contains(recovery, "NativeDialogChoice::Primary") ||
+        !contains(recovery, "NativeDialogChoice::Secondary") ||
+        contains(recovery, "ContentDialog") ||
+        contains(recovery, "XamlRoot") ||
         !contains(recovery, "revalidate_recovery_plan") ||
         !contains(recovery, "revalidate_recovery_job") ||
         !contains(recovery, "retire_recovery_checkpoint") ||
         !contains(recovery, "StartCopyPlan(std::move(*archive->current_plan))")) {
-        return fail(12, "shutdown recovery must require an explicit validated resume/discard decision");
+        return fail(12, "shutdown recovery must require an explicit validated native resume/discard decision");
     }
 
     if (!contains(tray, "MaybeOfferRecoveryAsync()") ||
