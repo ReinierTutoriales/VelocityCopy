@@ -28,8 +28,10 @@ void MainWindow::RefreshQueue() {
     if (unchanged) {
         QueueCountText().Text(hstring(std::format(L"{}", view.pending_count)));
         RefreshQueueCommandState();
+        RefreshQueueEditCommandState();
         return;
     }
+
     const auto selected_ids = SelectedPendingIds();
     std::optional<std::uint64_t> focused_id;
     if (auto focused = FocusManager::GetFocusedElement().try_as<FrameworkElement>()) {
@@ -45,6 +47,7 @@ void MainWindow::RefreshQueue() {
             current = Media::VisualTreeHelper::GetParent(current).try_as<FrameworkElement>();
         }
     }
+
     const auto previous_snapshot = std::move(queue_snapshot_);
     queue_snapshot_ = std::move(view.pending_files);
 
@@ -57,6 +60,7 @@ void MainWindow::RefreshQueue() {
             ++completed_prefix;
         }
     }
+
     const auto retained_count = previous_snapshot.size() - completed_prefix;
     const bool can_trim_prefix = completed_prefix > 0 && completed_prefix < previous_snapshot.size() &&
         queue_snapshot_.size() >= retained_count &&
@@ -65,37 +69,47 @@ void MainWindow::RefreshQueue() {
                 return left.id == right.id && left.source == right.source &&
                        left.destination == right.destination && left.size == right.size;
             });
+
     if (can_trim_prefix) {
-        for (std::size_t index = 0; index < completed_prefix; ++index) items.RemoveAt(0);
+        for (std::size_t index = 0; index < completed_prefix; ++index) {
+            items.RemoveAt(0);
+        }
     } else {
         items.Clear();
     }
+
     const auto expected_retained_visuals = can_trim_prefix ? retained_count : 0;
     if (can_trim_prefix && items.Size() != expected_retained_visuals) {
         items.Clear();
     }
     const bool incremental_visual_state_valid = can_trim_prefix && items.Size() == expected_retained_visuals;
     const auto append_from_index = incremental_visual_state_valid ? retained_count : 0;
+
     for (std::size_t file_index = append_from_index; file_index < queue_snapshot_.size(); ++file_index) {
         const auto& file = queue_snapshot_[file_index];
         StackPanel row;
-        row.Spacing(1);
+        row.Spacing(2);
+        row.Margin(Thickness{8, 5, 8, 5});
         row.HorizontalAlignment(HorizontalAlignment::Stretch);
         row.Tag(box_value(file.id));
 
         TextBlock name;
         name.Text(hstring(file.source.filename().wstring()));
         name.TextTrimming(TextTrimming::CharacterEllipsis);
+        name.MaxLines(1);
         name.FontWeight(Windows::UI::Text::FontWeights::SemiBold());
+        name.FontSize(12);
 
         TextBlock location;
         location.Text(hstring(file.source.parent_path().wstring()));
         location.TextTrimming(TextTrimming::CharacterEllipsis);
-        location.Opacity(0.58);
-        location.FontSize(11);
+        location.MaxLines(1);
+        location.Opacity(0.56);
+        location.FontSize(10.5);
 
         row.Children().Append(name);
         row.Children().Append(location);
+
         std::wstring accessible_name = file.source.filename().wstring();
         const auto parent = file.source.parent_path().wstring();
         if (!parent.empty()) {
@@ -106,8 +120,6 @@ void MainWindow::RefreshQueue() {
         items.Append(row);
     }
 
-    // Reapply selection by stable plan IDs. Clear first because incremental prefix
-    // removal can leave index-based ListView selection attached to a different row.
     const auto selected_ranges = QueueList().SelectedRanges();
     if (selected_ranges.Size() != 0 && items.Size() != 0) {
         QueueList().DeselectRange(Microsoft::UI::Xaml::Data::ItemIndexRange(
@@ -124,8 +136,6 @@ void MainWindow::RefreshQueue() {
     if (focused_id) {
         for (std::uint32_t index = 0; index < queue_snapshot_.size(); ++index) {
             if (queue_snapshot_[index].id == *focused_id) {
-                // Do not force ScrollIntoView during a live refresh. Keeping the
-                // user's viewport stable is more important than chasing progress.
                 if (auto container = QueueList().ContainerFromIndex(index).try_as<Control>()) {
                     container.Focus(FocusState::Programmatic);
                 }
@@ -196,6 +206,7 @@ void MainWindow::OnQueueClick(IInspectable const&, RoutedEventArgs const&) {
     const bool expanding = QueuePanel().Visibility() != Visibility::Visible;
     QueuePanel().Visibility(expanding ? Visibility::Visible : Visibility::Collapsed);
     QueueChevron().Glyph(expanding ? L"\xE70E" : L"\xE70D");
+
     try {
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
         const auto label = loader.GetString(expanding ? L"ActionHideQueue" : L"ActionShowQueue");
@@ -203,9 +214,9 @@ void MainWindow::OnQueueClick(IInspectable const&, RoutedEventArgs const&) {
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(QueueButton(), label);
     } catch (...) {
     }
+
     if (expanding) {
         RefreshQueue();
-        QueueList().UpdateLayout();
         ResizeWindowToContent();
     } else {
         ResizeWindow(72);
@@ -253,7 +264,6 @@ void MainWindow::OnQueueDragItemsCompleted(
             const auto row = items.GetAt(index).as<FrameworkElement>();
             ordered_ids.push_back(unbox_value<std::uint64_t>(row.Tag()));
         } catch (...) {
-            // A malformed visual item must not corrupt the live queue order.
         }
     }
 

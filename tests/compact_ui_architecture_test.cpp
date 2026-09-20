@@ -108,13 +108,16 @@ int main() {
     }
 
     if (!contains(xaml, "x:Name=\"QueuePanel\"") || !contains(xaml, "x:Name=\"QueueHeader\" MinHeight=\"28\"") ||
-        !contains(queue, "QueueList().UpdateLayout()") || contains(xaml, "x:Name=\"QueuePanel\" CornerRadius=") ||
-        contains(xaml, "x:Name=\"QueuePanel\" Background=") || contains(execution, "QueueButton().Content") ||
-        contains(queue, "QueueButton().Content") || !contains(xaml, "FontFamily=\"Segoe Fluent Icons\"") ||
+        !contains(window, "QueuePanel().Measure") || !contains(window, "QueuePanel().DesiredSize().Height") ||
+        !contains(window, "std::numeric_limits<float>::infinity()") || !contains(queue, "ResizeWindowToContent()") ||
+        !contains(xaml, "<RowDefinition Height=\"Auto\" />\n            <RowDefinition Height=\"Auto\" />") ||
+        contains(xaml, "x:Name=\"QueuePanel\" CornerRadius=") || contains(xaml, "x:Name=\"QueuePanel\" Background=") ||
+        contains(execution, "QueueButton().Content") || contains(queue, "QueueButton().Content") ||
+        !contains(xaml, "FontFamily=\"Segoe Fluent Icons\"") ||
         !contains(xaml, "Background=\"{ThemeResource AccentFillColorDefaultBrush}\"") ||
         contains(xaml, "x:Name=\"TransferSurface\" CornerRadius=") || contains(xaml, "Background=\"#") ||
         contains(xaml, "BorderBrush=\"#") || contains(xaml, "Foreground=\"#")) {
-        return fail(10, "custom transfer/drop surfaces must remain system-theme driven");
+        return fail(10, "queue disclosure must expand the same HWND from independently measured content and stay system-theme driven");
     }
 
     if (!contains(window, "#include \"MainWindow.g.cpp\"") ||
