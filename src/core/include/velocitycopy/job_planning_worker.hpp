@@ -32,6 +32,9 @@ public:
     JobPlanningWorker& operator=(const JobPlanningWorker&) = delete;
 
     [[nodiscard]] std::uint64_t enqueue(CopyJob job, JobPlanningCallback callback);
+    // Cancels queued requests and asks the currently enumerating request to stop.
+    // Cancellation callbacks are delivered for requests cancelled explicitly so
+    // callers can release reservations/accounting deterministically.
     void cancel_pending() noexcept;
 
 private:
@@ -41,12 +44,15 @@ private:
         JobPlanningCallback callback;
     };
 
+    static JobPlanningResult cancelled_result(Request request) noexcept;
     void run(std::stop_token stop_token) noexcept;
 
     JobPlanner planner_;
     std::mutex mutex_;
     std::condition_variable_any condition_;
     std::deque<Request> pending_;
+    std::stop_source active_stop_source_;
+    std::uint64_t active_request_id_{};
     std::uint64_t next_request_id_{1};
     std::jthread worker_;
 };
