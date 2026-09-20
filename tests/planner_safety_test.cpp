@@ -3,6 +3,8 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <stop_token>
+#include <system_error>
 
 namespace fs = std::filesystem;
 
@@ -21,6 +23,18 @@ bool rejected_by_planner(const velocitycopy::CopyJob& job) {
         (void)planner.build(job);
     } catch (const fs::filesystem_error&) {
         return true;
+    }
+    return false;
+}
+
+bool cancelled_by_planner(const velocitycopy::CopyJob& job) {
+    velocitycopy::JobPlanner planner;
+    std::stop_source source;
+    source.request_stop();
+    try {
+        (void)planner.build(job, source.get_token());
+    } catch (const std::system_error& error) {
+        return error.code() == std::make_error_code(std::errc::operation_canceled);
     }
     return false;
 }
@@ -90,6 +104,15 @@ int wmain() {
     if (!rejected_by_planner(colliding_roots)) {
         fs::remove_all(base, ec);
         return 5;
+    }
+
+    CopyJob cancellable{};
+    cancellable.sources = {source};
+    cancellable.destination = safe_destination;
+    cancellable.layout = DestinationLayout::PreserveSourceFolder;
+    if (!cancelled_by_planner(cancellable)) {
+        fs::remove_all(base, ec);
+        return 6;
     }
 
     fs::remove_all(base, ec);

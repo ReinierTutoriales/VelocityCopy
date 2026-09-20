@@ -7,6 +7,7 @@
 #include <array>
 #include <cwctype>
 #include <limits>
+#include <stop_token>
 #include <system_error>
 #include <unordered_set>
 
@@ -84,6 +85,12 @@ std::wstring normalized_path_key(const std::filesystem::path& input) {
         "Multiple copy entries resolve to the same destination",
         path,
         std::make_error_code(std::errc::file_exists));
+}
+
+void throw_if_cancelled(const std::stop_token stop_token) {
+    if (stop_token.stop_requested()) {
+        throw std::system_error(std::make_error_code(std::errc::operation_canceled));
+    }
 }
 
 class OutputRegistry final {
@@ -242,6 +249,12 @@ bool CopyPlan::remove_file(const std::uint64_t file_id) noexcept {
 }
 
 CopyPlan JobPlanner::build(const CopyJob& job) const {
+    return build(job, {});
+}
+
+CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token) const {
+    throw_if_cancelled(stop_token);
+
     std::vector<std::filesystem::path> sources(job.sources.begin(), job.sources.end());
     const auto validation = DestinationCatalog::validate(sources, job.destination);
     if (validation != DestinationValidation::Valid) {
@@ -251,9 +264,12 @@ CopyPlan JobPlanner::build(const CopyJob& job) const {
             std::make_error_code(std::errc::invalid_argument));
     }
 
+    throw_if_cancelled(stop_token);
+
     std::unordered_set<std::wstring> source_keys;
     source_keys.reserve(job.sources.size());
     for (const auto& source : job.sources) {
+        throw_if_cancelled(stop_token);
         const auto key = normalized_path_key(source);
         if (key.empty() || !source_keys.insert(key).second) {
             throw std::filesystem::filesystem_error(
@@ -273,6 +289,8 @@ CopyPlan JobPlanner::build(const CopyJob& job) const {
     const bool disambiguate_by_parent = job.sources.size() > 1;
 
     for (const auto& source : job.sources) {
+        throw_if_cancelled(stop_token);
+
         std::error_code ec;
         const auto status = std::filesystem::symlink_status(source, ec);
         if (ec || !std::filesystem::exists(status)) {
@@ -291,6 +309,7 @@ CopyPlan JobPlanner::build(const CopyJob& job) const {
         }
 
         if (std::filesystem::is_regular_file(status)) {
+            throw_if_cancelled(stop_token);
             const auto size = std::filesystem::file_size(source, ec);
             if (ec) {
                 throw std::filesystem::filesystem_error("Unable to read file size", source, ec);
@@ -316,6 +335,7 @@ CopyPlan JobPlanner::build(const CopyJob& job) const {
         }
 
         for (; it != end; it.increment(ec)) {
+            throw_if_cancelled(stop_token);
             if (ec) {
                 throw std::filesystem::filesystem_error("Unable to enumerate source", source, ec);
             }
@@ -347,6 +367,7 @@ CopyPlan JobPlanner::build(const CopyJob& job) const {
             }
 
             if (std::filesystem::is_regular_file(entry_status)) {
+                throw_if_cancelled(stop_token);
                 const auto size = entry.file_size(ec);
                 if (ec) {
                     throw std::filesystem::filesystem_error("Unable to read file size", entry.path(), ec);
@@ -362,6 +383,7 @@ CopyPlan JobPlanner::build(const CopyJob& job) const {
         }
     }
 
+    throw_if_cancelled(stop_token);
     return plan;
 }
 

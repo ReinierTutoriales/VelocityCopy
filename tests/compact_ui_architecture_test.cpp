@@ -128,5 +128,12 @@ int main() {
         return fail(11, "WinUI factory and shared window helpers must remain linked after structural cleanup");
     }
 
+    if (!contains(xaml, "Click=\"OnQueueClick\"\n                            IsEnabled=\"True\"") ||
+        !contains(execution, "void MainWindow::SetExecutionButtonsIdle()") ||
+        !contains(execution, "QueueButton().IsEnabled(true)") ||
+        !contains(window, "ProgressPercentText().Text(L\"<0.1%\")")) {
+        return fail(12, "queue disclosure must remain available while idle and real sub-percent progress must not render as a frozen 0%");
+    }
+
     return 0;
 }

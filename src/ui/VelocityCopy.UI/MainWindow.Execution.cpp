@@ -46,6 +46,7 @@ void MainWindow::SetExecutionButtonsIdle() {
     SkipButton().IsEnabled(false);
     StopButton().IsEnabled(false);
     CancelButton().IsEnabled(false);
+    QueueButton().IsEnabled(true);
     current_file_id_ = 0;
     current_file_skippable_ = false;
     paused_ = false;
@@ -215,7 +216,7 @@ void MainWindow::StartCopy(velocitycopy::CopyJob job) {
     queue_snapshot_.clear();
     QueueList().Items().Clear();
     QueueCountText().Text(L"0");
-    QueueButton().IsEnabled(false);
+    QueueButton().IsEnabled(true);
     QueuePanel().Visibility(Visibility::Collapsed);
     ResizeWindow(72);
     SetProgressFraction(0.0);
@@ -229,15 +230,21 @@ void MainWindow::StartCopy(velocitycopy::CopyJob job) {
     copy_thread_ = std::jthread([this, weak, dispatcher, control, gate, job = std::move(job)](std::stop_token stop_token) mutable {
         std::shared_ptr<velocitycopy::LiveCopyPlan> plan;
         try {
-            plan = std::make_shared<velocitycopy::LiveCopyPlan>(planner_.build(job));
+            plan = std::make_shared<velocitycopy::LiveCopyPlan>(planner_.build(job, stop_token));
         } catch (...) {
+            const bool cancelled = stop_token.stop_requested() ||
+                cancel_requested_.load(std::memory_order_relaxed);
             {
                 std::lock_guard gate_lock(gate->mutex);
                 gate->accepting = false;
                 gate->condition.notify_all();
             }
-            (void)dispatcher.TryEnqueue([weak]() {
-                if (auto self = weak.get()) self->FinishCopy({false, false, static_cast<std::int32_t>(E_FAIL), false});
+            (void)dispatcher.TryEnqueue([weak, cancelled]() {
+                if (auto self = weak.get()) {
+                    self->FinishCopy(cancelled
+                        ? velocitycopy::JobResult{false, true, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED)), false}
+                        : velocitycopy::JobResult{false, false, static_cast<std::int32_t>(E_FAIL), false});
+                }
             });
             return;
         }

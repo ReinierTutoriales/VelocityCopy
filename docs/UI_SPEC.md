@@ -34,6 +34,7 @@ The compact surface must read as one deliberate Windows 11 control, not as a row
 - Keep sufficient contrast for text, icons and focus visuals.
 - No continuous animation when no progress is occurring.
 - Progress state is logical (`progress_fraction_`); resizing never derives state back from rendered pixel width.
+- Real progress below one percent must not be rounded back to a misleading `0%`. Show sub-percent progress with enough precision to make forward movement visible (`<0.1%`, then one decimal below 10%).
 
 ## Drag/drop contract
 
@@ -59,6 +60,7 @@ Explorer/Shell integration delivers a resolved `CopyJob` to the UI process. The 
 
 The queue is collapsed by default and expands in the same HWND.
 
+- The disclosure is always available, including while VelocityCopy is idle. With no accepted work it opens an empty queue with count `0`; an empty queue is still a valid inspectable state and the chevron must not be disabled.
 - Clicking the disclosure must make useful queue content visible whenever VelocityCopy has accepted work, including the initial planning phase before a `LiveCopyPlan` exists. Changing the chevron alone is not a successful expansion.
 - During initial planning the list is read-only and represents accepted top-level sources; editing/reordering becomes available only after the live plan exists.
 - The current collapsed HWND height is a layout constraint, not a measurement source. Measure `QueuePanel` independently with unconstrained vertical space, use `DesiredSize`, then resize the HWND.
@@ -92,6 +94,7 @@ The compact copier must remain movable with normal pointer dragging. Keep a prac
 ## Performance
 
 - Defer expensive queue realization where possible, but never make accepted work invisible during planning.
+- Directory planning/enumeration runs off the UI thread and must observe the transfer stop token while walking the source tree so Cancel cannot leave a long planner running after the user has cancelled.
 - Avoid per-file progress controls and per-file animation.
 - Do not update UI on every I/O completion.
 - Keep core transfer state independent of concrete WinUI controls.
