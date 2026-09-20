@@ -18,7 +18,6 @@
                     </VisualState.StateTriggers>
                     <VisualState.Setters>
                         <Setter Target="QueueList.MaxHeight" Value="{StaticResource QueueMaxHeightCompact}" />
-                        <Setter Target="ShellFlowContent.Width" Value="{StaticResource DropFlyoutWidthCompact}" />
                     </VisualState.Setters>
                 </VisualState>
                 <VisualState x:Name="ComfortableState">
@@ -27,7 +26,6 @@
                     </VisualState.StateTriggers>
                     <VisualState.Setters>
                         <Setter Target="QueueList.MaxHeight" Value="{StaticResource QueueMaxHeightComfortable}" />
-                        <Setter Target="ShellFlowContent.Width" Value="{StaticResource DropFlyoutWidthComfortable}" />
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
@@ -280,131 +278,5 @@
                  IsClosable="True"
                  VerticalAlignment="Top"
                  Margin="0,32,0,0" />
-
-        <Button x:Name="FlyoutAnchor" Visibility="Collapsed">
-            <Button.Flyout>
-                <Flyout x:Name="ShellFlowFlyout" Placement="Bottom">
-                    <Grid x:Name="ShellFlowContent" Width="{StaticResource DropFlyoutWidthCompact}" MinWidth="360" MaxWidth="520" MinHeight="176">
-                        <Grid x:Name="DestinationStep">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-
-                            <TextBlock x:Uid="DestinationTitle"
-                                       FontSize="18"
-                                       FontWeight="SemiBold"
-                                       Margin="0,0,0,8" />
-
-                            <Grid x:Name="DestinationBrowserHeader"
-                                  Grid.Row="1"
-                                  Visibility="Collapsed"
-                                  Margin="0,0,0,8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <Button x:Name="DestinationBackButton"
-                                        x:Uid="DestinationBackButton"
-                                        Click="OnDestinationBackClick"
-                                        Margin="0,0,6,0" />
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock x:Name="DestinationPathText"
-                                               TextTrimming="CharacterEllipsis"
-                                               FontWeight="SemiBold" />
-                                    <TextBlock x:Name="DestinationCapacityText"
-                                               Opacity="0.65"
-                                               FontSize="12" />
-                                </StackPanel>
-                            </Grid>
-
-                            <Grid Grid.Row="2">
-                                <ListView x:Name="DestinationItems"
-                                          MinHeight="120"
-                                          MaxHeight="240"
-                                          SelectionMode="None"
-                                          IsItemClickEnabled="False"
-                                          HorizontalContentAlignment="Stretch">
-                                    <ListView.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <ItemsStackPanel Orientation="Vertical" />
-                                        </ItemsPanelTemplate>
-                                    </ListView.ItemsPanel>
-                                </ListView>
-                                <ProgressRing x:Name="DestinationLoadingRing"
-                                              Width="24"
-                                              Height="24"
-                                              IsActive="False"
-                                              Visibility="Collapsed"
-                                              HorizontalAlignment="Center"
-                                              VerticalAlignment="Center" />
-                            </Grid>
-
-                            <Grid Grid.Row="3" Margin="0,10,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <Button x:Name="BrowseButton"
-                                        x:Uid="BrowseButton"
-                                        Click="OnBrowseClick" />
-                                <Button x:Name="ChooseCurrentFolderButton"
-                                        x:Uid="ChooseCurrentFolderButton"
-                                        Grid.Column="2"
-                                        Visibility="Collapsed"
-                                        Click="OnChooseCurrentFolderClick"
-                                        Margin="0,0,6,0" />
-                            </Grid>
-                        </Grid>
-
-                        <Grid x:Name="LayoutStep" Visibility="Collapsed">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-                            <TextBlock x:Uid="LayoutTitle" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,8" />
-                            <TextBlock x:Name="SelectedDestinationText" Grid.Row="1" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" Opacity="0.7" Margin="0,0,0,8" />
-
-                            <StackPanel Grid.Row="2" Spacing="6">
-                                <ToggleButton x:Name="PreserveToggle"
-                                              HorizontalAlignment="Stretch"
-                                              HorizontalContentAlignment="Stretch"
-                                              Click="OnPreserveClick">
-                                    <StackPanel Margin="4">
-                                        <TextBlock x:Uid="PreserveTitle" FontWeight="SemiBold" />
-                                        <TextBlock x:Name="PreservePreview" TextTrimming="CharacterEllipsis" Opacity="0.7" />
-                                    </StackPanel>
-                                </ToggleButton>
-                                <ToggleButton x:Name="DirectToggle"
-                                              HorizontalAlignment="Stretch"
-                                              HorizontalContentAlignment="Stretch"
-                                              Click="OnDirectClick">
-                                    <StackPanel Margin="4">
-                                        <TextBlock x:Uid="DirectTitle" FontWeight="SemiBold" />
-                                        <TextBlock x:Name="DirectPreview" TextTrimming="CharacterEllipsis" Opacity="0.7" />
-                                    </StackPanel>
-                                </ToggleButton>
-                            </StackPanel>
-
-                            <Grid Grid.Row="3" Margin="0,10,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <Button x:Name="BackButton" x:Uid="BackButton" Click="OnBackClick" />
-                                <Button x:Name="StartCopyButton" x:Uid="StartCopyButton" Grid.Column="2" Click="OnQueueOrStartCopyClick" IsEnabled="False" Style="{StaticResource AccentButtonStyle}" />
-                            </Grid>
-                        </Grid>
-                    </Grid>
-                </Flyout>
-            </Button.Flyout>
-        </Button>
     </Grid>
 </Window>

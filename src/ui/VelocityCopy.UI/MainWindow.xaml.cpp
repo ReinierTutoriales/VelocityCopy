@@ -1,8 +1,5 @@
 #include "pch.h"
 #include "MainWindow.xaml.h"
-#if __has_include("MainWindow.g.cpp")
-#include "MainWindow.g.cpp"
-#endif
 
 using namespace winrt;
 using namespace Windows::ApplicationModel::DataTransfer;
@@ -11,6 +8,7 @@ using namespace Microsoft::UI::Xaml;
 using namespace Microsoft::UI::Xaml::Controls;
 
 namespace winrt::VelocityCopyUI::implementation {
+
 MainWindow::MainWindow() {
     InitializeComponent();
     dispatcher_ = Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
@@ -58,16 +56,8 @@ MainWindow::MainWindow() {
             presenter.IsMinimizable(true);
             presenter.IsMaximizable(false);
         }
-        // AppIcon.rc embeds VelocityCopy.ico into the exe (Explorer/shortcut/
-        // installer identity), but the compositor does not read that resource
-        // for the live window/taskbar/Alt-Tab representation — AppWindow needs
-        // its own SetIcon call, or it falls back to the generic default even
-        // though the exe itself has a real icon. Assets\VelocityCopy.ico is
-        // deployed next to the exe (see the Content item in the vcxproj) so
-        // this path resolves at runtime.
         app_window.SetIcon(L"Assets\\VelocityCopy.ico");
     } catch (...) {
-        // Keep the native WinUI defaults if the presenter/icon cannot be adjusted.
     }
 
     ResizeWindow(72);
@@ -77,14 +67,6 @@ MainWindow::MainWindow() {
 void MainWindow::OnTransferSurfaceSizeChanged(
     IInspectable const&,
     SizeChangedEventArgs const& args) {
-    // By the time SizeChanged fires, ActualWidth already equals NewSize, so
-    // dividing by ActualWidth here would divide by the NEW width instead of
-    // the width the fill was drawn against — the fraction always comes back
-    // as (old fill px / new width), which multiplied by the new width just
-    // reproduces the old fill in pixels. The fill never rescales, so it
-    // silently drifts out of sync with the real percentage on every resize
-    // (window drag, CompactState/ComfortableState switch) until the next
-    // progress tick happens to overwrite it. Use PreviousSize instead.
     const auto previous_width = args.PreviousSize().Width;
     const auto fraction = previous_width > 0.0
         ? ProgressFill().Width() / previous_width
@@ -160,8 +142,6 @@ fire_and_forget MainWindow::HandleDropAsync(DragEventArgs args) {
     auto lifetime = get_strong();
     auto deferral = args.GetDeferral();
     try {
-        // Drag/drop is append-only. It never opens destination/layout UI and it
-        // never creates a new transfer: an active destination is authoritative.
         if (active_destination_.empty() || (!execution_control_ && !live_plan_)) {
             deferral.Complete();
             co_return;
@@ -192,321 +172,6 @@ fire_and_forget MainWindow::HandleDropAsync(DragEventArgs args) {
         deferral.Complete();
         ShowError();
     }
-}
-
-void MainWindow::LoadDestinations() {
-    destination_navigation_.cancel();
-    ++destination_navigation_generation_;
-    DestinationLoadingRing().IsActive(false);
-    DestinationLoadingRing().Visibility(Visibility::Collapsed);
-    DestinationItems().IsEnabled(true);
-    DestinationBackButton().IsEnabled(true);
-    ChooseCurrentFolderButton().IsEnabled(true);
-    current_destination_folder_.clear();
-    DestinationBrowserHeader().Visibility(Visibility::Collapsed);
-    ChooseCurrentFolderButton().Visibility(Visibility::Collapsed);
-
-    auto children = DestinationItems().Items();
-    children.Clear();
-
-    for (const auto& entry : destination_catalog_.enumerate()) {
-        Button button;
-        button.HorizontalAlignment(HorizontalAlignment::Stretch);
-        button.HorizontalContentAlignment(HorizontalAlignment::Left);
-        button.MinHeight(36);
-        std::wstring display = entry.label;
-        if (!entry.path.empty()) {
-            display += L"  ";
-            display += entry.path.wstring();
-        }
-        const auto accessible_name = hstring(display);
-        button.Content(box_value(accessible_name));
-        button.Tag(box_value(hstring(entry.path.wstring())));
-        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(button, accessible_name);
-        button.Click({this, &MainWindow::OnDestinationClick});
-        children.Append(button);
-    }
-}
-
-void MainWindow::OnDestinationClick(IInspectable const& sender, RoutedEventArgs const&) {
-    try {
-        const auto button = sender.as<Button>();
-        const auto value = unbox_value<hstring>(button.Tag());
-        NavigateDestination(std::filesystem::path(value.c_str()));
-    } catch (...) {
-        ShowError();
-    }
-}
-
-void MainWindow::OnDestinationFolderClick(IInspectable const& sender, RoutedEventArgs const&) {
-    OnDestinationClick(sender, nullptr);
-}
-
-void MainWindow::NavigateDestination(std::filesystem::path folder) {
-    if (folder.empty()) {
-        return;
-    }
-
-    // Keep the current destination list visible while navigation runs, but prevent
-    // stale targets from accepting input until the authoritative result arrives.
-    DestinationItems().IsEnabled(false);
-    DestinationBackButton().IsEnabled(false);
-    ChooseCurrentFolderButton().IsEnabled(false);
-    DestinationLoadingRing().Visibility(Visibility::Visible);
-    DestinationLoadingRing().IsActive(true);
-
-    auto weak = get_weak();
-    auto dispatcher = dispatcher_;
-    destination_navigation_generation_ = destination_navigation_.navigate(
-        std::move(folder),
-        true,
-        [weak, dispatcher](velocitycopy::DestinationNavigationResult result) mutable {
-            (void)dispatcher.TryEnqueue([weak, result = std::move(result)]() mutable {
-                if (auto self = weak.get()) {
-                    self->ApplyDestinationNavigation(std::move(result));
-                }
-            });
-        });
-}
-
-void MainWindow::ApplyDestinationNavigation(velocitycopy::DestinationNavigationResult result) {
-    if (result.generation != destination_navigation_generation_) {
-        return;
-    }
-    DestinationLoadingRing().IsActive(false);
-    DestinationLoadingRing().Visibility(Visibility::Collapsed);
-    DestinationItems().IsEnabled(true);
-    DestinationBackButton().IsEnabled(true);
-    ChooseCurrentFolderButton().IsEnabled(result.available);
-    if (!result.available) {
-        current_destination_folder_.clear();
-        DestinationBrowserHeader().Visibility(Visibility::Collapsed);
-        ChooseCurrentFolderButton().Visibility(Visibility::Collapsed);
-        DestinationItems().Items().Clear();
-        ShowError();
-        return;
-    }
-    ErrorBar().IsOpen(false);
-    current_destination_folder_ = std::move(result.folder);
-    DestinationBrowserHeader().Visibility(Visibility::Visible);
-    ChooseCurrentFolderButton().Visibility(Visibility::Visible);
-    DestinationPathText().Text(hstring(current_destination_folder_.wstring()));
-    DestinationCapacityText().Text(FormatCapacity(result.capacity));
-
-    auto children = DestinationItems().Items();
-    children.Clear();
-    for (const auto& entry : result.children) {
-        Button button;
-        button.HorizontalAlignment(HorizontalAlignment::Stretch);
-        button.HorizontalContentAlignment(HorizontalAlignment::Left);
-        button.MinHeight(36);
-        const auto accessible_name = hstring(entry.name.wstring());
-        button.Content(box_value(accessible_name));
-        button.Tag(box_value(hstring(entry.path.wstring())));
-        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(button, accessible_name);
-        button.Click({this, &MainWindow::OnDestinationFolderClick});
-        children.Append(button);
-    }
-}
-
-void MainWindow::OnDestinationBackClick(IInspectable const&, RoutedEventArgs const&) {
-    if (current_destination_folder_.empty()) {
-        LoadDestinations();
-        return;
-    }
-
-    const auto parent = current_destination_folder_.parent_path();
-    if (parent.empty() || parent == current_destination_folder_) {
-        LoadDestinations();
-    } else {
-        NavigateDestination(parent);
-    }
-}
-
-void MainWindow::OnChooseCurrentFolderClick(IInspectable const&, RoutedEventArgs const&) {
-    if (!current_destination_folder_.empty()) {
-        SelectDestination(current_destination_folder_);
-    }
-}
-
-void MainWindow::OnBrowseClick(IInspectable const&, RoutedEventArgs const&) {
-    BrowseAsync();
-}
-
-fire_and_forget MainWindow::BrowseAsync() {
-    auto lifetime = get_strong();
-    try {
-        Microsoft::Windows::Storage::Pickers::FolderPicker picker(AppWindow().Id());
-        auto result = co_await picker.PickSingleFolderAsync();
-        if (result) {
-            SelectDestination(std::filesystem::path(result.Path().c_str()));
-        }
-    } catch (...) {
-        ShowError();
-    }
-}
-
-void MainWindow::SelectDestination(std::filesystem::path destination) {
-    const auto validation = flow_.choose_destination(destination);
-    if (validation != velocitycopy::DestinationValidation::Valid || !flow_.menu()) {
-        ShowError();
-        return;
-    }
-
-    ErrorBar().IsOpen(false);
-    SelectedDestinationText().Text(hstring(destination.wstring()));
-    PreservePreview().Text(PreviewText(flow_.menu()->preserve));
-    DirectPreview().Text(PreviewText(flow_.menu()->direct));
-    PreserveToggle().IsChecked(false);
-    DirectToggle().IsChecked(false);
-    StartCopyButton().IsEnabled(false);
-    DestinationStep().Visibility(Visibility::Collapsed);
-    LayoutStep().Visibility(Visibility::Visible);
-    ShellFlowContent().UpdateLayout();
-}
-
-void MainWindow::OnPreserveClick(IInspectable const&, RoutedEventArgs const&) {
-    const bool valid = flow_.choose_layout(velocitycopy::DestinationLayout::PreserveSourceFolder);
-    PreserveToggle().IsChecked(valid);
-    DirectToggle().IsChecked(false);
-    StartCopyButton().IsEnabled(valid);
-    if (!valid) ShowError();
-}
-
-void MainWindow::OnDirectClick(IInspectable const&, RoutedEventArgs const&) {
-    const bool valid = flow_.choose_layout(velocitycopy::DestinationLayout::ContentsOnly);
-    PreserveToggle().IsChecked(false);
-    DirectToggle().IsChecked(valid);
-    StartCopyButton().IsEnabled(valid);
-    if (!valid) ShowError();
-}
-
-void MainWindow::OnBackClick(IInspectable const&, RoutedEventArgs const&) {
-    if (!flow_.back()) {
-        return;
-    }
-    if (flow_.stage() == velocitycopy::DropFlowStage::Destination) {
-        LayoutStep().Visibility(Visibility::Collapsed);
-        DestinationStep().Visibility(Visibility::Visible);
-        StartCopyButton().IsEnabled(false);
-        PreserveToggle().IsChecked(false);
-        DirectToggle().IsChecked(false);
-        ShellFlowContent().UpdateLayout();
-    }
-}
-
-void MainWindow::ShowError(hstring const& message) {
-    // ErrorBar previously opened with no Title/Message at all: WinUI's InfoBar
-    // renders an empty red bar when neither is set, so the person saw a bare
-    // strip with no text. StatusFailed (shown separately in CurrentItemText)
-    // is the only string that ever appeared, and it is a fixed generic label
-    // with no diagnostic content. Give ErrorBar an actual reason whenever the
-    // caller has one; fall back to the generic label when it does not (e.g.
-    // validation failures that never reached the copy engine and have no
-    // native error code to report).
-    if (!message.empty()) {
-        ErrorBar().Message(message);
-    } else {
-        try {
-            Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-            ErrorBar().Message(loader.GetString(L"StatusFailed"));
-        } catch (...) {
-            ErrorBar().Message(L"");
-        }
-    }
-    ErrorBar().IsOpen(true);
-}
-
-hstring MainWindow::FormatFailureReason(std::int32_t native_code) {
-    // native_code is either S_OK-family HRESULT-wrapped Win32 error (from
-    // JobResult::native_code, set by the copy engine via
-    // HRESULT_FROM_WIN32(GetLastError())) or a bare HRESULT such as E_FAIL.
-    // Decode it into readable text so the person sees why the transfer
-    // failed instead of just that it failed.
-    if (native_code == 0) {
-        return {};
-    }
-
-    const auto hr = static_cast<HRESULT>(native_code);
-    DWORD win32_code = 0;
-    if (HRESULT_FACILITY(hr) == FACILITY_WIN32) {
-        win32_code = static_cast<DWORD>(HRESULT_CODE(hr));
-    }
-
-    if (win32_code != 0) {
-        LPWSTR buffer = nullptr;
-        const DWORD length = FormatMessageW(
-            FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_ALLOCATE_BUFFER,
-            nullptr,
-            win32_code,
-            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-            reinterpret_cast<LPWSTR>(&buffer),
-            0,
-            nullptr);
-        if (length != 0 && buffer != nullptr) {
-            std::wstring text(buffer, length);
-            LocalFree(buffer);
-            // FormatMessage output is CR/LF-terminated; trim trailing whitespace
-            // so it sits cleanly on the InfoBar's single line.
-            while (!text.empty() && (text.back() == L'\r' || text.back() == L'\n' || text.back() == L' ')) {
-                text.pop_back();
-            }
-            if (!text.empty()) {
-                text += hstring(std::format(L" (0x{:08X})", static_cast<unsigned long>(win32_code)));
-                return hstring(text);
-            }
-        } else if (buffer != nullptr) {
-            LocalFree(buffer);
-        }
-    }
-
-    // Unmapped or non-Win32 HRESULT: still surface the raw code rather than
-    // nothing, so the person has something concrete to report or search.
-    return hstring(std::format(L"0x{:08X}", static_cast<unsigned long>(hr)));
-}
-
-hstring MainWindow::PreviewText(const velocitycopy::DropChoicePreview& preview) {
-    if (preview.destinations.empty()) {
-        return {};
-    }
-    std::wstring text = preview.destinations.front().wstring();
-    if (preview.hidden_items != 0) {
-        text += L"  +";
-        text += std::to_wstring(preview.hidden_items);
-    }
-    return hstring(text);
-}
-
-hstring MainWindow::FormatCapacity(const velocitycopy::DestinationCapacity& capacity) {
-    if (!capacity.available || capacity.total_bytes == 0) {
-        return {};
-    }
-    constexpr double gib = 1024.0 * 1024.0 * 1024.0;
-    return hstring(std::format(
-        L"{:.1f} / {:.1f} GiB",
-        static_cast<double>(capacity.free_bytes) / gib,
-        static_cast<double>(capacity.total_bytes) / gib));
-}
-
-hstring MainWindow::FormatSpeed(double bytes_per_second) {
-    if (bytes_per_second <= 0.0) {
-        return hstring(L"—");
-    }
-    const double mib = bytes_per_second / (1024.0 * 1024.0);
-    return hstring(std::format(L"{:.1f} MiB/s", mib));
-}
-
-hstring MainWindow::FormatEta(double seconds) {
-    if (seconds <= 0.0 || !std::isfinite(seconds)) {
-        return hstring(L"—");
-    }
-    const auto rounded = static_cast<std::uint64_t>(seconds + 0.5);
-    const auto minutes = rounded / 60;
-    const auto remaining = rounded % 60;
-    if (minutes == 0) {
-        return hstring(std::format(L"{} s", remaining));
-    }
-    return hstring(std::format(L"{} m {} s", minutes, remaining));
 }
 
 } // namespace winrt::VelocityCopyUI::implementation

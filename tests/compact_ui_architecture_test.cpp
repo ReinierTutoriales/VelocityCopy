@@ -89,18 +89,22 @@ int main() {
         return fail(7, "UI specification must document the integrated copy bar concept");
     }
 
-    if (contains(xaml, "DropFlowFlyout") ||
-        contains(copy_append, "DropFlowFlyout") ||
-        contains(shell, "DropFlowFlyout") ||
-        contains(xaml, "DropFlowContent") ||
-        !contains(xaml, "x:Name=\"ShellFlowFlyout\"") ||
-        !contains(xaml, "x:Name=\"ShellFlowContent\"") ||
-        !contains(xaml, "MinWidth=\"360\" MaxWidth=\"520\"") ||
-        !contains(xaml, "MinHeight=\"120\"") ||
-        !contains(window, "ShellFlowContent().UpdateLayout()") ||
-        !contains(window, "const bool valid = flow_.choose_layout") ||
-        !contains(window, "StartCopyButton().IsEnabled(valid)") ||
-        !contains(xaml, "x:Name=\"TitleBarDragRegion\"") ||
+    if (contains(xaml, "ShellFlowFlyout") ||
+        contains(xaml, "ShellFlowContent") ||
+        contains(xaml, "DestinationStep") ||
+        contains(xaml, "LayoutStep") ||
+        contains(xaml, "StartCopyButton") ||
+        contains(xaml, "PreserveToggle") ||
+        contains(xaml, "DirectToggle") ||
+        contains(window, "LoadDestinations") ||
+        contains(window, "SelectDestination") ||
+        contains(window, "choose_layout") ||
+        contains(copy_append, "ShellFlowFlyout") ||
+        contains(shell, "BeginShellLayoutAsync")) {
+        return fail(8, "drag/drop and shell transfers must not expose destination/layout menus in the copier window");
+    }
+
+    if (!contains(xaml, "x:Name=\"TitleBarDragRegion\"") ||
         !contains(xaml, "Height=\"32\"") ||
         !contains(window, "SetTitleBar(TitleBarDragRegion())") ||
         !contains(xaml, "x:Name=\"RootGrid\"") ||
@@ -114,7 +118,7 @@ int main() {
         !contains(window, "void MainWindow::OnDragEnter") ||
         !contains(window, "active_session") ||
         !contains(window, "DataPackageOperation::None")) {
-        return fail(8, "whole-window drop surface must accept items only for an active transfer session");
+        return fail(9, "whole-window drop surface must append only to an active transfer session");
     }
 
     if (!contains(xaml, "x:Name=\"QueuePanel\"") ||
@@ -129,14 +133,13 @@ int main() {
         contains(xaml, "x:Name=\"TransferSurface\" CornerRadius=") ||
         contains(xaml, "Background=\"#") || contains(xaml, "BorderBrush=\"#") ||
         contains(xaml, "Foreground=\"#")) {
-        return fail(9, "custom transfer/drop surfaces must remain system-theme driven");
+        return fail(10, "custom transfer/drop surfaces must remain system-theme driven");
     }
 
     if (!contains(window, "void MainWindow::OnTransferSurfaceSizeChanged") ||
         !contains(window, "args.PreviousSize().Width") ||
         contains(window, "ProgressFill().Width() / TransferSurface().ActualWidth()")) {
-        return fail(10, "the integrated fill must rescale against the surface's previous width on resize, "
-            "not its already-updated ActualWidth, or it silently desyncs from the real percentage");
+        return fail(11, "the integrated fill must rescale against the surface's previous width on resize");
     }
 
     return 0;

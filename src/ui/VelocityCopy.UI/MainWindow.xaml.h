@@ -2,9 +2,6 @@
 
 #include "MainWindow.g.h"
 
-#include "velocitycopy/destination_catalog.hpp"
-#include "velocitycopy/destination_navigation_worker.hpp"
-#include "velocitycopy/drop_flow.hpp"
 #include "velocitycopy/execution_control.hpp"
 #include "velocitycopy/job_executor.hpp"
 #include "velocitycopy/job_planner.hpp"
@@ -32,15 +29,6 @@ struct MainWindow : MainWindowT<MainWindow> {
     void OnDragOver(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
     void OnDragLeave(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
     void OnDrop(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
-    void OnDestinationClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
-    void OnDestinationFolderClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
-    void OnDestinationBackClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
-    void OnChooseCurrentFolderClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
-    void OnBrowseClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
-    void OnPreserveClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
-    void OnDirectClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
-    void OnBackClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
-    void OnQueueOrStartCopyClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnPauseClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnSkipClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnStopClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
@@ -72,8 +60,6 @@ private:
     };
 
     winrt::fire_and_forget HandleDropAsync(Microsoft::UI::Xaml::DragEventArgs args);
-    winrt::fire_and_forget BeginShellLayoutAsync(velocitycopy::CopyJob job);
-    winrt::fire_and_forget BrowseAsync();
     winrt::fire_and_forget ShowConflictDialogAsync(velocitycopy::JobResult conflict);
     winrt::fire_and_forget SaveQueueAsync();
     winrt::fire_and_forget LoadQueueAsync();
@@ -95,10 +81,6 @@ private:
         LPARAM lparam,
         UINT_PTR subclass_id,
         DWORD_PTR ref_data);
-    void LoadDestinations();
-    void NavigateDestination(std::filesystem::path folder);
-    void ApplyDestinationNavigation(velocitycopy::DestinationNavigationResult result);
-    void SelectDestination(std::filesystem::path destination);
     void QueueOrStartCopy(velocitycopy::CopyJob job);
     void EnqueueAppend(
         velocitycopy::CopyJob job,
@@ -139,14 +121,9 @@ private:
     void FinishCopy(const velocitycopy::JobResult& result);
     void ShowError(hstring const& message = {});
     static hstring FormatFailureReason(std::int32_t native_code);
-    static hstring PreviewText(const velocitycopy::DropChoicePreview& preview);
-    static hstring FormatCapacity(const velocitycopy::DestinationCapacity& capacity);
     static hstring FormatSpeed(double bytes_per_second);
     static hstring FormatEta(double seconds);
 
-    velocitycopy::DropFlowController flow_;
-    velocitycopy::DestinationCatalog destination_catalog_;
-    velocitycopy::DestinationNavigationWorker destination_navigation_;
     velocitycopy::JobPlanner planner_;
     velocitycopy::JobPlanningWorker append_planner_;
     velocitycopy::JobExecutor executor_;
@@ -154,10 +131,7 @@ private:
     std::shared_ptr<AppendGate> append_gate_;
     velocitycopy::ShellSession shell_session_;
     velocitycopy::ProgressPresenter presenter_{100};
-    std::vector<velocitycopy::DropItem> dropped_items_;
-    std::filesystem::path current_destination_folder_;
     std::filesystem::path active_destination_;
-    velocitycopy::FileOperation pending_flow_operation_{velocitycopy::FileOperation::Copy};
     velocitycopy::FileOperation active_operation_{velocitycopy::FileOperation::Copy};
     std::deque<velocitycopy::CopyJob> deferred_same_destination_jobs_;
     std::deque<velocitycopy::CopyJob> deferred_interrupted_jobs_;
@@ -183,8 +157,6 @@ private:
     bool recovery_prompt_active_{};
     std::uint64_t next_job_id_{1};
     std::uint64_t last_queue_completed_files_{};
-    std::uint64_t shell_layout_generation_{};
-    std::uint64_t destination_navigation_generation_{};
     std::uint64_t current_file_id_{};
     std::uint64_t conflict_replace_file_id_{};
     HWND hwnd_{};
