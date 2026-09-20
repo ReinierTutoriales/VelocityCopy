@@ -2,15 +2,22 @@
 
 #include <windows.h>
 
+#include <algorithm>
 #include <system_error>
 #include <vector>
 
 namespace velocitycopy {
 namespace {
 
+constexpr ULONG kDefaultIoSize = 1u * 1024u * 1024u;
+constexpr ULONG kLargeFileIoSize = 4u * 1024u * 1024u;
+constexpr std::uint64_t kLargeFileThreshold = 1ull * 1024ull * 1024ull * 1024ull;
+
 struct CallbackContext {
     const ProgressCallback* callback{};
     bool callback_failed{};
+    bool has_progress{};
+    CopyProgress last_progress{};
     COPYFILE2_MESSAGE_ACTION latched_action{COPYFILE2_PROGRESS_CONTINUE};
 };
 
@@ -29,6 +36,29 @@ COPYFILE2_MESSAGE_ACTION to_native_action(const CopyDecision decision) noexcept 
     }
 }
 
+COPYFILE2_MESSAGE_ACTION dispatch_progress(
+    CallbackContext& context,
+    const CopyProgress& progress) noexcept {
+    context.last_progress = progress;
+    context.has_progress = true;
+
+    if (context.callback == nullptr || !(*context.callback)) {
+        return COPYFILE2_PROGRESS_CONTINUE;
+    }
+
+    try {
+        const auto action = to_native_action((*context.callback)(progress));
+        if (action != COPYFILE2_PROGRESS_CONTINUE) {
+            context.latched_action = action;
+        }
+        return action;
+    } catch (...) {
+        context.callback_failed = true;
+        context.latched_action = COPYFILE2_PROGRESS_CANCEL;
+        return COPYFILE2_PROGRESS_CANCEL;
+    }
+}
+
 COPYFILE2_MESSAGE_ACTION CALLBACK copy_progress_routine(
     const COPYFILE2_MESSAGE* message,
     void* context) noexcept {
@@ -36,48 +66,54 @@ COPYFILE2_MESSAGE_ACTION CALLBACK copy_progress_routine(
         return COPYFILE2_PROGRESS_CONTINUE;
     }
 
-    auto* callback_context = static_cast<CallbackContext*>(context);
-    if (callback_context->latched_action != COPYFILE2_PROGRESS_CONTINUE) {
-        return callback_context->latched_action;
+    auto& callback_context = *static_cast<CallbackContext*>(context);
+    if (callback_context.latched_action != COPYFILE2_PROGRESS_CONTINUE) {
+        return callback_context.latched_action;
     }
-    if (callback_context->callback == nullptr || !(*callback_context->callback)) {
-        return COPYFILE2_PROGRESS_CONTINUE;
-    }
-
-    CopyProgress progress{};
-    bool has_progress = false;
 
     switch (message->Type) {
+    case COPYFILE2_CALLBACK_CHUNK_STARTED: {
+        CopyProgress progress = callback_context.last_progress;
+        progress.total_bytes = message->Info.ChunkStarted.uliTotalFileSize.QuadPart;
+        return dispatch_progress(callback_context, progress);
+    }
+
     case COPYFILE2_CALLBACK_CHUNK_FINISHED:
-        progress.total_bytes = message->Info.ChunkFinished.uliTotalFileSize.QuadPart;
-        progress.transferred_bytes = message->Info.ChunkFinished.uliTotalBytesTransferred.QuadPart;
-        has_progress = true;
-        break;
+        return dispatch_progress(callback_context, {
+            message->Info.ChunkFinished.uliTotalFileSize.QuadPart,
+            message->Info.ChunkFinished.uliTotalBytesTransferred.QuadPart,
+        });
+
+    case COPYFILE2_CALLBACK_STREAM_STARTED:
+        return dispatch_progress(callback_context, {
+            message->Info.StreamStarted.uliTotalFileSize.QuadPart,
+            callback_context.has_progress ? callback_context.last_progress.transferred_bytes : 0,
+        });
 
     case COPYFILE2_CALLBACK_STREAM_FINISHED:
-        progress.total_bytes = message->Info.StreamFinished.uliTotalFileSize.QuadPart;
-        progress.transferred_bytes = message->Info.StreamFinished.uliTotalBytesTransferred.QuadPart;
-        has_progress = true;
-        break;
+        return dispatch_progress(callback_context, {
+            message->Info.StreamFinished.uliTotalFileSize.QuadPart,
+            message->Info.StreamFinished.uliTotalBytesTransferred.QuadPart,
+        });
+
+    case COPYFILE2_CALLBACK_POLL_CONTINUE:
+        // CopyFile2 may spend a noticeable interval inside one I/O cycle. Feed
+        // the last authoritative byte count back through the control callback
+        // so Pause/Stop/Cancel remain observable instead of waiting for the next
+        // CHUNK_FINISHED notification.
+        if (callback_context.has_progress) {
+            return dispatch_progress(callback_context, callback_context.last_progress);
+        }
+        return COPYFILE2_PROGRESS_CONTINUE;
+
+    case COPYFILE2_CALLBACK_ERROR:
+        return dispatch_progress(callback_context, {
+            message->Info.Error.uliTotalFileSize.QuadPart,
+            message->Info.Error.uliTotalBytesTransferred.QuadPart,
+        });
 
     default:
-        break;
-    }
-
-    if (!has_progress) {
         return COPYFILE2_PROGRESS_CONTINUE;
-    }
-
-    try {
-        const auto action = to_native_action((*callback_context->callback)(progress));
-        if (action != COPYFILE2_PROGRESS_CONTINUE) {
-            callback_context->latched_action = action;
-        }
-        return action;
-    } catch (...) {
-        callback_context->callback_failed = true;
-        callback_context->latched_action = COPYFILE2_PROGRESS_CANCEL;
-        return COPYFILE2_PROGRESS_CANCEL;
     }
 }
 
@@ -90,6 +126,14 @@ bool source_is_unsafe_reparse_point(const std::filesystem::path& source) noexcep
     return (attrs & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
 }
 
+ULONG desired_io_size(const std::filesystem::path& source) noexcept {
+    std::error_code ec;
+    const auto size = std::filesystem::file_size(source, ec);
+    if (!ec && size >= kLargeFileThreshold) {
+        return kLargeFileIoSize;
+    }
+    return kDefaultIoSize;
+}
 
 struct DestinationPathGuard {
     std::vector<HANDLE> parents;
@@ -105,7 +149,8 @@ struct DestinationPathGuard {
         const auto root = probe.root_path();
         while (!probe.empty() && probe != root) {
             const HANDLE handle = CreateFileW(
-                probe.c_str(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING,
+                probe.c_str(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                nullptr, OPEN_EXISTING,
                 FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
             if (handle == INVALID_HANDLE_VALUE) return false;
 
@@ -164,17 +209,24 @@ CopyResult CopyEngine::copy_file(
         };
     }
 
-    CallbackContext callback_context{&progress, false, COPYFILE2_PROGRESS_CONTINUE};
+    CallbackContext callback_context{&progress};
 
-    COPYFILE2_EXTENDED_PARAMETERS parameters{};
+    // VelocityCopy targets Windows 11, so use CopyFile2 V2 deliberately. The
+    // previous engine computed strategy buffer recommendations but left the OS
+    // at an unbounded/default I/O-cycle size. On large ISO/image transfers that
+    // can produce very sparse progress callbacks and make a live copy look
+    // frozen. Bound each requested I/O cycle while keeping CopyFile2 responsible
+    // for metadata/stream semantics.
+    COPYFILE2_EXTENDED_PARAMETERS_V2 parameters{};
     parameters.dwSize = sizeof(parameters);
-    parameters.dwCopyFlags = options.copy_flags | COPY_FILE_COPY_SYMLINK;
+    parameters.dwCopyFlags = options.copy_flags;
     if (options.resume_from_pause) {
         parameters.dwCopyFlags |= COPY_FILE_RESUME_FROM_PAUSE;
     }
     if (options.existing_destination == ExistingDestinationPolicy::Fail) {
         parameters.dwCopyFlags |= COPY_FILE_FAIL_IF_EXISTS;
     }
+    parameters.ioDesiredSize = desired_io_size(source);
     if (progress) {
         parameters.pProgressRoutine = copy_progress_routine;
         parameters.pvCallbackContext = &callback_context;
@@ -183,7 +235,7 @@ CopyResult CopyEngine::copy_file(
     const HRESULT result = CopyFile2(
         source.c_str(),
         destination.c_str(),
-        &parameters);
+        reinterpret_cast<COPYFILE2_EXTENDED_PARAMETERS*>(&parameters));
 
     if (callback_context.callback_failed) {
         return {false, static_cast<std::int32_t>(E_FAIL)};

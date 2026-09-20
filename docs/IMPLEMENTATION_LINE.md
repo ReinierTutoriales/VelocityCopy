@@ -119,6 +119,12 @@ After x64 is stable:
 
 No optimization is accepted because it merely looks cleaner or faster. State the measurable or correctness problem first, preserve the relevant invariants, and benchmark performance-sensitive engine changes before replacing the baseline.
 
+## Copy-engine responsiveness rule
+
+Windows 11 `CopyFile2` is allowed to own the actual file/stream semantics, but VelocityCopy must bound requested I/O-cycle size instead of leaving large transfers entirely to the OS default. Large ISO/image transfers must continue to emit useful progress/control opportunities rather than appearing frozen for long intervals. `COPYFILE2_CALLBACK_POLL_CONTINUE` is also treated as a control heartbeat using the last authoritative byte count so Pause/Stop/Cancel do not depend exclusively on the next completed chunk.
+
+Do not reintroduce unconditional `COPY_FILE_COPY_SYMLINK`: source reparse points are rejected before execution, so asking CopyFile2 to preserve symlinks contradicts the storage-safety contract.
+
 ## Documentation rule
 
 Every future material decision or newly discovered reusable failure mode updates the owning canonical document in the same coherent change. If documentation conflicts, reconcile it before implementation. Do not allow stale documentation to become an accidental second roadmap.
