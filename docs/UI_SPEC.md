@@ -1,154 +1,84 @@
 # VelocityCopy UI specification
 
-VelocityCopy is a compact Windows 11 utility, not a full-screen file manager. The window must remain useful while occupying as little screen space as practical.
+VelocityCopy is a compact Windows 11 copy/move utility. The window itself is the copier surface; it must stay compact, direct, and free of destination/layout chooser UI during drag/drop or shell-driven transfers.
 
 ## Window geometry
 
-Use effective pixels (epx) and keep dimensions in multiples of 4 where practical.
-
 - Default collapsed size: **460 × 72 epx**
-- Expanded queue size: **460 × 300 epx**
+- Expanded queue target: **460 × 300 epx**
 - Preferred width range: **440–520 epx**
 - Minimum practical width: **420 epx**
 - Outer content gutter: **12 epx**
-- Major vertical section spacing: **12 epx**
 - Related-control spacing: **8 epx**
 - Tight inline spacing: **4 epx**
 
-These are defaults, not architectural limits. The layout must remain responsive and adjustable as the product evolves.
-
 ## Collapsed composition
 
-The collapsed window is a single compact transfer surface. The top-level window and the copier surface are the same visual body: do not inset a second rounded/card-like transfer container inside the HWND. The custom title-bar drag region belongs to this surface rather than consuming a separate decorative band.
+The collapsed window is one transfer surface. Do not place a second copier/card/capsule inside the HWND.
 
-The compact body occupies the full collapsed height; internal padding belongs to its content, not to an outer wrapper around the copier.
-
-The collapsed composition is:
-
-1. the VelocityCopy brand mark anchored at the far left
-2. current item name
-3. throughput + percentage + ETA as secondary metadata
-4. essential icon-only transport controls
-5. a queue disclosure triangle anchored at the far right
-6. global progress expressed by the transfer surface itself
-
-Conceptual layout:
-
-```
-╭────────────────────────────────────────────╮
-│ ◉  Windows11_24H2.iso  72%  684 MB/s  1m42s  ⏸  ⚙  ▸ │
-╰────────────────────────────────────────────╯
-```
-
-The logo remains visible at the far left in every compact state. The disclosure at the far right changes orientation when the queue is expanded. The current item uses end ellipsis rather than increasing the collapsed height.
+Order:
+1. VelocityCopy brand mark at the far left
+2. current item
+3. throughput + percentage + ETA
+4. essential transport controls
+5. queue disclosure triangle at the far right
+6. progress expressed by the surface fill itself
 
 ## Integrated progress surface
 
-- There is one global progress indication only: the copier surface fill itself.
-- Do not keep a hidden or visible ProgressBar as a second progress model; runtime progress drives the surface fill and percentage text from the same fraction.
-- Do not draw a separate progress strip in the collapsed window.
-- Progress fills the compact transfer surface from left to right behind its content.
-- Keep the fill visually subordinate so text, logo, icons and focus visuals retain contrast.
-- The fill extends beneath the full transfer surface; it is not confined to the text region.
-- Do not animate continuously when no progress is occurring.
-- Update UI from periodic snapshots rather than per I/O completion.
+- One global progress indication only: the copier surface fill.
+- No separate ProgressBar.
+- Progress fills left-to-right behind the content using the Windows accent brush.
+- Keep sufficient contrast for text, icons and focus visuals.
+- No continuous animation when no progress is occurring.
 
-## Typography
+## Drag/drop contract
 
-Use the Windows type system / Segoe UI Variable through WinUI theme resources rather than embedding a font.
+Whole-window drag/drop is **append-only**.
 
-- current item: Body / Body Strong depending on hierarchy
-- throughput and ETA: Caption or Body
-- percentage: compact Body Strong when displayed
-- avoid oversized headings inside the copy window
+- Accept StorageItems only while a transfer session with an authoritative destination is active.
+- Append dropped items to that current destination and operation.
+- If no transfer is active, reject the drop.
+- Never invent a destination.
+- Never open a destination picker, layout chooser, flyout, menu, prompt, overlay, or secondary surface because files were dragged onto VelocityCopy.
+- Drag/drop must not expose Copy/Move choice UI; the active transfer operation is authoritative.
 
-## Fluent materials
+## Shell-driven transfer contract
 
-- Mica: base window material
-- Acrylic: transient flyouts, context menus and destination-choice surfaces only
-- native rounded window corners
-- subtle elevation only where it communicates hierarchy
-- no decorative blur layers or permanent glow
+Explorer/Shell integration delivers a resolved `CopyJob` to the UI process. The UI process queues or starts that job directly.
 
-## Density
-
-Use WinUI compact density where appropriate for this desktop-first utility. Preserve keyboard focus visuals, accessible names/tooltips and practical pointer targets. Prefer progressive disclosure over adding permanent controls.
+- No `ShellFlowFlyout`, destination browser, preserve/direct layout choice, or Start button is part of the runtime transfer path.
+- No dormant destination/layout chooser should remain in `MainWindow.xaml` waiting for a future trigger. If a future product requirement truly needs destination selection, it must be designed as a separate explicit entry point rather than being coupled to drag/drop or normal Explorer transfer execution.
+- Shell integration and drag/drop therefore converge at `QueueOrStartCopy`, not at a chooser flow.
 
 ## Queue panel
 
-The queue is collapsed by default. Expanding it must not create an entirely different application window.
+The queue is collapsed by default and expands in the same HWND.
 
 - target expanded height: ~300 epx
-- expansion must size the existing HWND from the measured XAML content so the queue is not clipped by a hard-coded shell height
-- 300 epx remains a design target, not a clipping boundary; measured content wins when it needs more room
-- virtualized item presentation
-- drag/drop reordering
+- measure realized content before resizing
+- virtualized list
+- drag/drop reordering inside the queue
 - keyboard selection
-- controls: Subir, Bajar, Eliminar
-- Delete removes selected pending entries from the copy plan, never source files
-- current/completed entries are not reorderable
-- the expanded queue is a continuation of the same window surface: no queue card background, inner rounded container, or second visual shell
-- expansion measures the realized queue layout before resizing the existing HWND so header, list, and edit controls remain inside the visible client area
+- controls: move up, move down, remove
+- removing a queue entry never deletes the source file
+- no card background or second rounded shell around the queue
 
-For very large queues, never instantiate a visual element for every file.
+## Window movement
 
-## Responsive implementation rules
+The compact copier must remain movable with normal pointer dragging. Keep a practical custom title-bar drag region across the top of the copier surface while leaving interactive controls usable.
 
-Do not encode the design as absolute child coordinates. Use Grid, Auto sizing, Min/Max constraints, theme resources and reusable styles/tokens.
+## Fluent/system integration
 
-Keep visual constants in a small design-token/resource layer so margins, corner radii, density and dimensions can evolve without rewriting views.
+- Use Mica as the base window material when available.
+- Use native Windows 11 outer rounding only.
+- Use Segoe Fluent Icons for compact actions.
+- Use system theme/accent resources; do not hard-code decorative colors.
+- Preserve accessible names, tooltips and focus behavior.
 
-Suggested tokens:
+## Performance
 
-- `WindowCompactWidth`
-- `WindowCollapsedHeight`
-- `WindowExpandedHeight`
-- `ContentGutter`
-- `SectionSpacing`
-- `InlineSpacing`
-- `ProgressBarHeight`
-
-The UI layer must remain replaceable and evolvable. Core copy, queue and shell behavior must not depend on concrete WinUI controls.
-
-## Localization and text expansion
-
-All visible strings must come from localization resources. No user-facing sentence should be hard-coded in XAML or C++ UI code.
-
-Layouts must tolerate normal translation expansion without clipping. Do not size buttons based on one language string. Prefer Auto width with MinWidth where needed.
-
-Support right-to-left layout at the resource/layout level from the beginning even if the first shipped languages are left-to-right.
-
-Initial languages:
-
-- `en-US` — fallback/default
-- `es-ES` — first translated locale
-
-Additional BCP-47 languages must require resources only, not changes to copy-engine logic.
-
-## Performance rules
-
-- defer queue visuals until expanded
-- use deferred creation for non-visible surfaces
-- use a virtualizing list/ItemsRepeater for large queues
-- avoid nested non-virtualizing ScrollViewer/StackPanel combinations around the queue
-- no per-file animations
-- no per-file progress controls
-- no UI updates on every I/O completion
-- retain a single source of truth in the core model
-
-
-### Iconography contract
-
-Compact transfer actions use `FontIcon` with `Segoe Fluent Icons`; runtime state changes update the named icon glyph rather than replacing a button content with Unicode arrows or text symbols. Queue disclosure is always the named `QueueChevron`, so collapse/expand state cannot regress to improvised arrow characters.
-
-
-### Shell destination/layout flow
-
-Explorer `Copy here` / `Move here` always resolves one unambiguous destination, so the transfer applies the default layout (`PreserveSourceFolder`) and starts immediately; it never opens a prompt asking how to lay the transfer out. A destination/layout flyout (`ShellFlowFlyout`/`ShellFlowContent`) exists in the compact window and is driven by `DropFlowController`, but no current product path opens it — it previously fired unconditionally on every Explorer transfer, and on the compact HWND its content could exceed the visible surface, leaving the user unable to reach `StartCopyButton` to actually start the copy. This flow is separate from whole-window drag/drop: active-transfer drops must never open it either. Legacy `DropFlowFlyout`/`DropFlowContent` UI names are prohibited because they incorrectly couple shell-command choices to drag/drop semantics.
-
-Before this flyout is wired to any future trigger (for example, a real multi-root-destination ambiguity), it must keep a bounded desktop width and a minimum scrollable destination-list viewport, with long destination paths remaining single-line ellipsized metadata rather than forcing flyout width growth, and transitions between destination and layout steps must remeasure the shell-flow content so controls are not clipped by dimensions inherited from the previous step. Do not reintroduce an unconditional flyout prompt for a single-destination Explorer transfer.
-
-
-### Window movement
-
-The compact copier must remain directly movable with normal pointer dragging. Its custom title-bar drag region spans a practical 32 epx band across the top of the copier surface, while interactive controls remain above it in hit testing. Do not reduce the drag target to a decorative sliver; an 8 epx region is not an acceptable desktop drag affordance.
+- Defer queue visuals until expanded.
+- Avoid per-file progress controls and per-file animation.
+- Do not update UI on every I/O completion.
+- Keep core transfer state independent of concrete WinUI controls.
