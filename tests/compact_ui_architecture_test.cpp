@@ -135,5 +135,22 @@ int main() {
         return fail(12, "queue disclosure must remain available while idle and real sub-percent progress must not render as a frozen 0%");
     }
 
+    if (!contains(tokens, "<Thickness x:Key=\"TransferContentPadding\">12,8,12,8</Thickness>") ||
+        !contains(tokens, "<Thickness x:Key=\"BrandToContentMargin\">0,0,8,0</Thickness>") ||
+        !contains(tokens, "<Thickness x:Key=\"TransportLeadMargin\">8,0,4,0</Thickness>") ||
+        !contains(tokens, "<Thickness x:Key=\"InlineControlMargin\">0,0,4,0</Thickness>") ||
+        !contains(tokens, "<Thickness x:Key=\"OptionsControlMargin\">4,0,8,0</Thickness>") ||
+        !contains(xaml, "Padding=\"{StaticResource TransferContentPadding}\"") ||
+        !contains(xaml, "Margin=\"{StaticResource BrandToContentMargin}\"") ||
+        !contains(xaml, "Margin=\"{StaticResource TransportLeadMargin}\"") ||
+        !contains(xaml, "Margin=\"{StaticResource InlineControlMargin}\"") ||
+        !contains(xaml, "Margin=\"{StaticResource OptionsControlMargin}\"") ||
+        contains(xaml, "Padding=\"14,9,12,7\"") || contains(xaml, "Margin=\"0,0,10,0\"") ||
+        contains(xaml, "Margin=\"10,0,3,0\"") || contains(xaml, "Margin=\"0,0,3,0\"") ||
+        contains(xaml, "Margin=\"1,0,6,0\"") ||
+        !contains(queue, "row.Margin(Thickness{8, 4, 8, 4})")) {
+        return fail(13, "compact control rhythm must use the documented 4/8/12 spacing tiers instead of orphan literals");
+    }
+
     return 0;
 }

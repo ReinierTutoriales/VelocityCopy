@@ -12,6 +12,8 @@ VelocityCopy is a compact Windows 11 copy/move utility. The window itself is the
 - Related-control spacing: **6–8 epx**
 - Tight inline spacing: **3–4 epx**
 
+Spacing tiers are contractual, not advisory. The compact transfer surface uses the shared `DesignTokens.xaml` rhythm instead of ad-hoc per-control numbers: 12 epx content gutter, 8 epx group separation, and 4 epx inline control spacing. Queue-row vertical spacing follows the same 4 epx inline tier. Do not introduce orphan values such as 1, 3, 5, or 10 epx into the compact action row without an explicit spec change.
+
 ## Collapsed composition
 
 The collapsed window is one transfer surface. Do not place a second copier/card/capsule inside the HWND.

@@ -54,7 +54,7 @@
                       Background="Transparent"
                       IsHitTestVisible="True" />
 
-                <Grid Padding="14,9,12,7">
+                <Grid Padding="{StaticResource TransferContentPadding}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
@@ -67,7 +67,7 @@
                     </Grid.ColumnDefinitions>
 
                     <Grid Grid.Column="0"
-                          Margin="0,0,10,0"
+                          Margin="{StaticResource BrandToContentMargin}"
                           VerticalAlignment="Center">
                         <Image x:Name="BrandLogo"
                                Source="Assets/VelocityCopy.png"
@@ -107,7 +107,7 @@
                             Padding="0"
                             BorderThickness="0"
                             Background="Transparent"
-                            Margin="10,0,3,0">
+                            Margin="{StaticResource TransportLeadMargin}">
                         <FontIcon x:Name="PauseIcon"
                                   FontFamily="Segoe Fluent Icons"
                                   Glyph="&#xE769;"
@@ -123,7 +123,7 @@
                             Padding="0"
                             BorderThickness="0"
                             Background="Transparent"
-                            Margin="0,0,3,0">
+                            Margin="{StaticResource InlineControlMargin}">
                         <FontIcon x:Name="SkipIcon"
                                   FontFamily="Segoe Fluent Icons"
                                   Glyph="&#xE893;"
@@ -139,7 +139,7 @@
                             Padding="0"
                             BorderThickness="0"
                             Background="Transparent"
-                            Margin="0,0,3,0">
+                            Margin="{StaticResource InlineControlMargin}">
                         <FontIcon x:Name="StopIcon"
                                   FontFamily="Segoe Fluent Icons"
                                   Glyph="&#xE71A;"
@@ -155,7 +155,7 @@
                             Padding="0"
                             BorderThickness="0"
                             Background="Transparent"
-                            Margin="0,0,3,0">
+                            Margin="{StaticResource InlineControlMargin}">
                         <FontIcon x:Name="CancelIcon"
                                   FontFamily="Segoe Fluent Icons"
                                   Glyph="&#xE711;"
@@ -169,7 +169,7 @@
                             Padding="0"
                             BorderThickness="0"
                             Background="Transparent"
-                            Margin="1,0,6,0">
+                            Margin="{StaticResource OptionsControlMargin}">
                         <FontIcon x:Name="OptionsIcon"
                                   FontFamily="Segoe Fluent Icons"
                                   Glyph="&#xE713;"
