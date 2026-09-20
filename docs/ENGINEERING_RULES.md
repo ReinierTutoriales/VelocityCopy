@@ -169,3 +169,11 @@ A visual selection state must only be committed after the underlying controller 
 ### Regression lesson: do not gate a required action behind an unproven flyout
 
 A resolved Explorer transfer must not be blocked by a destination/layout chooser. If an entry point already has an authoritative destination and operation, dispatch directly into the transfer queue. Drag/drop onto the copier likewise never opens destination/layout UI.
+
+### Regression lesson: modal decisions do not belong inside the compact copier surface
+
+A `ContentDialog` attached to the compact XAML root inherits the copier window's geometry and can force a user to resize the copier just to reach a required decision. File-conflict and similarly blocking choices must use a separate owned top-level dialog (native or an explicitly separate window). The compact transfer surface must never be resized to reveal a modal decision.
+
+### Regression lesson: accepted work must be visible before planning completes
+
+Initial job planning can be measurably slower for directory trees or slow storage. Do not disable the queue disclosure until a complete `LiveCopyPlan` exists. Once a transfer is accepted, expose a bounded read-only preview of its top-level sources immediately; replace that preview with the authoritative live-plan queue when planning finishes. This makes planning latency visible and keeps the UI responsive without pretending that enumeration is already complete.
