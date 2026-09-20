@@ -31,34 +31,10 @@
   <data name="ActionHideQueue" xml:space="preserve"><value>Ocultar cola</value></data>
   <data name="TrayOpen" xml:space="preserve"><value>Abrir VelocityCopy</value></data>
   <data name="TrayExit" xml:space="preserve"><value>Salir</value></data>
-  <data name="DropPrompt" xml:space="preserve"><value>Suelta para copiar</value></data>
-  <data name="DestinationPrompt" xml:space="preserve"><value>¿Dónde quieres copiar?</value></data>
-  <data name="LayoutDirect" xml:space="preserve"><value>Copiar directamente</value></data>
-  <data name="LayoutKeepFolder" xml:space="preserve"><value>Mantener carpeta</value></data>
-  <data name="ActionChooseDestination" xml:space="preserve"><value>Elegir destino</value></data>
-  <data name="ActionStartCopy" xml:space="preserve"><value>Copiar</value></data>
   <data name="RecoveryTitle" xml:space="preserve"><value>¿Reanudar la transferencia interrumpida?</value></data>
   <data name="RecoveryMessage" xml:space="preserve"><value>VelocityCopy encontró trabajo guardado durante el apagado de Windows. No se reanudará nada hasta que elijas Reanudar.</value></data>
   <data name="RecoveryResume" xml:space="preserve"><value>Reanudar</value></data>
   <data name="RecoveryDiscard" xml:space="preserve"><value>Descartar</value></data>
-  <data name="CurrentItemText.Text" xml:space="preserve"><value>Suelta archivos o carpetas para comenzar</value></data>
-  <data name="PauseButton.Content" xml:space="preserve"><value>Pausar</value></data>
-  <data name="SkipButton.Content" xml:space="preserve"><value>Saltar</value></data>
-  <data name="StopButton.Content" xml:space="preserve"><value>Detener</value></data>
-  <data name="CancelButton.Content" xml:space="preserve"><value>Cancelar</value></data>
-  <data name="QueueButton.Content" xml:space="preserve"><value>Cola</value></data>
+  <data name="CurrentItemText.Text" xml:space="preserve"><value>Listo</value></data>
   <data name="QueueTitle.Text" xml:space="preserve"><value>Archivos pendientes</value></data>
-  <data name="QueueMoveUpButton.Content" xml:space="preserve"><value>Subir</value></data>
-  <data name="QueueMoveDownButton.Content" xml:space="preserve"><value>Bajar</value></data>
-  <data name="QueueRemoveButton.Content" xml:space="preserve"><value>Eliminar</value></data>
-  <data name="DropOverlayText.Text" xml:space="preserve"><value>Suelta para copiar</value></data>
-  <data name="DestinationTitle.Text" xml:space="preserve"><value>¿Dónde quieres copiar?</value></data>
-  <data name="DestinationBackButton.Content" xml:space="preserve"><value>Atrás</value></data>
-  <data name="ChooseCurrentFolderButton.Content" xml:space="preserve"><value>Elegir esta carpeta</value></data>
-  <data name="BrowseButton.Content" xml:space="preserve"><value>Examinar…</value></data>
-  <data name="LayoutTitle.Text" xml:space="preserve"><value>¿Cómo quieres copiarlo?</value></data>
-  <data name="PreserveTitle.Text" xml:space="preserve"><value>En carpeta</value></data>
-  <data name="DirectTitle.Text" xml:space="preserve"><value>En raíz</value></data>
-  <data name="BackButton.Content" xml:space="preserve"><value>Atrás</value></data>
-  <data name="StartCopyButton.Content" xml:space="preserve"><value>Copiar</value></data>
 </root>

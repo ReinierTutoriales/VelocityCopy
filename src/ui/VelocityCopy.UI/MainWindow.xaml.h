@@ -146,6 +146,7 @@ private:
     Microsoft::UI::Xaml::Controls::MenuFlyoutItem stop_menu_item_{nullptr};
     Microsoft::UI::Xaml::Controls::MenuFlyoutItem cancel_menu_item_{nullptr};
     std::atomic_bool cancel_requested_{false};
+    double progress_fraction_{};
     bool paused_{};
     bool stopped_session_{};
     bool conflict_session_{};

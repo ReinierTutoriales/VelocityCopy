@@ -47,6 +47,13 @@
                         Background="{ThemeResource AccentFillColorDefaultBrush}"
                         Opacity="0.12" />
 
+                <Grid x:Name="TitleBarDragRegion"
+                      Height="32"
+                      VerticalAlignment="Top"
+                      HorizontalAlignment="Stretch"
+                      Background="Transparent"
+                      IsHitTestVisible="True" />
+
                 <Grid Padding="12,8,12,4">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
@@ -176,22 +183,13 @@
                             Height="30"
                             Padding="0"
                             BorderThickness="0"
-                            Background="Transparent"
-                            Margin="0,0,0,0">
+                            Background="Transparent">
                         <FontIcon x:Name="QueueChevron"
                                   FontFamily="Segoe Fluent Icons"
                                   Glyph="&#xE70D;"
                                   FontSize="12" />
                     </Button>
                 </Grid>
-
-                <Grid x:Name="TitleBarDragRegion"
-                      Height="32"
-                      VerticalAlignment="Top"
-                      HorizontalAlignment="Stretch"
-                      Background="Transparent"
-                      IsHitTestVisible="True"
-                      Canvas.ZIndex="-1" />
             </Grid>
         </Grid>
 

@@ -27,6 +27,7 @@ int fail(const int code, const char* message) {
 int main() {
     const std::filesystem::path root{VELOCITYCOPY_SOURCE_DIR};
     const auto xaml = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml");
+    const auto header = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.h");
     const auto execution = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Execution.cpp");
     const auto queue = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Queue.cpp");
     const auto copy_append = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.CopyAppend.cpp");
@@ -35,7 +36,7 @@ int main() {
     const auto tokens = read_all(root / "src/ui/DesignTokens.xaml");
     const auto spec = read_all(root / "docs/UI_SPEC.md");
 
-    if (xaml.empty() || execution.empty() || queue.empty() || copy_append.empty() || shell.empty() || window.empty() || tokens.empty() || spec.empty()) {
+    if (xaml.empty() || header.empty() || execution.empty() || queue.empty() || copy_append.empty() || shell.empty() || window.empty() || tokens.empty() || spec.empty()) {
         return fail(1, "required UI source missing");
     }
 
@@ -60,11 +61,13 @@ int main() {
         return fail(3, "collapsed mode must use the copier surface itself for progress");
     }
 
-    if (!contains(window, "void MainWindow::SetProgressFraction") ||
-        !contains(window, "ProgressFill().Width(TransferSurface().ActualWidth() * clamped)") ||
+    if (!contains(header, "double progress_fraction_") ||
+        !contains(window, "progress_fraction_ = (std::clamp)(fraction, 0.0, 1.0)") ||
+        !contains(window, "ProgressFill().Width(TransferSurface().ActualWidth() * progress_fraction_)") ||
+        !contains(window, "ProgressFill().Width(args.NewSize().Width * progress_fraction_)") ||
         !contains(execution, "SetProgressFraction(fraction)") ||
         !contains(queue, "QueueChevron().Glyph(expanding ? L\"\\xE70E\" : L\"\\xE70D\")")) {
-        return fail(4, "runtime state must drive the integrated fill and disclosure direction");
+        return fail(4, "runtime state must own progress logically and drive fill/disclosure rendering");
     }
 
     if (!contains(tokens, "<x:Double x:Key=\"WindowCollapsedHeight\">72</x:Double>") ||
@@ -95,13 +98,13 @@ int main() {
     }
 
     if (!contains(xaml, "x:Name=\"TitleBarDragRegion\"") || !contains(xaml, "Height=\"32\"") ||
-        !contains(window, "SetTitleBar(TitleBarDragRegion())") || !contains(xaml, "x:Name=\"RootGrid\"") ||
-        !contains(xaml, "AllowDrop=\"True\"") || !contains(xaml, "Background=\"Transparent\"") ||
+        !contains(window, "SetTitleBar(TitleBarDragRegion())") || contains(xaml, "Canvas.ZIndex=\"-1\"") ||
+        !contains(xaml, "x:Name=\"RootGrid\"") || !contains(xaml, "AllowDrop=\"True\"") ||
         !contains(xaml, "DragEnter=\"OnDragEnter\"") || !contains(xaml, "DragOver=\"OnDragOver\"") ||
         !contains(xaml, "DragLeave=\"OnDragLeave\"") || !contains(xaml, "Drop=\"OnDrop\"") ||
-        contains(xaml, "x:Name=\"DragOverlay\"") || !contains(window, "void MainWindow::OnDragEnter") ||
-        !contains(window, "active_session") || !contains(window, "DataPackageOperation::None")) {
-        return fail(9, "whole-window drop surface must append only to an active transfer session");
+        contains(xaml, "x:Name=\"DragOverlay\"") || !contains(window, "accepts_active_transfer_drop") ||
+        !contains(window, "DataPackageOperation::None")) {
+        return fail(9, "window movement and whole-window append-only drop must remain usable");
     }
 
     if (!contains(xaml, "x:Name=\"QueuePanel\"") || !contains(xaml, "x:Name=\"QueueHeader\" MinHeight=\"28\"") ||
@@ -114,9 +117,12 @@ int main() {
         return fail(10, "custom transfer/drop surfaces must remain system-theme driven");
     }
 
-    if (!contains(window, "void MainWindow::OnTransferSurfaceSizeChanged") || !contains(window, "args.PreviousSize().Width") ||
-        contains(window, "ProgressFill().Width() / TransferSurface().ActualWidth()")) {
-        return fail(11, "the integrated fill must rescale against the surface's previous width on resize");
+    if (!contains(window, "#include \"MainWindow.g.cpp\"") ||
+        !contains(window, "void MainWindow::ShowError") ||
+        !contains(window, "hstring MainWindow::FormatFailureReason") ||
+        !contains(window, "hstring MainWindow::FormatSpeed") ||
+        !contains(window, "hstring MainWindow::FormatEta")) {
+        return fail(11, "WinUI factory and shared window helpers must remain linked after structural cleanup");
     }
 
     return 0;

@@ -1,5 +1,8 @@
 #include "pch.h"
 #include "MainWindow.xaml.h"
+#if __has_include("MainWindow.g.cpp")
+#include "MainWindow.g.cpp"
+#endif
 
 using namespace winrt;
 using namespace Windows::ApplicationModel::DataTransfer;
@@ -8,6 +11,23 @@ using namespace Microsoft::UI::Xaml;
 using namespace Microsoft::UI::Xaml::Controls;
 
 namespace winrt::VelocityCopyUI::implementation {
+namespace {
+
+bool accepts_active_transfer_drop(
+    const std::filesystem::path& active_destination,
+    const std::shared_ptr<velocitycopy::ExecutionControl>& execution_control,
+    const std::shared_ptr<velocitycopy::LiveCopyPlan>& live_plan,
+    DragEventArgs const& args) {
+    if (active_destination.empty() || (!execution_control && !live_plan)) {
+        return false;
+    }
+    if (!args.DataView().Contains(StandardDataFormats::StorageItems())) {
+        return false;
+    }
+    return (args.AllowedOperations() & DataPackageOperation::Copy) == DataPackageOperation::Copy;
+}
+
+} // namespace
 
 MainWindow::MainWindow() {
     InitializeComponent();
@@ -67,11 +87,7 @@ MainWindow::MainWindow() {
 void MainWindow::OnTransferSurfaceSizeChanged(
     IInspectable const&,
     SizeChangedEventArgs const& args) {
-    const auto previous_width = args.PreviousSize().Width;
-    const auto fraction = previous_width > 0.0
-        ? ProgressFill().Width() / previous_width
-        : 0.0;
-    ProgressFill().Width(args.NewSize().Width * (std::clamp)(fraction, 0.0, 1.0));
+    ProgressFill().Width(args.NewSize().Width * progress_fraction_);
 }
 
 void MainWindow::ResizeWindow(const int height_epx) {
@@ -101,35 +117,30 @@ void MainWindow::ResizeWindowToContent() {
 }
 
 void MainWindow::SetProgressFraction(const double fraction) {
-    const auto clamped = (std::clamp)(fraction, 0.0, 1.0);
-    ProgressFill().Width(TransferSurface().ActualWidth() * clamped);
-    ProgressPercentText().Text(hstring(std::format(L"{:.0f}%", clamped * 100.0)));
+    progress_fraction_ = (std::clamp)(fraction, 0.0, 1.0);
+    ProgressFill().Width(TransferSurface().ActualWidth() * progress_fraction_);
+    ProgressPercentText().Text(hstring(std::format(L"{:.0f}%", progress_fraction_ * 100.0)));
 }
 
 void MainWindow::OnDragEnter(IInspectable const&, DragEventArgs const& args) {
-    const bool active_session = !active_destination_.empty() && (execution_control_ || live_plan_);
-    const bool accepts_storage_items = args.DataView().Contains(StandardDataFormats::StorageItems());
-    const bool source_allows_copy =
-        (args.AllowedOperations() & DataPackageOperation::Copy) == DataPackageOperation::Copy;
     args.AcceptedOperation(
-        active_session && accepts_storage_items && source_allows_copy
+        accepts_active_transfer_drop(active_destination_, execution_control_, live_plan_, args)
             ? DataPackageOperation::Copy
             : DataPackageOperation::None);
 }
 
 void MainWindow::OnDragOver(IInspectable const&, DragEventArgs const& args) {
-    OnDragEnter(nullptr, args);
+    args.AcceptedOperation(
+        accepts_active_transfer_drop(active_destination_, execution_control_, live_plan_, args)
+            ? DataPackageOperation::Copy
+            : DataPackageOperation::None);
 }
 
 void MainWindow::OnDragLeave(IInspectable const&, DragEventArgs const&) {
 }
 
 void MainWindow::OnDrop(IInspectable const&, DragEventArgs const& args) {
-    const bool active_session = !active_destination_.empty() && (execution_control_ || live_plan_);
-    const bool accepts_storage_items = args.DataView().Contains(StandardDataFormats::StorageItems());
-    const bool source_allows_copy =
-        (args.AllowedOperations() & DataPackageOperation::Copy) == DataPackageOperation::Copy;
-    if (!active_session || !accepts_storage_items || !source_allows_copy) {
+    if (!accepts_active_transfer_drop(active_destination_, execution_control_, live_plan_, args)) {
         args.AcceptedOperation(DataPackageOperation::None);
         return;
     }
@@ -172,6 +183,69 @@ fire_and_forget MainWindow::HandleDropAsync(DragEventArgs args) {
         deferral.Complete();
         ShowError();
     }
+}
+
+void MainWindow::ShowError(hstring const& message) {
+    ErrorBar().Message(message);
+    ErrorBar().IsOpen(true);
+}
+
+hstring MainWindow::FormatFailureReason(const std::int32_t native_code) {
+    if (native_code == 0) {
+        return {};
+    }
+
+    DWORD message_code = static_cast<DWORD>(native_code);
+    const HRESULT hr = static_cast<HRESULT>(native_code);
+    if (HRESULT_FACILITY(hr) == FACILITY_WIN32) {
+        message_code = HRESULT_CODE(hr);
+    }
+
+    wchar_t* message_buffer = nullptr;
+    const DWORD length = FormatMessageW(
+        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+        nullptr,
+        message_code,
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+        reinterpret_cast<wchar_t*>(&message_buffer),
+        0,
+        nullptr);
+
+    if (length != 0 && message_buffer != nullptr) {
+        std::wstring message(message_buffer, length);
+        LocalFree(message_buffer);
+        while (!message.empty() && (message.back() == L'\r' || message.back() == L'\n' || message.back() == L' ' || message.back() == L'\t')) {
+            message.pop_back();
+        }
+        if (!message.empty()) {
+            return hstring(message);
+        }
+    } else if (message_buffer != nullptr) {
+        LocalFree(message_buffer);
+    }
+
+    return hstring(std::format(L"0x{:08X}", static_cast<std::uint32_t>(native_code)));
+}
+
+hstring MainWindow::FormatSpeed(const double bytes_per_second) {
+    if (bytes_per_second <= 0.0) {
+        return hstring(L"—");
+    }
+    const double mib = bytes_per_second / (1024.0 * 1024.0);
+    return hstring(std::format(L"{:.1f} MiB/s", mib));
+}
+
+hstring MainWindow::FormatEta(const double seconds) {
+    if (seconds <= 0.0 || !std::isfinite(seconds)) {
+        return hstring(L"—");
+    }
+    const auto rounded = static_cast<std::uint64_t>(seconds + 0.5);
+    const auto minutes = rounded / 60;
+    const auto remaining = rounded % 60;
+    if (minutes == 0) {
+        return hstring(std::format(L"{} s", remaining));
+    }
+    return hstring(std::format(L"{} m {} s", minutes, remaining));
 }
 
 } // namespace winrt::VelocityCopyUI::implementation

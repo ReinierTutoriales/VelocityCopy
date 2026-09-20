@@ -69,7 +69,7 @@ int main() {
         !contains(tray, "TaskbarCreated") ||
         !contains(tray, "WM_ENDSESSION") ||
         !contains(persistence, "VelocityCopy.Recovery.vcq")) {
-        return fail(6, "resident UI must enforce tray, hook-free clipboard capture, EcoQoS and shutdown recovery contracts");
+        return fail(6, "resident UI must enforce tray, hook-free operation, EcoQoS and shutdown recovery contracts");
     }
 
     if (!contains(ipc, "ConvertSidToStringSidW") ||
@@ -124,16 +124,19 @@ int main() {
         return fail(11, "startup source must not comment out is_startup_activation with a literal escape");
     }
 
-    if (!contains(shell_window, "BeginShellLayoutAsync") ||
+    if (!contains(shell_window, "shell_session_.dispatch(request)") ||
+        !contains(shell_window, "QueueOrStartCopy(std::move(*dispatch.job))") ||
+        contains(shell_window, "BeginShellLayoutAsync") ||
         contains(shell_window, "CaptureClipboardFileSelection") ||
-        contains(tray, "AddClipboardFormatListener")) {
-        return fail(12, "transfer handoff must use its own snapshot, never stale clipboard staging");
+        contains(tray, "AddClipboardFormatListener") ||
+        contains(tray, "WM_CLIPBOARDUPDATE")) {
+        return fail(12, "transfer handoff must use its own shell snapshot and enter the queue directly");
     }
     if (!contains(docs, "IShellExtInit") || !contains(docs, "EcoQoS")) {
         return fail(13, "integration constraints must remain documented");
     }
     if (!contains(window, "StandardDataFormats::StorageItems()") ||
-        !contains(window, "active_session") ||
+        !contains(window, "active_destination.empty()") ||
         !contains(window, "job.destination = active_destination_") ||
         !contains(window, "job.operation = active_operation_") ||
         !contains(window, "QueueOrStartCopy(std::move(job))") ||
