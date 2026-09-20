@@ -66,9 +66,11 @@ void JobPlanningWorker::cancel_pending() noexcept {
     // uses them to release append reservations, and callback code is allowed to
     // enqueue new work without deadlocking this worker.
     for (auto& request : cancelled) {
-        if (!request.callback) continue;
+        auto callback = std::move(request.callback);
+        if (!callback) continue;
+        auto result = cancelled_result(std::move(request));
         try {
-            request.callback(cancelled_result(std::move(request)));
+            callback(std::move(result));
         } catch (...) {
             // Consumer callbacks must not destabilize cancellation.
         }
