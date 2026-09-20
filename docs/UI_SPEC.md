@@ -5,12 +5,12 @@ VelocityCopy is a compact Windows 11 copy/move utility. The window itself is the
 ## Window geometry
 
 - Default collapsed size: **460 × 72 epx**
-- Expanded queue target: **460 × 300 epx**
+- Expanded queue target: **~300 epx**, bounded by measured queue content
 - Preferred width range: **440–520 epx**
 - Minimum practical width: **420 epx**
-- Outer content gutter: **12 epx**
-- Related-control spacing: **8 epx**
-- Tight inline spacing: **4 epx**
+- Outer content gutter: **12–14 epx**
+- Related-control spacing: **6–8 epx**
+- Tight inline spacing: **3–4 epx**
 
 ## Collapsed composition
 
@@ -24,6 +24,8 @@ Order:
 5. queue disclosure triangle at the far right
 6. progress expressed by the surface fill itself
 
+The compact surface must read as one deliberate Windows 11 control, not as a row of oversized independent buttons. Keep icon targets compact, preserve native hover/focus behavior, and give the filename/telemetry region priority over decorative spacing.
+
 ## Integrated progress surface
 
 - One global progress indication only: the copier surface fill.
@@ -31,6 +33,7 @@ Order:
 - Progress fills left-to-right behind the content using the Windows accent brush.
 - Keep sufficient contrast for text, icons and focus visuals.
 - No continuous animation when no progress is occurring.
+- Progress state is logical (`progress_fraction_`); resizing never derives state back from rendered pixel width.
 
 ## Drag/drop contract
 
@@ -55,14 +58,13 @@ Explorer/Shell integration delivers a resolved `CopyJob` to the UI process. The 
 
 The queue is collapsed by default and expands in the same HWND.
 
-- target expanded height: ~300 epx
-- measure realized content before resizing
-- virtualized list
-- drag/drop reordering inside the queue
-- keyboard selection
-- controls: move up, move down, remove
-- removing a queue entry never deletes the source file
-- no card background or second rounded shell around the queue
+- Clicking the disclosure must always make the list visible when a live plan exists; changing the chevron alone is not a successful expansion.
+- The current collapsed HWND height is a layout constraint, not a measurement source. Measure `QueuePanel` independently with unconstrained vertical space, use `DesiredSize`, then resize the HWND.
+- Keep the expanded height bounded (roughly 176–340 epx) so short queues do not create empty space and long queues scroll instead of growing without limit.
+- Queue rows use a compact two-line hierarchy: filename first, source location secondary. Avoid card-per-row decoration.
+- Virtualized list, drag/drop reordering, keyboard selection, move up/down/remove controls.
+- Removing a queue entry never deletes the source file.
+- No card background or second rounded shell around the queue.
 
 ## Window movement
 
@@ -75,6 +77,7 @@ The compact copier must remain movable with normal pointer dragging. Keep a prac
 - Use Segoe Fluent Icons for compact actions.
 - Use system theme/accent resources; do not hard-code decorative colors.
 - Preserve accessible names, tooltips and focus behavior.
+- Visual hierarchy comes from spacing, typography, opacity and native interaction states, not extra borders/cards.
 
 ## Performance
 
@@ -82,3 +85,4 @@ The compact copier must remain movable with normal pointer dragging. Keep a prac
 - Avoid per-file progress controls and per-file animation.
 - Do not update UI on every I/O completion.
 - Keep core transfer state independent of concrete WinUI controls.
+- Reuse queue visuals where possible and preserve selection/focus by stable file IDs during live refresh.

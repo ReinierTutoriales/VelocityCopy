@@ -4,6 +4,8 @@
 #include "MainWindow.g.cpp"
 #endif
 
+#include <limits>
+
 using namespace winrt;
 using namespace Windows::ApplicationModel::DataTransfer;
 using namespace Windows::Storage;
@@ -111,9 +113,23 @@ void MainWindow::ResizeWindow(const int height_epx) {
 }
 
 void MainWindow::ResizeWindowToContent() {
+    if (QueuePanel().Visibility() != Visibility::Visible) {
+        ResizeWindow(72);
+        return;
+    }
+
+    // RootGrid is arranged to the current HWND height, so RootGrid.ActualHeight()
+    // cannot be used to discover the expanded queue height while the window is
+    // still collapsed. Measure the queue panel independently with unconstrained
+    // vertical space, then grow the HWND from the known 72 epx copier surface.
+    const auto measured_width = RootGrid().ActualWidth() > 0.0
+        ? static_cast<float>(RootGrid().ActualWidth())
+        : 460.0f;
+    QueuePanel().Measure({measured_width, std::numeric_limits<float>::infinity()});
+    const auto desired_queue_height = static_cast<double>(QueuePanel().DesiredSize().Height);
+    const auto expanded_height = static_cast<int>(std::ceil(72.0 + desired_queue_height));
+    ResizeWindow((std::clamp)(expanded_height, 176, 340));
     RootGrid().UpdateLayout();
-    const auto content_height = static_cast<int>(std::ceil(RootGrid().ActualHeight()));
-    ResizeWindow((std::max)(72, content_height));
 }
 
 void MainWindow::SetProgressFraction(const double fraction) {

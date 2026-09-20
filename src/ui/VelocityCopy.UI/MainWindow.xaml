@@ -33,7 +33,7 @@
 
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <Grid x:Name="TransferSurface"
@@ -54,7 +54,7 @@
                       Background="Transparent"
                       IsHitTestVisible="True" />
 
-                <Grid Padding="12,8,12,4">
+                <Grid Padding="14,9,12,7">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
@@ -67,12 +67,12 @@
                     </Grid.ColumnDefinitions>
 
                     <Grid Grid.Column="0"
-                          Margin="0,0,8,0"
+                          Margin="0,0,10,0"
                           VerticalAlignment="Center">
                         <Image x:Name="BrandLogo"
                                Source="Assets/VelocityCopy.png"
-                               Width="28"
-                               Height="28"
+                               Width="24"
+                               Height="24"
                                Stretch="Uniform"
                                IsHitTestVisible="False" />
                     </Grid>
@@ -85,15 +85,16 @@
                         <TextBlock x:Name="CurrentItemText"
                                    x:Uid="CurrentItemText"
                                    TextTrimming="CharacterEllipsis"
+                                   MaxLines="1"
                                    FontWeight="SemiBold"
-                                   FontSize="13" />
+                                   FontSize="12.5" />
                         <StackPanel Grid.Row="1"
                                     Orientation="Horizontal"
-                                    Spacing="8"
-                                    Margin="0,1,0,0">
-                            <TextBlock x:Name="SpeedText" Text="—" Opacity="0.66" FontSize="11" />
-                            <TextBlock x:Name="ProgressPercentText" Text="0%" Opacity="0.78" FontSize="11" FontWeight="SemiBold" />
-                            <TextBlock x:Name="EtaText" Text="—" Opacity="0.66" FontSize="11" />
+                                    Spacing="6"
+                                    Margin="0,2,0,0">
+                            <TextBlock x:Name="SpeedText" Text="—" Opacity="0.62" FontSize="11" />
+                            <TextBlock x:Name="ProgressPercentText" Text="0%" Opacity="0.82" FontSize="11" FontWeight="SemiBold" />
+                            <TextBlock x:Name="EtaText" Text="—" Opacity="0.62" FontSize="11" />
                         </StackPanel>
                     </Grid>
 
@@ -101,78 +102,78 @@
                             Grid.Column="2"
                             Click="OnPauseClick"
                             IsEnabled="False"
-                            Width="30"
-                            Height="30"
+                            Width="28"
+                            Height="28"
                             Padding="0"
                             BorderThickness="0"
                             Background="Transparent"
-                            Margin="12,0,4,0">
+                            Margin="10,0,3,0">
                         <FontIcon x:Name="PauseIcon"
                                   FontFamily="Segoe Fluent Icons"
                                   Glyph="&#xE769;"
-                                  FontSize="14" />
+                                  FontSize="13" />
                     </Button>
 
                     <Button x:Name="SkipButton"
                             Grid.Column="3"
                             Click="OnSkipClick"
                             IsEnabled="False"
-                            Width="30"
-                            Height="30"
+                            Width="28"
+                            Height="28"
                             Padding="0"
                             BorderThickness="0"
                             Background="Transparent"
-                            Margin="0,0,4,0">
+                            Margin="0,0,3,0">
                         <FontIcon x:Name="SkipIcon"
                                   FontFamily="Segoe Fluent Icons"
                                   Glyph="&#xE893;"
-                                  FontSize="14" />
+                                  FontSize="13" />
                     </Button>
 
                     <Button x:Name="StopButton"
                             Grid.Column="4"
                             Click="OnStopClick"
                             IsEnabled="False"
-                            Width="30"
-                            Height="30"
+                            Width="28"
+                            Height="28"
                             Padding="0"
                             BorderThickness="0"
                             Background="Transparent"
-                            Margin="0,0,4,0">
+                            Margin="0,0,3,0">
                         <FontIcon x:Name="StopIcon"
                                   FontFamily="Segoe Fluent Icons"
                                   Glyph="&#xE71A;"
-                                  FontSize="13" />
+                                  FontSize="12" />
                     </Button>
 
                     <Button x:Name="CancelButton"
                             Grid.Column="5"
                             Click="OnCancelClick"
                             IsEnabled="False"
-                            Width="30"
-                            Height="30"
+                            Width="28"
+                            Height="28"
                             Padding="0"
                             BorderThickness="0"
                             Background="Transparent"
-                            Margin="0,0,4,0">
+                            Margin="0,0,3,0">
                         <FontIcon x:Name="CancelIcon"
                                   FontFamily="Segoe Fluent Icons"
                                   Glyph="&#xE711;"
-                                  FontSize="13" />
+                                  FontSize="12" />
                     </Button>
 
                     <Button x:Name="OptionsButton"
                             Grid.Column="6"
-                            Width="30"
-                            Height="30"
+                            Width="28"
+                            Height="28"
                             Padding="0"
                             BorderThickness="0"
                             Background="Transparent"
-                            Margin="0,0,10,0">
+                            Margin="1,0,6,0">
                         <FontIcon x:Name="OptionsIcon"
                                   FontFamily="Segoe Fluent Icons"
                                   Glyph="&#xE713;"
-                                  FontSize="14" />
+                                  FontSize="13" />
                     </Button>
 
                     <Button x:Name="QueueButton"
@@ -180,7 +181,7 @@
                             Click="OnQueueClick"
                             IsEnabled="False"
                             Width="30"
-                            Height="30"
+                            Height="28"
                             Padding="0"
                             BorderThickness="0"
                             Background="Transparent">
@@ -196,10 +197,10 @@
         <Grid x:Name="QueuePanel"
               Grid.Row="1"
               Visibility="Collapsed"
-              Padding="12,8,12,12">
+              Padding="14,8,14,12">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
@@ -210,10 +211,14 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock x:Name="QueueTitle"
                            x:Uid="QueueTitle"
-                           FontWeight="SemiBold" />
+                           VerticalAlignment="Center"
+                           FontWeight="SemiBold"
+                           FontSize="12" />
                 <TextBlock x:Name="QueueCountText"
                            Grid.Column="1"
-                           Opacity="0.65" />
+                           VerticalAlignment="Center"
+                           Opacity="0.58"
+                           FontSize="11" />
             </Grid>
 
             <ListView x:Name="QueueList"
@@ -231,7 +236,7 @@
                       DragItemsCompleted="OnQueueDragItemsCompleted"
                       HorizontalContentAlignment="Stretch" />
 
-            <Grid Grid.Row="2" Margin="0,6,0,0">
+            <Grid Grid.Row="2" Margin="0,8,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
@@ -240,31 +245,31 @@
                 </Grid.ColumnDefinitions>
                 <Button x:Name="QueueMoveUpButton"
                         Click="OnQueueMoveUpClick"
-                        Width="30"
-                        Height="30"
+                        Width="28"
+                        Height="28"
                         Padding="0"
                         BorderThickness="0"
                         Margin="0,0,4,0">
-                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE70E;" FontSize="13" />
+                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE70E;" FontSize="12" />
                 </Button>
                 <Button x:Name="QueueMoveDownButton"
                         Grid.Column="1"
                         Click="OnQueueMoveDownClick"
-                        Width="30"
-                        Height="30"
+                        Width="28"
+                        Height="28"
                         Padding="0"
                         BorderThickness="0"
                         Margin="0,0,4,0">
-                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE70D;" FontSize="13" />
+                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE70D;" FontSize="12" />
                 </Button>
                 <Button x:Name="QueueRemoveButton"
                         Grid.Column="2"
                         Click="OnQueueRemoveClick"
-                        Width="30"
-                        Height="30"
+                        Width="28"
+                        Height="28"
                         Padding="0"
                         BorderThickness="0">
-                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74D;" FontSize="13" />
+                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74D;" FontSize="12" />
                 </Button>
             </Grid>
         </Grid>
