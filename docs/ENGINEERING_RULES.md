@@ -177,3 +177,11 @@ A `ContentDialog` attached to the compact XAML root inherits the copier window's
 ### Regression lesson: accepted work must be visible before planning completes
 
 Initial job planning can be measurably slower for directory trees or slow storage. Do not disable the queue disclosure until a complete `LiveCopyPlan` exists. Once a transfer is accepted, expose a bounded read-only preview of its top-level sources immediately; replace that preview with the authoritative live-plan queue when planning finishes. This makes planning latency visible and keeps the UI responsive without pretending that enumeration is already complete.
+
+### Regression lesson: planning must be cancellable
+
+Running planning off the UI thread is not enough if directory enumeration ignores cancellation. Any planner loop that can walk an unbounded source tree must observe a stop token at bounded intervals. Cancel must terminate both planning and execution paths; otherwise the window can report cancellation while a background planner continues traversing storage and makes the product appear frozen.
+
+### Regression lesson: do not render real progress as zero
+
+If the engine is reporting transferred bytes, the UI must not round a positive fraction back to `0%`. For large jobs this makes a healthy transfer look stalled even while throughput and ETA are updating. Preserve a visible sub-percent state until whole-number percentages become meaningful.

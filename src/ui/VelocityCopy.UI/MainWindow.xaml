@@ -179,7 +179,7 @@
                     <Button x:Name="QueueButton"
                             Grid.Column="7"
                             Click="OnQueueClick"
-                            IsEnabled="False"
+                            IsEnabled="True"
                             Width="30"
                             Height="28"
                             Padding="0"

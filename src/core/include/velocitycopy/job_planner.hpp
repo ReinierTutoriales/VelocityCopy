@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <stop_token>
 #include <vector>
 
 namespace velocitycopy {
@@ -38,6 +39,7 @@ struct CopyPlan {
 class JobPlanner final {
 public:
     [[nodiscard]] CopyPlan build(const CopyJob& job) const;
+    [[nodiscard]] CopyPlan build(const CopyJob& job, std::stop_token stop_token) const;
 };
 
 } // namespace velocitycopy

@@ -135,7 +135,15 @@ void MainWindow::ResizeWindowToContent() {
 void MainWindow::SetProgressFraction(const double fraction) {
     progress_fraction_ = (std::clamp)(fraction, 0.0, 1.0);
     ProgressFill().Width(TransferSurface().ActualWidth() * progress_fraction_);
-    ProgressPercentText().Text(hstring(std::format(L"{:.0f}%", progress_fraction_ * 100.0)));
+
+    const double percent = progress_fraction_ * 100.0;
+    if (progress_fraction_ > 0.0 && percent < 0.1) {
+        ProgressPercentText().Text(L"<0.1%");
+    } else if (percent > 0.0 && percent < 10.0) {
+        ProgressPercentText().Text(hstring(std::format(L"{:.1f}%", percent)));
+    } else {
+        ProgressPercentText().Text(hstring(std::format(L"{:.0f}%", percent)));
+    }
 }
 
 void MainWindow::OnDragEnter(IInspectable const&, DragEventArgs const& args) {
