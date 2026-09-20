@@ -158,6 +158,12 @@ void MainWindow::EnqueueAppend(
 
             if (!result.plan) {
                 release_reservation();
+                if (result.error_code == static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED))) {
+                    // Explicit planner cancellation is a control transition, not
+                    // a transfer failure. Reservations are released above, but
+                    // the compact UI must not surface a spurious error banner.
+                    return;
+                }
                 notify_failure();
                 return;
             }
