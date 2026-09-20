@@ -97,14 +97,10 @@ COPYFILE2_MESSAGE_ACTION CALLBACK copy_progress_routine(
         });
 
     case COPYFILE2_CALLBACK_POLL_CONTINUE:
-        // CopyFile2 may spend a noticeable interval inside one I/O cycle. Feed
-        // the last authoritative byte count back through the control callback
-        // so Pause/Stop/Cancel remain observable instead of waiting for the next
-        // CHUNK_FINISHED notification.
-        if (callback_context.has_progress) {
-            return dispatch_progress(callback_context, callback_context.last_progress);
-        }
-        return COPYFILE2_PROGRESS_CONTINUE;
+        // POLL_CONTINUE is a control heartbeat, not merely a byte-progress event.
+        // Dispatch it even before the first CHUNK_FINISHED notification so a
+        // stalled/slow first I/O cycle can still observe Pause/Stop/Cancel.
+        return dispatch_progress(callback_context, callback_context.last_progress);
 
     case COPYFILE2_CALLBACK_ERROR:
         return dispatch_progress(callback_context, {
@@ -126,13 +122,14 @@ bool source_is_unsafe_reparse_point(const std::filesystem::path& source) noexcep
     return (attrs & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
 }
 
-ULONG desired_io_size(const std::filesystem::path& source) noexcept {
+std::uint64_t source_size_no_throw(const std::filesystem::path& source) noexcept {
     std::error_code ec;
     const auto size = std::filesystem::file_size(source, ec);
-    if (!ec && size >= kLargeFileThreshold) {
-        return kLargeFileIoSize;
-    }
-    return kDefaultIoSize;
+    return ec ? 0 : size;
+}
+
+ULONG desired_io_size(const std::uint64_t source_size) noexcept {
+    return source_size >= kLargeFileThreshold ? kLargeFileIoSize : kDefaultIoSize;
 }
 
 struct DestinationPathGuard {
@@ -209,14 +206,15 @@ CopyResult CopyEngine::copy_file(
         };
     }
 
+    const auto source_size = source_size_no_throw(source);
     CallbackContext callback_context{&progress};
+    callback_context.last_progress = {source_size, 0};
+    callback_context.has_progress = source_size != 0;
 
-    // VelocityCopy targets Windows 11, so use CopyFile2 V2 deliberately. The
-    // previous engine computed strategy buffer recommendations but left the OS
-    // at an unbounded/default I/O-cycle size. On large ISO/image transfers that
-    // can produce very sparse progress callbacks and make a live copy look
-    // frozen. Bound each requested I/O cycle while keeping CopyFile2 responsible
-    // for metadata/stream semantics.
+    // VelocityCopy targets Windows 11, so use CopyFile2 V2 deliberately. Keep
+    // I/O cycles bounded so callbacks remain frequent enough for live controls
+    // and seed the callback state with the source size so POLL_CONTINUE can act
+    // as a control heartbeat before byte progress has been reported.
     COPYFILE2_EXTENDED_PARAMETERS_V2 parameters{};
     parameters.dwSize = sizeof(parameters);
     parameters.dwCopyFlags = options.copy_flags;
@@ -226,7 +224,7 @@ CopyResult CopyEngine::copy_file(
     if (options.existing_destination == ExistingDestinationPolicy::Fail) {
         parameters.dwCopyFlags |= COPY_FILE_FAIL_IF_EXISTS;
     }
-    parameters.ioDesiredSize = desired_io_size(source);
+    parameters.ioDesiredSize = desired_io_size(source_size);
     if (progress) {
         parameters.pProgressRoutine = copy_progress_routine;
         parameters.pvCallbackContext = &callback_context;
