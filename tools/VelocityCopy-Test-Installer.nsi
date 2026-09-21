@@ -71,18 +71,11 @@ Function .onInit
 !endif
 FunctionEnd
 
-; The installer is elevated because it writes Program Files and HKLM. Launching
-; the application directly from the finish page would therefore leak the
-; installer's administrator token into the normal desktop application. Ask
-; Explorer (the unelevated shell) to perform the launch instead.
+; The installer runs elevated. Exec/ExecShell would inherit that token, so ask
+; explorer.exe to launch the app: it hands the request to the existing
+; unelevated shell, which starts VelocityCopy with the user's normal token.
 Function LaunchVelocityCopyAsUser
-  System::Call 'shell32::SHGetFolderPathW(p 0, i 0x0000, p 0, i 0, w .r0)i.r1'
-  ${If} $1 = 0
-    GetFullPathName $2 "$INSTDIR\VelocityCopy.WinUI.exe"
-    ExecShell "open" "$2"
-  ${Else}
-    MessageBox MB_ICONEXCLAMATION|MB_OK "VelocityCopy was installed successfully, but Setup could not start it automatically. Launch it from the Start menu."
-  ${EndIf}
+  Exec '"$WINDIR\explorer.exe" "$INSTDIR\VelocityCopy.WinUI.exe"'
 FunctionEnd
 
 !macro RemoveLegacyShell
