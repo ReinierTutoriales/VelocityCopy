@@ -40,7 +40,8 @@ ShowUninstDetails show
 ; login (HKCU\...\Run below), and the person has to go find the Start Menu
 ; shortcut themselves to run it the first time. Offer to launch immediately
 ; instead, checked by default like a normal installer.
-!define MUI_FINISHPAGE_RUN "$INSTDIR\VelocityCopy.WinUI.exe"
+!define MUI_FINISHPAGE_RUN
+!define MUI_FINISHPAGE_RUN_FUNCTION LaunchVelocityCopyAsUser
 !insertmacro MUI_PAGE_FINISH
 !insertmacro MUI_LANGUAGE "English"
 
