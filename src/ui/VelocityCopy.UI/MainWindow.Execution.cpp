@@ -13,8 +13,6 @@ void MainWindow::SetExecutionButtonsPlanning() {
     EtaText().Text(L"—");
     PauseIcon().Glyph(L"\xE769");
     PauseButton().IsEnabled(false);
-    SkipButton().IsEnabled(false);
-    StopButton().IsEnabled(false);
     CancelButton().IsEnabled(true);
     current_file_id_ = 0;
     current_file_skippable_ = false;
@@ -25,8 +23,6 @@ void MainWindow::SetExecutionButtonsPlanning() {
 void MainWindow::SetExecutionButtonsRunning() {
     SetEfficiencyMode(false);
     PauseButton().IsEnabled(true);
-    SkipButton().IsEnabled(false);
-    StopButton().IsEnabled(true);
     CancelButton().IsEnabled(true);
     current_file_id_ = 0;
     current_file_skippable_ = false;
@@ -43,8 +39,6 @@ void MainWindow::SetExecutionButtonsRunning() {
 
 void MainWindow::SetExecutionButtonsIdle() {
     PauseButton().IsEnabled(false);
-    SkipButton().IsEnabled(false);
-    StopButton().IsEnabled(false);
     CancelButton().IsEnabled(false);
     QueueButton().IsEnabled(true);
     current_file_id_ = 0;
@@ -64,8 +58,6 @@ void MainWindow::SetExecutionButtonsIdle() {
 
 void MainWindow::SetExecutionButtonsStopped() {
     PauseButton().IsEnabled(true);
-    SkipButton().IsEnabled(false);
-    StopButton().IsEnabled(false);
     CancelButton().IsEnabled(true);
     current_file_id_ = 0;
     current_file_skippable_ = false;
@@ -86,8 +78,6 @@ void MainWindow::SetExecutionButtonsConflict() {
     EtaText().Text(L"—");
     PauseIcon().Glyph(L"\xE769");
     PauseButton().IsEnabled(false);
-    SkipButton().IsEnabled(false);
-    StopButton().IsEnabled(false);
     CancelButton().IsEnabled(true);
     current_file_id_ = 0;
     current_file_skippable_ = false;
@@ -347,11 +337,9 @@ void MainWindow::OnPauseClick(IInspectable const&, RoutedEventArgs const&) {
     if (paused_) {
         execution_control_->resume();
         paused_ = false;
-        SkipButton().IsEnabled(current_file_id_ != 0 && current_file_skippable_ && !stop_requested_);
     } else {
         execution_control_->request_pause();
         paused_ = true;
-        SkipButton().IsEnabled(false);
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
     }
@@ -372,7 +360,6 @@ void MainWindow::OnSkipClick(IInspectable const&, RoutedEventArgs const&) {
         current_file_id_ == 0 || !current_file_skippable_) return;
     execution_control_->request_skip(current_file_id_);
     current_file_skippable_ = false;
-    SkipButton().IsEnabled(false);
     // Keep every command surface synchronized even when Skip is invoked from
     // the hidden XAML accessor or another caller rather than the Options menu.
     RefreshExecutionMenuState();
@@ -383,10 +370,8 @@ void MainWindow::OnStopClick(IInspectable const&, RoutedEventArgs const&) {
     resume_requested_ = false;
     stop_requested_ = true;
     current_file_skippable_ = false;
-    SkipButton().IsEnabled(false);
     execution_control_->request_stop();
     PauseButton().IsEnabled(false);
-    StopButton().IsEnabled(false);
     SpeedText().Text(L"—");
     EtaText().Text(L"—");
     RefreshExecutionMenuState();
@@ -404,7 +389,6 @@ void MainWindow::CancelCurrentSession() {
     conflict_replace_file_id_ = 0;
     current_file_id_ = 0;
     current_file_skippable_ = false;
-    SkipButton().IsEnabled(false);
     deferred_same_destination_jobs_.clear();
     deferred_interrupted_jobs_.clear();
     queued_sessions_.clear();
@@ -450,7 +434,6 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
     SetProgressFraction(fraction);
     current_file_id_ = snapshot.current_file_id;
     current_file_skippable_ = snapshot.current_file_skippable;
-    SkipButton().IsEnabled(execution_control_ && current_file_id_ != 0 && current_file_skippable_ &&
         !paused_ && !stopped_session_ && !conflict_session_ && !stop_requested_);
     if (!snapshot.current_source.empty()) CurrentItemText().Text(hstring(snapshot.current_source.filename().wstring()));
     SpeedText().Text(FormatSpeed(snapshot.bytes_per_second));
@@ -473,7 +456,6 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     execution_control_.reset();
     current_file_id_ = 0;
     current_file_skippable_ = false;
-    SkipButton().IsEnabled(false);
     paused_ = false;
     PauseIcon().Glyph(L"\xE769");
 
