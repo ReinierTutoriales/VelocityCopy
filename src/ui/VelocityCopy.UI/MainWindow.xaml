@@ -56,114 +56,116 @@
 
                 <Grid x:Name="TransferContentGrid"
                       Padding="{StaticResource TransferContentPadding}">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="0" />
-                        <ColumnDefinition Width="0" />
-                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="32" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
 
-                    <Grid Grid.Column="0"
-                          Margin="{StaticResource BrandToContentMargin}"
-                          VerticalAlignment="Center">
+                    <Grid x:Name="CaptionContentGrid"
+                          Grid.Row="0"
+                          Padding="{StaticResource CaptionContentPadding}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
                         <Image x:Name="BrandLogo"
+                               Grid.Column="0"
                                Source="Assets/VelocityCopy.png"
                                Width="20"
                                Height="20"
+                               Margin="{StaticResource BrandToContentMargin}"
+                               VerticalAlignment="Center"
                                Stretch="Uniform"
                                IsHitTestVisible="False" />
+
+                        <Grid Grid.Column="1" MinWidth="0" VerticalAlignment="Center">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock x:Name="CurrentItemText"
+                                       x:Uid="CurrentItemText"
+                                       TextTrimming="CharacterEllipsis"
+                                       MaxLines="1"
+                                       FontWeight="SemiBold"
+                                       FontSize="12.5" />
+                            <StackPanel Grid.Row="1"
+                                        Orientation="Horizontal"
+                                        Spacing="6"
+                                        Margin="0,1,0,0">
+                                <TextBlock x:Name="SpeedText" Text="—" Opacity="0.62" FontSize="11" />
+                                <TextBlock x:Name="ProgressPercentText" Text="0%" Opacity="0.82" FontSize="11" FontWeight="SemiBold" />
+                                <TextBlock x:Name="EtaText" Text="—" Opacity="0.62" FontSize="11" />
+                            </StackPanel>
+                        </Grid>
                     </Grid>
 
-                    <Grid Grid.Column="1" MinWidth="0" VerticalAlignment="Center">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <TextBlock x:Name="CurrentItemText"
-                                   x:Uid="CurrentItemText"
-                                   TextTrimming="CharacterEllipsis"
-                                   MaxLines="1"
-                                   FontWeight="SemiBold"
-                                   FontSize="12.5" />
-                        <StackPanel Grid.Row="1"
-                                    Orientation="Horizontal"
-                                    Spacing="6"
-                                    Margin="0,2,0,0">
-                            <TextBlock x:Name="SpeedText" Text="—" Opacity="0.62" FontSize="11" />
-                            <TextBlock x:Name="ProgressPercentText" Text="0%" Opacity="0.82" FontSize="11" FontWeight="SemiBold" />
-                            <TextBlock x:Name="EtaText" Text="—" Opacity="0.62" FontSize="11" />
-                        </StackPanel>
-                    </Grid>
+                    <StackPanel x:Name="PrimaryActionCluster"
+                                Grid.Row="1"
+                                Orientation="Horizontal"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Spacing="4">
+                        <Button x:Name="PauseButton"
+                                Click="OnPauseClick"
+                                IsEnabled="False"
+                                Width="24"
+                                Height="24"
+                                Padding="0"
+                                BorderThickness="0"
+                                Background="Transparent">
+                            <FontIcon x:Name="PauseIcon"
+                                      FontFamily="Segoe Fluent Icons"
+                                      Glyph="&#xE769;"
+                                      FontSize="12" />
+                        </Button>
 
-                    <Button x:Name="PauseButton"
-                            Grid.Column="2"
-                            Click="OnPauseClick"
-                            IsEnabled="False"
-                            Width="24"
-                            Height="24"
-                            Padding="0"
-                            BorderThickness="0"
-                            Background="Transparent"
-                            Margin="{StaticResource TransportLeadMargin}">
-                        <FontIcon x:Name="PauseIcon"
-                                  FontFamily="Segoe Fluent Icons"
-                                  Glyph="&#xE769;"
-                                  FontSize="12" />
-                    </Button>
+                        <Button x:Name="CancelButton"
+                                Click="OnCancelClick"
+                                IsEnabled="False"
+                                Width="24"
+                                Height="24"
+                                Padding="0"
+                                BorderThickness="0"
+                                Background="Transparent">
+                            <FontIcon x:Name="CancelIcon"
+                                      FontFamily="Segoe Fluent Icons"
+                                      Glyph="&#xE711;"
+                                      FontSize="11.5" />
+                        </Button>
 
-                    <Button x:Name="CancelButton"
-                            Grid.Column="3"
-                            Click="OnCancelClick"
-                            IsEnabled="False"
-                            Width="24"
-                            Height="24"
-                            Padding="0"
-                            BorderThickness="0"
-                            Background="Transparent"
-                            Margin="{StaticResource InlineControlMargin}">
-                        <FontIcon x:Name="CancelIcon"
-                                  FontFamily="Segoe Fluent Icons"
-                                  Glyph="&#xE711;"
-                                  FontSize="11.5" />
-                    </Button>
+                        <Button x:Name="OptionsButton"
+                                Width="24"
+                                Height="24"
+                                Padding="0"
+                                BorderThickness="0"
+                                Background="Transparent">
+                            <FontIcon x:Name="OptionsIcon"
+                                      FontFamily="Segoe Fluent Icons"
+                                      Glyph="&#xE712;"
+                                      FontSize="12" />
+                        </Button>
 
-                    <Button x:Name="OptionsButton"
-                            Grid.Column="4"
-                            Width="24"
-                            Height="24"
-                            Padding="0"
-                            BorderThickness="0"
-                            Background="Transparent"
-                            Margin="{StaticResource OptionsControlMargin}">
-                        <FontIcon x:Name="OptionsIcon"
-                                  FontFamily="Segoe Fluent Icons"
-                                  Glyph="&#xE712;"
-                                  FontSize="12" />
-                    </Button>
+                        <Button x:Name="QueueButton"
+                                Click="OnQueueClick"
+                                IsEnabled="True"
+                                Width="24"
+                                Height="24"
+                                Padding="0"
+                                BorderThickness="0"
+                                Background="Transparent">
+                            <FontIcon x:Name="QueueChevron"
+                                      FontFamily="Segoe Fluent Icons"
+                                      Glyph="&#xE70D;"
+                                      FontSize="11" />
+                        </Button>
+                    </StackPanel>
 
-                    <Button x:Name="QueueButton"
-                            Grid.Column="5"
-                            Click="OnQueueClick"
-                            IsEnabled="True"
-                            Width="24"
-                            Height="24"
-                            Padding="0"
-                            BorderThickness="0"
-                            Background="Transparent">
-                        <FontIcon x:Name="QueueChevron"
-                                  FontFamily="Segoe Fluent Icons"
-                                  Glyph="&#xE70D;"
-                                  FontSize="11" />
-                    </Button>
-
-                    <!-- Skip and Stop remain generated accessors for execution-state code,
-                         but are intentionally non-visual. Their commands live in Options. -->
+                    <!-- Skip and Stop keep generated accessors for execution-state code,
+                         but remain non-visual; their commands live in Options. -->
                     <Button x:Name="SkipButton"
-                            Grid.Column="6"
+                            Grid.Row="1"
                             Click="OnSkipClick"
                             IsEnabled="False"
                             Visibility="Collapsed"
@@ -175,7 +177,7 @@
                         <FontIcon x:Name="SkipIcon" FontFamily="Segoe Fluent Icons" Glyph="&#xE893;" FontSize="12" />
                     </Button>
                     <Button x:Name="StopButton"
-                            Grid.Column="7"
+                            Grid.Row="1"
                             Click="OnStopClick"
                             IsEnabled="False"
                             Visibility="Collapsed"
@@ -193,7 +195,7 @@
         <Grid x:Name="QueuePanel"
               Grid.Row="1"
               Visibility="Collapsed"
-              Padding="14,8,14,12">
+              Padding="12,8,12,12">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />

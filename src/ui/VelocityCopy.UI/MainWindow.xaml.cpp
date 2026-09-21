@@ -15,7 +15,7 @@ using namespace Microsoft::UI::Xaml::Controls;
 namespace winrt::VelocityCopyUI::implementation {
 namespace {
 
-constexpr int kCompactWindowWidthEpx = 360;
+constexpr int kCompactWindowWidthEpx = 380;
 
 bool accepts_active_transfer_drop(
     const std::filesystem::path& active_destination,
@@ -72,22 +72,61 @@ MainWindow::MainWindow() {
 
     ExtendsContentIntoTitleBar(true);
     SetTitleBar(TitleBarDragRegion());
+    base_caption_content_padding_ = CaptionContentGrid().Padding();
 
     try {
         auto app_window = AppWindow();
         app_window.IsShownInSwitchers(false);
         if (auto presenter = app_window.Presenter().try_as<Microsoft::UI::Windowing::OverlappedPresenter>()) {
-            presenter.IsMinimizable(false);
+            presenter.IsMinimizable(true);
             presenter.IsMaximizable(false);
             presenter.IsResizable(false);
-            presenter.SetBorderAndTitleBar(true, false);
         }
+        auto weak = get_weak();
+        app_window.Changed([weak](
+            Microsoft::UI::Windowing::AppWindow const& sender,
+            Microsoft::UI::Windowing::AppWindowChangedEventArgs const& args) {
+            if (auto self = weak.get()) {
+                self->OnAppWindowChanged(sender, args);
+            }
+        });
         app_window.SetIcon(L"Assets\\VelocityCopy.ico");
     } catch (...) {
     }
 
     InitializeTrayIntegration();
+    ApplyTitleBarInset();
     ResizeWindow(72);
+}
+
+void MainWindow::ApplyTitleBarInset() noexcept {
+    try {
+        HWND hwnd = hwnd_;
+        if (hwnd == nullptr) {
+            auto window_native = this->m_inner.as<::IWindowNative>();
+            if (FAILED(window_native->get_WindowHandle(&hwnd)) || hwnd == nullptr) {
+                return;
+            }
+        }
+
+        const auto dpi = GetDpiForWindow(hwnd);
+        if (dpi == 0) return;
+
+        const double right_inset_epx =
+            AppWindow().TitleBar().RightInset() * 96.0 / static_cast<double>(dpi);
+        CaptionContentGrid().Padding(Thickness{
+            base_caption_content_padding_.Left,
+            base_caption_content_padding_.Top,
+            base_caption_content_padding_.Right + right_inset_epx,
+            base_caption_content_padding_.Bottom});
+    } catch (...) {
+    }
+}
+
+void MainWindow::OnAppWindowChanged(
+    Microsoft::UI::Windowing::AppWindow const&,
+    Microsoft::UI::Windowing::AppWindowChangedEventArgs const&) {
+    ApplyTitleBarInset();
 }
 
 void MainWindow::OnTransferSurfaceSizeChanged(
@@ -108,6 +147,7 @@ void MainWindow::ResizeWindow(const int height_epx) {
             SetWindowPos(hwnd, nullptr, 0, 0, width, height,
                          SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
             initial_size_applied_ = true;
+            ApplyTitleBarInset();
         }
     } catch (...) {
     }

@@ -4,31 +4,27 @@ VelocityCopy is a compact Windows 11 copy/move utility. The window itself is the
 
 ## Window geometry
 
-- Default collapsed size: **360 × 72 epx**
+- Default collapsed size: **380 × 72 epx**
 - Expanded queue target: **~300 epx**, bounded by measured queue content
-- Fixed compact width: **360 epx**
+- Compact width target: **380 epx**
 - Minimum practical width: **360 epx**
-- Outer content gutter: **12 epx**
+- Outer content gutter: **8 epx**
 - Related-control spacing: **8 epx**
 - Tight inline spacing: **4 epx**
 
-Spacing tiers are contractual, not advisory. The compact transfer surface uses the shared `DesignTokens.xaml` rhythm instead of ad-hoc per-control numbers: 12 epx content gutter, 8 epx group separation, and 4 epx inline control spacing. Queue-row vertical spacing follows the same 4 epx inline tier.
+Spacing tiers are contractual, not advisory. The compact transfer surface uses the shared `DesignTokens.xaml` rhythm instead of ad-hoc values.
 
 ## Collapsed composition
 
 The collapsed window is one transfer surface. Do not place a second copier/card/capsule inside the HWND.
 
-Order:
-1. VelocityCopy brand mark at the far left
-2. current item
-3. throughput + percentage + ETA
-4. Pause/Resume
-5. Cancel
-6. Options (`…`)
-7. queue disclosure triangle at the far right
-8. progress expressed by the surface fill itself
+Composition:
+1. top row: VelocityCopy brand mark, current item, throughput + percentage + ETA
+2. bottom row: centered primary action cluster with Pause/Resume, Cancel, Options and queue disclosure
+3. progress expressed by the surface fill itself
+4. native Windows caption buttons remain visible at the top-right
 
-The compact surface must prioritize the filename/telemetry region. Skip and Stop live in Options rather than consuming permanent width. Options also owns queue persistence, About, and Hide to tray. The system caption buttons are removed; VelocityCopy keeps the native border/rounding but does not spend compact content width on Minimize/Maximize/Close affordances that duplicate tray behavior.
+Skip and Stop live in Options rather than consuming permanent width in the primary row. The primary action cluster is centered independently of the system caption area so the controls do not become a long right-heavy strip.
 
 ## Integrated progress surface
 
@@ -81,20 +77,20 @@ The compact copier surface must never be resized merely to make a modal decision
 - File-conflict decisions (`Replace`, `Skip`, `Cancel`) use a separate native top-level dialog owned by the VelocityCopy HWND.
 - Lightweight command flyouts such as the options menu may use normal popup/flyout presentation.
 - About is a themed WinUI flyout launched from Options, not a legacy TaskDialog or MessageBox during the normal path.
-- The About version resolver reads the running executable `VERSIONINFO` first and falls back to the compile-time `Version.h` identity.
+- The About version resolver reads the running executable `VERSIONINFO` first and falls back to the compile-time `Version.h` identity. The UI must never display `Unknown` for a build whose compile-time version is known.
 
-## Window movement and chrome
+## Window movement and caption chrome
 
 The compact copier must remain movable with normal pointer dragging. `TitleBarDragRegion` remains the explicit drag surface and is registered with `SetTitleBar`.
 
-VelocityCopy uses an `OverlappedPresenter` with native border retained and the system title bar removed via `SetBorderAndTitleBar(true, false)`. Minimize, Maximize and pointer resizing are disabled. Because there is no system caption-button cluster, the UI must not contain `RightInset` compensation, `ApplyTitleBarInset`, or AppWindow title-bar-change bookkeeping. Programmatic resizing between collapsed and expanded queue states remains allowed.
+VelocityCopy keeps the native Windows caption cluster visible: Minimize, Maximize and Close remain in the top-right. Maximize may remain disabled because the copier owns its compact/expanded size, but the native three-button chrome remains visually consistent with Windows 11.
 
-If a future Windows App SDK version breaks dragging with the custom title bar while the system title bar is hidden, fix dragging with the supported non-client caption-region API; do not restore permanent caption buttons merely to regain drag behavior.
+Only the **top caption-content row** reserves `AppWindowTitleBar.RightInset`. The centered bottom action row must not inherit that inset; this avoids wasting the same caption width twice and keeps Pause/Cancel/Options/Queue centered. The inset is converted from physical pixels to effective pixels for the current HWND DPI and is reapplied on `AppWindow.Changed`. User pointer resizing remains disabled; VelocityCopy may resize its own HWND programmatically between collapsed and expanded queue states.
 
 ## Fluent/system integration
 
 - Use Mica as the base window material when available.
-- Use native Windows 11 outer rounding/border.
+- Use native Windows 11 outer rounding/border and native caption buttons.
 - Use Segoe Fluent Icons for compact actions.
 - Use system theme/accent resources; do not hard-code decorative colors.
 - Preserve accessible names, tooltips and focus behavior.

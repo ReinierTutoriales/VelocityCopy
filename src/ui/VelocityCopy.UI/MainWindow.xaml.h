@@ -118,6 +118,10 @@ private:
     void RefreshEfficiencyMode() noexcept;
     [[nodiscard]] bool HasActiveWorkForEfficiencyMode() noexcept;
     void PersistRecoveryQueueNoThrow() noexcept;
+    void ApplyTitleBarInset() noexcept;
+    void OnAppWindowChanged(
+        Microsoft::UI::Windowing::AppWindow const&,
+        Microsoft::UI::Windowing::AppWindowChangedEventArgs const& args);
     static LRESULT CALLBACK TraySubclassProc(
         HWND hwnd,
         UINT message,
@@ -192,6 +196,7 @@ private:
     Microsoft::UI::Xaml::Controls::MenuFlyoutItem stop_menu_item_{nullptr};
     Microsoft::UI::Xaml::Controls::MenuFlyoutItem cancel_menu_item_{nullptr};
     Microsoft::UI::Xaml::Controls::MenuFlyoutItem about_menu_item_{nullptr};
+    Microsoft::UI::Xaml::Thickness base_caption_content_padding_{};
     std::atomic_bool cancel_requested_{false};
     double progress_fraction_{};
     bool paused_{};

@@ -45,66 +45,73 @@ int main() {
     if (!contains(xaml, "x:Name=\"TransferSurface\"") ||
         !contains(xaml, "x:Name=\"ProgressFill\"") ||
         !contains(xaml, "x:Name=\"BrandLogo\"") ||
+        !contains(xaml, "x:Name=\"PrimaryActionCluster\"") ||
+        !contains(xaml, "HorizontalAlignment=\"Center\"") ||
         !contains(xaml, "x:Name=\"PauseButton\"") ||
         !contains(xaml, "x:Name=\"CancelButton\"") ||
         !contains(xaml, "x:Name=\"OptionsButton\"") ||
-        !contains(xaml, "Glyph=\"&#xE712;\"") ||
         !contains(xaml, "x:Name=\"QueueButton\"")) {
-        return fail(2, "collapsed surface must expose only primary transfer actions");
+        return fail(2, "collapsed surface must keep centered primary transfer actions");
     }
 
     if (!contains(xaml, "x:Name=\"SkipButton\"") ||
         !contains(xaml, "x:Name=\"StopButton\"") ||
-        xaml.find("x:Name=\"SkipButton\"") > xaml.find("Visibility=\"Collapsed\"", xaml.find("x:Name=\"SkipButton\"")) ||
-        xaml.find("x:Name=\"StopButton\"") > xaml.find("Visibility=\"Collapsed\"", xaml.find("x:Name=\"StopButton\""))) {
-        return fail(3, "Skip and Stop must remain non-visual command accessors, not visible row controls");
+        xaml.find("Visibility=\"Collapsed\"", xaml.find("x:Name=\"SkipButton\"")) == std::string::npos ||
+        xaml.find("Visibility=\"Collapsed\"", xaml.find("x:Name=\"StopButton\"")) == std::string::npos) {
+        return fail(3, "Skip and Stop must remain non-visual command accessors");
     }
 
-    if (contains(xaml, "<ProgressBar") || contains(xaml, "x:Name=\"ActionStrip\"") ||
+    if (contains(xaml, "<ProgressBar") ||
         !contains(window, "ProgressFill().Width(TransferSurface().ActualWidth() * progress_fraction_)")) {
         return fail(4, "window surface itself must remain the only progress indicator");
     }
 
-    if (!contains(tokens, "<x:Double x:Key=\"WindowCompactWidth\">360</x:Double>") ||
+    if (!contains(tokens, "<x:Double x:Key=\"WindowCompactWidth\">380</x:Double>") ||
         !contains(tokens, "<x:Double x:Key=\"WindowMinWidth\">360</x:Double>") ||
-        !contains(window, "constexpr int kCompactWindowWidthEpx = 360")) {
-        return fail(5, "compact geometry must remain 360 epx wide");
+        !contains(window, "constexpr int kCompactWindowWidthEpx = 380")) {
+        return fail(5, "compact geometry must remain 380 epx wide with a 360 epx floor");
     }
 
-    if (!contains(window, "presenter.SetBorderAndTitleBar(true, false)") ||
-        !contains(window, "presenter.IsMinimizable(false)") ||
+    if (!contains(window, "presenter.IsMinimizable(true)") ||
         !contains(window, "presenter.IsMaximizable(false)") ||
         !contains(window, "presenter.IsResizable(false)") ||
-        contains(window, "RightInset()") || contains(window, "ApplyTitleBarInset") ||
-        contains(window, "OnAppWindowChanged") || contains(header, "ApplyTitleBarInset") ||
-        contains(header, "OnAppWindowChanged") || contains(header, "base_transfer_content_padding_")) {
-        return fail(6, "system caption controls must stay removed without legacy inset machinery");
+        contains(window, "SetBorderAndTitleBar(true, false)")) {
+        return fail(6, "native Windows caption buttons must remain visible while resize/maximize stay constrained");
+    }
+
+    if (!contains(xaml, "x:Name=\"CaptionContentGrid\"") ||
+        !contains(header, "void ApplyTitleBarInset() noexcept") ||
+        !contains(header, "base_caption_content_padding_") ||
+        !contains(window, "AppWindow().TitleBar().RightInset()") ||
+        !contains(window, "CaptionContentGrid().Padding") ||
+        contains(window, "TransferContentGrid().Padding(Thickness{")) {
+        return fail(7, "caption inset must affect only the top content row, not the centered action row");
     }
 
     if (!contains(xaml, "x:Name=\"TitleBarDragRegion\"") ||
         !contains(window, "SetTitleBar(TitleBarDragRegion())") ||
         !contains(xaml, "AllowDrop=\"True\"") || !contains(xaml, "Drop=\"OnDrop\"")) {
-        return fail(7, "custom drag region and whole-window append drop must remain wired");
+        return fail(8, "custom drag region and whole-window append drop must remain wired");
     }
 
     if (!contains(menu, "skip_menu_item_.Text") || !contains(menu, "stop_menu_item_.Text") ||
-        !contains(menu, "ActionHideToTray") || !contains(menu, "HideToTray()") ||
         !contains(menu, "skip_menu_item_.Click({this, &MainWindow::OnSkipClick})") ||
         !contains(menu, "stop_menu_item_.Click({this, &MainWindow::OnStopClick})")) {
-        return fail(8, "secondary transfer commands and hide-to-tray must live in Options");
+        return fail(9, "secondary transfer commands must remain available in Options");
     }
 
-    if (!contains(xaml, "Padding=\"{StaticResource TransferContentPadding}\"") ||
-        !contains(xaml, "Margin=\"{StaticResource BrandToContentMargin}\"") ||
-        !contains(xaml, "Margin=\"{StaticResource TransportLeadMargin}\"") ||
-        !contains(xaml, "Margin=\"{StaticResource InlineControlMargin}\"") ||
+    if (!contains(tokens, "<Thickness x:Key=\"TransferContentPadding\">8,4,8,4</Thickness>") ||
+        !contains(tokens, "<Thickness x:Key=\"CaptionContentPadding\">0</Thickness>") ||
+        !contains(xaml, "Padding=\"{StaticResource TransferContentPadding}\"") ||
+        !contains(xaml, "Padding=\"{StaticResource CaptionContentPadding}\"") ||
         !contains(queue, "row.Margin(Thickness{8, 4, 8, 4})")) {
-        return fail(9, "compact spacing must stay tokenized and queue rows aligned to the 4/8 rhythm");
+        return fail(10, "compact spacing must stay tokenized and queue rows aligned to the 4/8 rhythm");
     }
 
-    if (!contains(spec, "360 × 72 epx") || !contains(spec, "system caption buttons are removed") ||
+    if (!contains(spec, "380 × 72 epx") ||
+        !contains(spec, "native Windows caption cluster visible") ||
         !contains(spec, "Skip and Stop live in Options")) {
-        return fail(10, "UI specification must lock the compact chrome-free composition");
+        return fail(11, "UI specification must lock the compact native-caption composition");
     }
 
     return 0;
