@@ -39,6 +39,40 @@ jobs:
         timeout-minutes: 10
         run: ctest --test-dir build/x64 -C Release --output-on-failure --timeout 120
 
+  winui:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            cmake_arch: x64
+            platform: x64
+          - arch: arm64
+            cmake_arch: ARM64
+            platform: ARM64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure and build core dependency
+        shell: pwsh
+        run: |
+          cmake -S . -B build/${{ matrix.cmake_arch }} -A ${{ matrix.cmake_arch }} -DVELOCITYCOPY_HYBRID_CRT=ON
+          if ($LASTEXITCODE -ne 0) { throw "CMake configure failed for ${{ matrix.arch }}" }
+          cmake --build build/${{ matrix.cmake_arch }} --config Release --target velocitycopy_core --parallel
+          if ($LASTEXITCODE -ne 0) { throw "Core dependency build failed for ${{ matrix.arch }}" }
+
+      - name: Build self-contained WinUI
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $msbuild = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\MSBuild.exe" | Select-Object -First 1
+          if (-not $msbuild) { throw "MSBuild was not found" }
+          & $msbuild src/ui/VelocityCopy.UI/VelocityCopy.UI.vcxproj /restore /m /p:Configuration=Release /p:Platform=${{ matrix.platform }} /p:AppxPackage=false /p:WindowsPackageType=None /p:WindowsAppSDKSelfContained=true /p:SelfContained=true /p:EnableMsixTooling=true /p:SkipVelocityCopyCoreBuild=true
+          if ($LASTEXITCODE -ne 0) { throw "Self-contained WinUI ${{ matrix.arch }} build failed" }
+
   asan:
     runs-on: windows-latest
     steps:
