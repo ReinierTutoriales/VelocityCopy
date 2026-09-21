@@ -5,11 +5,8 @@ These gates define the current stabilization/release pipeline. They must agree w
 ## Current stabilization gate
 
 - `main` must pass Windows CI: x64 Release configure, build and `ctest`.
-- Normal source commits must not trigger full installer packaging.
-- Packaging is intentionally separated from commit CI and is invoked by `workflow_dispatch` or a `v*` tag.
-- x64 is the mandatory stabilization path.
-- ARM64 is the next architecture after x64 is healthy. It must use the same source/build/package recipe with architecture-specific parameters only and must not destabilize x64.
-- Do not claim ARM64 packaging is available until its workflow and artifact have actually been restored and verified.
+- Windows Package runs on every main commit, on `v*` tags and on `workflow_dispatch`; commit CI (`ci.yml`) stays free of packaging.
+- x64 and ARM64 classic installers are both produced and verified by Windows Package.
 
 ## Packaging rules
 
@@ -32,13 +29,12 @@ Required commit-CI behavior:
 - no full packaging on every ordinary source commit.
 
 Required package behavior:
-- manual/tag trigger;
+- main-push, `v*` tag and manual triggers;
 - self-contained WinUI payload;
 - classic `VelocityCopy-Setup-x64.exe`;
 - payload verification before installer construction;
 - smoke install/uninstall.
 
-When ARM64 is restored, document and test its gate here in the same coherent change.
 
 ## Branch and commit hygiene
 
