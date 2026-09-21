@@ -58,8 +58,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure x64 Release core
-        run: cmake -S . -B build/x64 -A x64
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
 
       - name: Build UI
         run: msbuild src/ui/VelocityCopy.UI/VelocityCopy.UI.vcxproj /restore /m /p:Configuration=Release /p:Platform=x64
