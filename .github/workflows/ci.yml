@@ -8,7 +8,7 @@ on:
 
 concurrency:
   group: windows-ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   core:
@@ -50,3 +50,16 @@ jobs:
 
       - name: Build ASan core
         run: cmake --build build/asan --config RelWithDebInfo --parallel
+
+
+  ui:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure x64 Release core
+        run: cmake -S . -B build/x64 -A x64
+
+      - name: Build UI
+        run: msbuild src/ui/VelocityCopy.UI/VelocityCopy.UI.vcxproj /restore /m /p:Configuration=Release /p:Platform=x64
