@@ -169,7 +169,17 @@ jobs:
           Start-Sleep -Seconds 5
           $app.Refresh()
           if ($app.HasExited) {
-            throw "Installed VelocityCopy exited during launch smoke test with code $($app.ExitCode)"
+            $exitCode = $app.ExitCode
+            $hexCode = ('0x{0:X8}' -f ([uint32]$exitCode))
+            Write-Host "VelocityCopy exited with $exitCode ($hexCode)"
+            Write-Host "Installed payload files:"
+            Get-ChildItem $root -Recurse -File | Sort-Object FullName | ForEach-Object { Write-Host $_.FullName }
+            Write-Host "Recent Application event log entries for VelocityCopy / XAML / Windows App Runtime:"
+            Get-WinEvent -FilterHashtable @{ LogName='Application'; StartTime=(Get-Date).AddMinutes(-5) } -ErrorAction SilentlyContinue |
+              Where-Object { $_.Message -match 'VelocityCopy|Microsoft.UI.Xaml|WindowsAppRuntime|CoreMessaging|0xc000027b' } |
+              Select-Object -First 20 TimeCreated, Id, ProviderName, LevelDisplayName, Message |
+              Format-List | Out-String -Width 4096 | Write-Host
+            throw "Installed VelocityCopy exited during launch smoke test with code $exitCode ($hexCode)"
           }
           Stop-Process -Id $app.Id -Force
           Write-Host "Installed payload launched successfully at $root"
