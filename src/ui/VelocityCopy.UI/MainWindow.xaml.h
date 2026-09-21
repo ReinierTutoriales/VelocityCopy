@@ -12,6 +12,7 @@
 #include "velocitycopy/shell_session.hpp"
 #include "velocitycopy/ui_snapshot.hpp"
 
+#include <chrono>
 #include <condition_variable>
 #include <deque>
 #include <memory>
@@ -60,9 +61,32 @@ private:
     };
 
     struct AppendGate {
+        struct BoundedCondition {
+            std::condition_variable_any value;
+            bool* accepting{};
+
+            template <typename Lock, typename Predicate>
+            bool wait(Lock& lock, const std::stop_token token, Predicate predicate) {
+                const bool ready = value.wait_for(
+                    lock,
+                    token,
+                    std::chrono::seconds(8),
+                    std::move(predicate));
+                if (!ready && accepting != nullptr) {
+                    *accepting = false;
+                    value.notify_all();
+                }
+                return ready;
+            }
+
+            void notify_all() noexcept {
+                value.notify_all();
+            }
+        };
+
         std::mutex mutex;
-        std::condition_variable_any condition;
         bool accepting{true};
+        BoundedCondition condition{&accepting};
         std::size_t planning_count{};
     };
 
