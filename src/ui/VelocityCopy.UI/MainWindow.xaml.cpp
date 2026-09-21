@@ -70,6 +70,7 @@ MainWindow::MainWindow() {
 
     ExtendsContentIntoTitleBar(true);
     SetTitleBar(TitleBarDragRegion());
+    base_transfer_content_padding_ = TransferContentGrid().Padding();
 
     try {
         auto app_window = AppWindow();
@@ -77,13 +78,61 @@ MainWindow::MainWindow() {
         if (auto presenter = app_window.Presenter().try_as<Microsoft::UI::Windowing::OverlappedPresenter>()) {
             presenter.IsMinimizable(true);
             presenter.IsMaximizable(false);
+            // The copier owns its compact/expanded size transitions. Prevent
+            // pointer resizing so Windows does not expose resize/maximize affordances
+            // that contradict the fixed-width single-surface UI.
+            presenter.IsResizable(false);
         }
+        auto weak = get_weak();
+        app_window.Changed([weak](
+            Microsoft::UI::Windowing::AppWindow const& sender,
+            Microsoft::UI::Windowing::AppWindowChangedEventArgs const& args) {
+            if (auto self = weak.get()) {
+                self->OnAppWindowChanged(sender, args);
+            }
+        });
         app_window.SetIcon(L"Assets\\VelocityCopy.ico");
     } catch (...) {
     }
 
-    ResizeWindow(72);
     InitializeTrayIntegration();
+    ApplyTitleBarInset();
+    ResizeWindow(72);
+}
+
+void MainWindow::ApplyTitleBarInset() noexcept {
+    try {
+        HWND hwnd = hwnd_;
+        if (hwnd == nullptr) {
+            auto window_native = this->m_inner.as<::IWindowNative>();
+            if (FAILED(window_native->get_WindowHandle(&hwnd)) || hwnd == nullptr) {
+                return;
+            }
+        }
+
+        const auto dpi = GetDpiForWindow(hwnd);
+        if (dpi == 0) return;
+
+        // AppWindowTitleBar insets are physical pixels. XAML Thickness values are
+        // effective pixels, so convert before extending the existing design-token
+        // padding. This keeps Options/Queue clear of system caption buttons at every DPI.
+        const double right_inset_epx =
+            AppWindow().TitleBar().RightInset() * 96.0 / static_cast<double>(dpi);
+        TransferContentGrid().Padding(Thickness{
+            base_transfer_content_padding_.Left,
+            base_transfer_content_padding_.Top,
+            base_transfer_content_padding_.Right + right_inset_epx,
+            base_transfer_content_padding_.Bottom});
+    } catch (...) {
+    }
+}
+
+void MainWindow::OnAppWindowChanged(
+    Microsoft::UI::Windowing::AppWindow const&,
+    Microsoft::UI::Windowing::AppWindowChangedEventArgs const& args) {
+    if (args.DidTitleBarChange()) {
+        ApplyTitleBarInset();
+    }
 }
 
 void MainWindow::OnTransferSurfaceSizeChanged(

@@ -54,7 +54,8 @@
                       Background="Transparent"
                       IsHitTestVisible="True" />
 
-                <Grid Padding="{StaticResource TransferContentPadding}">
+                <Grid x:Name="TransferContentGrid"
+                      Padding="{StaticResource TransferContentPadding}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
