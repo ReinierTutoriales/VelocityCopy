@@ -110,9 +110,9 @@ int main() {
         !contains(menu, "void MainWindow::OnMenuSkipClick") ||
         !contains(menu, "OnSkipClick(sender, args);") ||
         !contains(menu, "RefreshExecutionMenuState();") ||
-        !contains(window, "void MainWindow::OnSkipClick") ||
-        !contains(window, "current_file_skippable_ = false;") ||
-        !contains(window, "RefreshExecutionMenuState();")) {
+        !contains(execution, "void MainWindow::OnSkipClick") ||
+        !contains(execution, "current_file_skippable_ = false;") ||
+        !contains(execution, "RefreshExecutionMenuState();")) {
         return fail(10, "secondary transfer commands must refresh menu state immediately after mutation");
     }
 
