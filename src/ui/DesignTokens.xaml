@@ -4,6 +4,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <x:Double x:Key="CaptionRowHeight">34</x:Double>
+    <!-- RowDefinition.Height requires GridLength; keep this typed counterpart in sync. -->
+    <GridLength x:Key="CaptionRowGridLength">34</GridLength>
     <x:Double x:Key="QueueMaxHeightCompact">150</x:Double>
     <x:Double x:Key="TelemetrySpeedMinWidth">64</x:Double>
     <x:Double x:Key="TelemetryPercentMinWidth">36</x:Double>
