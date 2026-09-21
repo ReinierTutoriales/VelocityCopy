@@ -192,5 +192,13 @@ int main() {
         return fail(24, "accepted sources must be inspectable from the queue while initial planning is still running");
     }
 
+    if (!contains(header, "struct BoundedCondition") ||
+        !contains(header, "value.wait_for(") ||
+        !contains(header, "std::chrono::seconds(8)") ||
+        !contains(header, "*accepting = false") ||
+        count_occurrences(execution, "gate->condition.wait(") != 2) {
+        return fail(25, "append-planner waits must be time-bounded so a blocked filesystem enumeration cannot freeze transfer finalization");
+    }
+
     return 0;
 }
