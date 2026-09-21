@@ -167,6 +167,7 @@ private:
     void FinalizeConflictSessionIfEmpty();
     void ApplySnapshot(const velocitycopy::UiSnapshot& snapshot);
     void FinishCopy(const velocitycopy::JobResult& result);
+    void ResetTransferSurface();
     void ShowError(hstring const& message = {});
     static hstring FormatFailureReason(std::int32_t native_code);
     static hstring FormatSpeed(double bytes_per_second);
