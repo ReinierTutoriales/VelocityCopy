@@ -148,7 +148,7 @@ jobs:
           & $env:NSIS_MAKENSIS "/DPAYLOAD_DIR=$payload" "/DOUTPUT_FILE=$output" "/DDISPLAY_VERSION=$env:VELOCITYCOPY_VERSION" "/DPAYLOAD_ARCH=${{ matrix.platform }}" tools/VelocityCopy-Test-Installer.nsi
           if ($LASTEXITCODE -ne 0 -or -not (Test-Path $output)) { throw "Classic ${{ matrix.arch }} installer build failed" }
 
-      - name: Smoke install classic x64 installer
+      - name: Smoke install and launch classic x64 installer
         if: ${{ matrix.smoke }}
         shell: pwsh
         run: |
@@ -164,7 +164,15 @@ jobs:
           if (-not (Test-Path $uninstaller)) { throw "Uninstaller is missing" }
           if (-not (Test-Path $shellDll)) { throw "Installed shell extension is missing" }
           & ./tools/Test-ShellRegistration.ps1 -Phase Installed
-          Write-Host "Installed payload validated at $root"
+
+          $app = Start-Process $exe -PassThru
+          Start-Sleep -Seconds 5
+          $app.Refresh()
+          if ($app.HasExited) {
+            throw "Installed VelocityCopy exited during launch smoke test with code $($app.ExitCode)"
+          }
+          Stop-Process -Id $app.Id -Force
+          Write-Host "Installed payload launched successfully at $root"
 
       - name: Smoke uninstall classic x64 installer
         if: ${{ matrix.smoke }}
