@@ -17,6 +17,7 @@
 #include <deque>
 #include <memory>
 #include <mutex>
+#include <utility>
 
 namespace winrt::VelocityCopyUI::implementation {
 struct MainWindow : MainWindowT<MainWindow> {
@@ -62,6 +63,9 @@ private:
 
     struct AppendGate {
         struct BoundedCondition {
+            explicit BoundedCondition(bool* accepting_state) noexcept
+                : accepting(accepting_state) {}
+
             std::condition_variable_any value;
             bool* accepting{};
 
