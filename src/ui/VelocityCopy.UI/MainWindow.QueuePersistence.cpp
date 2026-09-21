@@ -92,6 +92,13 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
         queue_options_button_ = OptionsButton();
 
         MenuFlyout menu;
+        auto weak = get_weak();
+        menu.Opening([weak](IInspectable const&, IInspectable const&) {
+            if (auto self = weak.get()) {
+                self->RefreshExecutionMenuState();
+                self->RefreshQueueCommandState();
+            }
+        });
         skip_menu_item_ = MenuFlyoutItem{};
         stop_menu_item_ = MenuFlyoutItem{};
         save_queue_menu_item_ = MenuFlyoutItem{};
@@ -126,7 +133,6 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
         save_queue_menu_item_.Click({this, &MainWindow::OnSaveQueueClick});
         load_queue_menu_item_.Click({this, &MainWindow::OnLoadQueueClick});
         about_menu_item_.Click({this, &MainWindow::OnAboutClick});
-        auto weak = get_weak();
         hide_to_tray_menu_item.Click([weak](IInspectable const&, RoutedEventArgs const&) {
             if (auto self = weak.get()) self->HideToTray();
         });
