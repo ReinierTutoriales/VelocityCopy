@@ -50,6 +50,8 @@ int main() {
         !contains(xaml, "x:Name=\"PrimaryActionCluster\"") ||
         !contains(xaml, "HorizontalAlignment=\"Right\"") ||
         !contains(xaml, "x:Name=\"PauseButton\"") ||
+        !contains(xaml, "x:Name=\"SkipButton\"") ||
+        !contains(xaml, "x:Name=\"StopButton\"") ||
         !contains(xaml, "x:Name=\"CancelButton\"") ||
         !contains(xaml, "x:Name=\"OptionsButton\"") ||
         !contains(xaml, "x:Name=\"QueueButton\"")) {
@@ -64,10 +66,11 @@ int main() {
         return fail(3, "telemetry must not share the caption-constrained filename row");
     }
 
-    if (contains(xaml, "x:Name=\"SkipButton\"") || contains(xaml, "x:Name=\"StopButton\"") ||
-        contains(execution, "SkipButton()") || contains(execution, "StopButton()") ||
-        contains(window, "SkipButton()") || contains(window, "StopButton()")) {
-        return fail(4, "secondary menu commands must not keep hidden XAML control accessors alive");
+    if (!contains(xaml, "Click=\"OnSkipClick\"") || !contains(xaml, "Click=\"OnStopClick\"") ||
+        !contains(execution, "SkipButton().IsEnabled") || !contains(execution, "StopButton().IsEnabled") ||
+        !contains(window, "ToolTipService::SetToolTip(SkipButton()") ||
+        !contains(window, "ToolTipService::SetToolTip(StopButton()")) {
+        return fail(4, "skip and stop must remain visible primary transfer controls with live state and tooltips");
     }
 
     if (contains(xaml, "<ProgressBar") ||
