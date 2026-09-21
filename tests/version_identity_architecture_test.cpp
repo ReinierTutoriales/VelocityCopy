@@ -46,9 +46,10 @@ int main() {
     const auto en = read_all(root / "src/ui/Strings/en-US/Resources.resw");
     const auto es = read_all(root / "src/ui/Strings/es-ES/Resources.resw");
     const auto package = read_all(root / ".github/workflows/package.yml");
+    const auto spec = read_all(root / "docs/UI_SPEC.md");
 
     if (cmake.empty() || version_h.empty() || resource.empty() || project.empty() || about.empty() ||
-        persistence.empty() || en.empty() || es.empty() || package.empty()) {
+        persistence.empty() || en.empty() || es.empty() || package.empty() || spec.empty()) {
         return fail(1, "required version/about source missing");
     }
 
@@ -84,9 +85,12 @@ int main() {
     }
 
     if (!contains(about, "GetFileVersionInfoSizeW") || !contains(about, "GetFileVersionInfoW") ||
-        !contains(about, "VerQueryValueW") || !contains(about, "TaskDialogIndirect") ||
-        !contains(about, "TDF_ENABLE_HYPERLINKS") || contains(about, "ContentDialog")) {
-        return fail(6, "About must read the running executable VERSIONINFO and stay outside the compact XAML surface");
+        !contains(about, "VerQueryValueW") || !contains(about, "compiled_version()") ||
+        !contains(about, "VELOCITYCOPY_VERSION_MAJOR") || contains(about, "return L\"Unknown\"") ||
+        !contains(about, "Flyout about") || !contains(about, "AccentFillColorDefaultBrush") ||
+        !contains(about, "Assets/VelocityCopy.png") || !contains(about, "HyperlinkButton") ||
+        !contains(about, "NavigateUri") || contains(about, "TaskDialogIndirect") || contains(about, "ContentDialog")) {
+        return fail(6, "About must be themed WinUI, show product identity, and never degrade to an Unknown version");
     }
 
     if (!contains(persistence, "ActionAbout") || !contains(persistence, "OnAboutClick") ||
@@ -97,8 +101,13 @@ int main() {
     for (const auto* resources : {&en, &es}) {
         if (!contains(*resources, "name=\"ActionAbout\"") ||
             !contains(*resources, "name=\"AboutTitle\"") ||
-            !contains(*resources, "name=\"AboutBodyFormat\"")) {
-            return fail(8, "all supported UI languages must carry About resources");
+            !contains(*resources, "name=\"AboutTagline\"") ||
+            !contains(*resources, "name=\"AboutVersionFormat\"") ||
+            !contains(*resources, "name=\"AboutPublisher\"") ||
+            !contains(*resources, "name=\"AboutLicense\"") ||
+            !contains(*resources, "name=\"AboutRepositoryLabel\"") ||
+            contains(*resources, "name=\"AboutBodyFormat\"")) {
+            return fail(8, "all supported UI languages must carry the structured About resources without the legacy body blob");
         }
     }
 
@@ -107,6 +116,11 @@ int main() {
         !contains(package, "VELOCITYCOPY_VERSION_BUILD") ||
         contains(package, "$version = \"0.21.$env:GITHUB_RUN_NUMBER.0\"")) {
         return fail(9, "installer DISPLAY_VERSION must derive from the same executable version header");
+    }
+
+    if (!contains(spec, "About is a themed WinUI flyout") ||
+        !contains(spec, "must never display `Unknown`")) {
+        return fail(10, "UI specification must lock the About visual and version fallback contract");
     }
 
     return 0;

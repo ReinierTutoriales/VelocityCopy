@@ -29,7 +29,11 @@
   <data name="ActionQueueOptions" xml:space="preserve"><value>Opciones de cola</value></data>
   <data name="ActionAbout" xml:space="preserve"><value>Acerca de VelocityCopy</value></data>
   <data name="AboutTitle" xml:space="preserve"><value>Acerca de VelocityCopy</value></data>
-  <data name="AboutBodyFormat" xml:space="preserve"><value>Versión {0}&#10;&#10;ReinierTutoriales&#10;Licencia MIT&#10;https://github.com/ReinierTutoriales/VelocityCopy</value></data>
+  <data name="AboutTagline" xml:space="preserve"><value>Transferencias de archivos rápidas y enfocadas para Windows 11.</value></data>
+  <data name="AboutVersionFormat" xml:space="preserve"><value>Versión {0}</value></data>
+  <data name="AboutPublisher" xml:space="preserve"><value>ReinierTutoriales</value></data>
+  <data name="AboutLicense" xml:space="preserve"><value>Licencia MIT</value></data>
+  <data name="AboutRepositoryLabel" xml:space="preserve"><value>Ver proyecto en GitHub</value></data>
   <data name="ActionShowQueue" xml:space="preserve"><value>Mostrar cola</value></data>
   <data name="ActionHideQueue" xml:space="preserve"><value>Ocultar cola</value></data>
   <data name="TrayOpen" xml:space="preserve"><value>Abrir VelocityCopy</value></data>
