@@ -66,6 +66,25 @@ jobs:
           & $msbuild src/ui/VelocityCopy.UI/VelocityCopy.UI.vcxproj /restore /m /p:Configuration=Release /p:Platform=${{ matrix.platform }} /p:AppxPackage=false /p:WindowsPackageType=None /p:WindowsAppSDKSelfContained=true /p:SelfContained=true /p:EnableMsixTooling=true /p:SkipVelocityCopyCoreBuild=true
           if ($LASTEXITCODE -ne 0) { throw "Self-contained WinUI ${{ matrix.arch }} build failed" }
 
+      - name: Smoke launch built x64 output
+        if: ${{ matrix.smoke }}
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem src/ui/VelocityCopy.UI -Recurse -File -Filter VelocityCopy.WinUI.exe |
+            Where-Object { $_.FullName -match '[\\/]x64[\\/].*[\\/]Release[\\/]' -or $_.FullName -match '[\\/]Release[\\/].*[\\/]x64[\\/]' } |
+            Select-Object -First 1
+          if (-not $exe) { throw "Built x64 executable was not found" }
+          Write-Host "Launching build output directly from $($exe.Directory.FullName)"
+          $app = Start-Process $exe.FullName -WorkingDirectory $exe.Directory.FullName -PassThru
+          Start-Sleep -Seconds 5
+          $app.Refresh()
+          if ($app.HasExited) {
+            $exitCode = $app.ExitCode
+            $hexCode = ('0x{0:X8}' -f ([BitConverter]::ToUInt32([BitConverter]::GetBytes([int32]$exitCode), 0)))
+            throw "Built VelocityCopy output exits before packaging: $exitCode ($hexCode)"
+          }
+          Stop-Process -Id $app.Id -Force
+
       - name: Stage autonomous payload
         shell: pwsh
         run: |
