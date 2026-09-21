@@ -26,7 +26,8 @@
   <data name="ActionRemove" xml:space="preserve"><value>Eliminar</value></data>
   <data name="ActionSaveQueue" xml:space="preserve"><value>Guardar cola</value></data>
   <data name="ActionLoadQueue" xml:space="preserve"><value>Cargar cola</value></data>
-  <data name="ActionQueueOptions" xml:space="preserve"><value>Opciones de cola</value></data>
+  <data name="ActionQueueOptions" xml:space="preserve"><value>Opciones</value></data>
+  <data name="ActionHideToTray" xml:space="preserve"><value>Ocultar en la bandeja</value></data>
   <data name="ActionAbout" xml:space="preserve"><value>Acerca de VelocityCopy</value></data>
   <data name="AboutTitle" xml:space="preserve"><value>Acerca de VelocityCopy</value></data>
   <data name="AboutTagline" xml:space="preserve"><value>Transferencias de archivos rápidas y enfocadas para Windows 11.</value></data>
