@@ -212,7 +212,12 @@ StorageProfile StorageProfiler::inspect(const std::filesystem::path& path) const
         profile.kind = map_drive_type(drive_type);
         profile.remote = drive_type == DRIVE_REMOTE;
 
-        if (!profile.remote && profile.kind != StorageKind::Optical) {
+        // Low-level volume opens and DeviceIoControl probes are useful for local
+        // fixed disks, but can block for a long time on removable media that is
+        // slow, sleeping, disconnected, or failing. Removable/network/optical
+        // transfers already fall back to conservative single-worker behavior, so
+        // do not put those synchronous hardware probes on the transfer path.
+        if (profile.kind == StorageKind::Fixed) {
             query_device_number(profile.volume_root, profile);
             query_physical_disk_extents(profile.volume_root, profile);
             query_seek_penalty(profile.volume_root, profile);
