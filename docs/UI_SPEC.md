@@ -19,12 +19,12 @@ Spacing tiers are contractual, not advisory. The compact transfer surface uses t
 The collapsed window is one transfer surface. Do not place a second copier/card/capsule inside the HWND.
 
 Composition:
-1. top row: VelocityCopy brand mark, current item, throughput + percentage + ETA
-2. bottom row: centered primary action cluster with Pause/Resume, Cancel, Options and queue disclosure
+1. top row: VelocityCopy brand mark + current item only, leaving the filename a clean uninterrupted line
+2. bottom row: telemetry aligned left and a centered primary action cluster with Pause/Resume, Cancel, Options and queue disclosure
 3. progress expressed by the surface fill itself
 4. native Windows caption buttons remain visible at the top-right
 
-Skip and Stop live in Options rather than consuming permanent width in the primary row. The primary action cluster is centered independently of the system caption area so the controls do not become a long right-heavy strip.
+Skip and Stop live in Options rather than consuming permanent width in the primary row. The primary action cluster is centered independently of the system caption area so the controls do not become a long right-heavy strip. Telemetry must not share the caption-constrained top row with the filename.
 
 ## Integrated progress surface
 
@@ -78,6 +78,7 @@ The compact copier surface must never be resized merely to make a modal decision
 - Lightweight command flyouts such as the options menu may use normal popup/flyout presentation.
 - About is a themed WinUI flyout launched from Options, not a legacy TaskDialog or MessageBox during the normal path.
 - The About version resolver reads the running executable `VERSIONINFO` first and falls back to the compile-time `Version.h` identity. The UI must never display `Unknown` for a build whose compile-time version is known.
+- Menu commands that mutate transfer state must immediately refresh their own enabled/disabled state; `Skip` must disable itself after issuing a skip for the current file.
 
 ## Window movement and caption chrome
 

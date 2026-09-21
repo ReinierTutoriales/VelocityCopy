@@ -121,8 +121,8 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
             Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(queue_options_button_, L"Options");
         }
 
-        skip_menu_item_.Click({this, &MainWindow::OnSkipClick});
-        stop_menu_item_.Click({this, &MainWindow::OnStopClick});
+        skip_menu_item_.Click({this, &MainWindow::OnMenuSkipClick});
+        stop_menu_item_.Click({this, &MainWindow::OnMenuStopClick});
         save_queue_menu_item_.Click({this, &MainWindow::OnSaveQueueClick});
         load_queue_menu_item_.Click({this, &MainWindow::OnLoadQueueClick});
         about_menu_item_.Click({this, &MainWindow::OnAboutClick});
@@ -176,18 +176,13 @@ void MainWindow::RefreshQueueCommandState() {
         !conflict_session_ && !stop_requested_ && queued_sessions_.empty());
 }
 
-void MainWindow::OnMenuPauseClick(IInspectable const& sender, RoutedEventArgs const& args) {
-    OnPauseClick(sender, args);
+void MainWindow::OnMenuSkipClick(IInspectable const& sender, RoutedEventArgs const& args) {
+    OnSkipClick(sender, args);
     RefreshExecutionMenuState();
 }
 
 void MainWindow::OnMenuStopClick(IInspectable const& sender, RoutedEventArgs const& args) {
     OnStopClick(sender, args);
-    RefreshExecutionMenuState();
-}
-
-void MainWindow::OnMenuCancelClick(IInspectable const& sender, RoutedEventArgs const& args) {
-    OnCancelClick(sender, args);
     RefreshExecutionMenuState();
 }
 
