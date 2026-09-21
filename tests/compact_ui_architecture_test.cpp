@@ -48,12 +48,12 @@ int main() {
         !contains(xaml, "x:Name=\"BottomContentGrid\"") ||
         !contains(xaml, "x:Name=\"TelemetryStrip\"") ||
         !contains(xaml, "x:Name=\"PrimaryActionCluster\"") ||
-        !contains(xaml, "HorizontalAlignment=\"Center\"") ||
+        !contains(xaml, "HorizontalAlignment=\"Right\"") ||
         !contains(xaml, "x:Name=\"PauseButton\"") ||
         !contains(xaml, "x:Name=\"CancelButton\"") ||
         !contains(xaml, "x:Name=\"OptionsButton\"") ||
         !contains(xaml, "x:Name=\"QueueButton\"")) {
-        return fail(2, "collapsed surface must keep telemetry separate from centered primary actions");
+        return fail(2, "collapsed surface must separate telemetry from the right-aligned primary actions");
     }
 
     const auto caption_start = xaml.find("x:Name=\"CaptionContentGrid\"");
@@ -64,15 +64,21 @@ int main() {
         return fail(3, "telemetry must not share the caption-constrained filename row");
     }
 
+    if (contains(xaml, "x:Name=\"SkipButton\"") || contains(xaml, "x:Name=\"StopButton\"") ||
+        contains(execution, "SkipButton()") || contains(execution, "StopButton()") ||
+        contains(window, "SkipButton()") || contains(window, "StopButton()")) {
+        return fail(4, "secondary menu commands must not keep hidden XAML control accessors alive");
+    }
+
     if (contains(xaml, "<ProgressBar") ||
         !contains(window, "ProgressFill().Width(TransferSurface().ActualWidth() * progress_fraction_)")) {
         return fail(5, "window surface itself must remain the only progress indicator");
     }
 
-    if (!contains(tokens, "<x:Double x:Key=\"WindowCompactWidth\">380</x:Double>") ||
-        !contains(tokens, "<x:Double x:Key=\"WindowMinWidth\">360</x:Double>") ||
-        !contains(window, "constexpr int kCompactWindowWidthEpx = 380")) {
-        return fail(6, "compact geometry must remain 380 epx wide with a 360 epx floor");
+    if (!contains(window, "constexpr int kCompactWindowWidthEpx = 380") ||
+        contains(tokens, "WindowCompactWidth") || contains(tokens, "WindowMinWidth") ||
+        contains(tokens, "WindowComfortableBreakpoint")) {
+        return fail(6, "compact geometry must have one runtime width source instead of dead resource mirrors");
     }
 
     if (!contains(window, "presenter.IsMinimizable(true)") ||
@@ -100,54 +106,44 @@ int main() {
     if (!contains(menu, "skip_menu_item_.Text") || !contains(menu, "stop_menu_item_.Text") ||
         !contains(menu, "skip_menu_item_.Click({this, &MainWindow::OnMenuSkipClick})") ||
         !contains(menu, "stop_menu_item_.Click({this, &MainWindow::OnMenuStopClick})") ||
-        !contains(menu, "void MainWindow::OnMenuSkipClick") ||
-        !contains(menu, "OnSkipClick(sender, args);") ||
-        !contains(menu, "RefreshExecutionMenuState();")) {
-        return fail(10, "secondary transfer commands must refresh menu state immediately after mutation");
-    }
-
-    if (!contains(menu, "menu.Opening(")) {
-        return fail(11, "options menu must recompute command state when opened");
-    }
-
-    if (contains(xaml, "x:Name=\"SkipButton\"") || contains(xaml, "x:Name=\"StopButton\"") ||
-        contains(execution, "SkipButton()") || contains(execution, "StopButton()") ||
-        contains(window, "SkipButton()") || contains(window, "StopButton()")) {
-        return fail(12, "Skip and Stop must exist only as Options menu commands");
-    }
-
-    if (!contains(xaml, "<Grid.ColumnDefinitions>") ||
-        !contains(xaml, "<ColumnDefinition Width=\"*\" />") ||
-        !contains(xaml, "<ColumnDefinition Width=\"Auto\" />") ||
-        !contains(xaml, "x:Name=\"TelemetryStrip\"\n                                    Grid.Column=\"0\"") ||
-        !contains(xaml, "x:Name=\"PrimaryActionCluster\"\n                                    Grid.Column=\"1\"")) {
-        return fail(13, "telemetry and primary actions must occupy separate bottom-row columns");
-    }
-
-    if (!contains(window, "const auto hours = rounded / 3600") ||
-        !contains(window, "std::format(L\"{} h {} m\"")) {
-        return fail(14, "long ETA values must be formatted in hours");
+        !contains(window, "menu.Opening") || !contains(window, "RefreshExecutionMenuState()")) {
+        return fail(10, "secondary transfer commands must refresh state whenever Options opens");
     }
 
     if (contains(header, "OnMenuPauseClick") || contains(header, "OnMenuCancelClick") ||
         contains(header, "pause_menu_item_") || contains(header, "cancel_menu_item_") ||
+        contains(header, "initial_size_applied_") ||
         contains(menu, "void MainWindow::OnMenuPauseClick") || contains(menu, "void MainWindow::OnMenuCancelClick")) {
-        return fail(15, "unused menu wrappers and members must not accumulate as dead code");
+        return fail(11, "unused menu wrappers and compact-size state must not accumulate as dead code");
     }
 
-    if (!contains(tokens, "<Thickness x:Key=\"TransferContentPadding\">8,4,8,4</Thickness>") ||
-        !contains(tokens, "<Thickness x:Key=\"CaptionContentPadding\">0</Thickness>") ||
-        !contains(xaml, "Padding=\"{StaticResource TransferContentPadding}\"") ||
-        !contains(xaml, "Padding=\"{StaticResource CaptionContentPadding}\"") ||
-        !contains(queue, "row.Margin(Thickness{8, 4, 8, 4})")) {
-        return fail(16, "compact spacing must stay tokenized and queue rows aligned to the 4/8 rhythm");
+    if (!contains(tokens, "<x:Double x:Key=\"CaptionRowHeight\">34</x:Double>") ||
+        !contains(tokens, "<x:Double x:Key=\"TelemetrySpeedMinWidth\">64</x:Double>") ||
+        !contains(tokens, "<x:Double x:Key=\"TelemetryPercentMinWidth\">36</x:Double>") ||
+        !contains(tokens, "<Thickness x:Key=\"TransferContentPadding\">8,4,8,4</Thickness>") ||
+        !contains(tokens, "<Thickness x:Key=\"QueuePanelPadding\">8,8,8,12</Thickness>") ||
+        !contains(xaml, "Height=\"{StaticResource CaptionRowHeight}\"") ||
+        !contains(xaml, "Padding=\"{StaticResource QueuePanelPadding}\"") ||
+        contains(xaml, "ComfortableState") || contains(tokens, "QueueMaxHeightComfortable")) {
+        return fail(12, "compact resources must be live, shared and free of unreachable width states");
+    }
+
+    if (!contains(execution, "if (SpeedText().Text() != speed)") ||
+        !contains(execution, "if (EtaText().Text() != eta)") ||
+        !contains(execution, "if (CurrentItemText().Text() != filename)")) {
+        return fail(13, "telemetry must avoid redundant text/layout invalidation");
+    }
+
+    if (!contains(window, "GiB/s") || !contains(window, "KiB/s") ||
+        !contains(window, "{} h {:02} m")) {
+        return fail(14, "compact telemetry formatting must scale speed and represent multi-hour ETA compactly");
     }
 
     if (!contains(spec, "380 × 72 epx") ||
         !contains(spec, "native Windows caption cluster visible") ||
-        !contains(spec, "Telemetry must not share the caption-constrained top row") ||
-        !contains(spec, "Skip and Stop live in Options")) {
-        return fail(17, "UI specification must lock the compact native-caption composition");
+        !contains(spec, "telemetry on the left") ||
+        !contains(spec, "actions on the right")) {
+        return fail(15, "UI specification must lock the compact native-caption composition");
     }
 
     return 0;
