@@ -83,7 +83,7 @@ int main() {
         !contains(window_h, "current_file_skippable_") ||
         !contains(execution, "snapshot.current_file_skippable") ||
         !contains(execution, "request_skip(current_file_id_)") ||
-        !contains(execution, "current_file_id_ != 0 && current_file_skippable_") ||
+        !contains(menu, "current_file_id_ != 0 && current_file_skippable_") ||
         !contains(execution, "Localization failure must never mutate the execution state")) {
         return fail(6, "WinUI safe Skip contract incomplete");
     }
