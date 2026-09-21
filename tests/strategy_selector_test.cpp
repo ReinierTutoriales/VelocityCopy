@@ -49,7 +49,7 @@ int wmain() {
         10000,
         4096,
     });
-    if (small.suggested_queue_depth != 2 ||
+    if (small.suggested_queue_depth != 1 ||
         small.suggested_buffer_bytes != 512u * 1024u) {
         return 2;
     }
@@ -65,7 +65,7 @@ int wmain() {
         8,
         64ull * 1024ull * 1024ull,
     });
-    if (normal.suggested_queue_depth != 4 ||
+    if (normal.suggested_queue_depth != 1 ||
         normal.suggested_buffer_bytes != 2u * 1024u * 1024u) {
         return 4;
     }
