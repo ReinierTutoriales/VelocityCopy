@@ -109,7 +109,10 @@ int main() {
         !contains(menu, "stop_menu_item_.Click({this, &MainWindow::OnMenuStopClick})") ||
         !contains(menu, "void MainWindow::OnMenuSkipClick") ||
         !contains(menu, "OnSkipClick(sender, args);") ||
-        !contains(menu, "RefreshExecutionMenuState();")) {
+        !contains(menu, "RefreshExecutionMenuState();") ||
+        !contains(window, "void MainWindow::OnSkipClick") ||
+        !contains(window, "current_file_skippable_ = false;") ||
+        !contains(window, "RefreshExecutionMenuState();")) {
         return fail(10, "secondary transfer commands must refresh menu state immediately after mutation");
     }
 
