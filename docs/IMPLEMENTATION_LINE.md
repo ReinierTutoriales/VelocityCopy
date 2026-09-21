@@ -12,6 +12,7 @@ This document answers one question: **what do we change next, and what evidence 
 4. Inspect the production files and tests affected by the proposed change.
 5. Classify the work as bug fix, refactor, optimization, behavior change, UI change, packaging change, or documentation change.
 6. Do not mix unrelated classes in one commit.
+7. UI-affecting pull requests must compile `VelocityCopy.UI.vcxproj` in x64 and ARM64 before merge; core-only CI is not sufficient evidence for WinUI changes.
 
 ## Gate 1 — x64 functional stabilization
 
@@ -52,7 +53,7 @@ Only start from a green x64 baseline.
 - no progress redesign or unrelated logic rewrite in this block.
 
 ### Block B — sizing and expansion
-- compact target remains approximately 460x72 epx;
+- compact target remains **380x72 epx**;
 - queue/destination content expands the same HWND downward;
 - eliminate clipping caused by compact-shell sizing;
 - do not create a second application window merely to show the queue.
@@ -68,7 +69,8 @@ Only start from a green x64 baseline.
 - retain existing actions/handlers where possible;
 - reorganize current controls rather than inventing controls from visual references;
 - queue disclosure uses a subtle Fluent chevron;
-- preserve tooltips, accessible names, focus and native button states.
+- preserve tooltips, accessible names, focus and native button states;
+- secondary commands such as Skip/Stop live in Options and must not be kept alive as hidden XAML buttons.
 
 ### Block E — queue
 - same HWND expands downward;
@@ -102,7 +104,8 @@ Automated tests do not prove Explorer/taskbar/tray integration. On an installed 
 - tray startup/hide/restore/Explorer restart;
 - installed application/taskbar/tray icon;
 - active-transfer drag/drop append;
-- compact/expanded UI behavior and DPI/theme matrix.
+- compact/expanded UI behavior and DPI/theme matrix;
+- large removable-drive copy, Pause/Resume, Skip from Options, Cancel, and uninstall while the app is resident in the tray.
 
 Record failures by subsystem instead of patching several layers simultaneously.
 
@@ -114,6 +117,24 @@ After x64 is stable:
 - produce a separate ARM64 classic installer;
 - do not create a mixed/universal installer;
 - ARM64 failures must not invalidate the working x64 path.
+
+## Stabilization invariant ledger
+
+These are regressions that have already occurred or failure modes that were explicitly closed. A change touching the named subsystem must re-check the protecting test/contract before merge.
+
+| Invariant | Production surface | Protection |
+|---|---|---|
+| Pending live queue uses constant-time front removal | `live_copy_plan.*` | large-queue stress/architecture tests |
+| Storage buffer recommendation reaches `CopyFile2` `ioDesiredSize` | `strategy_selector`, `job_executor`, `copy_engine` | strategy/copy architecture tests |
+| No dead `NoBuffering` / speculative IOCP strategy state | copy strategy/engine | architecture tests |
+| Installer/uninstaller closes resident VelocityCopy first | NSIS installer | x64 smoke install/uninstall |
+| No XAML `ContentDialog` in compact runtime paths | `src/ui` | architecture tests |
+| Append planner foreground wait is bounded to 8 seconds | `MainWindow.xaml.h`, `Execution.cpp` | copy-append architecture test |
+| Low-level device topology IOCTL probes are fixed-disk only | `storage_profiler.cpp` | storage-profiler tests |
+| Skip availability has one pure behavioral predicate and Options refreshes state on open | `ui_snapshot.*`, WinUI menu/execution | `ui_snapshot_test`, `skip_architecture_test` |
+| Native caption buttons remain visible and only the top filename row reserves `RightInset` | `MainWindow.xaml*` | compact UI architecture test |
+| Telemetry and actions occupy separate bottom-row columns | `MainWindow.xaml` | compact UI architecture test |
+| WinUI x64/ARM64 compiles on pull requests before merge | `.github/workflows/ci.yml` | required PR CI workflow |
 
 ## Optimization rule
 
@@ -143,7 +164,7 @@ Large live queues must not remove from the front of a contiguous `std::vector`. 
 
 ## Version identity rule
 
-`VelocityCopy.WinUI.exe` carries a native `VERSIONINFO` resource; Explorer Properties, the About dialog and Installed Apps must not expose unrelated version identities. `src/ui/VelocityCopy.UI/Version.h` owns the native four-part version and its MAJOR/MINOR/PATCH values must match `project(VelocityCopy VERSION ...)` in the root CMake file. The packaging workflow derives NSIS `DISPLAY_VERSION` from that header rather than inventing a separate run-number version. The About dialog reads the running executable's `VERSIONINFO`, not a duplicated display constant, and remains a native top-level dialog outside the compact XAML surface.
+`VelocityCopy.WinUI.exe` carries a native `VERSIONINFO` resource; Explorer Properties, the About flyout and Installed Apps must not expose unrelated version identities. `src/ui/VelocityCopy.UI/Version.h` owns the native four-part version and its MAJOR/MINOR/PATCH values must match `project(VelocityCopy VERSION ...)` in the root CMake file. The packaging workflow derives NSIS `DISPLAY_VERSION` from that header rather than inventing a separate run-number version. The About flyout reads the running executable's `VERSIONINFO` first and falls back to the compile-time version so a known build never displays `Unknown`.
 
 ## Documentation rule
 
