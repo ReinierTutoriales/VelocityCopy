@@ -41,16 +41,10 @@ MainWindow::MainWindow() {
     try {
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
         const auto pause = loader.GetString(L"ActionPause");
-        const auto skip = loader.GetString(L"ActionSkip");
-        const auto stop = loader.GetString(L"ActionStop");
         const auto cancel = loader.GetString(L"ActionCancel");
         ToolTipService::SetToolTip(PauseButton(), box_value(pause));
-        ToolTipService::SetToolTip(SkipButton(), box_value(skip));
-        ToolTipService::SetToolTip(StopButton(), box_value(stop));
         ToolTipService::SetToolTip(CancelButton(), box_value(cancel));
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), pause);
-        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(SkipButton(), skip);
-        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(StopButton(), stop);
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(CancelButton(), cancel);
 
         const auto move_up = loader.GetString(L"ActionMoveUp");
@@ -301,12 +295,16 @@ hstring MainWindow::FormatEta(const double seconds) {
         return hstring(L"—");
     }
     const auto rounded = static_cast<std::uint64_t>(seconds + 0.5);
-    const auto minutes = rounded / 60;
+    const auto hours = rounded / 3600;
+    const auto minutes = (rounded % 3600) / 60;
     const auto remaining = rounded % 60;
-    if (minutes == 0) {
-        return hstring(std::format(L"{} s", remaining));
+    if (hours != 0) {
+        return hstring(std::format(L"{} h {} m", hours, minutes));
     }
-    return hstring(std::format(L"{} m {} s", minutes, remaining));
+    if (minutes != 0) {
+        return hstring(std::format(L"{} m {} s", minutes, remaining));
+    }
+    return hstring(std::format(L"{} s", remaining));
 }
 
 } // namespace winrt::VelocityCopyUI::implementation
