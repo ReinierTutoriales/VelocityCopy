@@ -138,7 +138,9 @@ void MainWindow::ShowAboutDialog() noexcept {
         logo.Width(40);
         logo.Height(40);
         logo.Stretch(Stretch::Uniform);
-        logo.Source(BitmapImage{Uri{L"ms-appx:///Assets/VelocityCopy.png"}});
+        BitmapImage logo_source;
+        logo_source.UriSource(Uri{L"ms-appx:///Assets/VelocityCopy.png"});
+        logo.Source(logo_source);
         header.Children().Append(logo);
 
         StackPanel identity;
