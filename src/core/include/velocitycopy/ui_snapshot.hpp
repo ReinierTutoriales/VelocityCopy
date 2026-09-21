@@ -23,6 +23,15 @@ struct UiSnapshot {
     std::filesystem::path current_destination;
 };
 
+[[nodiscard]] bool can_skip_current_file(
+    bool has_execution,
+    std::uint64_t current_file_id,
+    bool current_file_skippable,
+    bool paused,
+    bool stopped,
+    bool conflict,
+    bool stop_requested) noexcept;
+
 class ProgressPresenter final {
 public:
     explicit ProgressPresenter(std::uint64_t emit_interval_ms = 100) noexcept;
