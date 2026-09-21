@@ -18,6 +18,7 @@ void MainWindow::SetExecutionButtonsPlanning() {
     current_file_skippable_ = false;
     paused_ = false;
     RefreshExecutionMenuState();
+    RefreshExecutionButtonState();
 }
 
 void MainWindow::SetExecutionButtonsRunning() {
@@ -35,6 +36,7 @@ void MainWindow::SetExecutionButtonsRunning() {
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), label);
     } catch (...) {}
     RefreshExecutionMenuState();
+    RefreshExecutionButtonState();
 }
 
 void MainWindow::SetExecutionButtonsIdle() {
@@ -54,6 +56,7 @@ void MainWindow::SetExecutionButtonsIdle() {
     } catch (...) {}
     RefreshEfficiencyMode();
     RefreshExecutionMenuState();
+    RefreshExecutionButtonState();
 }
 
 void MainWindow::SetExecutionButtonsStopped() {
@@ -71,6 +74,7 @@ void MainWindow::SetExecutionButtonsStopped() {
     } catch (...) {}
     RefreshEfficiencyMode();
     RefreshExecutionMenuState();
+    RefreshExecutionButtonState();
 }
 
 void MainWindow::SetExecutionButtonsConflict() {
@@ -84,6 +88,7 @@ void MainWindow::SetExecutionButtonsConflict() {
     paused_ = false;
     RefreshEfficiencyMode();
     RefreshExecutionMenuState();
+    RefreshExecutionButtonState();
 }
 
 velocitycopy::JobResult MainWindow::RunLivePlanSession(
@@ -353,6 +358,15 @@ void MainWindow::OnPauseClick(IInspectable const&, RoutedEventArgs const&) {
         // Localization failure must never mutate the execution state.
     }
     RefreshExecutionMenuState();
+    RefreshExecutionButtonState();
+}
+
+void MainWindow::RefreshExecutionButtonState() {
+    const bool active = execution_control_ != nullptr;
+    SkipButton().IsEnabled(velocitycopy::can_skip_current_file(
+        active, current_file_id_, current_file_skippable_,
+        paused_, stopped_session_, conflict_session_, stop_requested_));
+    StopButton().IsEnabled(active && !stopped_session_ && !conflict_session_ && !stop_requested_);
 }
 
 void MainWindow::OnSkipClick(IInspectable const&, RoutedEventArgs const&) {
@@ -366,6 +380,7 @@ void MainWindow::OnSkipClick(IInspectable const&, RoutedEventArgs const&) {
             stop_requested_)) return;
     execution_control_->request_skip(current_file_id_);
     current_file_skippable_ = false;
+    RefreshExecutionButtonState();
 }
 
 void MainWindow::OnStopClick(IInspectable const&, RoutedEventArgs const&) {
@@ -378,6 +393,7 @@ void MainWindow::OnStopClick(IInspectable const&, RoutedEventArgs const&) {
     SpeedText().Text(L"—");
     EtaText().Text(L"—");
     RefreshExecutionMenuState();
+    RefreshExecutionButtonState();
 }
 
 void MainWindow::OnCancelClick(IInspectable const&, RoutedEventArgs const&) {
