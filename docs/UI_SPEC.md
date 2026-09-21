@@ -84,7 +84,7 @@ The compact copier surface must never be resized merely to make a modal decision
 
 The compact copier must remain movable with normal pointer dragging. Keep a practical custom title-bar drag region across the top of the copier surface while leaving interactive controls usable.
 
-Because the window extends XAML content into the Windows title bar, the compact content row must reserve the current system caption-button inset instead of assuming the entire 460 epx width is available. Use `AppWindowTitleBar.RightInset`, convert its physical-pixel width to XAML effective pixels for the current HWND DPI, and add it to the normal design-token right padding. Reapply when `AppWindowChangedEventArgs::DidTitleBarChange()` reports a title-bar change. The transport/options/queue controls must never render underneath Minimize/Maximize/Close. User pointer resizing is disabled; VelocityCopy may still resize its own HWND programmatically between collapsed and expanded queue states.
+Because the window extends XAML content into the Windows title bar, the compact content row must reserve the current system caption-button inset instead of assuming the entire 460 epx width is available. Use `AppWindowTitleBar.RightInset`, convert its physical-pixel width to XAML effective pixels for the current HWND DPI, and add it to the normal design-token right padding. Reapply when the AppWindow reports a geometry/presenter change; SDKs that expose a dedicated title-bar-change flag may use it, while Windows App SDK 2.4 must conservatively reapply on the general `Changed` event because `AppWindowChangedEventArgs` there does not expose `DidTitleBarChange()`. The transport/options/queue controls must never render underneath Minimize/Maximize/Close. User pointer resizing is disabled; VelocityCopy may still resize its own HWND programmatically between collapsed and expanded queue states.
 
 ## Fluent/system integration
 
@@ -99,6 +99,7 @@ Because the window extends XAML content into the Windows title bar, the compact 
 
 - Defer expensive queue realization where possible, but never make accepted work invisible during planning.
 - Directory planning/enumeration runs off the UI thread and must observe the transfer stop token while walking the source tree so Cancel cannot leave a long planner running after the user has cancelled.
+- Waiting for append planning must be bounded; a blocked filesystem enumeration must not keep the foreground transfer/session thread waiting forever.
 - Avoid per-file progress controls and per-file animation.
 - Do not update UI on every I/O completion.
 - Keep core transfer state independent of concrete WinUI controls.
