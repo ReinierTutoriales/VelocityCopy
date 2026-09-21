@@ -6,7 +6,7 @@ These gates define the current stabilization/release pipeline. They must agree w
 
 - `main` must pass Windows CI: x64 Release configure, build and `ctest`.
 - Windows Package runs on every main commit, on `v*` tags and on `workflow_dispatch`; commit CI (`ci.yml`) stays free of packaging.
-- x64 and ARM64 classic installers are both produced and verified by Windows Package.
+- x64 and ARM64 classic installers are both built with payload verification; smoke install/uninstall runs on x64 only.
 
 ## Packaging rules
 
@@ -26,7 +26,7 @@ Required commit-CI behavior:
 - x64 configure/build;
 - x64 `ctest`;
 - no AppX installation;
-- no full packaging on every ordinary source commit.
+- no packaging in commit CI (`ci.yml`);
 
 Required package behavior:
 - main-push, `v*` tag and manual triggers;
@@ -34,7 +34,6 @@ Required package behavior:
 - classic `VelocityCopy-Setup-x64.exe`;
 - payload verification before installer construction;
 - smoke install/uninstall.
-
 
 ## Branch and commit hygiene
 
