@@ -5,18 +5,15 @@ These gates define the current stabilization/release pipeline. They must agree w
 ## Current stabilization gate
 
 - `main` must pass Windows CI: x64 Release configure, build and `ctest`.
-- Normal source commits must not trigger full installer packaging.
-- Packaging is intentionally separated from commit CI and is invoked by `workflow_dispatch` or a `v*` tag.
-- x64 is the mandatory stabilization path.
-- ARM64 is the next architecture after x64 is healthy. It must use the same source/build/package recipe with architecture-specific parameters only and must not destabilize x64.
-- Do not claim ARM64 packaging is available until its workflow and artifact have actually been restored and verified.
+- Windows Package runs on every main commit, on `v*` tags and on `workflow_dispatch`; commit CI (`ci.yml`) stays free of packaging.
+- x64 and ARM64 classic installers are both built with payload verification; smoke install/uninstall runs on x64 only.
 
 ## Packaging rules
 
 - Distribution is classic self-contained NSIS, not MSIX.
 - No x86 and no portable distribution.
 - WinUI remains unpackaged and self-contained (`WindowsAppSDKSelfContained=true`, `AppxPackage=false`).
-- The x64 payload must include both `VelocityCopy.WinUI.exe` and `VelocityCopy.Shell.dll`.
+- Each payload (x64 and ARM64) must include both `VelocityCopy.WinUI.exe` and `VelocityCopy.Shell.dll`.
 - If the installer registers a file, DLL, executable or resource, the packaging workflow must assert that the referenced payload actually exists before NSIS runs.
 - The x64 package gate must smoke-install and uninstall the classic setup.
 - Do not add Chocolatey, AppX/MSIX deployment, certificates, or unrelated package managers to the required path.
@@ -28,17 +25,18 @@ Architecture tests may inspect workflow contracts, but tests must validate durab
 Required commit-CI behavior:
 - x64 configure/build;
 - x64 `ctest`;
+- ARM64 core compile;
+- ASan RelWithDebInfo compile;
+- WinUI x64 build (`ui` job);
 - no AppX installation;
-- no full packaging on every ordinary source commit.
+- no packaging in commit CI (`ci.yml`);
 
 Required package behavior:
-- manual/tag trigger;
+- main-push, `v*` tag and manual triggers;
 - self-contained WinUI payload;
-- classic `VelocityCopy-Setup-x64.exe`;
+- classic `VelocityCopy-Setup-x64.exe` and `VelocityCopy-Setup-ARM64.exe`;
 - payload verification before installer construction;
 - smoke install/uninstall.
-
-When ARM64 is restored, document and test its gate here in the same coherent change.
 
 ## Branch and commit hygiene
 
