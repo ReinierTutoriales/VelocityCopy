@@ -152,6 +152,7 @@ private:
     void RefreshQueue();
     void RefreshQueueCommandState();
     void RefreshExecutionMenuState();
+    void RefreshExecutionButtonState();
     void RefreshQueueEditCommandState();
     [[nodiscard]] std::vector<std::uint64_t> SelectedPendingIds();
     void ResizeWindow(int height_epx);
