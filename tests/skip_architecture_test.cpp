@@ -36,10 +36,11 @@ int main() {
     const auto window_h = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.h");
     const auto execution = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Execution.cpp");
     const auto menu = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.QueuePersistence.cpp");
+    const auto window = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
 
     if (control_h.empty() || control_cpp.empty() || executor_h.empty() || executor_cpp.empty() ||
         live_h.empty() || live_cpp.empty() || snapshot_h.empty() || snapshot_cpp.empty() ||
-        xaml.empty() || window_h.empty() || execution.empty() || menu.empty()) {
+        xaml.empty() || window_h.empty() || execution.empty() || menu.empty() || window.empty()) {
         return fail(1, "required production source missing");
     }
 
@@ -73,19 +74,22 @@ int main() {
 
     if (!contains(snapshot_h, "current_file_id") ||
         !contains(snapshot_h, "current_file_skippable") ||
+        !contains(snapshot_h, "can_skip_current_file") ||
         !contains(snapshot_cpp, "snapshot.current_file_id = progress.current_file_id") ||
-        !contains(snapshot_cpp, "snapshot.current_file_skippable = progress.current_file_skippable")) {
-        return fail(5, "Skip identity/safety must reach UI snapshots");
+        !contains(snapshot_cpp, "snapshot.current_file_skippable = progress.current_file_skippable") ||
+        !contains(snapshot_cpp, "bool can_skip_current_file(")) {
+        return fail(5, "Skip identity/safety and pure availability contract must reach UI state");
     }
 
-    if (!contains(menu, "skip_menu_item_.Click({this, &MainWindow::OnMenuSkipClick})") ||
-        !contains(menu, "menu.Opening(") ||
+    if (contains(xaml, "x:Name=\"SkipButton\"") || contains(xaml, "x:Name=\"StopButton\"") ||
         !contains(window_h, "current_file_skippable_") ||
         !contains(execution, "snapshot.current_file_skippable") ||
+        !contains(execution, "can_skip_current_file(") ||
         !contains(execution, "request_skip(current_file_id_)") ||
-        !contains(menu, "current_file_id_ != 0 && current_file_skippable_") ||
+        !contains(menu, "skip_menu_item_.Click({this, &MainWindow::OnMenuSkipClick})") ||
+        !contains(menu, "menu.Opening") || !contains(menu, "RefreshExecutionMenuState()") ||
         !contains(execution, "Localization failure must never mutate the execution state")) {
-        return fail(6, "WinUI safe Skip contract incomplete");
+        return fail(6, "WinUI menu-driven safe Skip contract incomplete");
     }
 
     return 0;

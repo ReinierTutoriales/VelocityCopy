@@ -356,13 +356,16 @@ void MainWindow::OnPauseClick(IInspectable const&, RoutedEventArgs const&) {
 }
 
 void MainWindow::OnSkipClick(IInspectable const&, RoutedEventArgs const&) {
-    if (!execution_control_ || paused_ || stopped_session_ || conflict_session_ || stop_requested_ ||
-        current_file_id_ == 0 || !current_file_skippable_) return;
+    if (!velocitycopy::can_skip_current_file(
+            execution_control_ != nullptr,
+            current_file_id_,
+            current_file_skippable_,
+            paused_,
+            stopped_session_,
+            conflict_session_,
+            stop_requested_)) return;
     execution_control_->request_skip(current_file_id_);
     current_file_skippable_ = false;
-    // Keep every command surface synchronized even when Skip is invoked from
-    // the hidden XAML accessor or another caller rather than the Options menu.
-    RefreshExecutionMenuState();
 }
 
 void MainWindow::OnStopClick(IInspectable const&, RoutedEventArgs const&) {
@@ -434,9 +437,17 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
     SetProgressFraction(fraction);
     current_file_id_ = snapshot.current_file_id;
     current_file_skippable_ = snapshot.current_file_skippable;
-    if (!snapshot.current_source.empty()) CurrentItemText().Text(hstring(snapshot.current_source.filename().wstring()));
-    SpeedText().Text(FormatSpeed(snapshot.bytes_per_second));
-    EtaText().Text(FormatEta(snapshot.eta_seconds));
+
+    if (!snapshot.current_source.empty()) {
+        const hstring filename(snapshot.current_source.filename().wstring());
+        if (CurrentItemText().Text() != filename) CurrentItemText().Text(filename);
+    }
+
+    const auto speed = FormatSpeed(snapshot.bytes_per_second);
+    if (SpeedText().Text() != speed) SpeedText().Text(speed);
+    const auto eta = FormatEta(snapshot.eta_seconds);
+    if (EtaText().Text() != eta) EtaText().Text(eta);
+
     if (QueuePanel().Visibility() == Visibility::Visible && snapshot.completed_files != last_queue_completed_files_) {
         last_queue_completed_files_ = snapshot.completed_files;
         RefreshQueue();

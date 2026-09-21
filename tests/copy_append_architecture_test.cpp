@@ -102,6 +102,7 @@ int main() {
 
     if (!contains(execution, "SetExecutionButtonsPlanning") ||
         !contains(execution, "PauseButton().IsEnabled(false)") ||
+        !contains(execution, "CancelButton().IsEnabled(true)") ||
         !contains(execution, "RefreshExecutionMenuState()")) {
         return fail(10, "initial planning controls unsafe");
     }

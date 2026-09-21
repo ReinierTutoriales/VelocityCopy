@@ -10,27 +10,6 @@
           DragLeave="OnDragLeave"
           Drop="OnDrop"
           Background="Transparent">
-        <VisualStateManager.VisualStateGroups>
-            <VisualStateGroup x:Name="WindowWidthStates">
-                <VisualState x:Name="CompactState">
-                    <VisualState.StateTriggers>
-                        <AdaptiveTrigger MinWindowWidth="0" />
-                    </VisualState.StateTriggers>
-                    <VisualState.Setters>
-                        <Setter Target="QueueList.MaxHeight" Value="{StaticResource QueueMaxHeightCompact}" />
-                    </VisualState.Setters>
-                </VisualState>
-                <VisualState x:Name="ComfortableState">
-                    <VisualState.StateTriggers>
-                        <AdaptiveTrigger MinWindowWidth="420" />
-                    </VisualState.StateTriggers>
-                    <VisualState.Setters>
-                        <Setter Target="QueueList.MaxHeight" Value="{StaticResource QueueMaxHeightComfortable}" />
-                    </VisualState.Setters>
-                </VisualState>
-            </VisualStateGroup>
-        </VisualStateManager.VisualStateGroups>
-
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -48,7 +27,7 @@
                         Opacity="0.12" />
 
                 <Grid x:Name="TitleBarDragRegion"
-                      Height="34"
+                      Height="{StaticResource CaptionRowHeight}"
                       VerticalAlignment="Top"
                       HorizontalAlignment="Stretch"
                       Background="Transparent"
@@ -57,7 +36,7 @@
                 <Grid x:Name="TransferContentGrid"
                       Padding="{StaticResource TransferContentPadding}">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="34" />
+                        <RowDefinition Height="{StaticResource CaptionRowHeight}" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
@@ -90,27 +69,40 @@
                     </Grid>
 
                     <Grid x:Name="BottomContentGrid"
-                          Grid.Row="1">
+                          Grid.Row="1"
+                          ColumnSpacing="8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
+
                         <StackPanel x:Name="TelemetryStrip"
                                     Grid.Column="0"
                                     Orientation="Horizontal"
                                     HorizontalAlignment="Left"
                                     VerticalAlignment="Center"
                                     Spacing="4">
-                            <TextBlock x:Name="SpeedText" Text="—" Opacity="0.62" FontSize="10.5" />
-                            <TextBlock x:Name="ProgressPercentText" Text="0%" Opacity="0.82" FontSize="10.5" FontWeight="SemiBold" />
-                            <TextBlock x:Name="EtaText" Text="—" Opacity="0.62" FontSize="10.5" />
+                            <TextBlock x:Name="SpeedText"
+                                       Text="—"
+                                       MinWidth="{StaticResource TelemetrySpeedMinWidth}"
+                                       Opacity="0.62"
+                                       FontSize="10.5" />
+                            <TextBlock x:Name="ProgressPercentText"
+                                       Text="0%"
+                                       MinWidth="{StaticResource TelemetryPercentMinWidth}"
+                                       Opacity="0.82"
+                                       FontSize="10.5"
+                                       FontWeight="SemiBold" />
+                            <TextBlock x:Name="EtaText"
+                                       Text="—"
+                                       Opacity="0.62"
+                                       FontSize="10.5" />
                         </StackPanel>
 
                         <StackPanel x:Name="PrimaryActionCluster"
                                     Grid.Column="1"
                                     Orientation="Horizontal"
-                                    HorizontalAlignment="Center"
+                                    HorizontalAlignment="Right"
                                     VerticalAlignment="Center"
                                     Spacing="4">
                             <Button x:Name="PauseButton"
@@ -168,7 +160,6 @@
                             </Button>
                         </StackPanel>
                     </Grid>
-
                 </Grid>
             </Grid>
         </Grid>
@@ -176,7 +167,7 @@
         <Grid x:Name="QueuePanel"
               Grid.Row="1"
               Visibility="Collapsed"
-              Padding="12,8,12,12">
+              Padding="{StaticResource QueuePanelPadding}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -259,6 +250,6 @@
                  Severity="Error"
                  IsClosable="True"
                  VerticalAlignment="Top"
-                 Margin="0,32,0,0" />
+                 Margin="0,34,0,0" />
     </Grid>
 </Window>
