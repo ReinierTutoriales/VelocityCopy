@@ -126,7 +126,9 @@ void MainWindow::ApplyTitleBarInset() noexcept {
 
         // AppWindowTitleBar insets are physical pixels. XAML Thickness values are
         // effective pixels, so convert before extending the existing design-token
-        // padding. This keeps Options/Queue clear of system caption buttons at every DPI.
+        // padding. The HWND is widened by the same amount: the system caption
+        // buttons consume extra chrome instead of stealing the copier's intended
+        // 460 epx of usable content width.
         const double right_inset_epx =
             AppWindow().TitleBar().RightInset() * 96.0 / static_cast<double>(dpi);
         TransferContentGrid().Padding(Thickness{
@@ -134,6 +136,22 @@ void MainWindow::ApplyTitleBarInset() noexcept {
             base_transfer_content_padding_.Top,
             base_transfer_content_padding_.Right + right_inset_epx,
             base_transfer_content_padding_.Bottom});
+
+        RECT rect{};
+        if (GetWindowRect(hwnd, &rect) != FALSE) {
+            const int target_width = MulDiv(
+                static_cast<int>(std::ceil(460.0 + right_inset_epx)),
+                static_cast<int>(dpi),
+                96);
+            SetWindowPos(
+                hwnd,
+                nullptr,
+                0,
+                0,
+                target_width,
+                rect.bottom - rect.top,
+                SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+        }
     } catch (...) {
     }
 }
@@ -158,11 +176,13 @@ void MainWindow::ResizeWindow(const int height_epx) {
         auto window_native = this->m_inner.as<::IWindowNative>();
         if (SUCCEEDED(window_native->get_WindowHandle(&hwnd)) && hwnd != nullptr) {
             const auto dpi = GetDpiForWindow(hwnd);
-            RECT rect{};
-            const bool have_rect = GetWindowRect(hwnd, &rect) != FALSE;
-            const int initial_width = MulDiv(460, static_cast<int>(dpi), 96);
-            const int current_width = have_rect ? rect.right - rect.left : initial_width;
-            const int width = initial_size_applied_ ? current_width : initial_width;
+            if (dpi == 0) return;
+            const double right_inset_epx =
+                AppWindow().TitleBar().RightInset() * 96.0 / static_cast<double>(dpi);
+            const int width = MulDiv(
+                static_cast<int>(std::ceil(460.0 + right_inset_epx)),
+                static_cast<int>(dpi),
+                96);
             const int height = MulDiv(height_epx, static_cast<int>(dpi), 96);
             SetWindowPos(hwnd, nullptr, 0, 0, width, height,
                          SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
