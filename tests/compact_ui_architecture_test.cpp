@@ -118,14 +118,24 @@ int main() {
     }
 
     if (!contains(tokens, "<x:Double x:Key=\"CaptionRowHeight\">34</x:Double>") ||
+        !contains(tokens, "<GridLength x:Key=\"CaptionRowGridLength\">34</GridLength>") ||
         !contains(tokens, "<x:Double x:Key=\"TelemetrySpeedMinWidth\">64</x:Double>") ||
         !contains(tokens, "<x:Double x:Key=\"TelemetryPercentMinWidth\">36</x:Double>") ||
         !contains(tokens, "<Thickness x:Key=\"TransferContentPadding\">8,4,8,4</Thickness>") ||
         !contains(tokens, "<Thickness x:Key=\"QueuePanelPadding\">8,8,8,12</Thickness>") ||
         !contains(xaml, "Height=\"{StaticResource CaptionRowHeight}\"") ||
+        !contains(xaml, "<RowDefinition Height=\"{StaticResource CaptionRowGridLength}\" />") ||
         !contains(xaml, "Padding=\"{StaticResource QueuePanelPadding}\"") ||
         contains(xaml, "ComfortableState") || contains(tokens, "QueueMaxHeightComfortable")) {
         return fail(12, "compact resources must be live, shared and free of unreachable width states");
+    }
+
+    for (const auto* key : {"CaptionRowHeight", "QueueMaxHeightCompact",
+                            "TelemetrySpeedMinWidth", "TelemetryPercentMinWidth"}) {
+        if (contains(xaml, std::string("Definition Height=\"{StaticResource ") + key) ||
+            contains(xaml, std::string("Definition Width=\"{StaticResource ") + key)) {
+            return fail(30, "Double token used on a GridLength property");
+        }
     }
 
     if (!contains(execution, "if (SpeedText().Text() != speed)") ||
