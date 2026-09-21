@@ -20,6 +20,13 @@ bool contains(const std::string& text, const std::string& value) {
     return text.find(value) != std::string::npos;
 }
 
+std::string body_of(const std::string& source, const std::string& signature) {
+    const auto start = source.find(signature);
+    if (start == std::string::npos) return {};
+    const auto end = source.find("\n}\n", start);
+    return source.substr(start, end == std::string::npos ? std::string::npos : end - start);
+}
+
 int fail(const int code, const char* message) {
     std::cerr << "compact UI architecture contract " << code << ": " << message << '\n';
     return code;
@@ -150,6 +157,14 @@ int main() {
     if (!contains(window, "GiB/s") || !contains(window, "KiB/s") ||
         !contains(window, "{} h {:02} m")) {
         return fail(14, "compact telemetry formatting must scale speed and represent multi-hour ETA compactly");
+    }
+
+    if (!contains(body_of(execution, "void MainWindow::StartCopy("), "ResetTransferSurface();") ||
+        !contains(body_of(menu, "void MainWindow::StartCopyPlan("), "ResetTransferSurface();") ||
+        !contains(window, "void MainWindow::ResetTransferSurface()") ||
+        !contains(body_of(window, "void MainWindow::ResetTransferSurface()"), "ErrorBar().IsOpen(false)") ||
+        !contains(body_of(window, "void MainWindow::ResetTransferSurface()"), "ErrorBar().Message(L\"\")")) {
+        return fail(16, "every new transfer session must clear the previous error surface");
     }
 
     if (!contains(spec, "380 × 72 epx") ||
