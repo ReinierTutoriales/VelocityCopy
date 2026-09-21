@@ -152,5 +152,18 @@ int main() {
         return fail(13, "compact control rhythm must use the documented 4/8/12 spacing tiers instead of orphan literals");
     }
 
+    if (!contains(xaml, "x:Name=\"TransferContentGrid\"") ||
+        !contains(header, "void ApplyTitleBarInset() noexcept") ||
+        !contains(header, "OnAppWindowChanged") ||
+        !contains(header, "base_transfer_content_padding_") ||
+        !contains(window, "AppWindow().TitleBar().RightInset()") ||
+        !contains(window, "right_inset_epx") ||
+        !contains(window, "base_transfer_content_padding_.Right + right_inset_epx") ||
+        !contains(window, "presenter.IsResizable(false)") ||
+        !contains(window, "args.DidTitleBarChange()") ||
+        !contains(spec, "system caption-button inset")) {
+        return fail(14, "extended title bar must reserve the real system caption-button inset and keep compact controls out of it");
+    }
+
     return 0;
 }
