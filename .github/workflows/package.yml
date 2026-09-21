@@ -70,10 +70,12 @@ jobs:
         if: ${{ matrix.smoke }}
         shell: pwsh
         run: |
-          $exe = Get-ChildItem src/ui/VelocityCopy.UI -Recurse -File -Filter VelocityCopy.WinUI.exe |
-            Where-Object { $_.FullName -match '[\\/]x64[\\/].*[\\/]Release[\\/]' -or $_.FullName -match '[\\/]Release[\\/].*[\\/]x64[\\/]' } |
-            Select-Object -First 1
-          if (-not $exe) { throw "Built x64 executable was not found" }
+          $exe = Get-ChildItem src/ui/VelocityCopy.UI -Recurse -File -Filter VelocityCopy.WinUI.exe | Select-Object -First 1
+          if (-not $exe) {
+            Write-Host "Build tree executable candidates:"
+            Get-ChildItem src/ui/VelocityCopy.UI -Recurse -File -Filter '*.exe' | ForEach-Object { Write-Host $_.FullName }
+            throw "Built x64 executable was not found"
+          }
           Write-Host "Launching build output directly from $($exe.Directory.FullName)"
           $app = Start-Process $exe.FullName -WorkingDirectory $exe.Directory.FullName -PassThru
           Start-Sleep -Seconds 5
