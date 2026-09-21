@@ -52,8 +52,9 @@ int main() {
         !contains(profiler_h, "std::vector<std::uint32_t> physical_disk_numbers") ||
         !contains(profiler_h, "bool physical_disk_extents_available{}") ||
         !contains(profiler_cpp, "IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS") ||
-        !contains(profiler_cpp, "ERROR_MORE_DATA")) {
-        return fail(11, "storage profiling must resolve mounted volumes and expose physical disk topology");
+        !contains(profiler_cpp, "ERROR_MORE_DATA") ||
+        !contains(profiler_cpp, "if (profile.kind == StorageKind::Fixed)")) {
+        return fail(11, "storage profiling must resolve fixed-volume topology without issuing low-level device probes on removable media");
     }
 
     if (!contains(topology_h, "enum class PhysicalStorageRelationship") ||
