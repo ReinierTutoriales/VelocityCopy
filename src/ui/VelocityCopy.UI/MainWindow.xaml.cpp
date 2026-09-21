@@ -15,6 +15,8 @@ using namespace Microsoft::UI::Xaml::Controls;
 namespace winrt::VelocityCopyUI::implementation {
 namespace {
 
+constexpr int kCompactWindowWidthEpx = 460;
+
 bool accepts_active_transfer_drop(
     const std::filesystem::path& active_destination,
     const std::shared_ptr<velocitycopy::ExecutionControl>& execution_control,
@@ -124,11 +126,10 @@ void MainWindow::ApplyTitleBarInset() noexcept {
         const auto dpi = GetDpiForWindow(hwnd);
         if (dpi == 0) return;
 
-        // AppWindowTitleBar insets are physical pixels. XAML Thickness values are
-        // effective pixels, so convert before extending the existing design-token
-        // padding. The HWND is widened by the same amount: the system caption
-        // buttons consume extra chrome instead of stealing the copier's intended
-        // 460 epx of usable content width.
+        // Caption buttons remain inside the fixed compact width. Reserve their
+        // exact right inset in the XAML padding instead of making the HWND wider.
+        // The action targets are intentionally compact so filename/telemetry still
+        // retain useful width while Minimize/Maximize/Close remain unobstructed.
         const double right_inset_epx =
             AppWindow().TitleBar().RightInset() * 96.0 / static_cast<double>(dpi);
         TransferContentGrid().Padding(Thickness{
@@ -136,22 +137,6 @@ void MainWindow::ApplyTitleBarInset() noexcept {
             base_transfer_content_padding_.Top,
             base_transfer_content_padding_.Right + right_inset_epx,
             base_transfer_content_padding_.Bottom});
-
-        RECT rect{};
-        if (GetWindowRect(hwnd, &rect) != FALSE) {
-            const int target_width = MulDiv(
-                static_cast<int>(std::ceil(460.0 + right_inset_epx)),
-                static_cast<int>(dpi),
-                96);
-            SetWindowPos(
-                hwnd,
-                nullptr,
-                0,
-                0,
-                target_width,
-                rect.bottom - rect.top,
-                SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
-        }
     } catch (...) {
     }
 }
@@ -177,12 +162,7 @@ void MainWindow::ResizeWindow(const int height_epx) {
         if (SUCCEEDED(window_native->get_WindowHandle(&hwnd)) && hwnd != nullptr) {
             const auto dpi = GetDpiForWindow(hwnd);
             if (dpi == 0) return;
-            const double right_inset_epx =
-                AppWindow().TitleBar().RightInset() * 96.0 / static_cast<double>(dpi);
-            const int width = MulDiv(
-                static_cast<int>(std::ceil(460.0 + right_inset_epx)),
-                static_cast<int>(dpi),
-                96);
+            const int width = MulDiv(kCompactWindowWidthEpx, static_cast<int>(dpi), 96);
             const int height = MulDiv(height_epx, static_cast<int>(dpi), 96);
             SetWindowPos(hwnd, nullptr, 0, 0, width, height,
                          SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
@@ -204,7 +184,7 @@ void MainWindow::ResizeWindowToContent() {
     // vertical space, then grow the HWND from the known 72 epx copier surface.
     const auto measured_width = RootGrid().ActualWidth() > 0.0
         ? static_cast<float>(RootGrid().ActualWidth())
-        : 460.0f;
+        : static_cast<float>(kCompactWindowWidthEpx);
     QueuePanel().Measure({measured_width, std::numeric_limits<float>::infinity()});
     const auto desired_queue_height = static_cast<double>(QueuePanel().DesiredSize().Height);
     const auto expanded_height = static_cast<int>(std::ceil(72.0 + desired_queue_height));
