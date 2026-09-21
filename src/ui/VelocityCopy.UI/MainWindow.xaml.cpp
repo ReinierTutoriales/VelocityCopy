@@ -15,7 +15,7 @@ using namespace Microsoft::UI::Xaml::Controls;
 namespace winrt::VelocityCopyUI::implementation {
 namespace {
 
-constexpr int kCompactWindowWidthEpx = 460;
+constexpr int kCompactWindowWidthEpx = 360;
 
 bool accepts_active_transfer_drop(
     const std::filesystem::path& active_destination,
@@ -29,17 +29,6 @@ bool accepts_active_transfer_drop(
         return false;
     }
     return (args.AllowedOperations() & DataPackageOperation::Copy) == DataPackageOperation::Copy;
-}
-
-template <typename T>
-bool title_bar_changed(const T& args) noexcept {
-    if constexpr (requires { args.DidTitleBarChange(); }) {
-        return args.DidTitleBarChange();
-    }
-    // Windows App SDK 2.4 does not expose DidTitleBarChange on
-    // AppWindowChangedEventArgs. Reapplying the inset for any AppWindow change
-    // is cheap and keeps DPI/title-bar geometry correct on supported SDKs.
-    return true;
 }
 
 } // namespace
@@ -83,70 +72,22 @@ MainWindow::MainWindow() {
 
     ExtendsContentIntoTitleBar(true);
     SetTitleBar(TitleBarDragRegion());
-    base_transfer_content_padding_ = TransferContentGrid().Padding();
 
     try {
         auto app_window = AppWindow();
         app_window.IsShownInSwitchers(false);
         if (auto presenter = app_window.Presenter().try_as<Microsoft::UI::Windowing::OverlappedPresenter>()) {
-            presenter.IsMinimizable(true);
+            presenter.IsMinimizable(false);
             presenter.IsMaximizable(false);
-            // The copier owns its compact/expanded size transitions. Prevent
-            // pointer resizing so Windows does not expose resize/maximize affordances
-            // that contradict the fixed-width single-surface UI.
             presenter.IsResizable(false);
+            presenter.SetBorderAndTitleBar(true, false);
         }
-        auto weak = get_weak();
-        app_window.Changed([weak](
-            Microsoft::UI::Windowing::AppWindow const& sender,
-            Microsoft::UI::Windowing::AppWindowChangedEventArgs const& args) {
-            if (auto self = weak.get()) {
-                self->OnAppWindowChanged(sender, args);
-            }
-        });
         app_window.SetIcon(L"Assets\\VelocityCopy.ico");
     } catch (...) {
     }
 
     InitializeTrayIntegration();
-    ApplyTitleBarInset();
     ResizeWindow(72);
-}
-
-void MainWindow::ApplyTitleBarInset() noexcept {
-    try {
-        HWND hwnd = hwnd_;
-        if (hwnd == nullptr) {
-            auto window_native = this->m_inner.as<::IWindowNative>();
-            if (FAILED(window_native->get_WindowHandle(&hwnd)) || hwnd == nullptr) {
-                return;
-            }
-        }
-
-        const auto dpi = GetDpiForWindow(hwnd);
-        if (dpi == 0) return;
-
-        // Caption buttons remain inside the fixed compact width. Reserve their
-        // exact right inset in the XAML padding instead of making the HWND wider.
-        // The action targets are intentionally compact so filename/telemetry still
-        // retain useful width while Minimize/Maximize/Close remain unobstructed.
-        const double right_inset_epx =
-            AppWindow().TitleBar().RightInset() * 96.0 / static_cast<double>(dpi);
-        TransferContentGrid().Padding(Thickness{
-            base_transfer_content_padding_.Left,
-            base_transfer_content_padding_.Top,
-            base_transfer_content_padding_.Right + right_inset_epx,
-            base_transfer_content_padding_.Bottom});
-    } catch (...) {
-    }
-}
-
-void MainWindow::OnAppWindowChanged(
-    Microsoft::UI::Windowing::AppWindow const&,
-    Microsoft::UI::Windowing::AppWindowChangedEventArgs const& args) {
-    if (title_bar_changed(args)) {
-        ApplyTitleBarInset();
-    }
 }
 
 void MainWindow::OnTransferSurfaceSizeChanged(
@@ -178,10 +119,6 @@ void MainWindow::ResizeWindowToContent() {
         return;
     }
 
-    // RootGrid is arranged to the current HWND height, so RootGrid.ActualHeight()
-    // cannot be used to discover the expanded queue height while the window is
-    // still collapsed. Measure the queue panel independently with unconstrained
-    // vertical space, then grow the HWND from the known 72 epx copier surface.
     const auto measured_width = RootGrid().ActualWidth() > 0.0
         ? static_cast<float>(RootGrid().ActualWidth())
         : static_cast<float>(kCompactWindowWidthEpx);

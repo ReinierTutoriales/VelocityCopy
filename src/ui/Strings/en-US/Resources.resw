@@ -26,7 +26,8 @@
   <data name="ActionRemove" xml:space="preserve"><value>Remove</value></data>
   <data name="ActionSaveQueue" xml:space="preserve"><value>Save queue</value></data>
   <data name="ActionLoadQueue" xml:space="preserve"><value>Load queue</value></data>
-  <data name="ActionQueueOptions" xml:space="preserve"><value>Queue options</value></data>
+  <data name="ActionQueueOptions" xml:space="preserve"><value>Options</value></data>
+  <data name="ActionHideToTray" xml:space="preserve"><value>Hide to tray</value></data>
   <data name="ActionAbout" xml:space="preserve"><value>About VelocityCopy</value></data>
   <data name="AboutTitle" xml:space="preserve"><value>About VelocityCopy</value></data>
   <data name="AboutTagline" xml:space="preserve"><value>Fast, focused file transfers for Windows 11.</value></data>

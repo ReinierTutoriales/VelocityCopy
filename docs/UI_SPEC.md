@@ -4,15 +4,15 @@ VelocityCopy is a compact Windows 11 copy/move utility. The window itself is the
 
 ## Window geometry
 
-- Default collapsed size: **460 × 72 epx**
+- Default collapsed size: **360 × 72 epx**
 - Expanded queue target: **~300 epx**, bounded by measured queue content
-- Preferred width range: **440–520 epx**
-- Minimum practical width: **420 epx**
-- Outer content gutter: **12–14 epx**
-- Related-control spacing: **6–8 epx**
-- Tight inline spacing: **3–4 epx**
+- Fixed compact width: **360 epx**
+- Minimum practical width: **360 epx**
+- Outer content gutter: **12 epx**
+- Related-control spacing: **8 epx**
+- Tight inline spacing: **4 epx**
 
-Spacing tiers are contractual, not advisory. The compact transfer surface uses the shared `DesignTokens.xaml` rhythm instead of ad-hoc per-control numbers: 12 epx content gutter, 8 epx group separation, and 4 epx inline control spacing. Queue-row vertical spacing follows the same 4 epx inline tier. Do not introduce orphan values such as 1, 3, 5, or 10 epx into the compact action row without an explicit spec change.
+Spacing tiers are contractual, not advisory. The compact transfer surface uses the shared `DesignTokens.xaml` rhythm instead of ad-hoc per-control numbers: 12 epx content gutter, 8 epx group separation, and 4 epx inline control spacing. Queue-row vertical spacing follows the same 4 epx inline tier.
 
 ## Collapsed composition
 
@@ -22,11 +22,13 @@ Order:
 1. VelocityCopy brand mark at the far left
 2. current item
 3. throughput + percentage + ETA
-4. essential transport controls
-5. queue disclosure triangle at the far right
-6. progress expressed by the surface fill itself
+4. Pause/Resume
+5. Cancel
+6. Options (`…`)
+7. queue disclosure triangle at the far right
+8. progress expressed by the surface fill itself
 
-The compact surface must read as one deliberate Windows 11 control, not as a row of oversized independent buttons. Keep icon targets compact, preserve native hover/focus behavior, and give the filename/telemetry region priority over decorative spacing.
+The compact surface must prioritize the filename/telemetry region. Skip and Stop live in Options rather than consuming permanent width. Options also owns queue persistence, About, and Hide to tray. The system caption buttons are removed; VelocityCopy keeps the native border/rounding but does not spend compact content width on Minimize/Maximize/Close affordances that duplicate tray behavior.
 
 ## Integrated progress surface
 
@@ -54,20 +56,20 @@ Whole-window drag/drop is **append-only**.
 Explorer/Shell integration delivers a resolved `CopyJob` to the UI process. The UI process queues or starts that job directly.
 
 - No `ShellFlowFlyout`, destination browser, preserve/direct layout choice, or Start button is part of the runtime transfer path.
-- No dormant destination/layout chooser should remain in `MainWindow.xaml` waiting for a future trigger. If a future product requirement truly needs destination selection, it must be designed as a separate explicit entry point rather than being coupled to drag/drop or normal Explorer transfer execution.
-- Shell integration and drag/drop therefore converge at `QueueOrStartCopy`, not at a chooser flow.
-- An accepted transfer must become visible immediately in the compact UI even while planning/enumeration is still running. The queue disclosure remains usable during this phase and shows a read-only preview of the accepted top-level sources until the authoritative `LiveCopyPlan` replaces it.
+- No dormant destination/layout chooser should remain in `MainWindow.xaml` waiting for a future trigger.
+- Shell integration and drag/drop converge at `QueueOrStartCopy`, not at a chooser flow.
+- An accepted transfer must become visible immediately in the compact UI even while planning/enumeration is still running.
 
 ## Queue panel
 
 The queue is collapsed by default and expands in the same HWND.
 
-- The disclosure is always available, including while VelocityCopy is idle. With no accepted work it opens an empty queue with count `0`; an empty queue is still a valid inspectable state and the chevron must not be disabled.
-- Clicking the disclosure must make useful queue content visible whenever VelocityCopy has accepted work, including the initial planning phase before a `LiveCopyPlan` exists. Changing the chevron alone is not a successful expansion.
+- The disclosure is always available, including while VelocityCopy is idle.
+- Clicking the disclosure must make useful queue content visible whenever VelocityCopy has accepted work.
 - During initial planning the list is read-only and represents accepted top-level sources; editing/reordering becomes available only after the live plan exists.
-- The current collapsed HWND height is a layout constraint, not a measurement source. Measure `QueuePanel` independently with unconstrained vertical space, use `DesiredSize`, then resize the HWND.
-- Keep the expanded height bounded (roughly 176–340 epx) so short queues do not create empty space and long queues scroll instead of growing without limit.
-- Queue rows use a compact two-line hierarchy: filename first, source location secondary. Avoid card-per-row decoration.
+- Measure `QueuePanel` independently with unconstrained vertical space, use `DesiredSize`, then resize the HWND.
+- Keep the expanded height bounded (roughly 176–340 epx).
+- Queue rows use a compact two-line hierarchy: filename first, source location secondary.
 - Virtualized list, drag/drop reordering, keyboard selection, move up/down/remove controls.
 - Removing a queue entry never deletes the source file.
 - No card background or second rounded shell around the queue.
@@ -76,22 +78,23 @@ The queue is collapsed by default and expands in the same HWND.
 
 The compact copier surface must never be resized merely to make a modal decision UI fit.
 
-- File-conflict decisions (`Replace`, `Skip`, `Cancel`) use a separate native top-level dialog owned by the VelocityCopy HWND. They must not be a XAML `ContentDialog` embedded inside the 72 epx copier surface.
-- Modal choice windows may be centered/owned by VelocityCopy, but they remain separate windows so their content cannot be clipped by the copier's current size.
-- Lightweight command flyouts such as the options menu may use normal popup/flyout presentation because they are not laid out inside the copier surface.
-- About is a themed WinUI flyout launched from Options, not a legacy TaskDialog or MessageBox during the normal path. It inherits the app theme/accent, shows the VelocityCopy logo, structured product/version/publisher/license information, and a normal GitHub link.
-- The About version resolver reads the running executable `VERSIONINFO` first and falls back to the compile-time `Version.h` identity if Windows version APIs cannot read the resource. The UI must never display `Unknown` for a build whose compile-time version is known.
+- File-conflict decisions (`Replace`, `Skip`, `Cancel`) use a separate native top-level dialog owned by the VelocityCopy HWND.
+- Lightweight command flyouts such as the options menu may use normal popup/flyout presentation.
+- About is a themed WinUI flyout launched from Options, not a legacy TaskDialog or MessageBox during the normal path.
+- The About version resolver reads the running executable `VERSIONINFO` first and falls back to the compile-time `Version.h` identity.
 
-## Window movement
+## Window movement and chrome
 
-The compact copier must remain movable with normal pointer dragging. Keep a practical custom title-bar drag region across the top of the copier surface while leaving interactive controls usable.
+The compact copier must remain movable with normal pointer dragging. `TitleBarDragRegion` remains the explicit drag surface and is registered with `SetTitleBar`.
 
-Because the window extends XAML content into the Windows title bar, the compact content row must reserve the current system caption-button inset instead of assuming the entire 460 epx width is available. Use `AppWindowTitleBar.RightInset`, convert its physical-pixel width to XAML effective pixels for the current HWND DPI, and add it to the normal design-token right padding. Reapply when the AppWindow reports a geometry/presenter change; SDKs that expose a dedicated title-bar-change flag may use it, while Windows App SDK 2.4 must conservatively reapply on the general `Changed` event because `AppWindowChangedEventArgs` there does not expose `DidTitleBarChange()`. The transport/options/queue controls must never render underneath Minimize/Maximize/Close. User pointer resizing is disabled; VelocityCopy may still resize its own HWND programmatically between collapsed and expanded queue states.
+VelocityCopy uses an `OverlappedPresenter` with native border retained and the system title bar removed via `SetBorderAndTitleBar(true, false)`. Minimize, Maximize and pointer resizing are disabled. Because there is no system caption-button cluster, the UI must not contain `RightInset` compensation, `ApplyTitleBarInset`, or AppWindow title-bar-change bookkeeping. Programmatic resizing between collapsed and expanded queue states remains allowed.
+
+If a future Windows App SDK version breaks dragging with the custom title bar while the system title bar is hidden, fix dragging with the supported non-client caption-region API; do not restore permanent caption buttons merely to regain drag behavior.
 
 ## Fluent/system integration
 
 - Use Mica as the base window material when available.
-- Use native Windows 11 outer rounding only.
+- Use native Windows 11 outer rounding/border.
 - Use Segoe Fluent Icons for compact actions.
 - Use system theme/accent resources; do not hard-code decorative colors.
 - Preserve accessible names, tooltips and focus behavior.

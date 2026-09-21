@@ -84,7 +84,6 @@ void MainWindow::PersistRecoveryQueueNoThrow() noexcept {
             L"VelocityCopy.Recovery.vcq";
         (void)velocitycopy::QueueArchiveStore{}.save(path, archive);
     } catch (...) {
-        // Shutdown must never be blocked by recovery persistence failure.
     }
 }
 
@@ -93,49 +92,53 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
         queue_options_button_ = OptionsButton();
 
         MenuFlyout menu;
-        pause_menu_item_ = MenuFlyoutItem{};
+        skip_menu_item_ = MenuFlyoutItem{};
         stop_menu_item_ = MenuFlyoutItem{};
-        cancel_menu_item_ = MenuFlyoutItem{};
         save_queue_menu_item_ = MenuFlyoutItem{};
         load_queue_menu_item_ = MenuFlyoutItem{};
         about_menu_item_ = MenuFlyoutItem{};
+        MenuFlyoutItem hide_to_tray_menu_item;
 
         try {
             Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
             const auto options_label = loader.GetString(L"ActionQueueOptions");
-            pause_menu_item_.Text(loader.GetString(L"ActionPause"));
+            skip_menu_item_.Text(loader.GetString(L"ActionSkip"));
             stop_menu_item_.Text(loader.GetString(L"ActionStop"));
-            cancel_menu_item_.Text(loader.GetString(L"ActionCancel"));
             save_queue_menu_item_.Text(loader.GetString(L"ActionSaveQueue"));
             load_queue_menu_item_.Text(loader.GetString(L"ActionLoadQueue"));
             about_menu_item_.Text(loader.GetString(L"ActionAbout"));
+            hide_to_tray_menu_item.Text(loader.GetString(L"ActionHideToTray"));
             ToolTipService::SetToolTip(queue_options_button_, box_value(options_label));
             Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(queue_options_button_, options_label);
         } catch (...) {
-            pause_menu_item_.Text(L"Pause");
+            skip_menu_item_.Text(L"Skip");
             stop_menu_item_.Text(L"Stop");
-            cancel_menu_item_.Text(L"Cancel");
             save_queue_menu_item_.Text(L"Save queue");
             load_queue_menu_item_.Text(L"Load queue");
             about_menu_item_.Text(L"About VelocityCopy");
-            ToolTipService::SetToolTip(queue_options_button_, box_value(L"Queue options"));
-            Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(queue_options_button_, L"Queue options");
+            hide_to_tray_menu_item.Text(L"Hide to tray");
+            ToolTipService::SetToolTip(queue_options_button_, box_value(L"Options"));
+            Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(queue_options_button_, L"Options");
         }
 
-        pause_menu_item_.Click({this, &MainWindow::OnMenuPauseClick});
-        stop_menu_item_.Click({this, &MainWindow::OnMenuStopClick});
-        cancel_menu_item_.Click({this, &MainWindow::OnMenuCancelClick});
+        skip_menu_item_.Click({this, &MainWindow::OnSkipClick});
+        stop_menu_item_.Click({this, &MainWindow::OnStopClick});
         save_queue_menu_item_.Click({this, &MainWindow::OnSaveQueueClick});
         load_queue_menu_item_.Click({this, &MainWindow::OnLoadQueueClick});
         about_menu_item_.Click({this, &MainWindow::OnAboutClick});
-        menu.Items().Append(pause_menu_item_);
+        auto weak = get_weak();
+        hide_to_tray_menu_item.Click([weak](IInspectable const&, RoutedEventArgs const&) {
+            if (auto self = weak.get()) self->HideToTray();
+        });
+
+        menu.Items().Append(skip_menu_item_);
         menu.Items().Append(stop_menu_item_);
-        menu.Items().Append(cancel_menu_item_);
         menu.Items().Append(MenuFlyoutSeparator{});
         menu.Items().Append(save_queue_menu_item_);
         menu.Items().Append(load_queue_menu_item_);
         menu.Items().Append(MenuFlyoutSeparator{});
         menu.Items().Append(about_menu_item_);
+        menu.Items().Append(hide_to_tray_menu_item);
         queue_options_button_.Flyout(menu);
 
         try {
@@ -149,8 +152,6 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
         RefreshQueueCommandState();
         RefreshExecutionMenuState();
     } catch (...) {
-        // Persistence commands are auxiliary UI. Failure to construct the menu
-        // must not prevent the copy engine or main window from starting.
     }
 }
 
@@ -191,17 +192,12 @@ void MainWindow::OnMenuCancelClick(IInspectable const& sender, RoutedEventArgs c
 }
 
 void MainWindow::RefreshExecutionMenuState() {
-    if (!pause_menu_item_ || !stop_menu_item_ || !cancel_menu_item_) return;
+    if (!skip_menu_item_ || !stop_menu_item_) return;
     const bool active = execution_control_ != nullptr;
-    pause_menu_item_.IsEnabled((active && !stop_requested_ && !conflict_session_) || stopped_session_);
+    skip_menu_item_.IsEnabled(
+        active && current_file_id_ != 0 && current_file_skippable_ &&
+        !paused_ && !stopped_session_ && !conflict_session_ && !stop_requested_);
     stop_menu_item_.IsEnabled(active && !stopped_session_ && !conflict_session_ && !stop_requested_);
-    cancel_menu_item_.IsEnabled(active || stopped_session_ || conflict_session_);
-    try {
-        Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-        pause_menu_item_.Text(loader.GetString((paused_ || stopped_session_) ? L"ActionResume" : L"ActionPause"));
-    } catch (...) {
-        pause_menu_item_.Text((paused_ || stopped_session_) ? L"Resume" : L"Pause");
-    }
 }
 
 void MainWindow::OnSaveQueueClick(IInspectable const&, RoutedEventArgs const&) {
