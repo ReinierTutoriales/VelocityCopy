@@ -4,6 +4,18 @@
 
 namespace velocitycopy {
 
+bool can_skip_current_file(
+    const bool has_execution,
+    const std::uint64_t current_file_id,
+    const bool current_file_skippable,
+    const bool paused,
+    const bool stopped,
+    const bool conflict,
+    const bool stop_requested) noexcept {
+    return has_execution && current_file_id != 0 && current_file_skippable &&
+        !paused && !stopped && !conflict && !stop_requested;
+}
+
 ProgressPresenter::ProgressPresenter(const std::uint64_t emit_interval_ms) noexcept
     : emit_interval_ms_(std::max<std::uint64_t>(16, emit_interval_ms)) {}
 

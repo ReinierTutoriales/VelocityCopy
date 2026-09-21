@@ -201,7 +201,6 @@ private:
     bool conflict_session_{};
     bool stop_requested_{};
     bool resume_requested_{};
-    bool initial_size_applied_{};
     bool current_file_skippable_{};
     bool recovery_prompt_checked_{};
     bool recovery_prompt_active_{};

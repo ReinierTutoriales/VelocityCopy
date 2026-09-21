@@ -4,6 +4,15 @@
 #include <cmath>
 
 int main() {
+    assert(velocitycopy::can_skip_current_file(true, 42, true, false, false, false, false));
+    assert(!velocitycopy::can_skip_current_file(false, 42, true, false, false, false, false));
+    assert(!velocitycopy::can_skip_current_file(true, 0, true, false, false, false, false));
+    assert(!velocitycopy::can_skip_current_file(true, 42, false, false, false, false, false));
+    assert(!velocitycopy::can_skip_current_file(true, 42, true, true, false, false, false));
+    assert(!velocitycopy::can_skip_current_file(true, 42, true, false, true, false, false));
+    assert(!velocitycopy::can_skip_current_file(true, 42, true, false, false, true, false));
+    assert(!velocitycopy::can_skip_current_file(true, 42, true, false, false, false, true));
+
     velocitycopy::ProgressPresenter presenter{100};
 
     velocitycopy::JobProgress progress{};

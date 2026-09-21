@@ -37,7 +37,6 @@ MainWindow::MainWindow() {
     InitializeComponent();
     dispatcher_ = Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
     ConfigureQueuePersistenceMenu();
-
     try {
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
         const auto pause = loader.GetString(L"ActionPause");
@@ -140,7 +139,6 @@ void MainWindow::ResizeWindow(const int height_epx) {
             const int height = MulDiv(height_epx, static_cast<int>(dpi), 96);
             SetWindowPos(hwnd, nullptr, 0, 0, width, height,
                          SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
-            initial_size_applied_ = true;
             ApplyTitleBarInset();
         }
     } catch (...) {
@@ -283,11 +281,20 @@ hstring MainWindow::FormatFailureReason(const std::int32_t native_code) {
 }
 
 hstring MainWindow::FormatSpeed(const double bytes_per_second) {
-    if (bytes_per_second <= 0.0) {
+    if (bytes_per_second <= 0.0 || !std::isfinite(bytes_per_second)) {
         return hstring(L"—");
     }
-    const double mib = bytes_per_second / (1024.0 * 1024.0);
-    return hstring(std::format(L"{:.1f} MiB/s", mib));
+
+    constexpr double kib = 1024.0;
+    constexpr double mib = 1024.0 * 1024.0;
+    constexpr double gib = 1024.0 * 1024.0 * 1024.0;
+    if (bytes_per_second >= gib) {
+        return hstring(std::format(L"{:.2f} GiB/s", bytes_per_second / gib));
+    }
+    if (bytes_per_second >= mib) {
+        return hstring(std::format(L"{:.1f} MiB/s", bytes_per_second / mib));
+    }
+    return hstring(std::format(L"{:.0f} KiB/s", bytes_per_second / kib));
 }
 
 hstring MainWindow::FormatEta(const double seconds) {
@@ -295,16 +302,15 @@ hstring MainWindow::FormatEta(const double seconds) {
         return hstring(L"—");
     }
     const auto rounded = static_cast<std::uint64_t>(seconds + 0.5);
-    const auto hours = rounded / 3600;
-    const auto minutes = (rounded % 3600) / 60;
+    const auto minutes = rounded / 60;
     const auto remaining = rounded % 60;
-    if (hours != 0) {
-        return hstring(std::format(L"{} h {} m", hours, minutes));
+    if (minutes >= 60) {
+        return hstring(std::format(L"{} h {:02} m", minutes / 60, minutes % 60));
     }
-    if (minutes != 0) {
-        return hstring(std::format(L"{} m {} s", minutes, remaining));
+    if (minutes == 0) {
+        return hstring(std::format(L"{} s", remaining));
     }
-    return hstring(std::format(L"{} s", remaining));
+    return hstring(std::format(L"{} m {} s", minutes, remaining));
 }
 
 } // namespace winrt::VelocityCopyUI::implementation

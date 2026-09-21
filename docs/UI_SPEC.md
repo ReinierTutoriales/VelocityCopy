@@ -7,24 +7,30 @@ VelocityCopy is a compact Windows 11 copy/move utility. The window itself is the
 - Default collapsed size: **380 × 72 epx**
 - Expanded queue target: **~300 epx**, bounded by measured queue content
 - Compact width target: **380 epx**
-- Minimum practical width: **360 epx**
 - Outer content gutter: **8 epx**
 - Related-control spacing: **8 epx**
 - Tight inline spacing: **4 epx**
 
-Spacing tiers are contractual, not advisory. The compact transfer surface uses the shared `DesignTokens.xaml` rhythm instead of ad-hoc values.
+Only resources consumed by the live XAML belong in `DesignTokens.xaml`; do not mirror runtime constants there merely for documentation.
 
 ## Collapsed composition
 
 The collapsed window is one transfer surface. Do not place a second copier/card/capsule inside the HWND.
 
 Composition:
-1. top row: VelocityCopy brand mark + current item only, leaving the filename a clean uninterrupted line
-2. bottom row: telemetry aligned left and a centered primary action cluster with Pause/Resume, Cancel, Options and queue disclosure
-3. progress expressed by the surface fill itself
-4. native Windows caption buttons remain visible at the top-right
+1. top row: VelocityCopy brand mark and current item name
+2. bottom row: telemetry on the left and actions on the right
+3. primary actions: Pause/Resume, Cancel, Options and queue disclosure
+4. progress expressed by the surface fill itself
+5. native Windows caption buttons remain visible at the top-right
 
-Skip and Stop live in Options rather than consuming permanent width in the primary row. The primary action cluster is centered independently of the system caption area so the controls do not become a long right-heavy strip. Telemetry must not share the caption-constrained top row with the filename.
+Skip and Stop live in Options rather than consuming permanent width. Telemetry and actions occupy separate grid columns so long speed/ETA strings cannot overlap Pause/Cancel. The action cluster is right-aligned, not artificially centered across the same row as telemetry.
+
+Telemetry formatting is compact and stable:
+- use KiB/s below 1 MiB/s, MiB/s through the normal range, and GiB/s at or above 1 GiB/s;
+- represent multi-hour ETA as `H h MM m` instead of hundreds of minutes;
+- reserve minimum width for speed and percentage fields to reduce visual movement while values change;
+- avoid rewriting XAML text properties when the displayed value has not changed.
 
 ## Integrated progress surface
 
@@ -78,7 +84,7 @@ The compact copier surface must never be resized merely to make a modal decision
 - Lightweight command flyouts such as the options menu may use normal popup/flyout presentation.
 - About is a themed WinUI flyout launched from Options, not a legacy TaskDialog or MessageBox during the normal path.
 - The About version resolver reads the running executable `VERSIONINFO` first and falls back to the compile-time `Version.h` identity. The UI must never display `Unknown` for a build whose compile-time version is known.
-- Menu commands that mutate transfer state must immediately refresh their own enabled/disabled state; `Skip` must disable itself after issuing a skip for the current file.
+- Skip and Stop are menu commands, not hidden XAML buttons. Their enabled state is refreshed when Options opens and after transfer-state mutations.
 
 ## Window movement and caption chrome
 
@@ -86,7 +92,7 @@ The compact copier must remain movable with normal pointer dragging. `TitleBarDr
 
 VelocityCopy keeps the native Windows caption cluster visible: Minimize, Maximize and Close remain in the top-right. Maximize may remain disabled because the copier owns its compact/expanded size, but the native three-button chrome remains visually consistent with Windows 11.
 
-Only the **top caption-content row** reserves `AppWindowTitleBar.RightInset`. The centered bottom action row must not inherit that inset; this avoids wasting the same caption width twice and keeps Pause/Cancel/Options/Queue centered. The inset is converted from physical pixels to effective pixels for the current HWND DPI and is reapplied on `AppWindow.Changed`. User pointer resizing remains disabled; VelocityCopy may resize its own HWND programmatically between collapsed and expanded queue states.
+Only the **top caption-content row** reserves `AppWindowTitleBar.RightInset`. The bottom telemetry/action row must not inherit that inset. The inset is converted from physical pixels to effective pixels for the current HWND DPI and is reapplied on `AppWindow.Changed`. User pointer resizing remains disabled; VelocityCopy may resize its own HWND programmatically between collapsed and expanded queue states.
 
 ## Fluent/system integration
 
@@ -104,5 +110,6 @@ Only the **top caption-content row** reserves `AppWindowTitleBar.RightInset`. Th
 - Waiting for append planning must be bounded; a blocked filesystem enumeration must not keep the foreground transfer/session thread waiting forever.
 - Avoid per-file progress controls and per-file animation.
 - Do not update UI on every I/O completion.
+- Do not assign the same telemetry/name text repeatedly; compare against the currently displayed value before mutating XAML properties.
 - Keep core transfer state independent of concrete WinUI controls.
 - Reuse queue visuals where possible and preserve selection/focus by stable file IDs during live refresh.

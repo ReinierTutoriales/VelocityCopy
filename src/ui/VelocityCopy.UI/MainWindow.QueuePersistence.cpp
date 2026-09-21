@@ -195,9 +195,9 @@ void MainWindow::OnMenuStopClick(IInspectable const& sender, RoutedEventArgs con
 void MainWindow::RefreshExecutionMenuState() {
     if (!skip_menu_item_ || !stop_menu_item_) return;
     const bool active = execution_control_ != nullptr;
-    skip_menu_item_.IsEnabled(
-        active && current_file_id_ != 0 && current_file_skippable_ &&
-        !paused_ && !stopped_session_ && !conflict_session_ && !stop_requested_);
+    skip_menu_item_.IsEnabled(velocitycopy::can_skip_current_file(
+        active, current_file_id_, current_file_skippable_,
+        paused_, stopped_session_, conflict_session_, stop_requested_));
     stop_menu_item_.IsEnabled(active && !stopped_session_ && !conflict_session_ && !stop_requested_);
 }
 
