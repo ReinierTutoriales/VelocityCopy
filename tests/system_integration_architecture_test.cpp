@@ -117,7 +117,7 @@ int main() {
         !contains(installer_exe, "IsARM64") ||
         !contains(installer_exe, "VelocityCopy.WinUI.exe") ||
         !contains(installer_exe, "MUI_FINISHPAGE_RUN_FUNCTION") ||
-        contains(installer_exe, "MUI_FINISHPAGE_RUN \"$INSTDIR") ||
+        contains(installer_exe, "!define MUI_FINISHPAGE_RUN \"$INSTDIR") ||
         !contains(installer_exe, "explorer.exe") ||
         !contains(installer_exe, "WriteUninstaller") ||
         !contains(installer_exe, "CreateShortcut") ||
