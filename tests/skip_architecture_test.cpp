@@ -87,7 +87,7 @@ int main() {
         !contains(execution, "can_skip_current_file(") ||
         !contains(execution, "request_skip(current_file_id_)") ||
         !contains(menu, "skip_menu_item_.Click({this, &MainWindow::OnMenuSkipClick})") ||
-        !contains(window, "menu.Opening") || !contains(window, "RefreshExecutionMenuState()") ||
+        !contains(menu, "menu.Opening") || !contains(menu, "RefreshExecutionMenuState()") ||
         !contains(execution, "Localization failure must never mutate the execution state")) {
         return fail(6, "WinUI menu-driven safe Skip contract incomplete");
     }
