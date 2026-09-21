@@ -22,7 +22,7 @@ Current automated baseline (`main`):
 - self-contained unpackaged WinUI for x64 and ARM64
 - `VelocityCopy-Setup-x64.exe` and `VelocityCopy-Setup-ARM64.exe`
 
-Download the latest installers from [Actions → Windows Package](https://github.com/ReinierTutoriales/VelocityCopy/actions/workflows/package.yml). Use the setup that matches the PC: x64 setup refuses ARM64 Windows, and the ARM64 setup refuses x64 Windows.
+Download the installers from [Releases](https://github.com/ReinierTutoriales/VelocityCopy/releases). Use the setup that matches the PC: x64 setup refuses ARM64 Windows, and the ARM64 setup refuses x64 Windows.
 
 Open product gaps before calling it production:
 
