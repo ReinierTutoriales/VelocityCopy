@@ -35,10 +35,11 @@ int main() {
     const auto xaml = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml");
     const auto window_h = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.h");
     const auto execution = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Execution.cpp");
+    const auto menu = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.QueuePersistence.cpp");
 
     if (control_h.empty() || control_cpp.empty() || executor_h.empty() || executor_cpp.empty() ||
         live_h.empty() || live_cpp.empty() || snapshot_h.empty() || snapshot_cpp.empty() ||
-        xaml.empty() || window_h.empty() || execution.empty()) {
+        xaml.empty() || window_h.empty() || execution.empty() || menu.empty()) {
         return fail(1, "required production source missing");
     }
 
@@ -77,8 +78,8 @@ int main() {
         return fail(5, "Skip identity/safety must reach UI snapshots");
     }
 
-    if (!contains(xaml, "x:Name=\"SkipButton\"") ||
-        !contains(xaml, "Click=\"OnSkipClick\"") ||
+    if (!contains(menu, "skip_menu_item_.Click({this, &MainWindow::OnMenuSkipClick})") ||
+        !contains(menu, "menu.Opening(") ||
         !contains(window_h, "current_file_skippable_") ||
         !contains(execution, "snapshot.current_file_skippable") ||
         !contains(execution, "request_skip(current_file_id_)") ||
