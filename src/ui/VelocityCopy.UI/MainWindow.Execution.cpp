@@ -193,6 +193,7 @@ velocitycopy::JobResult MainWindow::RunLivePlanSession(
 }
 
 void MainWindow::StartCopy(velocitycopy::CopyJob job) {
+    ResetTransferSurface();
     active_destination_ = job.destination;
     active_operation_ = job.operation;
     stopped_session_ = false;
