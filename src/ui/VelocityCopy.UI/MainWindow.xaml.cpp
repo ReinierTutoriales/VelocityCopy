@@ -38,16 +38,6 @@ MainWindow::MainWindow() {
     dispatcher_ = Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
     ConfigureQueuePersistenceMenu();
     try {
-        if (auto menu = queue_options_button_.Flyout().try_as<MenuFlyout>()) {
-            auto weak = get_weak();
-            menu.Opening([weak](auto&&, auto&&) {
-                if (auto self = weak.get()) self->RefreshExecutionMenuState();
-            });
-        }
-    } catch (...) {
-    }
-
-    try {
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
         const auto pause = loader.GetString(L"ActionPause");
         const auto cancel = loader.GetString(L"ActionCancel");
