@@ -373,6 +373,9 @@ void MainWindow::OnSkipClick(IInspectable const&, RoutedEventArgs const&) {
     execution_control_->request_skip(current_file_id_);
     current_file_skippable_ = false;
     SkipButton().IsEnabled(false);
+    // Keep every command surface synchronized even when Skip is invoked from
+    // the hidden XAML accessor or another caller rather than the Options menu.
+    RefreshExecutionMenuState();
 }
 
 void MainWindow::OnStopClick(IInspectable const&, RoutedEventArgs const&) {
