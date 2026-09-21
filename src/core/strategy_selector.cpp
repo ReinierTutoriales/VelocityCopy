@@ -22,9 +22,16 @@ StrategyRecommendation StrategySelector::choose(
         source.seek_penalty_available && destination.seek_penalty_available &&
         !source.incurs_seek_penalty && !destination.incurs_seek_penalty;
 
+    // Production 1.0 keeps a single active CopyFile2 operation per session.
+    // Storage topology can be unknown on removable, virtual and some filtered
+    // volumes, and allowing several simultaneous copies in that state can turn
+    // ordinary device latency into long apparent stalls. Parallel transfer is
+    // an optimization, not a correctness requirement; re-enable it only with
+    // measured evidence and a proven-disjoint storage topology contract.
+    recommendation.suggested_queue_depth = 1;
+
     if (network) {
         recommendation.copy_flags = COPY_FILE_REQUEST_COMPRESSED_TRAFFIC;
-        recommendation.suggested_queue_depth = 1;
         return recommendation;
     }
 
@@ -34,7 +41,6 @@ StrategyRecommendation StrategySelector::choose(
     // second strategy.
     if (very_large_file && local_fixed) {
         recommendation.suggested_buffer_bytes = 4u * 1024u * 1024u;
-        recommendation.suggested_queue_depth = 1;
         return recommendation;
     }
 
@@ -42,7 +48,6 @@ StrategyRecommendation StrategySelector::choose(
         recommendation.suggested_buffer_bytes = many_small_files
             ? 512u * 1024u
             : 2u * 1024u * 1024u;
-        recommendation.suggested_queue_depth = many_small_files ? 2u : 4u;
     }
 
     return recommendation;
