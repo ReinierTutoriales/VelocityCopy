@@ -148,7 +148,7 @@ jobs:
           & $env:NSIS_MAKENSIS "/DPAYLOAD_DIR=$payload" "/DOUTPUT_FILE=$output" "/DDISPLAY_VERSION=$env:VELOCITYCOPY_VERSION" "/DPAYLOAD_ARCH=${{ matrix.platform }}" tools/VelocityCopy-Test-Installer.nsi
           if ($LASTEXITCODE -ne 0 -or -not (Test-Path $output)) { throw "Classic ${{ matrix.arch }} installer build failed" }
 
-      - name: Smoke install and launch classic x64 installer
+      - name: Smoke install classic x64 installer
         if: ${{ matrix.smoke }}
         shell: pwsh
         run: |
