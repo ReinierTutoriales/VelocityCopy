@@ -133,6 +133,12 @@ Do not reintroduce unconditional `COPY_FILE_COPY_SYMLINK`: source reparse points
 
 Append planning is part of the same cancellation contract as the primary planner. `JobPlanningWorker::cancel_pending()` must cancel the currently enumerating request as well as queued requests, and explicit cancellation must still release caller reservations through completion callbacks. A cancelled planner is a control transition, not an error banner.
 
+Append-planner completion waits must also be bounded. Filesystem enumeration can block inside an individual OS call even after a stop token has been requested, so the copy/session thread must not wait forever for `planning_count` to reach zero. After the bounded wait expires, close that append gate and discard any eventual late result for that gate instead of freezing transfer finalization. This guard does not make a blocked filesystem syscall interruptible; it prevents that blocked planner from owning the foreground transfer lifetime indefinitely.
+
+Low-level topology probes (`CreateFile` on a volume plus `DeviceIoControl` for device number, disk extents and seek penalty) belong only on local fixed disks. Removable, network, optical and other non-fixed sources use conservative strategy defaults and must not perform those synchronous hardware probes on the transfer path, because sleeping/disconnected media can block them for an unbounded interval.
+
+A no-progress interval inside the synchronous `CopyFile2` call is a separate failure class from planner waiting. The append-gate timeout and storage-profiler guard do not prove that kernel/filesystem I/O itself cannot stall. If a real-Windows build still stops advancing bytes while the current file remains active, capture that case separately; do not misdiagnose it as queue/UI deadlock.
+
 Large live queues must not remove from the front of a contiguous `std::vector`. The production pending queue uses constant-time front removal semantics; tests must exercise a large synthetic drain so an accidental O(n^2) front-erasure implementation is caught before release.
 
 ## Version identity rule
