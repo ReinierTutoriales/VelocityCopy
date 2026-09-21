@@ -29,6 +29,17 @@ bool accepts_active_transfer_drop(
     return (args.AllowedOperations() & DataPackageOperation::Copy) == DataPackageOperation::Copy;
 }
 
+template <typename T>
+bool title_bar_changed(const T& args) noexcept {
+    if constexpr (requires { args.DidTitleBarChange(); }) {
+        return args.DidTitleBarChange();
+    }
+    // Windows App SDK 2.4 does not expose DidTitleBarChange on
+    // AppWindowChangedEventArgs. Reapplying the inset for any AppWindow change
+    // is cheap and keeps DPI/title-bar geometry correct on supported SDKs.
+    return true;
+}
+
 } // namespace
 
 MainWindow::MainWindow() {
@@ -130,7 +141,7 @@ void MainWindow::ApplyTitleBarInset() noexcept {
 void MainWindow::OnAppWindowChanged(
     Microsoft::UI::Windowing::AppWindow const&,
     Microsoft::UI::Windowing::AppWindowChangedEventArgs const& args) {
-    if (args.DidTitleBarChange()) {
+    if (title_bar_changed(args)) {
         ApplyTitleBarInset();
     }
 }
