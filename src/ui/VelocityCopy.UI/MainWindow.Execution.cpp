@@ -13,8 +13,6 @@ void MainWindow::SetExecutionButtonsPlanning() {
     EtaText().Text(L"—");
     PauseIcon().Glyph(L"\xE769");
     PauseButton().IsEnabled(false);
-    SkipButton().IsEnabled(false);
-    StopButton().IsEnabled(false);
     CancelButton().IsEnabled(true);
     current_file_id_ = 0;
     current_file_skippable_ = false;
@@ -25,8 +23,6 @@ void MainWindow::SetExecutionButtonsPlanning() {
 void MainWindow::SetExecutionButtonsRunning() {
     SetEfficiencyMode(false);
     PauseButton().IsEnabled(true);
-    SkipButton().IsEnabled(false);
-    StopButton().IsEnabled(true);
     CancelButton().IsEnabled(true);
     current_file_id_ = 0;
     current_file_skippable_ = false;
@@ -43,8 +39,6 @@ void MainWindow::SetExecutionButtonsRunning() {
 
 void MainWindow::SetExecutionButtonsIdle() {
     PauseButton().IsEnabled(false);
-    SkipButton().IsEnabled(false);
-    StopButton().IsEnabled(false);
     CancelButton().IsEnabled(false);
     QueueButton().IsEnabled(true);
     current_file_id_ = 0;
@@ -64,8 +58,6 @@ void MainWindow::SetExecutionButtonsIdle() {
 
 void MainWindow::SetExecutionButtonsStopped() {
     PauseButton().IsEnabled(true);
-    SkipButton().IsEnabled(false);
-    StopButton().IsEnabled(false);
     CancelButton().IsEnabled(true);
     current_file_id_ = 0;
     current_file_skippable_ = false;
@@ -86,8 +78,6 @@ void MainWindow::SetExecutionButtonsConflict() {
     EtaText().Text(L"—");
     PauseIcon().Glyph(L"\xE769");
     PauseButton().IsEnabled(false);
-    SkipButton().IsEnabled(false);
-    StopButton().IsEnabled(false);
     CancelButton().IsEnabled(true);
     current_file_id_ = 0;
     current_file_skippable_ = false;
@@ -347,11 +337,9 @@ void MainWindow::OnPauseClick(IInspectable const&, RoutedEventArgs const&) {
     if (paused_) {
         execution_control_->resume();
         paused_ = false;
-        SkipButton().IsEnabled(current_file_id_ != 0 && current_file_skippable_ && !stop_requested_);
     } else {
         execution_control_->request_pause();
         paused_ = true;
-        SkipButton().IsEnabled(false);
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
     }
@@ -368,11 +356,16 @@ void MainWindow::OnPauseClick(IInspectable const&, RoutedEventArgs const&) {
 }
 
 void MainWindow::OnSkipClick(IInspectable const&, RoutedEventArgs const&) {
-    if (!execution_control_ || paused_ || stopped_session_ || conflict_session_ || stop_requested_ ||
-        current_file_id_ == 0 || !current_file_skippable_) return;
+    if (!velocitycopy::can_skip_current_file(
+            execution_control_ != nullptr,
+            current_file_id_,
+            current_file_skippable_,
+            paused_,
+            stopped_session_,
+            conflict_session_,
+            stop_requested_)) return;
     execution_control_->request_skip(current_file_id_);
     current_file_skippable_ = false;
-    SkipButton().IsEnabled(false);
 }
 
 void MainWindow::OnStopClick(IInspectable const&, RoutedEventArgs const&) {
@@ -380,10 +373,8 @@ void MainWindow::OnStopClick(IInspectable const&, RoutedEventArgs const&) {
     resume_requested_ = false;
     stop_requested_ = true;
     current_file_skippable_ = false;
-    SkipButton().IsEnabled(false);
     execution_control_->request_stop();
     PauseButton().IsEnabled(false);
-    StopButton().IsEnabled(false);
     SpeedText().Text(L"—");
     EtaText().Text(L"—");
     RefreshExecutionMenuState();
@@ -401,7 +392,6 @@ void MainWindow::CancelCurrentSession() {
     conflict_replace_file_id_ = 0;
     current_file_id_ = 0;
     current_file_skippable_ = false;
-    SkipButton().IsEnabled(false);
     deferred_same_destination_jobs_.clear();
     deferred_interrupted_jobs_.clear();
     queued_sessions_.clear();
@@ -447,11 +437,17 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
     SetProgressFraction(fraction);
     current_file_id_ = snapshot.current_file_id;
     current_file_skippable_ = snapshot.current_file_skippable;
-    SkipButton().IsEnabled(execution_control_ && current_file_id_ != 0 && current_file_skippable_ &&
-        !paused_ && !stopped_session_ && !conflict_session_ && !stop_requested_);
-    if (!snapshot.current_source.empty()) CurrentItemText().Text(hstring(snapshot.current_source.filename().wstring()));
-    SpeedText().Text(FormatSpeed(snapshot.bytes_per_second));
-    EtaText().Text(FormatEta(snapshot.eta_seconds));
+
+    if (!snapshot.current_source.empty()) {
+        const hstring filename(snapshot.current_source.filename().wstring());
+        if (CurrentItemText().Text() != filename) CurrentItemText().Text(filename);
+    }
+
+    const auto speed = FormatSpeed(snapshot.bytes_per_second);
+    if (SpeedText().Text() != speed) SpeedText().Text(speed);
+    const auto eta = FormatEta(snapshot.eta_seconds);
+    if (EtaText().Text() != eta) EtaText().Text(eta);
+
     if (QueuePanel().Visibility() == Visibility::Visible && snapshot.completed_files != last_queue_completed_files_) {
         last_queue_completed_files_ = snapshot.completed_files;
         RefreshQueue();
@@ -470,7 +466,6 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     execution_control_.reset();
     current_file_id_ = 0;
     current_file_skippable_ = false;
-    SkipButton().IsEnabled(false);
     paused_ = false;
     PauseIcon().Glyph(L"\xE769");
 
@@ -585,21 +580,6 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
             CurrentItemText().Text(loader.GetString(L"StatusFailed"));
         } catch (...) {
         }
-        // result.native_code carries the actual HRESULT/Win32 error the copy
-        // engine recorded (see ConcurrentResultState::record_error in
-        // job_executor.cpp) but it was being discarded here: ShowError() opened
-        // an InfoBar with no Message at all. Decode it so a failed transfer
-        // (including an Explorer Cut/Move that failed mid-copy) tells the
-        // person why, not just that it failed.
-        //
-        // record_error now also captures which file the FIRST failure
-        // happened on for any error, not only an actual destination
-        // conflict (conflict_file_id/conflict_source stay repurposed as
-        // "the failing file", destination_conflict itself is unchanged and
-        // still gates the dedicated conflict dialog). A decoded HRESULT
-        // with no path was nearly useless for a queue of more than one
-        // file: "file not found" doesn't say which of possibly hundreds of
-        // queued files vanished.
         auto reason = FormatFailureReason(result.native_code);
         if (result.conflict_file_id != 0 && !result.conflict_source.empty()) {
             reason = reason.empty()
@@ -630,13 +610,6 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
                     : L"StatusCompleted"));
         } catch (...) {
         }
-        // Nothing hid the window on a clean finish: it shrank to the 72px
-        // compact bar (ResizeWindow above) but stayed on screen showing
-        // "Copia completada" until the person closed it by hand — the tray
-        // icon it left behind made this look like the app "didn't close".
-        // Only the success path with an empty queue hides automatically;
-        // a failure leaves ErrorBar/CurrentItemText visible so the reason
-        // from ShowError() isn't hidden before the person reads it.
         HideToTray();
         return;
     }
