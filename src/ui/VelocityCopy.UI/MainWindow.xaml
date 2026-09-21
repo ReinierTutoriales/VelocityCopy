@@ -119,6 +119,28 @@
                                           FontSize="12" />
                             </Button>
 
+                            <Button x:Name="SkipButton"
+                                    Click="OnSkipClick"
+                                    IsEnabled="False"
+                                    Width="24"
+                                    Height="24"
+                                    Padding="0"
+                                    BorderThickness="0"
+                                    Background="Transparent">
+                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE72A;" FontSize="11.5" />
+                            </Button>
+
+                            <Button x:Name="StopButton"
+                                    Click="OnStopClick"
+                                    IsEnabled="False"
+                                    Width="24"
+                                    Height="24"
+                                    Padding="0"
+                                    BorderThickness="0"
+                                    Background="Transparent">
+                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE71A;" FontSize="10.5" />
+                            </Button>
+
                             <Button x:Name="CancelButton"
                                     Click="OnCancelClick"
                                     IsEnabled="False"
