@@ -580,7 +580,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
             CurrentItemText().Text(loader.GetString(L"StatusFailed"));
         } catch (...) {
         }
-                // result.native_code carries the actual HRESULT/Win32 error the copy
+        // result.native_code carries the actual HRESULT/Win32 error the copy
         // engine recorded (see ConcurrentResultState::record_error in
         // job_executor.cpp) but it was being discarded here: ShowError() opened
         // an InfoBar with no Message at all. Decode it so a failed transfer
@@ -625,7 +625,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
                     : L"StatusCompleted"));
         } catch (...) {
         }
-                // Nothing hid the window on a clean finish: it shrank to the 72px
+        // Nothing hid the window on a clean finish: it shrank to the 72px
         // compact bar (ResizeWindow above) but stayed on screen showing
         // "Copia completada" until the person closed it by hand — the tray
         // icon it left behind made this look like the app "didn't close".
