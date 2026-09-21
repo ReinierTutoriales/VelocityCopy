@@ -72,8 +72,8 @@
                           VerticalAlignment="Center">
                         <Image x:Name="BrandLogo"
                                Source="Assets/VelocityCopy.png"
-                               Width="24"
-                               Height="24"
+                               Width="20"
+                               Height="20"
                                Stretch="Uniform"
                                IsHitTestVisible="False" />
                     </Grid>
@@ -103,8 +103,8 @@
                             Grid.Column="2"
                             Click="OnPauseClick"
                             IsEnabled="False"
-                            Width="28"
-                            Height="28"
+                            Width="24"
+                            Height="24"
                             Padding="0"
                             BorderThickness="0"
                             Background="Transparent"
@@ -112,15 +112,15 @@
                         <FontIcon x:Name="PauseIcon"
                                   FontFamily="Segoe Fluent Icons"
                                   Glyph="&#xE769;"
-                                  FontSize="13" />
+                                  FontSize="12" />
                     </Button>
 
                     <Button x:Name="SkipButton"
                             Grid.Column="3"
                             Click="OnSkipClick"
                             IsEnabled="False"
-                            Width="28"
-                            Height="28"
+                            Width="24"
+                            Height="24"
                             Padding="0"
                             BorderThickness="0"
                             Background="Transparent"
@@ -128,15 +128,15 @@
                         <FontIcon x:Name="SkipIcon"
                                   FontFamily="Segoe Fluent Icons"
                                   Glyph="&#xE893;"
-                                  FontSize="13" />
+                                  FontSize="12" />
                     </Button>
 
                     <Button x:Name="StopButton"
                             Grid.Column="4"
                             Click="OnStopClick"
                             IsEnabled="False"
-                            Width="28"
-                            Height="28"
+                            Width="24"
+                            Height="24"
                             Padding="0"
                             BorderThickness="0"
                             Background="Transparent"
@@ -144,15 +144,15 @@
                         <FontIcon x:Name="StopIcon"
                                   FontFamily="Segoe Fluent Icons"
                                   Glyph="&#xE71A;"
-                                  FontSize="12" />
+                                  FontSize="11.5" />
                     </Button>
 
                     <Button x:Name="CancelButton"
                             Grid.Column="5"
                             Click="OnCancelClick"
                             IsEnabled="False"
-                            Width="28"
-                            Height="28"
+                            Width="24"
+                            Height="24"
                             Padding="0"
                             BorderThickness="0"
                             Background="Transparent"
@@ -160,13 +160,13 @@
                         <FontIcon x:Name="CancelIcon"
                                   FontFamily="Segoe Fluent Icons"
                                   Glyph="&#xE711;"
-                                  FontSize="12" />
+                                  FontSize="11.5" />
                     </Button>
 
                     <Button x:Name="OptionsButton"
                             Grid.Column="6"
-                            Width="28"
-                            Height="28"
+                            Width="24"
+                            Height="24"
                             Padding="0"
                             BorderThickness="0"
                             Background="Transparent"
@@ -174,22 +174,22 @@
                         <FontIcon x:Name="OptionsIcon"
                                   FontFamily="Segoe Fluent Icons"
                                   Glyph="&#xE713;"
-                                  FontSize="13" />
+                                  FontSize="12" />
                     </Button>
 
                     <Button x:Name="QueueButton"
                             Grid.Column="7"
                             Click="OnQueueClick"
                             IsEnabled="True"
-                            Width="30"
-                            Height="28"
+                            Width="24"
+                            Height="24"
                             Padding="0"
                             BorderThickness="0"
                             Background="Transparent">
                         <FontIcon x:Name="QueueChevron"
                                   FontFamily="Segoe Fluent Icons"
                                   Glyph="&#xE70D;"
-                                  FontSize="12" />
+                                  FontSize="11" />
                     </Button>
                 </Grid>
             </Grid>
