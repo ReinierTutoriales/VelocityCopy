@@ -434,7 +434,6 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
     SetProgressFraction(fraction);
     current_file_id_ = snapshot.current_file_id;
     current_file_skippable_ = snapshot.current_file_skippable;
-        !paused_ && !stopped_session_ && !conflict_session_ && !stop_requested_);
     if (!snapshot.current_source.empty()) CurrentItemText().Text(hstring(snapshot.current_source.filename().wstring()));
     SpeedText().Text(FormatSpeed(snapshot.bytes_per_second));
     EtaText().Text(FormatEta(snapshot.eta_seconds));
