@@ -79,6 +79,8 @@ The compact copier surface must never be resized merely to make a modal decision
 - File-conflict decisions (`Replace`, `Skip`, `Cancel`) use a separate native top-level dialog owned by the VelocityCopy HWND. They must not be a XAML `ContentDialog` embedded inside the 72 epx copier surface.
 - Modal choice windows may be centered/owned by VelocityCopy, but they remain separate windows so their content cannot be clipped by the copier's current size.
 - Lightweight command flyouts such as the options menu may use normal popup/flyout presentation because they are not laid out inside the copier surface.
+- About is a themed WinUI flyout launched from Options, not a legacy TaskDialog or MessageBox during the normal path. It inherits the app theme/accent, shows the VelocityCopy logo, structured product/version/publisher/license information, and a normal GitHub link.
+- The About version resolver reads the running executable `VERSIONINFO` first and falls back to the compile-time `Version.h` identity if Windows version APIs cannot read the resource. The UI must never display `Unknown` for a build whose compile-time version is known.
 
 ## Window movement
 

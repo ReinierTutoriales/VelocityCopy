@@ -29,7 +29,11 @@
   <data name="ActionQueueOptions" xml:space="preserve"><value>Queue options</value></data>
   <data name="ActionAbout" xml:space="preserve"><value>About VelocityCopy</value></data>
   <data name="AboutTitle" xml:space="preserve"><value>About VelocityCopy</value></data>
-  <data name="AboutBodyFormat" xml:space="preserve"><value>Version {0}&#10;&#10;ReinierTutoriales&#10;MIT License&#10;https://github.com/ReinierTutoriales/VelocityCopy</value></data>
+  <data name="AboutTagline" xml:space="preserve"><value>Fast, focused file transfers for Windows 11.</value></data>
+  <data name="AboutVersionFormat" xml:space="preserve"><value>Version {0}</value></data>
+  <data name="AboutPublisher" xml:space="preserve"><value>ReinierTutoriales</value></data>
+  <data name="AboutLicense" xml:space="preserve"><value>MIT License</value></data>
+  <data name="AboutRepositoryLabel" xml:space="preserve"><value>View project on GitHub</value></data>
   <data name="ActionShowQueue" xml:space="preserve"><value>Show queue</value></data>
   <data name="ActionHideQueue" xml:space="preserve"><value>Hide queue</value></data>
   <data name="TrayOpen" xml:space="preserve"><value>Open VelocityCopy</value></data>
