@@ -106,7 +106,7 @@ int main() {
     if (!contains(menu, "skip_menu_item_.Text") || !contains(menu, "stop_menu_item_.Text") ||
         !contains(menu, "skip_menu_item_.Click({this, &MainWindow::OnMenuSkipClick})") ||
         !contains(menu, "stop_menu_item_.Click({this, &MainWindow::OnMenuStopClick})") ||
-        !contains(window, "menu.Opening") || !contains(window, "RefreshExecutionMenuState()")) {
+        !contains(menu, "menu.Opening") || !contains(menu, "RefreshExecutionMenuState()")) {
         return fail(10, "secondary transfer commands must refresh state whenever Options opens");
     }
 
