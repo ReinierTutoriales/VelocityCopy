@@ -3,6 +3,7 @@
 #include "Version.h"
 
 #include <winver.h>
+#include <winrt/Microsoft.UI.Xaml.Media.Imaging.h>
 
 using namespace winrt;
 using namespace Windows::Foundation;
