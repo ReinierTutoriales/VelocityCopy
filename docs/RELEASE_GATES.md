@@ -13,7 +13,7 @@ These gates define the current stabilization/release pipeline. They must agree w
 - Distribution is classic self-contained NSIS, not MSIX.
 - No x86 and no portable distribution.
 - WinUI remains unpackaged and self-contained (`WindowsAppSDKSelfContained=true`, `AppxPackage=false`).
-- The x64 payload must include both `VelocityCopy.WinUI.exe` and `VelocityCopy.Shell.dll`.
+- Each payload (x64 and ARM64) must include both `VelocityCopy.WinUI.exe` and `VelocityCopy.Shell.dll`.
 - If the installer registers a file, DLL, executable or resource, the packaging workflow must assert that the referenced payload actually exists before NSIS runs.
 - The x64 package gate must smoke-install and uninstall the classic setup.
 - Do not add Chocolatey, AppX/MSIX deployment, certificates, or unrelated package managers to the required path.
@@ -25,13 +25,16 @@ Architecture tests may inspect workflow contracts, but tests must validate durab
 Required commit-CI behavior:
 - x64 configure/build;
 - x64 `ctest`;
+- ARM64 core compile;
+- ASan RelWithDebInfo compile;
+- WinUI x64 build (`ui` job);
 - no AppX installation;
 - no packaging in commit CI (`ci.yml`);
 
 Required package behavior:
 - main-push, `v*` tag and manual triggers;
 - self-contained WinUI payload;
-- classic `VelocityCopy-Setup-x64.exe`;
+- classic `VelocityCopy-Setup-x64.exe` and `VelocityCopy-Setup-ARM64.exe`;
 - payload verification before installer construction;
 - smoke install/uninstall.
 
