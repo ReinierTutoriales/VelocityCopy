@@ -185,6 +185,9 @@ void MainWindow::ShowAboutDialog() noexcept {
         panel.Children().Append(repository);
 
         about.Content(panel);
+        // Render in its own windowed popup so it is never clipped by the compact
+        // transfer surface, whether the queue is collapsed or expanded.
+        about.ShouldConstrainToRootBounds(false);
         about.ShowAt(OptionsButton());
         return;
     } catch (...) {
