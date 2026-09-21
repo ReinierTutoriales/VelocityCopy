@@ -6,6 +6,7 @@
 
 #include <shellapi.h>
 
+#include <chrono>
 #include <cstdlib>
 #include <optional>
 
@@ -75,6 +76,22 @@ bool is_startup_activation() noexcept {
     return startup;
 }
 
+bool deliver_to_primary(const velocitycopy::ShellRequest& request) noexcept {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+    do {
+        if (velocitycopy::send_shell_request(request, 250)) {
+            return true;
+        }
+        Sleep(100);
+    } while (std::chrono::steady_clock::now() < deadline);
+    return false;
+}
+
+void show_activation_error(const wchar_t* message) noexcept {
+    MessageBoxW(nullptr, message, L"VelocityCopy",
+                MB_OK | MB_ICONWARNING | MB_SETFOREGROUND);
+}
+
 } // namespace
 
 App::App() {
@@ -99,17 +116,29 @@ void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
 
     instance_ = std::make_unique<velocitycopy::SingleInstance>();
     if (!instance_->valid()) {
+        if (!startup_activation) {
+            show_activation_error(
+                L"VelocityCopy is already running with different permissions. "
+                L"Close it from the notification area and try again.");
+        }
         Microsoft::UI::Xaml::Application::Current().Exit();
         return;
     }
 
     if (!instance_->primary()) {
+        bool delivered = true;
         if (initial_request) {
-            (void)velocitycopy::send_shell_request(*initial_request, 1000);
+            delivered = deliver_to_primary(*initial_request);
         } else if (!startup_activation) {
             velocitycopy::ShellRequest open{};
             open.action = velocitycopy::ShellAction::OpenVelocityCopy;
-            (void)velocitycopy::send_shell_request(open, 1000);
+            delivered = deliver_to_primary(open);
+        }
+        if (!delivered && !startup_activation) {
+            show_activation_error(
+                initial_request
+                    ? L"VelocityCopy is running but did not respond. The transfer was not started."
+                    : L"VelocityCopy is running but did not respond.");
         }
         Microsoft::UI::Xaml::Application::Current().Exit();
         return;
