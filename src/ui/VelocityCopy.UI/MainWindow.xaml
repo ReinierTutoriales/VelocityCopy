@@ -91,7 +91,13 @@
 
                     <Grid x:Name="BottomContentGrid"
                           Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
                         <StackPanel x:Name="TelemetryStrip"
+                                    Grid.Column="0"
                                     Orientation="Horizontal"
                                     HorizontalAlignment="Left"
                                     VerticalAlignment="Center"
@@ -102,6 +108,7 @@
                         </StackPanel>
 
                         <StackPanel x:Name="PrimaryActionCluster"
+                                    Grid.Column="1"
                                     Orientation="Horizontal"
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
@@ -162,32 +169,6 @@
                         </StackPanel>
                     </Grid>
 
-                    <!-- Skip and Stop keep generated accessors for execution-state code,
-                         but remain non-visual; their commands live in Options. -->
-                    <Button x:Name="SkipButton"
-                            Grid.Row="1"
-                            Click="OnSkipClick"
-                            IsEnabled="False"
-                            Visibility="Collapsed"
-                            Width="0"
-                            Height="0"
-                            Padding="0"
-                            BorderThickness="0"
-                            Background="Transparent">
-                        <FontIcon x:Name="SkipIcon" FontFamily="Segoe Fluent Icons" Glyph="&#xE893;" FontSize="12" />
-                    </Button>
-                    <Button x:Name="StopButton"
-                            Grid.Row="1"
-                            Click="OnStopClick"
-                            IsEnabled="False"
-                            Visibility="Collapsed"
-                            Width="0"
-                            Height="0"
-                            Padding="0"
-                            BorderThickness="0"
-                            Background="Transparent">
-                        <FontIcon x:Name="StopIcon" FontFamily="Segoe Fluent Icons" Glyph="&#xE71A;" FontSize="11.5" />
-                    </Button>
                 </Grid>
             </Grid>
         </Grid>
