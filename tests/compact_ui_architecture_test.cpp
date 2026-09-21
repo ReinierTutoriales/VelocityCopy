@@ -64,13 +64,6 @@ int main() {
         return fail(3, "telemetry must not share the caption-constrained filename row");
     }
 
-    if (!contains(xaml, "x:Name=\"SkipButton\"") ||
-        !contains(xaml, "x:Name=\"StopButton\"") ||
-        xaml.find("Visibility=\"Collapsed\"", xaml.find("x:Name=\"SkipButton\"")) == std::string::npos ||
-        xaml.find("Visibility=\"Collapsed\"", xaml.find("x:Name=\"StopButton\"")) == std::string::npos) {
-        return fail(4, "Skip and Stop must remain non-visual command accessors");
-    }
-
     if (contains(xaml, "<ProgressBar") ||
         !contains(window, "ProgressFill().Width(TransferSurface().ActualWidth() * progress_fraction_)")) {
         return fail(5, "window surface itself must remain the only progress indicator");
@@ -109,17 +102,37 @@ int main() {
         !contains(menu, "stop_menu_item_.Click({this, &MainWindow::OnMenuStopClick})") ||
         !contains(menu, "void MainWindow::OnMenuSkipClick") ||
         !contains(menu, "OnSkipClick(sender, args);") ||
-        !contains(menu, "RefreshExecutionMenuState();") ||
-        !contains(execution, "void MainWindow::OnSkipClick") ||
-        !contains(execution, "current_file_skippable_ = false;") ||
-        !contains(execution, "RefreshExecutionMenuState();")) {
+        !contains(menu, "RefreshExecutionMenuState();")) {
         return fail(10, "secondary transfer commands must refresh menu state immediately after mutation");
+    }
+
+    if (!contains(menu, "menu.Opening(")) {
+        return fail(11, "options menu must recompute command state when opened");
+    }
+
+    if (contains(xaml, "x:Name=\"SkipButton\"") || contains(xaml, "x:Name=\"StopButton\"") ||
+        contains(execution, "SkipButton()") || contains(execution, "StopButton()") ||
+        contains(window, "SkipButton()") || contains(window, "StopButton()")) {
+        return fail(12, "Skip and Stop must exist only as Options menu commands");
+    }
+
+    if (!contains(xaml, "<Grid.ColumnDefinitions>") ||
+        !contains(xaml, "<ColumnDefinition Width=\"*\" />") ||
+        !contains(xaml, "<ColumnDefinition Width=\"Auto\" />") ||
+        !contains(xaml, "x:Name=\"TelemetryStrip\"\n                                    Grid.Column=\"0\"") ||
+        !contains(xaml, "x:Name=\"PrimaryActionCluster\"\n                                    Grid.Column=\"1\"")) {
+        return fail(13, "telemetry and primary actions must occupy separate bottom-row columns");
+    }
+
+    if (!contains(window, "const auto hours = rounded / 3600") ||
+        !contains(window, "std::format(L\"{} h {} m\"")) {
+        return fail(14, "long ETA values must be formatted in hours");
     }
 
     if (contains(header, "OnMenuPauseClick") || contains(header, "OnMenuCancelClick") ||
         contains(header, "pause_menu_item_") || contains(header, "cancel_menu_item_") ||
         contains(menu, "void MainWindow::OnMenuPauseClick") || contains(menu, "void MainWindow::OnMenuCancelClick")) {
-        return fail(11, "unused menu wrappers and members must not accumulate as dead code");
+        return fail(15, "unused menu wrappers and members must not accumulate as dead code");
     }
 
     if (!contains(tokens, "<Thickness x:Key=\"TransferContentPadding\">8,4,8,4</Thickness>") ||
@@ -127,14 +140,14 @@ int main() {
         !contains(xaml, "Padding=\"{StaticResource TransferContentPadding}\"") ||
         !contains(xaml, "Padding=\"{StaticResource CaptionContentPadding}\"") ||
         !contains(queue, "row.Margin(Thickness{8, 4, 8, 4})")) {
-        return fail(12, "compact spacing must stay tokenized and queue rows aligned to the 4/8 rhythm");
+        return fail(16, "compact spacing must stay tokenized and queue rows aligned to the 4/8 rhythm");
     }
 
     if (!contains(spec, "380 × 72 epx") ||
         !contains(spec, "native Windows caption cluster visible") ||
         !contains(spec, "Telemetry must not share the caption-constrained top row") ||
         !contains(spec, "Skip and Stop live in Options")) {
-        return fail(13, "UI specification must lock the compact native-caption composition");
+        return fail(17, "UI specification must lock the compact native-caption composition");
     }
 
     return 0;
