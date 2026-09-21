@@ -170,7 +170,7 @@ jobs:
           $app.Refresh()
           if ($app.HasExited) {
             $exitCode = $app.ExitCode
-            $hexCode = ('0x{0:X8}' -f ([uint32]$exitCode))
+            $hexCode = ('0x{0:X8}' -f ([BitConverter]::ToUInt32([BitConverter]::GetBytes([int32]$exitCode), 0)))
             Write-Host "VelocityCopy exited with $exitCode ($hexCode)"
             Write-Host "Installed payload files:"
             Get-ChildItem $root -Recurse -File | Sort-Object FullName | ForEach-Object { Write-Host $_.FullName }
