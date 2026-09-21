@@ -112,7 +112,6 @@ void MainWindow::ShowAboutDialog() noexcept {
         const auto version = executable_version();
 
         Flyout about;
-        about.Placement(FlyoutPlacementMode::Bottom);
 
         StackPanel panel;
         panel.Width(300);
@@ -147,7 +146,7 @@ void MainWindow::ShowAboutDialog() noexcept {
         identity.Spacing(2);
 
         TextBlock product;
-        product.Text(L"VelocityCopy");
+        product.Text(title);
         product.FontSize(19);
         product.FontWeight(Windows::UI::Text::FontWeights::SemiBold());
         identity.Children().Append(product);
