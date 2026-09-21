@@ -244,6 +244,11 @@ fire_and_forget MainWindow::HandleDropAsync(DragEventArgs args) {
     }
 }
 
+void MainWindow::ResetTransferSurface() {
+    ErrorBar().IsOpen(false);
+    ErrorBar().Message(L"");
+}
+
 void MainWindow::ShowError(hstring const& message) {
     ErrorBar().Message(message);
     ErrorBar().IsOpen(true);
