@@ -135,6 +135,10 @@ Append planning is part of the same cancellation contract as the primary planner
 
 Large live queues must not remove from the front of a contiguous `std::vector`. The production pending queue uses constant-time front removal semantics; tests must exercise a large synthetic drain so an accidental O(n^2) front-erasure implementation is caught before release.
 
+## Version identity rule
+
+`VelocityCopy.WinUI.exe` carries a native `VERSIONINFO` resource; Explorer Properties, the About dialog and Installed Apps must not expose unrelated version identities. `src/ui/VelocityCopy.UI/Version.h` owns the native four-part version and its MAJOR/MINOR/PATCH values must match `project(VelocityCopy VERSION ...)` in the root CMake file. The packaging workflow derives NSIS `DISPLAY_VERSION` from that header rather than inventing a separate run-number version. The About dialog reads the running executable's `VERSIONINFO`, not a duplicated display constant, and remains a native top-level dialog outside the compact XAML surface.
+
 ## Documentation rule
 
 Every future material decision or newly discovered reusable failure mode updates the owning canonical document in the same coherent change. If documentation conflicts, reconcile it before implementation. Do not allow stale documentation to become an accidental second roadmap.

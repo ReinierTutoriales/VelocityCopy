@@ -27,6 +27,9 @@
   <data name="ActionSaveQueue" xml:space="preserve"><value>Guardar cola</value></data>
   <data name="ActionLoadQueue" xml:space="preserve"><value>Cargar cola</value></data>
   <data name="ActionQueueOptions" xml:space="preserve"><value>Opciones de cola</value></data>
+  <data name="ActionAbout" xml:space="preserve"><value>Acerca de VelocityCopy</value></data>
+  <data name="AboutTitle" xml:space="preserve"><value>Acerca de VelocityCopy</value></data>
+  <data name="AboutBodyFormat" xml:space="preserve"><value>Versión {0}&#10;&#10;ReinierTutoriales&#10;Licencia MIT&#10;https://github.com/ReinierTutoriales/VelocityCopy</value></data>
   <data name="ActionShowQueue" xml:space="preserve"><value>Mostrar cola</value></data>
   <data name="ActionHideQueue" xml:space="preserve"><value>Ocultar cola</value></data>
   <data name="TrayOpen" xml:space="preserve"><value>Abrir VelocityCopy</value></data>

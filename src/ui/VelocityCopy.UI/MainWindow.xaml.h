@@ -39,6 +39,7 @@ struct MainWindow : MainWindowT<MainWindow> {
     void OnMenuPauseClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnMenuStopClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnMenuCancelClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
+    void OnAboutClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnQueueMoveUpClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnQueueMoveDownClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnQueueRemoveClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
@@ -78,6 +79,7 @@ private:
         const std::wstring& secondary_label,
         bool include_cancel,
         const std::wstring& cancel_label = {}) noexcept;
+    void ShowAboutDialog() noexcept;
     void ConfigureQueuePersistenceMenu();
     void InitializeTrayIntegration();
     void RemoveTrayIntegration() noexcept;
@@ -160,6 +162,7 @@ private:
     Microsoft::UI::Xaml::Controls::MenuFlyoutItem pause_menu_item_{nullptr};
     Microsoft::UI::Xaml::Controls::MenuFlyoutItem stop_menu_item_{nullptr};
     Microsoft::UI::Xaml::Controls::MenuFlyoutItem cancel_menu_item_{nullptr};
+    Microsoft::UI::Xaml::Controls::MenuFlyoutItem about_menu_item_{nullptr};
     std::atomic_bool cancel_requested_{false};
     double progress_fraction_{};
     bool paused_{};
