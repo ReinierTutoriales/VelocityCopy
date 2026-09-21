@@ -36,7 +36,17 @@ jobs:
       - name: Version
         shell: pwsh
         run: |
-          $version = "0.21.$env:GITHUB_RUN_NUMBER.0"
+          $header = Get-Content src/ui/VelocityCopy.UI/Version.h -Raw
+          function Read-VersionPart([string]$name) {
+            $match = [regex]::Match($header, "#define\s+$name\s+(\d+)")
+            if (-not $match.Success) { throw "Version.h is missing $name" }
+            return [int]$match.Groups[1].Value
+          }
+          $major = Read-VersionPart "VELOCITYCOPY_VERSION_MAJOR"
+          $minor = Read-VersionPart "VELOCITYCOPY_VERSION_MINOR"
+          $patch = Read-VersionPart "VELOCITYCOPY_VERSION_PATCH"
+          $build = Read-VersionPart "VELOCITYCOPY_VERSION_BUILD"
+          $version = "$major.$minor.$patch.$build"
           "VELOCITYCOPY_VERSION=$version" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Configure and build core

@@ -98,6 +98,7 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
         cancel_menu_item_ = MenuFlyoutItem{};
         save_queue_menu_item_ = MenuFlyoutItem{};
         load_queue_menu_item_ = MenuFlyoutItem{};
+        about_menu_item_ = MenuFlyoutItem{};
 
         try {
             Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
@@ -107,6 +108,7 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
             cancel_menu_item_.Text(loader.GetString(L"ActionCancel"));
             save_queue_menu_item_.Text(loader.GetString(L"ActionSaveQueue"));
             load_queue_menu_item_.Text(loader.GetString(L"ActionLoadQueue"));
+            about_menu_item_.Text(loader.GetString(L"ActionAbout"));
             ToolTipService::SetToolTip(queue_options_button_, box_value(options_label));
             Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(queue_options_button_, options_label);
         } catch (...) {
@@ -115,6 +117,7 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
             cancel_menu_item_.Text(L"Cancel");
             save_queue_menu_item_.Text(L"Save queue");
             load_queue_menu_item_.Text(L"Load queue");
+            about_menu_item_.Text(L"About VelocityCopy");
             ToolTipService::SetToolTip(queue_options_button_, box_value(L"Queue options"));
             Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(queue_options_button_, L"Queue options");
         }
@@ -124,12 +127,15 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
         cancel_menu_item_.Click({this, &MainWindow::OnMenuCancelClick});
         save_queue_menu_item_.Click({this, &MainWindow::OnSaveQueueClick});
         load_queue_menu_item_.Click({this, &MainWindow::OnLoadQueueClick});
+        about_menu_item_.Click({this, &MainWindow::OnAboutClick});
         menu.Items().Append(pause_menu_item_);
         menu.Items().Append(stop_menu_item_);
         menu.Items().Append(cancel_menu_item_);
         menu.Items().Append(MenuFlyoutSeparator{});
         menu.Items().Append(save_queue_menu_item_);
         menu.Items().Append(load_queue_menu_item_);
+        menu.Items().Append(MenuFlyoutSeparator{});
+        menu.Items().Append(about_menu_item_);
         queue_options_button_.Flyout(menu);
 
         try {
