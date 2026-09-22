@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "MainWindow.xaml.h"
+#include "velocitycopy/diagnostics.hpp"
 
 using namespace winrt;
 using namespace Microsoft::UI::Xaml;
@@ -84,7 +85,9 @@ void MainWindow::PersistRecoveryQueueNoThrow() noexcept {
             return;
         }
 
-        (void)velocitycopy::QueueArchiveStore{}.save(path, archive);
+        if (!velocitycopy::QueueArchiveStore{}.save(path, archive)) {
+            velocitycopy::log_diagnostic(L"recovery: checkpoint save failed during session end");
+        }
     } catch (...) {
     }
 }

@@ -15,5 +15,6 @@ int main(){
  if(app.find("AppTray tray_")==std::string::npos) return 3;
  if(tray.find("DefWindowProcW(hwnd_")!=std::string::npos || tray.find("HandleMessage(HWND hwnd") == std::string::npos) return 6;
  if(app_cpp.find("(void)tray_.Initialize(this)")!=std::string::npos || app_cpp.find("if (!tray_.Initialize(this))") == std::string::npos) return 7;
+ if(app_cpp.find("log_diagnostic") == std::string::npos) return 8;
  return 0;
 }
