@@ -29,6 +29,8 @@ int main() {
     const auto live_h = read_all(root / "src/core/include/velocitycopy/live_copy_plan.hpp");
     const auto live_cpp = read_all(root / "src/core/live_copy_plan.cpp");
     const auto live_export = read_all(root / "src/core/live_copy_plan_export.cpp");
+    const auto app_h = read_all(root / "src/ui/VelocityCopy.UI/App.xaml.h");
+    const auto app_cpp = read_all(root / "src/ui/VelocityCopy.UI/App.xaml.cpp");
     const auto window_h = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.h");
     const auto window_cpp = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
     const auto persistence = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.QueuePersistence.cpp");
@@ -38,7 +40,7 @@ int main() {
     const auto cmake = read_all(root / "CMakeLists.txt");
 
     if (archive_h.empty() || archive_cpp.empty() || live_h.empty() || live_cpp.empty() ||
-        live_export.empty() || window_h.empty() || window_cpp.empty() || persistence.empty() ||
+        live_export.empty() || app_h.empty() || app_cpp.empty() || window_h.empty() || window_cpp.empty() || persistence.empty() ||
         recovery.empty() || tray.empty() || project.empty() || cmake.empty()) {
         return fail(1, "required production source missing");
     }
@@ -112,7 +114,11 @@ int main() {
         return fail(11, "unused persistence state must not remain in MainWindow");
     }
 
-    if (!contains(recovery, "list_recovery_files(") ||
+    if (!contains(app_cpp, "list_recovery_files(") ||
+        !contains(app_h, "pending_recovery_files_") ||
+        !contains(app_h, "recovery_files_initialized_") ||
+        contains(recovery, "list_recovery_files(") ||
+        !contains(recovery, "TakeRecoveryFile()") ||
         !contains(recovery, "session_id_ =") ||
         !contains(recovery, "ShowNativeDecisionDialog(") ||
         !contains(recovery, "NativeDialogChoice::Primary") ||
