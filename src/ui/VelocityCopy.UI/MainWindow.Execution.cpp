@@ -653,16 +653,10 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
                     : L"StatusCompleted"));
         } catch (...) {
         }
-        // A finished session with more saved checkpoints keeps its window and
-        // offers the next one. Closing a window must never create another one.
-        if (auto* app = App::Instance(); app && app->HasPendingRecovery()) {
-            recovery_prompt_checked_ = false;
-            MaybeOfferRecoveryAsync();
-        } else {
-            // Completed transfer windows are sessions, not the process lifetime.
-            // AppTray keeps the process reachable and can create a fresh window.
-            DestroyCompletedWindow();
-        }
+        // Completed transfer windows are session surfaces, not recovery owners.
+        // Recovery remains available through ShowFromTray() when the app is opened
+        // explicitly; a successful transfer must always release its own window.
+        DestroyCompletedWindow();
         return;
     }
     StartNextQueuedSession();
