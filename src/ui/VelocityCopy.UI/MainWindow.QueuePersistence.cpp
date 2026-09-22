@@ -347,6 +347,9 @@ fire_and_forget MainWindow::LoadQueueAsync() {
 
 void MainWindow::StartCopyPlan(velocitycopy::CopyPlan plan) {
     ResetTransferSurface();
+    // Loaded/recovered plans bypass routing, so never inherit the previous session's storage identity.
+    active_destination_key_ = {};
+    active_source_key_ = {};
     if (plan.destination_root.empty() || (plan.files.empty() && plan.directories.empty())) {
         StartNextQueuedSession();
         RefreshQueueCommandState();

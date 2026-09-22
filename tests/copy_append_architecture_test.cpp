@@ -47,7 +47,7 @@ int main() {
     if (!contains(app, "shell_session_.dispatch(request)") ||
         !contains(app, "StartTransfer(std::move(job), std::move(destination_key), std::move(source_key))") ||
         !contains(app, "AppendTransfer(std::move(job))") ||
-        !contains(app, "EnqueueTransfer(std::move(job))") ||
+        !contains(app, "EnqueueTransfer(std::move(job), std::move(destination_key), std::move(source_key))") ||
         !contains(window, "AppendTransfer(std::move(job))") ||
         contains(xaml, "OnQueueOrStartCopyClick") || contains(xaml, "OnStartCopyClick") ||
         contains(header, "OnQueueOrStartCopyClick") || contains(header, "OnStartCopyClick") ||
@@ -206,10 +206,17 @@ int main() {
     if (deliver_job.empty() || !contains(deliver_job, "velocitycopy::route_transfer(") || contains(deliver_job, "same_destination("))
         return fail(29, "App must route resolved Explorer work without the provisional destination decision");
 
+    const auto start_copy_plan = body_of(queue, "void MainWindow::StartCopyPlan(");
+    if (start_copy_plan.empty() || !contains(start_copy_plan, "active_destination_key_ = {}") ||
+        !contains(start_copy_plan, "active_source_key_ = {}"))
+        return fail(30, "loaded/recovered plans must clear storage keys inherited from the previous session");
+
     const auto ui_root = root / "src/ui";
     for (const auto& entry : std::filesystem::recursive_directory_iterator(ui_root)) {
         if (!entry.is_regular_file()) continue;
         const auto source = read_source(entry.path());
+        if (entry.path().filename().string().rfind("MainWindow.", 0) == 0 && entry.path().extension() == ".cpp" && contains(source, "route_transfer("))
+            return fail(31, "route_transfer must remain owned by App and never move into MainWindow");
         if (contains(source, "QueueOrStartCopy") || contains(source, "same_session") || contains(source, "StartCopy(")) {
             return fail(26, "retired transfer decision names must not return anywhere under src/ui");
         }
