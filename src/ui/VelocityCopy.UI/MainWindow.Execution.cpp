@@ -452,8 +452,14 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
 
     const auto fraction = (std::clamp)(snapshot.fraction, 0.0, 1.0);
     SetProgressFraction(fraction);
+    const bool skip_state_changed =
+        snapshot.current_file_id != current_file_id_ ||
+        snapshot.current_file_skippable != current_file_skippable_;
     current_file_id_ = snapshot.current_file_id;
     current_file_skippable_ = snapshot.current_file_skippable;
+    // The visible Skip button has no Opening hook like the menu; it must follow
+    // the current file as snapshots arrive, or it stays disabled all transfer.
+    if (skip_state_changed) RefreshExecutionButtonState();
 
     if (!snapshot.current_source.empty()) {
         const hstring filename(snapshot.current_source.filename().wstring());
