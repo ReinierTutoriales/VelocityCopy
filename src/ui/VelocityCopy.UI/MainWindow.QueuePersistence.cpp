@@ -72,7 +72,9 @@ void MainWindow::PersistRecoveryQueueNoThrow() noexcept {
             archive.current_append_jobs.end(),
             deferred_interrupted_jobs_.begin(),
             deferred_interrupted_jobs_.end());
-        archive.queued_jobs.assign(queued_sessions_.begin(), queued_sessions_.end());
+        archive.queued_jobs.clear();
+        archive.queued_jobs.reserve(queued_sessions_.size());
+        for (const auto& queued : queued_sessions_) archive.queued_jobs.push_back(queued.job);
 
         const auto dir = velocitycopy::app_data_directory();
         if (!dir || session_id_.empty()) return;
@@ -244,7 +246,9 @@ fire_and_forget MainWindow::SaveQueueAsync() {
     current_append_jobs.reserve(deferred_same_destination_jobs_.size() + deferred_interrupted_jobs_.size());
     current_append_jobs.insert(current_append_jobs.end(), deferred_same_destination_jobs_.begin(), deferred_same_destination_jobs_.end());
     current_append_jobs.insert(current_append_jobs.end(), deferred_interrupted_jobs_.begin(), deferred_interrupted_jobs_.end());
-    std::vector<velocitycopy::CopyJob> queued(queued_sessions_.begin(), queued_sessions_.end());
+    std::vector<velocitycopy::CopyJob> queued;
+    queued.reserve(queued_sessions_.size());
+    for (const auto& item : queued_sessions_) queued.push_back(item.job);
 
     if (!current_plan && current_append_jobs.empty() && queued.empty()) co_return;
 
@@ -328,7 +332,7 @@ fire_and_forget MainWindow::LoadQueueAsync() {
         for (auto& job : archive->queued_jobs) {
             job.id = self->next_job_id_++;
             job.state = velocitycopy::JobState::Pending;
-            self->queued_sessions_.push_back(std::move(job));
+            self->queued_sessions_.push_back({std::move(job), {}, {}});
         }
 
         if (archive->current_plan &&

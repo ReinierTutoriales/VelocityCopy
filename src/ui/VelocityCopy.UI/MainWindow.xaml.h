@@ -33,7 +33,9 @@ struct MainWindow : MainWindowT<MainWindow> {
     [[nodiscard]] std::uint64_t WindowId() const noexcept { return window_id_; }
     void StartTransfer(velocitycopy::CopyJob job, velocitycopy::StorageKey destination_key = {}, velocitycopy::StorageKey source_key = {});
     void AppendTransfer(velocitycopy::CopyJob job);
-    void EnqueueTransfer(velocitycopy::CopyJob job);
+    void EnqueueTransfer(velocitycopy::CopyJob job, velocitycopy::StorageKey destination_key = {}, velocitycopy::StorageKey source_key = {});
+    [[nodiscard]] std::optional<velocitycopy::ActiveSession> SessionSnapshot();
+    [[nodiscard]] bool IsVisibleForRouting() const noexcept;
     [[nodiscard]] const std::filesystem::path& ActiveDestination() const noexcept { return active_destination_; }
     [[nodiscard]] velocitycopy::FileOperation ActiveOperation() const noexcept { return active_operation_; }
 
@@ -64,6 +66,12 @@ struct MainWindow : MainWindowT<MainWindow> {
         Microsoft::UI::Xaml::SizeChangedEventArgs const&);
 
 private:
+    struct QueuedTransfer {
+        velocitycopy::CopyJob job;
+        velocitycopy::StorageKey destination;
+        velocitycopy::StorageKey source;
+    };
+
     enum class NativeDialogChoice : std::uint8_t {
         Cancel,
         Primary,
@@ -193,7 +201,7 @@ private:
     velocitycopy::FileOperation active_operation_{velocitycopy::FileOperation::Copy};
     std::deque<velocitycopy::CopyJob> deferred_same_destination_jobs_;
     std::deque<velocitycopy::CopyJob> deferred_interrupted_jobs_;
-    std::deque<velocitycopy::CopyJob> queued_sessions_;
+    std::deque<QueuedTransfer> queued_sessions_;
     std::shared_ptr<velocitycopy::LiveCopyPlan> live_plan_;
     std::vector<velocitycopy::PlannedFile> queue_snapshot_;
     std::vector<std::filesystem::path> planning_sources_;

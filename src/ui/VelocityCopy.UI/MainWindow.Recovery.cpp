@@ -199,7 +199,7 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
     for (auto& job : archive->queued_jobs) {
         job.id = next_job_id_++;
         job.state = velocitycopy::JobState::Pending;
-        queued_sessions_.push_back(std::move(job));
+        queued_sessions_.push_back({std::move(job), {}, {}});
     }
 
     velocitycopy::retire_recovery_file(path);

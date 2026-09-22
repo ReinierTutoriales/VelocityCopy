@@ -317,7 +317,7 @@ void MainWindow::StartNextQueuedSession() {
     if (execution_control_ || stopped_session_ || conflict_session_ || stop_requested_ || queued_sessions_.empty()) return;
     auto next = std::move(queued_sessions_.front());
     queued_sessions_.pop_front();
-    StartTransfer(std::move(next));
+    StartTransfer(std::move(next.job), std::move(next.destination), std::move(next.source));
 }
 
 void MainWindow::PublishLivePlan(std::shared_ptr<velocitycopy::LiveCopyPlan> plan) {
@@ -587,7 +587,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     }
 
     while (!deferred_initial.empty()) {
-        queued_sessions_.push_front(std::move(deferred_initial.back()));
+        queued_sessions_.push_front({std::move(deferred_initial.back()), {}, {}});
         deferred_initial.pop_back();
     }
 

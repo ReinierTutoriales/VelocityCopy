@@ -97,9 +97,9 @@ int main() {
     }
 
     if (!contains(header, "queued_sessions_") || !contains(append, "queued_sessions_.push_back") ||
-        !contains(app, "velocitycopy::same_destination(") ||
+        !contains(app, "velocitycopy::route_transfer(") ||
         !contains(append, "EnqueueAppend") || !contains(execution, "StartNextQueuedSession")) {
-        return fail(11, "compatible live drops must append while different sessions remain serialized");
+        return fail(11, "router decisions must append compatible work while WaitFor sessions remain serialized");
     }
 
     if (!contains(queue, "kVisibleQueueItems") || !contains(queue, "file.id") ||
@@ -174,12 +174,7 @@ int main() {
         return fail(23, "Explorer transfer must start directly and never block on destination/layout UI");
     }
 
-    const auto start_transfer = [&] {
-        const auto start = execution.find("void MainWindow::StartTransfer(");
-        if (start == std::string::npos) return std::string{};
-        const auto end = execution.find("\n}\n", start);
-        return execution.substr(start, end == std::string::npos ? std::string::npos : end - start);
-    }();
+    const auto start_transfer = body_of(execution, "void MainWindow::StartTransfer(");
     if (!contains(header, "planning_sources_") || !contains(start_transfer, "planning_sources_ = job.sources") ||
         !contains(start_transfer, "RefreshQueue();") ||
         !contains(queue, "kPlanningPreviewLimit") ||
@@ -202,6 +197,14 @@ int main() {
         !contains(app, "ShowPrimaryWindowError();")) {
         return fail(27, "Explorer FIFO must recover from asynchronous resolution/delivery failures and continue with the next request");
     }
+
+    const auto start_next = body_of(execution, "void MainWindow::StartNextQueuedSession(");
+    const auto deliver_job = body_of(app, "void App::DeliverConvertedJob(");
+    if (!contains(header, "struct QueuedTransfer") || !contains(header, "StorageKey destination") ||
+        !contains(header, "StorageKey source") || !contains(start_next, "StartTransfer(std::move(next.job), std::move(next.destination), std::move(next.source))"))
+        return fail(28, "queued routed transfers must preserve resolved storage keys until they start");
+    if (deliver_job.empty() || !contains(deliver_job, "velocitycopy::route_transfer(") || contains(deliver_job, "same_destination("))
+        return fail(29, "App must route resolved Explorer work without the provisional destination decision");
 
     const auto ui_root = root / "src/ui";
     for (const auto& entry : std::filesystem::recursive_directory_iterator(ui_root)) {

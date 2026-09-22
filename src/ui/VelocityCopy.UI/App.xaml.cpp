@@ -247,21 +247,81 @@ winrt::fire_and_forget App::ResolveStorageKeysAsync(velocitycopy::CopyJob job) {
 }
 
 void App::DeliverConvertedJob(velocitycopy::CopyJob job, velocitycopy::StorageKey destination_key, velocitycopy::StorageKey source_key) {
-    Microsoft::UI::Xaml::Window target{nullptr};
-    if (!windows_.empty()) target = windows_.rbegin()->second;
-    if (!target) target = CreateMainWindow();
-    if (auto main_window = target.try_as<VelocityCopyUI::MainWindow>()) {
-        if (auto* implementation = get_self<MainWindow>(main_window)) {
-            implementation->ShowFromTray();
-            if (!implementation->HasActiveTransfer()) {
-                implementation->StartTransfer(std::move(job), std::move(destination_key), std::move(source_key));
-            } else if (velocitycopy::same_destination(implementation->ActiveDestination(), job.destination) &&
-                       implementation->ActiveOperation() == job.operation) {
-                implementation->AppendTransfer(std::move(job));
-            } else {
-                implementation->EnqueueTransfer(std::move(job));
+    const velocitycopy::TransferRequest request{job.destination, job.operation, destination_key, source_key};
+    auto snapshot = [this] {
+        std::vector<velocitycopy::ActiveSession> sessions;
+        sessions.reserve(windows_.size());
+        for (auto& [id, window] : windows_) {
+            (void)id;
+            if (auto main_window = window.try_as<VelocityCopyUI::MainWindow>()) {
+                if (auto* implementation = get_self<MainWindow>(main_window)) {
+                    if (auto session = implementation->SessionSnapshot()) sessions.push_back(std::move(*session));
+                }
             }
         }
+        return sessions;
+    };
+    auto find_window = [this](const std::uint64_t id) -> MainWindow* {
+        const auto it = windows_.find(id);
+        if (it == windows_.end()) return nullptr;
+        if (auto main_window = it->second.try_as<VelocityCopyUI::MainWindow>()) return get_self<MainWindow>(main_window);
+        return nullptr;
+    };
+
+    velocitycopy::RouteResult route{};
+    for (int attempt = 0; attempt != 2; ++attempt) {
+        const auto sessions = snapshot();
+        route = velocitycopy::route_transfer(request, sessions, {});
+        if (route.decision == velocitycopy::RouteDecision::Ask) {
+            route.decision = route.recommended == velocitycopy::RouteChoice::Append
+                ? velocitycopy::RouteDecision::AppendTo
+                : route.recommended == velocitycopy::RouteChoice::Wait
+                    ? velocitycopy::RouteDecision::WaitFor
+                    : velocitycopy::RouteDecision::StartNew;
+        }
+
+        if (route.decision == velocitycopy::RouteDecision::AppendTo) {
+            auto* target = find_window(route.window_id);
+            const auto current = target ? target->SessionSnapshot() : std::nullopt;
+            if (!target || !current || !current->accepting_appends) {
+                if (attempt == 0) continue;
+                route.decision = velocitycopy::RouteDecision::StartNew;
+            } else {
+                target->ShowFromTray();
+                target->AppendTransfer(std::move(job));
+                return;
+            }
+        }
+        if (route.decision == velocitycopy::RouteDecision::WaitFor) {
+            if (auto* target = find_window(route.window_id)) {
+                target->ShowFromTray();
+                target->EnqueueTransfer(std::move(job), std::move(destination_key), std::move(source_key));
+                return;
+            }
+            if (attempt == 0) continue;
+            route.decision = velocitycopy::RouteDecision::StartNew;
+        }
+        if (route.decision == velocitycopy::RouteDecision::StartNew) break;
+    }
+
+    MainWindow* target = nullptr;
+    for (auto& [id, window] : windows_) {
+        (void)id;
+        if (auto main_window = window.try_as<VelocityCopyUI::MainWindow>()) {
+            if (auto* implementation = get_self<MainWindow>(main_window);
+                implementation && !implementation->HasActiveTransfer() && implementation->IsVisibleForRouting()) {
+                target = implementation;
+                break;
+            }
+        }
+    }
+    if (!target) {
+        auto window = CreateMainWindow();
+        target = get_self<MainWindow>(window);
+    }
+    if (target) {
+        target->ShowFromTray();
+        target->StartTransfer(std::move(job), std::move(destination_key), std::move(source_key));
     }
 }
 
