@@ -8,6 +8,7 @@
 
 #include <memory>
 #include <thread>
+#include <vector>
 
 namespace winrt::VelocityCopyUI::implementation {
 struct App : AppT<App> {
@@ -26,6 +27,7 @@ struct App : AppT<App> {
 private:
     void ApplyEfficiencyMode(bool enabled) noexcept;
     Microsoft::UI::Xaml::Window window_{nullptr};
+    std::vector<Microsoft::UI::Xaml::Window> retiring_windows_;
     AppTray tray_;
     std::unique_ptr<velocitycopy::SingleInstance> instance_;
     std::shared_ptr<velocitycopy::ShellIpcServer> server_;
