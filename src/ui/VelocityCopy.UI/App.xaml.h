@@ -2,6 +2,7 @@
 
 #include "App.xaml.g.h"
 
+#include "velocitycopy/efficiency_coordinator.hpp"
 #include "velocitycopy/ipc_transport.hpp"
 
 #include <memory>
@@ -12,11 +13,17 @@ struct App : AppT<App> {
     App();
     ~App();
     void OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&);
+    void ReportEfficiencyVote(std::uint64_t window_id, bool eligible) noexcept;
+    void RemoveEfficiencyVote(std::uint64_t window_id) noexcept;
+    void SetShuttingDown(bool value) noexcept;
 
 private:
+    void ApplyEfficiencyMode(bool enabled) noexcept;
     Microsoft::UI::Xaml::Window window_{nullptr};
     std::unique_ptr<velocitycopy::SingleInstance> instance_;
     std::shared_ptr<velocitycopy::ShellIpcServer> server_;
     std::jthread ipc_thread_;
+    velocitycopy::EfficiencyCoordinator efficiency_coordinator_;
+    bool efficiency_mode_enabled_{};
 };
 }
