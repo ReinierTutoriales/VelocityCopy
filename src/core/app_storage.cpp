@@ -63,7 +63,9 @@ std::optional<std::wstring> recovery_session_id(const std::filesystem::path& fil
     return id;
 }
 
-std::vector<std::filesystem::path> list_recovery_files(const std::filesystem::path& dir) noexcept {
+std::vector<std::filesystem::path> list_recovery_files(
+    const std::filesystem::path& dir,
+    const std::span<const std::wstring> active_session_ids) noexcept {
     std::vector<std::filesystem::path> result;
     try {
         std::error_code ec;
@@ -72,8 +74,14 @@ std::vector<std::filesystem::path> list_recovery_files(const std::filesystem::pa
             const auto path = it->path();
             const auto name = path.filename().wstring();
             if (name.ends_with(L".vcq.tmp")) {
-                std::error_code remove_ec;
-                std::filesystem::remove(path, remove_ec);
+                const auto recovery_name = std::filesystem::path(name.substr(0, name.size() - 4));
+                const auto session_id = recovery_session_id(recovery_name);
+                const bool active = session_id && std::find(
+                    active_session_ids.begin(), active_session_ids.end(), *session_id) != active_session_ids.end();
+                if (!active) {
+                    std::error_code remove_ec;
+                    std::filesystem::remove(path, remove_ec);
+                }
                 continue;
             }
             std::error_code type_ec;
