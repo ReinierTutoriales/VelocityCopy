@@ -7,11 +7,6 @@ using namespace Microsoft::UI::Xaml;
 namespace winrt::VelocityCopyUI::implementation {
 namespace {
 
-std::filesystem::path recovery_path() {
-    const auto folder = Windows::Storage::ApplicationData::Current().LocalFolder();
-    return std::filesystem::path(folder.Path().c_str()) / L"VelocityCopy.Recovery.vcq";
-}
-
 bool revalidate_recovery_plan(velocitycopy::CopyPlan& plan) noexcept {
     try {
         if (plan.destination_root.empty()) return false;
@@ -66,22 +61,6 @@ bool merge_recovery_append_jobs(velocitycopy::QueueArchive& archive) {
     return true;
 }
 
-void retire_recovery_checkpoint(
-    const std::filesystem::path& path,
-    const std::wstring_view fallback_suffix = L".consumed") noexcept {
-    try {
-        std::error_code ec;
-        if (std::filesystem::remove(path, ec)) return;
-        if (!std::filesystem::exists(path, ec) || ec) return;
-
-        auto retired = path;
-        retired += fallback_suffix;
-        std::filesystem::remove(retired, ec);
-        ec.clear();
-        std::filesystem::rename(path, retired, ec);
-    } catch (...) {
-    }
-}
 
 } // namespace
 
@@ -94,15 +73,19 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
         co_return;
     }
 
-    std::filesystem::path path;
-    try {
-        path = recovery_path();
-        std::error_code ec;
-        if (!std::filesystem::is_regular_file(path, ec) || ec) {
-            recovery_prompt_checked_ = true;
-            co_return;
-        }
-    } catch (...) {
+    const auto dir = velocitycopy::app_data_directory();
+    if (!dir) {
+        recovery_prompt_checked_ = true;
+        co_return;
+    }
+    const auto files = velocitycopy::list_recovery_files(*dir);
+    if (files.empty()) {
+        recovery_prompt_checked_ = true;
+        co_return;
+    }
+    const auto path = files.front();
+    const auto recovered_session_id = velocitycopy::recovery_session_id(path);
+    if (!recovered_session_id) {
         recovery_prompt_checked_ = true;
         co_return;
     }
@@ -135,7 +118,7 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
     }
 
     if (!archive) {
-        retire_recovery_checkpoint(path, L".invalid");
+        velocitycopy::retire_recovery_file(path, L".invalid");
         co_await ui_thread;
         recovery_prompt_active_ = false;
         recovery_prompt_checked_ = true;
@@ -145,7 +128,7 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
     const bool has_current = archive->current_plan &&
         (!archive->current_plan->files.empty() || !archive->current_plan->directories.empty());
     if (!has_current && archive->queued_jobs.empty()) {
-        retire_recovery_checkpoint(path);
+        velocitycopy::retire_recovery_file(path);
         co_await ui_thread;
         recovery_prompt_active_ = false;
         recovery_prompt_checked_ = true;
@@ -185,7 +168,7 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
         false);
 
     if (choice == NativeDialogChoice::Secondary) {
-        retire_recovery_checkpoint(path);
+        velocitycopy::retire_recovery_file(path);
         recovery_prompt_active_ = false;
         recovery_prompt_checked_ = true;
         co_return;
@@ -202,13 +185,15 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
         co_return;
     }
 
+    session_id_ = *recovered_session_id;
+
     for (auto& job : archive->queued_jobs) {
         job.id = next_job_id_++;
         job.state = velocitycopy::JobState::Pending;
         queued_sessions_.push_back(std::move(job));
     }
 
-    retire_recovery_checkpoint(path);
+    velocitycopy::retire_recovery_file(path);
     recovery_prompt_active_ = false;
     recovery_prompt_checked_ = true;
 
