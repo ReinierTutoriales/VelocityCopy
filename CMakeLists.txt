@@ -23,6 +23,7 @@ if(MSVC AND VELOCITYCOPY_ENABLE_ASAN)
 endif()
 
 add_library(velocitycopy_core STATIC
+    src/core/app_storage.cpp
     src/core/copy_engine.cpp
     src/core/destination_catalog.cpp
     src/core/execution_control.cpp
@@ -45,7 +46,7 @@ add_library(velocitycopy_core STATIC
 
 target_include_directories(velocitycopy_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/core/include)
 target_compile_definitions(velocitycopy_core PUBLIC UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0A00 WINVER=0x0A00)
-target_link_libraries(velocitycopy_core PUBLIC shell32 advapi32)
+target_link_libraries(velocitycopy_core PUBLIC shell32 advapi32 ole32)
 
 if(MSVC)
     target_compile_options(velocitycopy_core PRIVATE /W4 /permissive- /EHsc /utf-8)
@@ -83,6 +84,7 @@ function(add_velocitycopy_test target source name)
     add_test(NAME ${name} COMMAND ${target})
 endfunction()
 
+add_velocitycopy_test(VelocityCopyAppStorageTest tests/app_storage_test.cpp velocitycopy_app_storage)
 add_velocitycopy_test(VelocityCopySmokeTest tests/smoke_test.cpp velocitycopy_smoke)
 add_velocitycopy_test(VelocityCopyQueueTest tests/queue_test.cpp velocitycopy_queue)
 add_velocitycopy_test(VelocityCopyPlanEditTest tests/plan_edit_test.cpp velocitycopy_plan_edit)
@@ -125,6 +127,8 @@ add_velocitycopy_test(VelocityCopyStorageSecurityArchitectureTest tests/storage_
 target_compile_definitions(VelocityCopyStorageSecurityArchitectureTest PRIVATE VELOCITYCOPY_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 add_velocitycopy_test(VelocityCopyUiThreadingArchitectureTest tests/ui_threading_architecture_test.cpp velocitycopy_ui_threading_architecture)
 target_compile_definitions(VelocityCopyUiThreadingArchitectureTest PRIVATE VELOCITYCOPY_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+add_velocitycopy_test(VelocityCopyUnpackagedStorageArchitectureTest tests/unpackaged_storage_architecture_test.cpp velocitycopy_unpackaged_storage_architecture)
+target_compile_definitions(VelocityCopyUnpackagedStorageArchitectureTest PRIVATE VELOCITYCOPY_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 add_velocitycopy_test(VelocityCopyVersionIdentityArchitectureTest tests/version_identity_architecture_test.cpp velocitycopy_version_identity_architecture)
 target_compile_definitions(VelocityCopyVersionIdentityArchitectureTest PRIVATE VELOCITYCOPY_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
