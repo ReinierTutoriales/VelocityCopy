@@ -250,7 +250,9 @@ void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
 
     auto main_window = winrt::make<MainWindow>();
     window_ = main_window;
-    (void)tray_.Initialize(this);
+    if (!tray_.Initialize(this)) {
+        OutputDebugStringW(L"VelocityCopy: failed to initialize notification-area integration.\n");
+    }
     if (!startup_activation) {
         if (auto* implementation = winrt::get_self<MainWindow>(main_window)) {
             implementation->ShowFromTray();
