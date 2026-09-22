@@ -35,7 +35,7 @@ bool accepts_active_transfer_drop(
 } // namespace
 
 MainWindow::MainWindow() {
-    if (auto app = Application::Current().try_as<VelocityCopyUI::App>()) {
+    if (auto app = Microsoft::UI::Xaml::Application::Current().try_as<VelocityCopyUI::App>()) {
         if (auto* implementation = get_self<App>(app)) window_id_ = implementation->NextWindowId();
     }
     InitializeComponent();
