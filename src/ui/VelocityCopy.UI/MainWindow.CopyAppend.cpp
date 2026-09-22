@@ -5,8 +5,22 @@ using namespace winrt;
 
 namespace winrt::VelocityCopyUI::implementation {
 
-void MainWindow::EnqueueTransfer(velocitycopy::CopyJob job) {
-    queued_sessions_.push_back(std::move(job));
+std::optional<velocitycopy::ActiveSession> MainWindow::SessionSnapshot() {
+    if (!HasActiveTransfer() || active_destination_.empty()) return std::nullopt;
+    bool accepting = false;
+    if (append_gate_) {
+        std::lock_guard gate_lock(append_gate_->mutex);
+        accepting = append_gate_->accepting;
+    }
+    return velocitycopy::ActiveSession{window_id_, active_destination_, active_operation_, accepting, active_destination_key_, active_source_key_};
+}
+
+bool MainWindow::IsVisibleForRouting() const noexcept {
+    return hwnd_ != nullptr && !tray_window_hidden_ && IsWindowVisible(hwnd_) != FALSE;
+}
+
+void MainWindow::EnqueueTransfer(velocitycopy::CopyJob job, velocitycopy::StorageKey destination_key, velocitycopy::StorageKey source_key) {
+    queued_sessions_.push_back({std::move(job), std::move(destination_key), std::move(source_key)});
     RefreshQueue();
 }
 
