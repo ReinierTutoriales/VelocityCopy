@@ -21,6 +21,14 @@
   <data name="ActionReplace" xml:space="preserve"><value>Replace</value></data>
   <data name="ConflictTitle" xml:space="preserve"><value>File already exists</value></data>
   <data name="ConflictMessage" xml:space="preserve"><value>A file with the same name already exists at the destination. Choose what to do with this file.</value></data>
+  <data name="RoutingDestinationInUseTitle" xml:space="preserve"><value>Destination already in use</value></data>
+  <data name="RoutingDestinationInUseMessage" xml:space="preserve"><value>A transfer to this destination is already running. Add these files to it or wait?</value></data>
+  <data name="RoutingStorageInUseTitle" xml:space="preserve"><value>Storage device already in use</value></data>
+  <data name="RoutingStorageInUseMessage" xml:space="preserve"><value>Another transfer is using the same storage device. Wait or run this transfer in parallel?</value></data>
+  <data name="RoutingActionAdd" xml:space="preserve"><value>Add</value></data>
+  <data name="RoutingActionWait" xml:space="preserve"><value>Wait</value></data>
+  <data name="RoutingActionParallel" xml:space="preserve"><value>Parallel</value></data>
+  <data name="DialogRememberChoice" xml:space="preserve"><value>Remember my choice</value></data>
   <data name="ActionMoveUp" xml:space="preserve"><value>Move up</value></data>
   <data name="ActionMoveDown" xml:space="preserve"><value>Move down</value></data>
   <data name="ActionRemove" xml:space="preserve"><value>Remove</value></data>

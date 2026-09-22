@@ -2,12 +2,68 @@
 #include "MainWindow.xaml.h"
 
 #include <commctrl.h>
+#include <dwmapi.h>
+#include <uxtheme.h>
+
+#pragma comment(lib, "dwmapi.lib")
+#pragma comment(lib, "uxtheme.lib")
 
 using namespace winrt;
 using namespace Microsoft::UI::Xaml;
 using namespace Microsoft::UI::Xaml::Controls;
 
 namespace winrt::VelocityCopyUI::implementation {
+namespace {
+
+struct TaskDialogThemeContext {
+    BOOL dark_mode{};
+};
+
+HRESULT CALLBACK TaskDialogThemeCallback(
+    HWND hwnd,
+    UINT notification,
+    WPARAM,
+    LPARAM,
+    LONG_PTR callback_data) noexcept {
+    if (notification != TDN_CREATED) return S_OK;
+
+    const auto* context = reinterpret_cast<const TaskDialogThemeContext*>(callback_data);
+    if (context == nullptr) return S_OK;
+
+    const BOOL dark_mode = context->dark_mode;
+    (void)DwmSetWindowAttribute(
+        hwnd,
+        DWMWA_USE_IMMERSIVE_DARK_MODE,
+        &dark_mode,
+        sizeof(dark_mode));
+
+    const DWM_WINDOW_CORNER_PREFERENCE corner = DWMWCP_ROUND;
+    (void)DwmSetWindowAttribute(
+        hwnd,
+        DWMWA_WINDOW_CORNER_PREFERENCE,
+        &corner,
+        sizeof(corner));
+
+    // TaskDialog is a Win32 surface, but it should visually follow the same Windows 11
+    // light/dark mode as the owning WinUI transfer window rather than appearing as a
+    // disconnected legacy dialog.
+    (void)SetWindowTheme(hwnd, dark_mode ? L"DarkMode_Explorer" : L"Explorer", nullptr);
+    return S_OK;
+}
+
+std::wstring localized_or(
+    Microsoft::Windows::ApplicationModel::Resources::ResourceLoader const& loader,
+    wchar_t const* key,
+    wchar_t const* fallback) {
+    try {
+        const auto value = loader.GetString(key);
+        return value.empty() ? std::wstring(fallback) : std::wstring(value.c_str());
+    } catch (...) {
+        return std::wstring(fallback);
+    }
+}
+
+} // namespace
 
 MainWindow::NativeDialogChoice MainWindow::ShowNativeDecisionDialog(
     HWND owner,
@@ -23,6 +79,44 @@ MainWindow::NativeDialogChoice MainWindow::ShowNativeDecisionDialog(
     constexpr int kSecondary = 1002;
 
     try {
+        std::wstring display_title = title;
+        std::wstring display_message = message;
+        std::wstring display_primary = primary_label;
+        std::wstring display_secondary = secondary_label;
+        std::wstring display_cancel = cancel_label;
+        std::wstring remember_label = L"Remember my choice";
+
+        // Routing prompts originate in the app-level multi-window router. Normalize them
+        // here so the actual decision surface is localized even when the router uses its
+        // stable English protocol text internally.
+        try {
+            Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
+            remember_label = localized_or(loader, L"DialogRememberChoice", L"Remember my choice");
+
+            if (title == L"Destination already in use") {
+                display_title = localized_or(loader, L"RoutingDestinationInUseTitle", L"Destination already in use");
+                display_message = localized_or(
+                    loader,
+                    L"RoutingDestinationInUseMessage",
+                    L"A transfer to this destination is already running. Add these files to it or wait?");
+                display_primary = localized_or(loader, L"RoutingActionAdd", L"Add");
+                display_secondary = localized_or(loader, L"RoutingActionWait", L"Wait");
+            } else if (title == L"Storage device already in use") {
+                display_title = localized_or(loader, L"RoutingStorageInUseTitle", L"Storage device already in use");
+                display_message = localized_or(
+                    loader,
+                    L"RoutingStorageInUseMessage",
+                    L"Another transfer is using the same storage device. Wait or run this transfer in parallel?");
+                display_primary = localized_or(loader, L"RoutingActionWait", L"Wait");
+                display_secondary = localized_or(loader, L"RoutingActionParallel", L"Parallel");
+            }
+
+            if (include_cancel && display_cancel.empty()) {
+                display_cancel = localized_or(loader, L"ActionCancel", L"Cancel");
+            }
+        } catch (...) {
+        }
+
         HMODULE module = LoadLibraryExW(L"comctl32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
         if (module != nullptr) {
             using TaskDialogIndirectFn = HRESULT (WINAPI*)(
@@ -32,22 +126,33 @@ MainWindow::NativeDialogChoice MainWindow::ShowNativeDecisionDialog(
 
             if (task_dialog != nullptr) {
                 TASKDIALOG_BUTTON buttons[] = {
-                    {kPrimary, primary_label.c_str()},
-                    {kSecondary, secondary_label.c_str()},
-                    {IDCANCEL, cancel_label.c_str()},
+                    {kPrimary, display_primary.c_str()},
+                    {kSecondary, display_secondary.c_str()},
+                    {IDCANCEL, display_cancel.c_str()},
                 };
+
+                TaskDialogThemeContext theme{};
+                if (owner != nullptr) {
+                    (void)DwmGetWindowAttribute(
+                        owner,
+                        DWMWA_USE_IMMERSIVE_DARK_MODE,
+                        &theme.dark_mode,
+                        sizeof(theme.dark_mode));
+                }
 
                 TASKDIALOGCONFIG config{};
                 config.cbSize = sizeof(config);
                 config.hwndParent = owner;
                 config.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION | TDF_SIZE_TO_CONTENT;
                 config.pszWindowTitle = L"VelocityCopy";
-                config.pszMainInstruction = title.c_str();
-                config.pszContent = message.c_str();
+                config.pszMainInstruction = display_title.c_str();
+                config.pszContent = display_message.c_str();
                 config.cButtons = include_cancel ? 3u : 2u;
                 config.pButtons = buttons;
                 config.nDefaultButton = kPrimary;
-                if (remember_choice != nullptr) config.pszVerificationText = L"Remember my choice";
+                config.pfCallback = &TaskDialogThemeCallback;
+                config.lpCallbackData = reinterpret_cast<LONG_PTR>(&theme);
+                if (remember_choice != nullptr) config.pszVerificationText = remember_label.c_str();
 
                 int selected = IDCANCEL;
                 BOOL verification_checked = FALSE;
@@ -67,7 +172,7 @@ MainWindow::NativeDialogChoice MainWindow::ShowNativeDecisionDialog(
         const UINT flags = include_cancel
             ? (MB_YESNOCANCEL | MB_ICONWARNING | MB_DEFBUTTON1)
             : (MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON1);
-        const int fallback = MessageBoxW(owner, message.c_str(), title.c_str(), flags);
+        const int fallback = MessageBoxW(owner, display_message.c_str(), display_title.c_str(), flags);
         if (fallback == IDYES) return NativeDialogChoice::Primary;
         if (fallback == IDNO) return NativeDialogChoice::Secondary;
     } catch (...) {

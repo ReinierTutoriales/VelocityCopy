@@ -65,6 +65,10 @@ bool merge_recovery_append_jobs(velocitycopy::QueueArchive& archive) {
 
 } // namespace
 
+void MainWindow::OfferRecoveryIfIdle() {
+    MaybeOfferRecoveryAsync();
+}
+
 fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
     auto lifetime = get_strong();
 
