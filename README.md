@@ -12,7 +12,7 @@
 
 ## Status
 
-VelocityCopy is a **pre-release** Windows 11 app. The copy engine, compact WinUI shell, Explorer commands and classic installers exist and are built on every `main` commit. It is not a 1.0 product yet.
+VelocityCopy 1.0 is the stable Windows 11 release line. The copy engine, compact WinUI shell, Explorer integration and classic installers are built and verified by the repository release pipeline.
 
 Current automated baseline (`main`):
 
@@ -22,22 +22,18 @@ Current automated baseline (`main`):
 - self-contained unpackaged WinUI for x64 and ARM64
 - `VelocityCopy-Setup-x64.exe` and `VelocityCopy-Setup-ARM64.exe`
 
-Download the installers from [Releases](https://github.com/ReinierTutoriales/VelocityCopy/releases). Use the setup that matches the PC: x64 setup refuses ARM64 Windows, and the ARM64 setup refuses x64 Windows.
+Download installers from Releases. Use the setup that matches the PC: x64 setup refuses ARM64 Windows, and the ARM64 setup refuses x64 Windows.
 
-Open product gaps before calling it production:
-
-- [#1](https://github.com/ReinierTutoriales/VelocityCopy/issues/1) shutdown recovery has no Resume/Discard UI
-- [#2](https://github.com/ReinierTutoriales/VelocityCopy/issues/2) no transparent Explorer paste without a global keyboard hook
-
-## What it does today
+## What it does
 
 - Drag and drop files into a compact WinUI 3 window
-- One overall progress view with an expandable queue
-- Pause, resume, skip, stop, cancel
+- Overall progress view with an expandable queue
+- Pause, resume, skip, stop and cancel
 - Save and load copy queues
-- Explorer transfer handler with SuperCopier-style default selection (automatic Ctrl+V requires installed Windows 11 validation; see docs/EXPLORER_INTEGRATION.md)
+- Native per-session shutdown recovery with Resume/Discard decisions
+- Explorer transfer handler with SuperCopier-style default selection
 - Silent startup via an installer-owned HKCU Run entry (`--startup`)
-- Tray residency with EcoQoS while idle and hidden
+- One process-owned tray icon with EcoQoS while eligible and idle
 
 ## Repository layout
 
@@ -51,9 +47,9 @@ docs         product and release-gate rules
 .github      Windows CI and Windows Package
 ```
 
-Keep work on short-lived PR branches. Merge to `main` and delete the branch. Do not keep `tmp-*` or merged `fix/*` branches.
+`main` is the only intended long-lived branch. Do not keep temporary or merged fix branches.
 
-Before changing CI or Package, read [docs/RELEASE_GATES.md](docs/RELEASE_GATES.md). Those workflows are string-checked by architecture tests.
+Before changing CI or Package, read `docs/RELEASE_GATES.md`. Those workflows are protected by architecture contracts.
 
 ## Build locally
 
@@ -67,4 +63,4 @@ Installers are produced by GitHub Actions, not by the local CMake tree.
 
 ## License
 
-VelocityCopy is available under the [MIT License](LICENSE).
+VelocityCopy is available under the MIT License.
