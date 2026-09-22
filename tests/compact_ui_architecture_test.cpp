@@ -1,5 +1,6 @@
+#include "architecture_support.hpp"
+
 #include <filesystem>
-#include <fstream>
 #include <iostream>
 #include <string>
 
@@ -8,24 +9,11 @@
 #endif
 
 namespace {
-std::string read_all(const std::filesystem::path& path) {
-    std::ifstream stream(path, std::ios::binary);
-    if (!stream) return {};
-    std::string text{std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
-    std::erase(text, '\r');
-    return text;
-}
 
 bool contains(const std::string& text, const std::string& value) {
     return text.find(value) != std::string::npos;
 }
 
-std::string body_of(const std::string& source, const std::string& signature) {
-    const auto start = source.find(signature);
-    if (start == std::string::npos) return {};
-    const auto end = source.find("\n}\n", start);
-    return source.substr(start, end == std::string::npos ? std::string::npos : end - start);
-}
 
 int fail(const int code, const char* message) {
     std::cerr << "compact UI architecture contract " << code << ": " << message << '\n';
@@ -35,14 +23,14 @@ int fail(const int code, const char* message) {
 
 int main() {
     const std::filesystem::path root{VELOCITYCOPY_SOURCE_DIR};
-    const auto xaml = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml");
-    const auto header = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.h");
-    const auto execution = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Execution.cpp");
-    const auto queue = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Queue.cpp");
-    const auto menu = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.QueuePersistence.cpp");
-    const auto window = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
-    const auto tokens = read_all(root / "src/ui/DesignTokens.xaml");
-    const auto spec = read_all(root / "docs/UI_SPEC.md");
+    const auto xaml = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.xaml");
+    const auto header = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.h");
+    const auto execution = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Execution.cpp");
+    const auto queue = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Queue.cpp");
+    const auto menu = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.QueuePersistence.cpp");
+    const auto window = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
+    const auto tokens = read_source(root / "src/ui/DesignTokens.xaml");
+    const auto spec = read_source(root / "docs/UI_SPEC.md");
 
     if (xaml.empty() || header.empty() || execution.empty() || queue.empty() ||
         menu.empty() || window.empty() || tokens.empty() || spec.empty()) {

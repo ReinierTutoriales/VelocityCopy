@@ -1,5 +1,6 @@
+#include "architecture_support.hpp"
+
 #include <filesystem>
-#include <fstream>
 #include <iostream>
 #include <string>
 
@@ -8,19 +9,8 @@
 #endif
 
 namespace {
-std::string read_all(const std::filesystem::path& path) {
-    std::ifstream stream(path, std::ios::binary);
-    if (!stream) return {};
-    return {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
-}
 bool contains(const std::string& text, const std::string& value) {
     return text.find(value) != std::string::npos;
-}
-std::string body_of(const std::string& source, const std::string& signature) {
-    const auto start = source.find(signature);
-    if (start == std::string::npos) return {};
-    const auto end = source.find("\n}\n", start);
-    return source.substr(start, end == std::string::npos ? std::string::npos : end - start);
 }
 int fail(const int code, const char* message) {
     std::cerr << "skip architecture contract " << code << ": " << message << '\n';
@@ -30,19 +20,19 @@ int fail(const int code, const char* message) {
 
 int main() {
     const std::filesystem::path root{VELOCITYCOPY_SOURCE_DIR};
-    const auto control_h = read_all(root / "src/core/include/velocitycopy/execution_control.hpp");
-    const auto control_cpp = read_all(root / "src/core/execution_control.cpp");
-    const auto executor_h = read_all(root / "src/core/include/velocitycopy/job_executor.hpp");
-    const auto executor_cpp = read_all(root / "src/core/job_executor.cpp");
-    const auto live_h = read_all(root / "src/core/include/velocitycopy/live_copy_plan.hpp");
-    const auto live_cpp = read_all(root / "src/core/live_copy_plan.cpp");
-    const auto snapshot_h = read_all(root / "src/core/include/velocitycopy/ui_snapshot.hpp");
-    const auto snapshot_cpp = read_all(root / "src/core/ui_snapshot.cpp");
-    const auto xaml = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml");
-    const auto window_h = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.h");
-    const auto execution = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Execution.cpp");
-    const auto menu = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.QueuePersistence.cpp");
-    const auto window = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
+    const auto control_h = read_source(root / "src/core/include/velocitycopy/execution_control.hpp");
+    const auto control_cpp = read_source(root / "src/core/execution_control.cpp");
+    const auto executor_h = read_source(root / "src/core/include/velocitycopy/job_executor.hpp");
+    const auto executor_cpp = read_source(root / "src/core/job_executor.cpp");
+    const auto live_h = read_source(root / "src/core/include/velocitycopy/live_copy_plan.hpp");
+    const auto live_cpp = read_source(root / "src/core/live_copy_plan.cpp");
+    const auto snapshot_h = read_source(root / "src/core/include/velocitycopy/ui_snapshot.hpp");
+    const auto snapshot_cpp = read_source(root / "src/core/ui_snapshot.cpp");
+    const auto xaml = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.xaml");
+    const auto window_h = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.h");
+    const auto execution = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Execution.cpp");
+    const auto menu = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.QueuePersistence.cpp");
+    const auto window = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
 
     if (control_h.empty() || control_cpp.empty() || executor_h.empty() || executor_cpp.empty() ||
         live_h.empty() || live_cpp.empty() || snapshot_h.empty() || snapshot_cpp.empty() ||

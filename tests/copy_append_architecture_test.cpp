@@ -1,5 +1,6 @@
+#include "architecture_support.hpp"
+
 #include <filesystem>
-#include <fstream>
 #include <iostream>
 #include <string>
 
@@ -8,11 +9,6 @@
 #endif
 
 namespace {
-std::string read_all(const std::filesystem::path& path) {
-    std::ifstream stream(path, std::ios::binary);
-    if (!stream) return {};
-    return {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
-}
 bool contains(const std::string& text, const std::string& value) { return text.find(value) != std::string::npos; }
 std::size_t count_occurrences(const std::string& text, const std::string& value) {
     if (value.empty()) return 0;
@@ -31,24 +27,24 @@ int fail(const int code, const char* message) {
 
 int main() {
     const std::filesystem::path root{VELOCITYCOPY_SOURCE_DIR};
-    const auto app = read_all(root / "src/ui/VelocityCopy.UI/App.xaml.cpp");
-    const auto xaml = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml");
-    const auto header = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.h");
-    const auto window = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
-    const auto append = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.CopyAppend.cpp");
-    const auto conflict = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Conflict.cpp");
-    const auto execution = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Execution.cpp");
-    const auto queue = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Queue.cpp");
-    const auto project = read_all(root / "src/ui/VelocityCopy.UI/VelocityCopy.UI.vcxproj");
-    const auto manifest = read_all(root / "tools/VelocityCopy-Test-Installer.nsi");
-    const auto explorer = read_all(root / "src/shell/drop_handler.cpp");
-    const auto cli = read_all(root / "src/app/main.cpp");
-    const auto cmake = read_all(root / "CMakeLists.txt");
-    const auto engine_h = read_all(root / "src/core/include/velocitycopy/copy_engine.hpp");
-    const auto engine_cpp = read_all(root / "src/core/copy_engine.cpp");
-    const auto live_h = read_all(root / "src/core/include/velocitycopy/live_copy_plan.hpp");
-    const auto executor_h = read_all(root / "src/core/include/velocitycopy/job_executor.hpp");
-    const auto executor_cpp = read_all(root / "src/core/job_executor.cpp");
+    const auto app = read_source(root / "src/ui/VelocityCopy.UI/App.xaml.cpp");
+    const auto xaml = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.xaml");
+    const auto header = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.h");
+    const auto window = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
+    const auto append = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.CopyAppend.cpp");
+    const auto conflict = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Conflict.cpp");
+    const auto execution = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Execution.cpp");
+    const auto queue = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Queue.cpp");
+    const auto project = read_source(root / "src/ui/VelocityCopy.UI/VelocityCopy.UI.vcxproj");
+    const auto manifest = read_source(root / "tools/VelocityCopy-Test-Installer.nsi");
+    const auto explorer = read_source(root / "src/shell/drop_handler.cpp");
+    const auto cli = read_source(root / "src/app/main.cpp");
+    const auto cmake = read_source(root / "CMakeLists.txt");
+    const auto engine_h = read_source(root / "src/core/include/velocitycopy/copy_engine.hpp");
+    const auto engine_cpp = read_source(root / "src/core/copy_engine.cpp");
+    const auto live_h = read_source(root / "src/core/include/velocitycopy/live_copy_plan.hpp");
+    const auto executor_h = read_source(root / "src/core/include/velocitycopy/job_executor.hpp");
+    const auto executor_cpp = read_source(root / "src/core/job_executor.cpp");
 
     if (app.empty() || xaml.empty() || header.empty() || window.empty() ||
         append.empty() || conflict.empty() || execution.empty() || queue.empty() || project.empty() ||
@@ -216,7 +212,7 @@ int main() {
     const auto ui_root = root / "src/ui";
     for (const auto& entry : std::filesystem::recursive_directory_iterator(ui_root)) {
         if (!entry.is_regular_file()) continue;
-        const auto source = read_all(entry.path());
+        const auto source = read_source(entry.path());
         if (contains(source, "QueueOrStartCopy") || contains(source, "same_session") || contains(source, "StartCopy(")) {
             return fail(26, "retired transfer decision names must not return anywhere under src/ui");
         }
