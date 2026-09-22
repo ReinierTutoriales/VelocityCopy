@@ -32,7 +32,6 @@ int fail(const int code, const char* message) {
 int main() {
     const std::filesystem::path root{VELOCITYCOPY_SOURCE_DIR};
     const auto app = read_all(root / "src/ui/VelocityCopy.UI/App.xaml.cpp");
-    const auto shell = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Shell.cpp");
     const auto xaml = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml");
     const auto header = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.h");
     const auto window = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
@@ -51,7 +50,7 @@ int main() {
     const auto executor_h = read_all(root / "src/core/include/velocitycopy/job_executor.hpp");
     const auto executor_cpp = read_all(root / "src/core/job_executor.cpp");
 
-    if (app.empty() || shell.empty() || xaml.empty() || header.empty() || window.empty() ||
+    if (app.empty() || xaml.empty() || header.empty() || window.empty() ||
         append.empty() || conflict.empty() || execution.empty() || queue.empty() || project.empty() ||
         manifest.empty() || explorer.empty() || cli.empty() || cmake.empty() ||
         engine_h.empty() || engine_cpp.empty() || live_h.empty() || executor_h.empty() || executor_cpp.empty()) {
@@ -123,7 +122,7 @@ int main() {
     }
 
     if (!contains(project, "MainWindow.Execution.cpp") || !contains(project, "MainWindow.Queue.cpp") ||
-        !contains(project, "MainWindow.Shell.cpp") || !contains(project, "MainWindow.Conflict.cpp") ||
+        !contains(project, "MainWindow.Conflict.cpp") ||
         std::filesystem::exists(root / "src/ui/VelocityCopy.UI/MainWindow.QueueDrag.cpp") ||
         contains(project, "MainWindow.QueueDrag.cpp")) {
         return fail(13, "WinUI translation-unit cutover incomplete");
@@ -133,8 +132,7 @@ int main() {
         return fail(14, "WinUI must be the sole Explorer activation host");
     }
 
-    if (contains(shell, "resume_background()") || contains(shell, "GetFileAttributesW") ||
-        contains(shell, "flow_.") || contains(shell, "SelectDestination") || contains(shell, "BeginShellLayoutAsync")) {
+    if (contains(app, "GetFileAttributesW") || contains(app, "flow_.") || contains(app, "SelectDestination") || contains(app, "BeginShellLayoutAsync")) {
         return fail(15, "Explorer jobs are already resolved and must not re-enter the removed chooser/layout pipeline");
     }
 
@@ -184,7 +182,7 @@ int main() {
         return fail(22, "window drag/drop must be append-only and chooser state must be fully removed");
     }
 
-    if (contains(shell, "ShowAt(") || contains(shell, "choose_layout") || contains(shell, "flow_.make_job") ||
+    if (contains(app, "ShowAt(") || contains(app, "choose_layout") || contains(app, "flow_.make_job") ||
         !contains(app, "StartTransfer(")) {
         return fail(23, "Explorer transfer must start directly and never block on destination/layout UI");
     }
@@ -209,6 +207,11 @@ int main() {
         count_occurrences(execution, "gate->condition.wait(") != 2) {
         return fail(25, "append-planner waits must be time-bounded so a blocked filesystem enumeration cannot freeze transfer finalization");
     }
+
+    const auto pending_start = app.find("void App::StartNextPendingRequest()");
+    const auto pending_end = app.find("\n}\n", pending_start);
+    const auto pending_body = pending_start == std::string::npos ? std::string{} : app.substr(pending_start, pending_end - pending_start);
+    if (!contains(pending_body, "catch (...)") || pending_body.find("request_in_flight_ = false") < pending_body.find("catch (...)") || !contains(app, "ShowPrimaryWindowError();")) return fail(27, "Explorer FIFO must recover from delivery failures and surface rejected requests");
 
     const auto ui_root = root / "src/ui";
     for (const auto& entry : std::filesystem::recursive_directory_iterator(ui_root)) {

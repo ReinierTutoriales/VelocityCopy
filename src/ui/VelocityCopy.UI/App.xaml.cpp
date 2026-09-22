@@ -176,9 +176,11 @@ VelocityCopyUI::MainWindow App::CreateMainWindow() {
 }
 
 void App::DeliverShellRequest(const velocitycopy::ShellRequest& request) {
-    auto dispatch = shell_session_.dispatch(request);
+    velocitycopy::ShellDispatchResult dispatch{};
+    try { dispatch = shell_session_.dispatch(request); }
+    catch (...) { velocitycopy::log_diagnostic(L"shell: transfer request failed during dispatch"); ShowPrimaryWindowError(); return; }
     if (dispatch.status != velocitycopy::ShellDispatchStatus::Accepted) {
-        ShowPrimaryWindow();
+        ShowPrimaryWindowError();
         return;
     }
     if (dispatch.job) {
@@ -190,13 +192,14 @@ void App::DeliverShellRequest(const velocitycopy::ShellRequest& request) {
 }
 
 void App::StartNextPendingRequest() {
-    if (request_in_flight_ || pending_requests_.empty()) return;
-    request_in_flight_ = true;
-    auto job = std::move(pending_requests_.front());
-    pending_requests_.pop_front();
-    DeliverConvertedJob(std::move(job));
-    request_in_flight_ = false;
-    StartNextPendingRequest();
+    while (!request_in_flight_ && !pending_requests_.empty()) {
+        request_in_flight_ = true;
+        auto job = std::move(pending_requests_.front());
+        pending_requests_.pop_front();
+        try { DeliverConvertedJob(std::move(job)); }
+        catch (...) { velocitycopy::log_diagnostic(L"shell: transfer request failed during delivery"); ShowPrimaryWindowError(); }
+        request_in_flight_ = false;
+    }
 }
 
 void App::DeliverConvertedJob(velocitycopy::CopyJob job) {
@@ -216,6 +219,13 @@ void App::DeliverConvertedJob(velocitycopy::CopyJob job) {
             }
         }
     }
+}
+
+void App::ShowPrimaryWindowError() {
+    Microsoft::UI::Xaml::Window target{nullptr};
+    if (!windows_.empty()) target = windows_.rbegin()->second;
+    if (!target) target = CreateMainWindow();
+    if (auto main_window = target.try_as<VelocityCopyUI::MainWindow>()) if (auto* implementation = get_self<MainWindow>(main_window)) implementation->ShowRequestError();
 }
 
 void App::ShowPrimaryWindow() {

@@ -28,7 +28,6 @@ int main() {
     const std::filesystem::path root{VELOCITYCOPY_SOURCE_DIR};
     const auto app = read_all(root / "src/ui/VelocityCopy.UI/App.xaml.cpp");
     const auto shell = read_all(root / "src/shell/drop_handler.cpp");
-    const auto shell_window = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Shell.cpp");
     const auto ipc = read_all(root / "src/core/ipc_transport.cpp");
     const auto window = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
     const auto tray = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Tray.cpp");
@@ -42,7 +41,7 @@ int main() {
     const auto installer_smoke = read_all(root / "tools/Install-VelocityCopy-Test.ps1");
     const auto docs = read_all(root / "docs/SYSTEM_INTEGRATION.md");
 
-    if (app.empty() || shell.empty() || shell_window.empty() || ipc.empty() ||
+    if (app.empty() || shell.empty() || ipc.empty() ||
         window.empty() || tray.empty() || app_tray.empty() || persistence.empty() || recovery.empty() || conflict.empty() ||
         ci_workflow.empty() || package_workflow.empty() || installer_exe.empty() || installer_smoke.empty() || docs.empty()) {
         return fail(1, "required integration source missing");
@@ -143,8 +142,8 @@ int main() {
 
     if (!contains(app, "shell_session_.dispatch(request)") ||
         !contains(app, "StartTransfer(std::move(job))") ||
-        contains(shell_window, "BeginShellLayoutAsync") ||
-        contains(shell_window, "CaptureClipboardFileSelection") ||
+        contains(app, "BeginShellLayoutAsync") ||
+        contains(app, "CaptureClipboardFileSelection") ||
         contains(tray, "AddClipboardFormatListener") ||
         contains(tray, "WM_CLIPBOARDUPDATE")) {
         return fail(12, "transfer handoff must use its own shell snapshot and enter the queue directly");
