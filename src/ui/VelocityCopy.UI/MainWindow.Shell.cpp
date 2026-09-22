@@ -17,7 +17,7 @@ void MainWindow::HandleShellRequest(const velocitycopy::ShellRequest& request) {
             auto job = std::move(*dispatch.job);
             if (!HasActiveTransfer()) {
                 StartTransfer(std::move(job));
-            } else if (active_destination_.lexically_normal() == job.destination.lexically_normal() &&
+            } else if (velocitycopy::same_destination(active_destination_, job.destination) &&
                        active_operation_ == job.operation) {
                 AppendTransfer(std::move(job));
             } else {

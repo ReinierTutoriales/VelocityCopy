@@ -194,6 +194,7 @@ velocitycopy::JobResult MainWindow::RunLivePlanSession(
 }
 
 void MainWindow::StartTransfer(velocitycopy::CopyJob job) {
+    planning_sources_ = job.sources; // Queue preview while a large tree is still being planned.
     ResetTransferSurface();
     active_destination_ = job.destination;
     active_operation_ = job.operation;
@@ -219,6 +220,7 @@ void MainWindow::StartTransfer(velocitycopy::CopyJob job) {
     SetProgressFraction(0.0);
     SetExecutionButtonsPlanning();
     CurrentItemText().Text(job.display_name.empty() ? hstring(L"…") : hstring(job.display_name));
+    RefreshQueue();
 
     auto weak = get_weak();
     auto dispatcher = dispatcher_;
