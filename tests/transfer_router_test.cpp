@@ -1,6 +1,9 @@
 #include "velocitycopy/transfer_router.hpp"
 using namespace velocitycopy;
 int main(){
+ if(fallback_volume_key(L"\\\\Server\\Share\\folder\\file.bin")!=L"\\\\server\\share")return 22;
+ if(fallback_volume_key(L"Z:\\folder\\file.bin")!=L"z:\\")return 23;
+ if(!same_device({fallback_volume_key(L"\\\\SERVER\\SHARE\\a"),{}},{fallback_volume_key(L"\\\\server\\share\\b"),{}}))return 24;
  const auto local=resolve_storage_key(std::filesystem::current_path());
  if(local.volume.empty())return 20;
  if(local.volume.rfind(L"\\\\?\\Volume{",0)!=0)return 21;
