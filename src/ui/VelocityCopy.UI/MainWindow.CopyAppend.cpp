@@ -34,7 +34,7 @@ bool same_session(
 } // namespace
 
 void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
-    SetEfficiencyMode(false);
+    RefreshEfficiencyMode();
     if (stop_requested_) {
         if (same_session(active_destination_, active_operation_, job)) {
             deferred_interrupted_jobs_.push_back(std::move(job));
