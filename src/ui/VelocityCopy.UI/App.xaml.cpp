@@ -110,6 +110,30 @@ App::~App() {
     instance_.reset();
 }
 
+
+void App::ApplyEfficiencyMode(const bool enabled) noexcept {
+    if (efficiency_mode_enabled_ == enabled) return;
+    PROCESS_POWER_THROTTLING_STATE state{};
+    state.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
+    state.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+    state.StateMask = enabled ? PROCESS_POWER_THROTTLING_EXECUTION_SPEED : 0;
+    if (SetProcessInformation(GetCurrentProcess(), ProcessPowerThrottling, &state, sizeof(state))) {
+        efficiency_mode_enabled_ = enabled;
+    }
+}
+
+void App::ReportEfficiencyVote(const std::uint64_t window_id, const bool eligible) noexcept {
+    try { ApplyEfficiencyMode(efficiency_coordinator_.update(window_id, eligible)); } catch (...) {}
+}
+
+void App::RemoveEfficiencyVote(const std::uint64_t window_id) noexcept {
+    try { ApplyEfficiencyMode(efficiency_coordinator_.remove(window_id)); } catch (...) {}
+}
+
+void App::SetShuttingDown(const bool value) noexcept {
+    try { ApplyEfficiencyMode(efficiency_coordinator_.set_shutting_down(value)); } catch (...) {}
+}
+
 void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
     const bool startup_activation = is_startup_activation();
     const auto initial_request = inherited_shell_request();
