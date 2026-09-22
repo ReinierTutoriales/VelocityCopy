@@ -193,7 +193,7 @@ velocitycopy::JobResult MainWindow::RunLivePlanSession(
     return result;
 }
 
-void MainWindow::StartCopy(velocitycopy::CopyJob job) {
+void MainWindow::StartTransfer(velocitycopy::CopyJob job) {
     ResetTransferSurface();
     active_destination_ = job.destination;
     active_operation_ = job.operation;
@@ -313,7 +313,7 @@ void MainWindow::StartNextQueuedSession() {
     if (execution_control_ || stopped_session_ || conflict_session_ || stop_requested_ || queued_sessions_.empty()) return;
     auto next = std::move(queued_sessions_.front());
     queued_sessions_.pop_front();
-    StartCopy(std::move(next));
+    StartTransfer(std::move(next));
 }
 
 void MainWindow::PublishLivePlan(std::shared_ptr<velocitycopy::LiveCopyPlan> plan) {

@@ -14,7 +14,15 @@ void MainWindow::HandleShellRequest(const velocitycopy::ShellRequest& request) {
 
         if (dispatch.job) {
             ShowFromTray();
-            QueueOrStartCopy(std::move(*dispatch.job));
+            auto job = std::move(*dispatch.job);
+            if (!HasActiveTransfer()) {
+                StartTransfer(std::move(job));
+            } else if (active_destination_.lexically_normal() == job.destination.lexically_normal() &&
+                       active_operation_ == job.operation) {
+                AppendTransfer(std::move(job));
+            } else {
+                EnqueueTransfer(std::move(job));
+            }
             return;
         }
 
