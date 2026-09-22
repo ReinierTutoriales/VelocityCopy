@@ -54,7 +54,7 @@ int main() {
     }
 
     if (!contains(app, "shell_session_.dispatch(request)") ||
-        !contains(app, "StartTransfer(std::move(job))") ||
+        !contains(app, "StartTransfer(std::move(job), std::move(destination_key), std::move(source_key))") ||
         !contains(app, "AppendTransfer(std::move(job))") ||
         !contains(app, "EnqueueTransfer(std::move(job))") ||
         !contains(window, "AppendTransfer(std::move(job))") ||

@@ -31,7 +31,7 @@ struct MainWindow : MainWindowT<MainWindow> {
     void RequestAppExit() noexcept;
     [[nodiscard]] bool HasActiveTransfer() const noexcept;
     [[nodiscard]] std::uint64_t WindowId() const noexcept { return window_id_; }
-    void StartTransfer(velocitycopy::CopyJob job);
+    void StartTransfer(velocitycopy::CopyJob job, velocitycopy::StorageKey destination_key = {}, velocitycopy::StorageKey source_key = {});
     void AppendTransfer(velocitycopy::CopyJob job);
     void EnqueueTransfer(velocitycopy::CopyJob job);
     [[nodiscard]] const std::filesystem::path& ActiveDestination() const noexcept { return active_destination_; }
@@ -188,6 +188,8 @@ private:
     std::shared_ptr<AppendGate> append_gate_;
     velocitycopy::ProgressPresenter presenter_{100};
     std::filesystem::path active_destination_;
+    velocitycopy::StorageKey active_destination_key_;
+    velocitycopy::StorageKey active_source_key_;
     velocitycopy::FileOperation active_operation_{velocitycopy::FileOperation::Copy};
     std::deque<velocitycopy::CopyJob> deferred_same_destination_jobs_;
     std::deque<velocitycopy::CopyJob> deferred_interrupted_jobs_;

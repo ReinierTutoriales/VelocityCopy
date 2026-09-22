@@ -193,7 +193,9 @@ velocitycopy::JobResult MainWindow::RunLivePlanSession(
     return result;
 }
 
-void MainWindow::StartTransfer(velocitycopy::CopyJob job) {
+void MainWindow::StartTransfer(velocitycopy::CopyJob job, velocitycopy::StorageKey destination_key, velocitycopy::StorageKey source_key) {
+    active_destination_key_ = std::move(destination_key);
+    active_source_key_ = std::move(source_key);
     planning_sources_ = job.sources; // Queue preview while a large tree is still being planned.
     ResetTransferSurface();
     active_destination_ = job.destination;
