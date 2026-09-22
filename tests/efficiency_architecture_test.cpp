@@ -27,6 +27,14 @@ int main() {
     if (app.find("SetProcessInformation") == std::string::npos ||
         app.find("ProcessPowerThrottling") == std::string::npos) return 2;
     const auto header = read(ui / "MainWindow.xaml.h");
+    for (std::filesystem::directory_iterator it(ui, ec), end; !ec && it != end; it.increment(ec)) {
+        if (!it->is_regular_file()) continue;
+        const auto ext = it->path().extension().string();
+        if (ext != ".cpp" && ext != ".h") continue;
+        const auto text = read(it->path());
+        if (text.find("VelocityCopyUI::App") != std::string::npos ||
+            text.find("get_self<Microsoft::UI::Xaml::Application>") != std::string::npos) return 5;
+    }
     if (header.find("efficiency_mode_enabled_") != std::string::npos) return 3;
     return ec ? 4 : 0;
 }
