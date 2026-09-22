@@ -76,6 +76,10 @@ The queue is collapsed by default and expands in the same HWND.
 - Removing a queue entry never deletes the source file.
 - No card background or second rounded shell around the queue.
 
+## Transfer routing preference lifetime
+
+For v1.0, the router dialog's **Remember my choice** preference is process-local only. `App` owns the remembered choice in memory for the current VelocityCopy execution and discards it when the process exits. No router preference is persisted under `%LOCALAPPDATA%\VelocityCopy` in v1.0. Persistent routing preferences, including UI to forget/reset them, are deferred as a possible v1.1 enhancement.
+
 ## Modal choices and menus
 
 The compact copier surface must never be resized merely to make a modal decision UI fit.
