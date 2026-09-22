@@ -82,10 +82,10 @@ LRESULT CALLBACK AppTray::WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPA
         self = static_cast<AppTray*>(create->lpCreateParams);
         SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(self));
     }
-    return self ? self->HandleMessage(message, wparam, lparam) : DefWindowProcW(hwnd, message, wparam, lparam);
+    return self ? self->HandleMessage(hwnd, message, wparam, lparam) : DefWindowProcW(hwnd, message, wparam, lparam);
 }
 
-LRESULT AppTray::HandleMessage(UINT message, WPARAM wparam, LPARAM lparam) noexcept {
+LRESULT AppTray::HandleMessage(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) noexcept {
     if (message == taskbar_created_message_ && taskbar_created_message_ != 0) {
         RestoreIcon(); return 0;
     }
@@ -104,7 +104,8 @@ LRESULT AppTray::HandleMessage(UINT message, WPARAM wparam, LPARAM lparam) noexc
             }
         }
     }
-    return DefWindowProcW(hwnd_, message, wparam, lparam);
+    // Use the HWND supplied by Windows: hwnd_ is assigned only after CreateWindowExW returns.
+    return DefWindowProcW(hwnd, message, wparam, lparam);
 }
 
 void AppTray::ShowMenu(POINT anchor) noexcept {
