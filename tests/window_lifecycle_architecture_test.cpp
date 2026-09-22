@@ -5,6 +5,22 @@
 #ifndef VELOCITYCOPY_SOURCE_DIR
 #error VELOCITYCOPY_SOURCE_DIR must be defined
 #endif
+
+namespace {
+std::string block_from(const std::string& text, const std::string& marker) {
+ const auto marker_pos=text.find(marker);
+ if(marker_pos==std::string::npos) return {};
+ const auto open=text.find('{', marker_pos);
+ if(open==std::string::npos) return {};
+ int depth=0;
+ for(std::size_t i=open;i<text.size();++i){
+  if(text[i]=='{') ++depth;
+  else if(text[i]=='}' && --depth==0) return text.substr(open+1,i-open-1);
+ }
+ return {};
+}
+}
+
 int main(){
  const auto ui=std::filesystem::path{VELOCITYCOPY_SOURCE_DIR}/"src/ui/VelocityCopy.UI";
  const auto tray=read_source(ui/"MainWindow.Tray.cpp"), exec=read_source(ui/"MainWindow.Execution.cpp"), app=read_source(ui/"App.xaml.cpp");
@@ -23,6 +39,26 @@ int main(){
  if(destroy == std::string::npos) return 13;
  if(finish.find("HasPendingRecovery(") != std::string::npos ||
     finish.find("MaybeOfferRecoveryAsync()") != std::string::npos) return 18;
+
+ const auto cancelled=block_from(finish,"if (result.cancelled)");
+ if(cancelled.empty() || cancelled.find("queued_sessions_.clear()") != std::string::npos ||
+    cancelled.find("if (queued_sessions_.empty()) DestroyCompletedWindow();") == std::string::npos ||
+    cancelled.find("else StartNextQueuedSession();") == std::string::npos) return 23;
+ const auto failed=block_from(finish,"if (!result.success)");
+ if(failed.empty() || failed.find("ShowError(reason);") == std::string::npos ||
+    failed.find("if (!queued_sessions_.empty())") == std::string::npos ||
+    failed.find("StartNextQueuedSession();") == std::string::npos ||
+    failed.find("DestroyCompletedWindow();") != std::string::npos) return 24;
+ const auto cancel_session=body_of(exec,"void MainWindow::CancelCurrentSession(");
+ if(cancel_session.empty() || cancel_session.find("queued_sessions_.clear()") != std::string::npos) return 25;
+ const auto active_cancel=block_from(cancel_session,"if (execution_control_)");
+ if(active_cancel.empty() || active_cancel.find("request_cancel();") == std::string::npos ||
+    active_cancel.find("StartNextQueuedSession();") != std::string::npos ||
+    active_cancel.find("DestroyCompletedWindow();") != std::string::npos) return 26;
+ const auto attention_cancel=block_from(cancel_session,"if (stopped_session_ || conflict_session_)");
+ if(attention_cancel.empty() || attention_cancel.find("if (queued_sessions_.empty()) DestroyCompletedWindow();") == std::string::npos ||
+    attention_cancel.find("else StartNextQueuedSession();") == std::string::npos) return 27;
+
  const auto show_from_tray=body_of(tray,"void MainWindow::ShowFromTray(");
  if(show_from_tray.empty() || show_from_tray.find("MaybeOfferRecoveryAsync()") != std::string::npos) return 19;
  const auto primary=body_of(app,"void App::ShowPrimaryWindow(");
