@@ -27,6 +27,7 @@ struct MainWindow : MainWindowT<MainWindow> {
     ~MainWindow();
 
     void ShowFromTray();
+    void OfferRecoveryIfIdle();
     void ShowRequestError();
     void RequestAppExit() noexcept;
     [[nodiscard]] bool HasActiveTransfer() const noexcept;
