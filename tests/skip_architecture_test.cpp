@@ -16,6 +16,12 @@ std::string read_all(const std::filesystem::path& path) {
 bool contains(const std::string& text, const std::string& value) {
     return text.find(value) != std::string::npos;
 }
+std::string body_of(const std::string& source, const std::string& signature) {
+    const auto start = source.find(signature);
+    if (start == std::string::npos) return {};
+    const auto end = source.find("\n}\n", start);
+    return source.substr(start, end == std::string::npos ? std::string::npos : end - start);
+}
 int fail(const int code, const char* message) {
     std::cerr << "skip architecture contract " << code << ": " << message << '\n';
     return code;
@@ -81,15 +87,18 @@ int main() {
         return fail(5, "Skip identity/safety and pure availability contract must reach UI state");
     }
 
-    if (contains(xaml, "x:Name=\"SkipButton\"") || contains(xaml, "x:Name=\"StopButton\"") ||
+    if (!contains(xaml, "x:Name=\"SkipButton\"") || !contains(xaml, "Click=\"OnSkipClick\"") ||
+        !contains(xaml, "x:Name=\"StopButton\"") || !contains(xaml, "Click=\"OnStopClick\"") ||
         !contains(window_h, "current_file_skippable_") ||
         !contains(execution, "snapshot.current_file_skippable") ||
-        !contains(execution, "can_skip_current_file(") ||
+        !contains(body_of(execution, "void MainWindow::ApplySnapshot("), "RefreshExecutionButtonState();") ||
+        !contains(body_of(execution, "void MainWindow::RefreshExecutionButtonState("), "can_skip_current_file(") ||
+        !contains(body_of(execution, "void MainWindow::OnSkipClick("), "can_skip_current_file(") ||
         !contains(execution, "request_skip(current_file_id_)") ||
         !contains(menu, "skip_menu_item_.Click({this, &MainWindow::OnMenuSkipClick})") ||
         !contains(menu, "menu.Opening") || !contains(menu, "RefreshExecutionMenuState()") ||
         !contains(execution, "Localization failure must never mutate the execution state")) {
-        return fail(6, "WinUI menu-driven safe Skip contract incomplete");
+        return fail(6, "Skip must be available from the visible button and the menu through one safe predicate");
     }
 
     return 0;
