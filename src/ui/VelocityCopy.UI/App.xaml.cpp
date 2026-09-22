@@ -160,23 +160,22 @@ void App::ShowPrimaryWindow() {
 
 void App::OnWindowDestroyed(const std::uint64_t window_id) noexcept {
     RemoveEfficiencyVote(window_id);
-    // WM_DESTROY is still executing inside MainWindow's subclass. Releasing App's
-    // last strong Window reference there can destroy the C++ object while that
-    // callback still uses its raw `self`. Defer the release until the dispatcher
-    // returns to its queue, and never clear a replacement window created meanwhile.
     try {
-        auto weak = get_weak();
-        auto dispatcher = Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
-        (void)dispatcher.TryEnqueue([weak, window_id]() {
-            if (auto self = weak.get()) {
-                auto current = self->window_.try_as<VelocityCopyUI::MainWindow>();
-                if (!current) return;
-                if (auto* implementation = get_self<MainWindow>(current);
-                    implementation && implementation->WindowId() == window_id) {
-                    self->window_ = nullptr;
-                }
+        // Detach routing immediately: IPC/tray actions must never reuse a Window
+        // after its HWND has entered WM_DESTROY. Keep a strong reference separately
+        // until the native subclass callback has fully unwound.
+        if (auto current = window_.try_as<VelocityCopyUI::MainWindow>()) {
+            if (auto* implementation = get_self<MainWindow>(current);
+                implementation && implementation->WindowId() == window_id) {
+                retiring_windows_.push_back(window_);
+                window_ = nullptr;
             }
-        });
+        }
+        auto weak = get_weak();
+        (void)Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread().TryEnqueue(
+            [weak] {
+                if (auto self = weak.get()) self->retiring_windows_.clear();
+            });
     } catch (...) {}
 }
 
