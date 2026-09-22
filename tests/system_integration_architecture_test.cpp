@@ -32,6 +32,7 @@ int main() {
     const auto ipc = read_all(root / "src/core/ipc_transport.cpp");
     const auto window = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
     const auto tray = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Tray.cpp");
+    const auto app_tray = read_all(root / "src/ui/VelocityCopy.UI/AppTray.cpp");
     const auto persistence = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.QueuePersistence.cpp");
     const auto recovery = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Recovery.cpp");
     const auto conflict = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Conflict.cpp");
@@ -42,7 +43,7 @@ int main() {
     const auto docs = read_all(root / "docs/SYSTEM_INTEGRATION.md");
 
     if (app.empty() || shell.empty() || shell_window.empty() || ipc.empty() ||
-        window.empty() || tray.empty() || persistence.empty() || recovery.empty() || conflict.empty() ||
+        window.empty() || tray.empty() || app_tray.empty() || persistence.empty() || recovery.empty() || conflict.empty() ||
         ci_workflow.empty() || package_workflow.empty() || installer_exe.empty() || installer_smoke.empty() || docs.empty()) {
         return fail(1, "required integration source missing");
     }
@@ -62,16 +63,21 @@ int main() {
 
     if (!contains(window, "IsMinimizable(true)") ||
         !contains(window, "IsMaximizable(false)") ||
-        !contains(tray, "Shell_NotifyIconW(NIM_ADD") ||
         !contains(tray, "SC_MINIMIZE") ||
         !contains(tray, "WM_CLOSE") ||
+        !contains(tray, "WM_ENDSESSION") ||
         contains(tray, "SetWindowsHookEx") ||
         contains(tray, "WH_KEYBOARD_LL") ||
-        !contains(tray, "ProcessPowerThrottling") ||
-        !contains(tray, "NOTIFYICON_VERSION_4") ||
-        !contains(tray, "TaskbarCreated") ||
-        !contains(tray, "WM_ENDSESSION") ||
-        !contains(persistence, "VelocityCopy.Recovery.vcq")) {
+        contains(app_tray, "SetWindowsHookEx") ||
+        contains(app_tray, "WH_KEYBOARD_LL") ||
+        !contains(app_tray, "Shell_NotifyIconW(NIM_ADD") ||
+        !contains(app_tray, "NOTIFYICON_VERSION_4") ||
+        !contains(app_tray, "TaskbarCreated") ||
+        !contains(app, "ProcessPowerThrottling") ||
+        contains(tray, "Shell_NotifyIconW") ||
+        contains(tray, "ProcessPowerThrottling") ||
+        !contains(persistence, "recovery_file(") ||
+        !contains(persistence, "session_id_")) {
         return fail(6, "resident UI must enforce tray, hook-free operation, EcoQoS and shutdown recovery contracts");
     }
 
