@@ -86,6 +86,11 @@ void MainWindow::ShowFromTray() {
     MaybeOfferRecoveryAsync();
 }
 
+void MainWindow::ShowRequestError() {
+    ShowFromTray();
+    ShowError();
+}
+
 void MainWindow::RequestAppExit() noexcept {
     tray_exit_requested_ = true;
     RefreshEfficiencyMode();

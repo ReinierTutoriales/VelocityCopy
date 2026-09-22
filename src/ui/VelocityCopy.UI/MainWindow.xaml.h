@@ -27,6 +27,7 @@ struct MainWindow : MainWindowT<MainWindow> {
     ~MainWindow();
 
     void ShowFromTray();
+    void ShowRequestError();
     void RequestAppExit() noexcept;
     [[nodiscard]] bool HasActiveTransfer() const noexcept;
     [[nodiscard]] std::uint64_t WindowId() const noexcept { return window_id_; }
