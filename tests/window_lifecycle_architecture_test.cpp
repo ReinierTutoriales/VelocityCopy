@@ -1,6 +1,13 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+
+std::string body_of(const std::string& text, const std::string& signature) {
+ const auto start=text.find(signature); if(start==std::string::npos) return {};
+ const auto open=text.find('{',start); if(open==std::string::npos) return {};
+ int depth=0; for(std::size_t i=open;i<text.size();++i){ if(text[i]=='{') ++depth; else if(text[i]=='}' && --depth==0) return text.substr(open,i-open+1); }
+ return {};
+}
 #ifndef VELOCITYCOPY_SOURCE_DIR
 #error VELOCITYCOPY_SOURCE_DIR must be defined
 #endif
@@ -12,7 +19,10 @@ int main(){
  if(tray.find("self->tray_exit_requested_ = true;")==std::string::npos) return 2;
  if(exec.find("DestroyCompletedWindow();")==std::string::npos) return 3;
  if(app.find("main_window = winrt::make<MainWindow>();")==std::string::npos) return 4;
- if(app.find("OnWindowDestroyed")==std::string::npos || app.find("dispatcher.TryEnqueue") == std::string::npos) return 5;
+ const auto destroyed=body_of(app,"void App::OnWindowDestroyed");
+ if(destroyed.empty() || destroyed.find("retiring_windows_") == std::string::npos || destroyed.find("window_ = nullptr") == std::string::npos || destroyed.find("TryEnqueue") == std::string::npos) return 5;
+ const auto enqueue=destroyed.find("TryEnqueue"), detach=destroyed.find("window_ = nullptr");
+ if(detach > enqueue) return 10;
  if(app.find("OnExplicitShutdown")==std::string::npos) return 6;
  if(app.find("weak_ref<winrt::VelocityCopyUI::MainWindow>")!=std::string::npos) return 7;
  if(app.find("DeliverShellRequest(request)") == std::string::npos) return 8;
