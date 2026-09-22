@@ -99,6 +99,7 @@ App::App() {
 }
 
 App::~App() {
+    tray_.Remove();
     if (server_) {
         server_->stop();
     }
@@ -138,6 +139,22 @@ std::uint64_t App::NextWindowId() noexcept {
     return next_window_id_++;
 }
 
+void App::ShowPrimaryWindow() {
+    if (auto main_window = window_.try_as<VelocityCopyUI::MainWindow>()) {
+        if (auto* implementation = get_self<MainWindow>(main_window)) implementation->ShowFromTray();
+    }
+}
+
+void App::ExitFromTray() noexcept {
+    SetShuttingDown(true);
+    tray_.Remove();
+    if (auto main_window = window_.try_as<VelocityCopyUI::MainWindow>()) {
+        if (auto* implementation = get_self<MainWindow>(main_window)) implementation->RequestAppExit();
+    } else {
+        Microsoft::UI::Xaml::Application::Current().Exit();
+    }
+}
+
 void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
     const bool startup_activation = is_startup_activation();
     const auto initial_request = inherited_shell_request();
@@ -174,6 +191,7 @@ void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
 
     auto main_window = winrt::make<MainWindow>();
     window_ = main_window;
+    (void)tray_.Initialize(this);
     if (!startup_activation) {
         if (auto* implementation = winrt::get_self<MainWindow>(main_window)) {
             implementation->ShowFromTray();
