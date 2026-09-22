@@ -87,7 +87,9 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
     const auto path = *recovery_file;
     const auto recovered_session_id = velocitycopy::recovery_session_id(path);
     if (!recovered_session_id) {
-        recovery_prompt_checked_ = true;
+        velocitycopy::retire_recovery_file(path, L".invalid");
+        recovery_prompt_checked_ = false;
+        MaybeOfferRecoveryAsync();
         co_return;
     }
 
@@ -142,6 +144,7 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
 
     if (execution_control_ || live_plan_ || stopped_session_ || conflict_session_ ||
         stop_requested_ || !queued_sessions_.empty()) {
+        app->ReturnRecoveryFile(path);
         recovery_prompt_active_ = false;
         co_return;
     }
@@ -186,6 +189,7 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
 
     if (execution_control_ || live_plan_ || stopped_session_ || conflict_session_ ||
         stop_requested_ || !queued_sessions_.empty()) {
+        app->ReturnRecoveryFile(path);
         recovery_prompt_active_ = false;
         co_return;
     }
