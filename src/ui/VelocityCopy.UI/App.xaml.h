@@ -36,7 +36,7 @@ private:
     static inline App* s_instance = nullptr;
     void ApplyEfficiencyMode(bool enabled) noexcept;
     void InitializeRecoveryFiles() noexcept;
-    Microsoft::UI::Xaml::Window CreateMainWindow();
+    VelocityCopyUI::MainWindow CreateMainWindow();
     std::map<std::uint64_t, Microsoft::UI::Xaml::Window> windows_;
     std::vector<Microsoft::UI::Xaml::Window> retiring_windows_;
     std::deque<std::filesystem::path> pending_recovery_files_;
