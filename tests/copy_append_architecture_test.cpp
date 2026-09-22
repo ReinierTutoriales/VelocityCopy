@@ -26,6 +26,7 @@ int main() {
     const auto conflict = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Conflict.cpp");
     const auto execution = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Execution.cpp");
     const auto queue = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Queue.cpp");
+    const auto persistence = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.QueuePersistence.cpp");
     const auto project = read_source(root / "src/ui/VelocityCopy.UI/VelocityCopy.UI.vcxproj");
     const auto manifest = read_source(root / "tools/VelocityCopy-Test-Installer.nsi");
     const auto explorer = read_source(root / "src/shell/drop_handler.cpp");
@@ -38,7 +39,7 @@ int main() {
     const auto executor_cpp = read_source(root / "src/core/job_executor.cpp");
 
     if (app.empty() || xaml.empty() || header.empty() || window.empty() ||
-        append.empty() || conflict.empty() || execution.empty() || queue.empty() || project.empty() ||
+        append.empty() || conflict.empty() || execution.empty() || queue.empty() || persistence.empty() || project.empty() ||
         manifest.empty() || explorer.empty() || cli.empty() || cmake.empty() ||
         engine_h.empty() || engine_cpp.empty() || live_h.empty() || executor_h.empty() || executor_cpp.empty()) {
         return fail(1, "required production source missing");
@@ -206,7 +207,7 @@ int main() {
     if (deliver_job.empty() || !contains(deliver_job, "velocitycopy::route_transfer(") || contains(deliver_job, "same_destination("))
         return fail(29, "App must route resolved Explorer work without the provisional destination decision");
 
-    const auto start_copy_plan = body_of(queue, "void MainWindow::StartCopyPlan(");
+    const auto start_copy_plan = body_of(persistence, "void MainWindow::StartCopyPlan(");
     if (start_copy_plan.empty() || !contains(start_copy_plan, "active_destination_key_ = {}") ||
         !contains(start_copy_plan, "active_source_key_ = {}"))
         return fail(30, "loaded/recovered plans must clear storage keys inherited from the previous session");
