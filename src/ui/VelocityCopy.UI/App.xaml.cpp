@@ -3,6 +3,7 @@
 #include "MainWindow.xaml.h"
 
 #include "velocitycopy/process_activation.hpp"
+#include "velocitycopy/app_storage.hpp"
 
 #include <shellapi.h>
 
@@ -114,6 +115,29 @@ App::~App() {
     s_instance = nullptr;
 }
 
+
+void App::InitializeRecoveryFiles() noexcept {
+    if (recovery_files_initialized_) return;
+    recovery_files_initialized_ = true;
+    try {
+        if (const auto dir = velocitycopy::app_data_directory()) {
+            const auto files = velocitycopy::list_recovery_files(*dir);
+            pending_recovery_files_.assign(files.begin(), files.end());
+        }
+    } catch (...) {}
+}
+
+std::optional<std::filesystem::path> App::TakeRecoveryFile() noexcept {
+    InitializeRecoveryFiles();
+    if (pending_recovery_files_.empty()) return std::nullopt;
+    auto path = std::move(pending_recovery_files_.front());
+    pending_recovery_files_.pop_front();
+    return path;
+}
+
+void App::ReturnRecoveryFile(std::filesystem::path path) noexcept {
+    try { pending_recovery_files_.push_front(std::move(path)); } catch (...) {}
+}
 
 void App::ApplyEfficiencyMode(const bool enabled) noexcept {
     if (efficiency_mode_enabled_ == enabled) return;
