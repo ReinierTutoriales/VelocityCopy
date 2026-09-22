@@ -11,6 +11,7 @@
 #include "velocitycopy/queue_archive.hpp"
 #include "velocitycopy/shell_request.hpp"
 #include "velocitycopy/shell_session.hpp"
+#include "velocitycopy/transfer_router.hpp"
 #include "velocitycopy/ui_snapshot.hpp"
 
 #include <chrono>
