@@ -51,7 +51,7 @@ int main() {
     if (deliver.empty() || pending.empty()) return fail(4, "shell dispatch entry points missing");
     if (!contains(append, "dispatcher.TryEnqueue") ||
         contains(deliver, "resume_background()") || contains(deliver, "TryEnqueue") ||
-        contains(pending, "resume_background()")) {
+        contains(pending, "resume_background()") || contains(pending, "TryEnqueue")) {
         return fail(4, "append planner completions marshal through DispatcherQueue; shell dispatch stays synchronously on UI thread");
     }
 

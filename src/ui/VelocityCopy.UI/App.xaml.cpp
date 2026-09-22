@@ -5,6 +5,7 @@
 #include "velocitycopy/process_activation.hpp"
 #include "velocitycopy/app_storage.hpp"
 #include "velocitycopy/diagnostics.hpp"
+#include "velocitycopy/transfer_router.hpp"
 
 #include <shellapi.h>
 
@@ -192,17 +193,50 @@ void App::DeliverShellRequest(const velocitycopy::ShellRequest& request) {
 }
 
 void App::StartNextPendingRequest() {
-    while (!request_in_flight_ && !pending_requests_.empty()) {
-        request_in_flight_ = true;
-        auto job = std::move(pending_requests_.front());
-        pending_requests_.pop_front();
-        try { DeliverConvertedJob(std::move(job)); }
-        catch (...) { velocitycopy::log_diagnostic(L"shell: transfer request failed during delivery"); ShowPrimaryWindowError(); }
-        request_in_flight_ = false;
-    }
+    if (request_in_flight_ || pending_requests_.empty()) return;
+    request_in_flight_ = true;
+    auto job = std::move(pending_requests_.front());
+    pending_requests_.pop_front();
+    ResolveStorageKeysAsync(std::move(job));
 }
 
-void App::DeliverConvertedJob(velocitycopy::CopyJob job) {
+winrt::fire_and_forget App::ResolveStorageKeysAsync(velocitycopy::CopyJob job) {
+    auto lifetime = get_strong();
+    auto ui_thread = winrt::apartment_context{};
+    velocitycopy::StorageKey destination_key{};
+    velocitycopy::StorageKey source_key{};
+    bool failed = false;
+    try {
+        co_await winrt::resume_background();
+        destination_key = velocitycopy::resolve_storage_key(job.destination);
+        if (!job.sources.empty()) {
+            source_key = velocitycopy::resolve_storage_key(job.sources.front());
+            for (std::size_t index = 1; index < job.sources.size(); ++index) {
+                const auto candidate = velocitycopy::resolve_storage_key(job.sources[index]);
+                if (!velocitycopy::same_device(source_key, candidate)) {
+                    source_key = {};
+                    break;
+                }
+            }
+        }
+    } catch (...) {
+        failed = true;
+        velocitycopy::log_diagnostic(L"shell: storage-key resolution failed");
+    }
+
+    co_await ui_thread;
+    try {
+        if (failed) ShowPrimaryWindowError();
+        else DeliverConvertedJob(std::move(job), std::move(destination_key), std::move(source_key));
+    } catch (...) {
+        velocitycopy::log_diagnostic(L"shell: transfer request failed after storage-key resolution");
+        ShowPrimaryWindowError();
+    }
+    request_in_flight_ = false;
+    StartNextPendingRequest();
+}
+
+void App::DeliverConvertedJob(velocitycopy::CopyJob job, velocitycopy::StorageKey destination_key, velocitycopy::StorageKey source_key) {
     Microsoft::UI::Xaml::Window target{nullptr};
     if (!windows_.empty()) target = windows_.rbegin()->second;
     if (!target) target = CreateMainWindow();
@@ -210,7 +244,7 @@ void App::DeliverConvertedJob(velocitycopy::CopyJob job) {
         if (auto* implementation = get_self<MainWindow>(main_window)) {
             implementation->ShowFromTray();
             if (!implementation->HasActiveTransfer()) {
-                implementation->StartTransfer(std::move(job));
+                implementation->StartTransfer(std::move(job), std::move(destination_key), std::move(source_key));
             } else if (velocitycopy::same_destination(implementation->ActiveDestination(), job.destination) &&
                        implementation->ActiveOperation() == job.operation) {
                 implementation->AppendTransfer(std::move(job));
