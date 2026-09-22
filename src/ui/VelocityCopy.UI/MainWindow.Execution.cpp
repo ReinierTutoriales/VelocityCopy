@@ -2,6 +2,8 @@
 #include "MainWindow.xaml.h"
 #include "App.xaml.h"
 
+#include "velocitycopy/diagnostics.hpp"
+
 using namespace winrt;
 using namespace Microsoft::UI::Xaml;
 using namespace Microsoft::UI::Xaml::Controls;
@@ -416,7 +418,6 @@ void MainWindow::CancelCurrentSession() {
     current_file_skippable_ = false;
     deferred_same_destination_jobs_.clear();
     deferred_interrupted_jobs_.clear();
-    queued_sessions_.clear();
     append_planner_.cancel_pending();
 
     if (append_gate_) {
@@ -446,6 +447,9 @@ void MainWindow::CancelCurrentSession() {
         SetExecutionButtonsIdle();
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
+        if (queued_sessions_.empty()) DestroyCompletedWindow();
+        else StartNextQueuedSession();
+        return;
     }
 }
 
@@ -567,7 +571,6 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     if (result.cancelled) {
         SetProgressFraction(0.0);
         deferred_interrupted_jobs_.clear();
-        queued_sessions_.clear();
         live_plan_.reset();
         active_destination_.clear();
         RefreshQueue();
@@ -583,9 +586,8 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
             CurrentItemText().Text(loader.GetString(L"StatusCancelled"));
         } catch (...) {
         }
-        // Cancellation is a terminal user decision. Once its session state is
-        // cleared there is no attention left for this transfer window to own.
-        DestroyCompletedWindow();
+        if (queued_sessions_.empty()) DestroyCompletedWindow();
+        else StartNextQueuedSession();
         return;
     }
 
@@ -633,6 +635,15 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
                 : reason + L" — " + hstring(result.conflict_source.wstring());
         }
         ShowError(reason);
+        if (!queued_sessions_.empty()) {
+            std::wstring diagnostic = L"transfer: failed session yielded to queued session";
+            if (!reason.empty()) {
+                diagnostic.append(L": ");
+                diagnostic.append(reason.c_str());
+            }
+            velocitycopy::log_diagnostic(diagnostic);
+            StartNextQueuedSession();
+        }
         return;
     }
 
