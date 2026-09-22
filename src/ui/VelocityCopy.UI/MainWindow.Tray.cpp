@@ -118,7 +118,6 @@ void MainWindow::ShowFromTray() {
     Activate();
     tray_window_hidden_ = false;
     RefreshEfficiencyMode();
-    MaybeOfferRecoveryAsync();
 }
 
 void MainWindow::ShowRequestError() {
