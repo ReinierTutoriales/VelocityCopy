@@ -288,6 +288,10 @@ void App::DeliverConvertedJob(velocitycopy::CopyJob job, velocitycopy::StorageKe
                 return;
             }
 
+            // Ensure the modal routing decision has a visible owner. Explorer IPC can
+            // arrive while the transfer window is minimized or hidden to the tray.
+            dialog_owner->ShowFromTray();
+
             const bool same_destination_prompt =
                 route.offered[0] == velocitycopy::RouteChoice::Append &&
                 route.offered[1] == velocitycopy::RouteChoice::Wait;
