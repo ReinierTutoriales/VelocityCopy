@@ -33,8 +33,8 @@ void MainWindow::InitializeTrayIntegration() {
 
 void MainWindow::RemoveTrayIntegration() noexcept {
     if (window_id_ != 0) {
-        if (auto app = Microsoft::UI::Xaml::Application::Current().try_as<VelocityCopyUI::App>()) {
-            if (auto* implementation = get_self<App>(app)) implementation->RemoveEfficiencyVote(window_id_);
+        if (auto current = Microsoft::UI::Xaml::Application::Current()) {
+            if (auto* implementation = dynamic_cast<App*>(get_self<Microsoft::UI::Xaml::Application>(current))) implementation->RemoveEfficiencyVote(window_id_);
         }
     }
     if (hwnd_ != nullptr) (void)RemoveWindowSubclass(hwnd_, &MainWindow::TraySubclassProc, kTraySubclassId);
@@ -116,8 +116,8 @@ void MainWindow::RefreshEfficiencyMode() noexcept {
         !session_ending_ &&
         !HasActiveWorkForEfficiencyMode();
     if (window_id_ == 0) return;
-    if (auto app = Microsoft::UI::Xaml::Application::Current().try_as<VelocityCopyUI::App>()) {
-        if (auto* implementation = get_self<App>(app)) implementation->ReportEfficiencyVote(window_id_, enable);
+    if (auto current = Microsoft::UI::Xaml::Application::Current()) {
+        if (auto* implementation = dynamic_cast<App*>(get_self<Microsoft::UI::Xaml::Application>(current))) implementation->ReportEfficiencyVote(window_id_, enable);
     }
 }
 
@@ -171,8 +171,8 @@ LRESULT CALLBACK MainWindow::TraySubclassProc(
     case WM_DESTROY: {
         const auto id = self->window_id_;
         self->RemoveTrayIntegration();
-        if (auto app = Microsoft::UI::Xaml::Application::Current().try_as<VelocityCopyUI::App>()) {
-            if (auto* implementation = get_self<App>(app)) implementation->OnWindowDestroyed(id);
+        if (auto current = Microsoft::UI::Xaml::Application::Current()) {
+            if (auto* implementation = dynamic_cast<App*>(get_self<Microsoft::UI::Xaml::Application>(current))) implementation->OnWindowDestroyed(id);
         }
         break;
     }
