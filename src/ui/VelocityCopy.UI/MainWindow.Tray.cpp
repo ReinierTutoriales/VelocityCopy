@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "MainWindow.xaml.h"
+#include "App.xaml.h"
 
 #include <commctrl.h>
 #include <shellapi.h>
@@ -17,6 +18,7 @@ constexpr UINT kTrayOpenCommand = 1;
 constexpr UINT kTrayExitCommand = 2;
 
 UINT g_taskbar_created_message = 0;
+std::atomic_uint64_t g_next_window_id{1};
 
 } // namespace
 
@@ -82,6 +84,7 @@ void MainWindow::InitializeTrayIntegration() {
         if (g_taskbar_created_message == 0) {
             g_taskbar_created_message = RegisterWindowMessageW(L"TaskbarCreated");
         }
+        if (window_id_ == 0) window_id_ = g_next_window_id.fetch_add(1, std::memory_order_relaxed);
         tray_window_hidden_ = IsWindowVisible(hwnd_) == FALSE;
         RefreshEfficiencyMode();
     } catch (...) {
@@ -96,7 +99,11 @@ void MainWindow::RemoveTrayIntegration() noexcept {
         tray_added_ = false;
     }
     tray_v4_ = false;
-    SetEfficiencyMode(false);
+    if (window_id_ != 0) {
+        if (auto app = Application::Current().try_as<VelocityCopyUI::App>()) {
+            if (auto* implementation = get_self<App>(app)) implementation->RemoveEfficiencyVote(window_id_);
+        }
+    }
 
     if (hwnd_ != nullptr) {
         (void)RemoveWindowSubclass(hwnd_, &MainWindow::TraySubclassProc, kTraySubclassId);
@@ -127,7 +134,6 @@ void MainWindow::HideToTray() noexcept {
 }
 
 void MainWindow::ShowFromTray() {
-    SetEfficiencyMode(false);
     if (hwnd_ == nullptr) {
         InitializeTrayIntegration();
     }
@@ -144,6 +150,7 @@ void MainWindow::ShowFromTray() {
     }
     Activate();
     tray_window_hidden_ = false;
+    RefreshEfficiencyMode();
     MaybeOfferRecoveryAsync();
 }
 
@@ -192,32 +199,13 @@ void MainWindow::ShowTrayMenu(POINT anchor) noexcept {
 
 void MainWindow::ExitFromTray() noexcept {
     tray_exit_requested_ = true;
-    SetEfficiencyMode(false);
+    RefreshEfficiencyMode();
     if (tray_added_) {
         (void)Shell_NotifyIconW(NIM_DELETE, &tray_data_);
         tray_added_ = false;
     }
     if (hwnd_ != nullptr) {
         PostMessageW(hwnd_, WM_CLOSE, 0, 0);
-    }
-}
-
-void MainWindow::SetEfficiencyMode(const bool enabled) noexcept {
-    if (efficiency_mode_enabled_ == enabled) {
-        return;
-    }
-
-    PROCESS_POWER_THROTTLING_STATE state{};
-    state.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
-    state.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
-    state.StateMask = enabled ? PROCESS_POWER_THROTTLING_EXECUTION_SPEED : 0;
-
-    if (SetProcessInformation(
-            GetCurrentProcess(),
-            ProcessPowerThrottling,
-            &state,
-            sizeof(state))) {
-        efficiency_mode_enabled_ = enabled;
     }
 }
 
@@ -242,7 +230,10 @@ void MainWindow::RefreshEfficiencyMode() noexcept {
         !tray_exit_requested_ &&
         !session_ending_ &&
         !HasActiveWorkForEfficiencyMode();
-    SetEfficiencyMode(enable);
+    if (window_id_ == 0) return;
+    if (auto app = Application::Current().try_as<VelocityCopyUI::App>()) {
+        if (auto* implementation = get_self<App>(app)) implementation->ReportEfficiencyVote(window_id_, enable);
+    }
 }
 
 LRESULT CALLBACK MainWindow::TraySubclassProc(
@@ -320,7 +311,10 @@ LRESULT CALLBACK MainWindow::TraySubclassProc(
     case WM_ENDSESSION:
         if (wparam != FALSE) {
             self->session_ending_ = true;
-            self->SetEfficiencyMode(false);
+            if (auto app = Application::Current().try_as<VelocityCopyUI::App>()) {
+                if (auto* implementation = get_self<App>(app)) implementation->SetShuttingDown(true);
+            }
+            self->RefreshEfficiencyMode();
             self->PersistRecoveryQueueNoThrow();
         }
         break;
