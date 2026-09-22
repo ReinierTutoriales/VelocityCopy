@@ -77,7 +77,6 @@ MainWindow::MainWindow() {
 
     try {
         auto app_window = AppWindow();
-        app_window.IsShownInSwitchers(false);
         if (auto presenter = app_window.Presenter().try_as<Microsoft::UI::Windowing::OverlappedPresenter>()) {
             presenter.IsMinimizable(true);
             presenter.IsMaximizable(false);

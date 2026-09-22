@@ -21,6 +21,14 @@
   <data name="ActionReplace" xml:space="preserve"><value>Reemplazar</value></data>
   <data name="ConflictTitle" xml:space="preserve"><value>El archivo ya existe</value></data>
   <data name="ConflictMessage" xml:space="preserve"><value>Ya existe un archivo con el mismo nombre en el destino. Elige qué hacer con este archivo.</value></data>
+  <data name="RoutingDestinationInUseTitle" xml:space="preserve"><value>El destino ya está en uso</value></data>
+  <data name="RoutingDestinationInUseMessage" xml:space="preserve"><value>Ya hay una transferencia en curso hacia este destino. ¿Agregar estos archivos a esa transferencia o esperar?</value></data>
+  <data name="RoutingStorageInUseTitle" xml:space="preserve"><value>El dispositivo de almacenamiento está en uso</value></data>
+  <data name="RoutingStorageInUseMessage" xml:space="preserve"><value>Otra transferencia está usando el mismo dispositivo de almacenamiento. ¿Esperar o ejecutar esta transferencia en paralelo?</value></data>
+  <data name="RoutingActionAdd" xml:space="preserve"><value>Agregar</value></data>
+  <data name="RoutingActionWait" xml:space="preserve"><value>Esperar</value></data>
+  <data name="RoutingActionParallel" xml:space="preserve"><value>En paralelo</value></data>
+  <data name="DialogRememberChoice" xml:space="preserve"><value>Recordar mi elección</value></data>
   <data name="ActionMoveUp" xml:space="preserve"><value>Subir</value></data>
   <data name="ActionMoveDown" xml:space="preserve"><value>Bajar</value></data>
   <data name="ActionRemove" xml:space="preserve"><value>Eliminar</value></data>
