@@ -132,11 +132,13 @@ int main() {
         return fail(12, "shutdown recovery must require an explicit validated native resume/discard decision");
     }
 
-    if (!contains(tray, "MaybeOfferRecoveryAsync()") ||
+    if (contains(tray, "MaybeOfferRecoveryAsync()") ||
         !contains(tray, "ShowWindow(hwnd_, SW_SHOW)") ||
+        !contains(window_h, "void OfferRecoveryIfIdle()") ||
         !contains(window_h, "recovery_prompt_checked_") ||
-        !contains(window_h, "recovery_prompt_active_")) {
-        return fail(13, "recovery prompt must be tied to interactive window show and guarded against duplicates");
+        !contains(window_h, "recovery_prompt_active_") ||
+        !contains(app_cpp, "implementation->OfferRecoveryIfIdle()")) {
+        return fail(13, "recovery prompt must be owned by explicit app activation and guarded against duplicates");
     }
 
     return 0;
