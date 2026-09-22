@@ -46,10 +46,10 @@ bool MainWindow::HasActiveTransfer() const noexcept {
 }
 
 void MainWindow::DestroyCompletedWindow() noexcept {
-    if (HasActiveTransfer() || hwnd_ == nullptr) return;
+    if (HasActiveTransfer()) return;
     tray_exit_requested_ = true;
     RefreshEfficiencyMode();
-    DestroyWindow(hwnd_);
+    try { Close(); } catch (...) {}
 }
 
 void MainWindow::HideToTray() noexcept {
@@ -143,9 +143,13 @@ LRESULT CALLBACK MainWindow::TraySubclassProc(
 
     case WM_CLOSE:
         if (!self->tray_exit_requested_) {
-            if (self->HasActiveTransfer()) self->HideToTray();
-            else self->DestroyCompletedWindow();
-            return 0;
+            if (self->HasActiveTransfer()) {
+                self->HideToTray();
+                return 0;
+            }
+            self->tray_exit_requested_ = true;
+            self->RefreshEfficiencyMode();
+            break;
         }
         break;
 
