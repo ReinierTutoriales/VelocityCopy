@@ -14,6 +14,7 @@ namespace winrt::VelocityCopyUI::implementation {
 struct App : AppT<App> {
     App();
     ~App();
+    static App* Instance() noexcept { return s_instance; }
     void OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&);
     void ReportEfficiencyVote(std::uint64_t window_id, bool eligible) noexcept;
     void RemoveEfficiencyVote(std::uint64_t window_id) noexcept;
@@ -25,6 +26,7 @@ struct App : AppT<App> {
     void OnWindowDestroyed(std::uint64_t window_id) noexcept;
 
 private:
+    static inline App* s_instance = nullptr;
     void ApplyEfficiencyMode(bool enabled) noexcept;
     Microsoft::UI::Xaml::Window window_{nullptr};
     std::vector<Microsoft::UI::Xaml::Window> retiring_windows_;
