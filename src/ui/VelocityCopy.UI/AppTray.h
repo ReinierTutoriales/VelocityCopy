@@ -19,7 +19,7 @@ public:
 
 private:
     static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
-    LRESULT HandleMessage(UINT message, WPARAM wparam, LPARAM lparam) noexcept;
+    LRESULT HandleMessage(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) noexcept;
     void ShowMenu(POINT anchor) noexcept;
     void RestoreIcon() noexcept;
 
