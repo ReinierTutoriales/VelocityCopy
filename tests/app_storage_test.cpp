@@ -7,7 +7,7 @@
 int main() {
     const std::wstring id = L"{01234567-89AB-CDEF-8123-456789ABCDEF}";
     const auto valid = velocitycopy::recovery_session_id(
-        std::filesystem::path(L"VelocityCopy.Recovery.") += id + L".vcq");
+        std::filesystem::path(std::wstring(L"VelocityCopy.Recovery.") + id + L".vcq"));
     if (!valid || *valid != id) return 1;
     if (velocitycopy::recovery_session_id(L"VelocityCopy.Recovery.{bad}.vcq")) return 2;
     if (velocitycopy::recovery_session_id(L"Other.Recovery.{01234567-89AB-CDEF-8123-456789ABCDEF}.vcq")) return 3;
