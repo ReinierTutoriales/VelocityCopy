@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "MainWindow.xaml.h"
+#include "App.xaml.h"
 #if __has_include("MainWindow.g.cpp")
 #include "MainWindow.g.cpp"
 #endif
@@ -34,6 +35,9 @@ bool accepts_active_transfer_drop(
 } // namespace
 
 MainWindow::MainWindow() {
+    if (auto app = Application::Current().try_as<VelocityCopyUI::App>()) {
+        if (auto* implementation = get_self<App>(app)) window_id_ = implementation->NextWindowId();
+    }
     InitializeComponent();
     dispatcher_ = Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
     ConfigureQueuePersistenceMenu();
