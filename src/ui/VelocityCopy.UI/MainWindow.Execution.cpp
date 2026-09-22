@@ -8,7 +8,7 @@ using namespace Microsoft::UI::Xaml::Controls;
 namespace winrt::VelocityCopyUI::implementation {
 
 void MainWindow::SetExecutionButtonsPlanning() {
-    SetEfficiencyMode(false);
+    RefreshEfficiencyMode();
     SpeedText().Text(L"—");
     EtaText().Text(L"—");
     PauseIcon().Glyph(L"\xE769");
@@ -22,7 +22,7 @@ void MainWindow::SetExecutionButtonsPlanning() {
 }
 
 void MainWindow::SetExecutionButtonsRunning() {
-    SetEfficiencyMode(false);
+    RefreshEfficiencyMode();
     PauseButton().IsEnabled(true);
     CancelButton().IsEnabled(true);
     current_file_id_ = 0;
