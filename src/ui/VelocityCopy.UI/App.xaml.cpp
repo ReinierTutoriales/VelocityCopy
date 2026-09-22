@@ -167,22 +167,30 @@ std::uint64_t App::NextWindowId() noexcept {
     return next_window_id_++;
 }
 
-void App::DeliverShellRequest(const velocitycopy::ShellRequest& request) {
-    auto main_window = window_.try_as<VelocityCopyUI::MainWindow>();
-    if (!main_window) {
-        main_window = winrt::make<MainWindow>();
-        window_ = main_window;
+Microsoft::UI::Xaml::Window App::CreateMainWindow() {
+    auto main_window = winrt::make<MainWindow>();
+    if (auto* implementation = get_self<MainWindow>(main_window)) {
+        windows_.insert_or_assign(implementation->WindowId(), main_window);
     }
-    if (auto* implementation = get_self<MainWindow>(main_window)) implementation->HandleShellRequest(request);
+    return main_window;
+}
+
+void App::DeliverShellRequest(const velocitycopy::ShellRequest& request) {
+    Microsoft::UI::Xaml::Window target{nullptr};
+    if (!windows_.empty()) target = windows_.rbegin()->second;
+    if (!target) target = CreateMainWindow();
+    if (auto main_window = target.try_as<VelocityCopyUI::MainWindow>()) {
+        if (auto* implementation = get_self<MainWindow>(main_window)) implementation->HandleShellRequest(request);
+    }
 }
 
 void App::ShowPrimaryWindow() {
-    auto main_window = window_.try_as<VelocityCopyUI::MainWindow>();
-    if (!main_window) {
-        main_window = winrt::make<MainWindow>();
-        window_ = main_window;
+    Microsoft::UI::Xaml::Window target{nullptr};
+    if (!windows_.empty()) target = windows_.rbegin()->second;
+    if (!target) target = CreateMainWindow();
+    if (auto main_window = target.try_as<VelocityCopyUI::MainWindow>()) {
+        if (auto* implementation = get_self<MainWindow>(main_window)) implementation->ShowFromTray();
     }
-    if (auto* implementation = get_self<MainWindow>(main_window)) implementation->ShowFromTray();
 }
 
 void App::OnWindowDestroyed(const std::uint64_t window_id) noexcept {
@@ -191,12 +199,9 @@ void App::OnWindowDestroyed(const std::uint64_t window_id) noexcept {
         // Detach routing immediately: IPC/tray actions must never reuse a Window
         // after its HWND has entered WM_DESTROY. Keep a strong reference separately
         // until the native subclass callback has fully unwound.
-        if (auto current = window_.try_as<VelocityCopyUI::MainWindow>()) {
-            if (auto* implementation = get_self<MainWindow>(current);
-                implementation && implementation->WindowId() == window_id) {
-                retiring_windows_.push_back(window_);
-                window_ = nullptr;
-            }
+        if (const auto it = windows_.find(window_id); it != windows_.end()) {
+            retiring_windows_.push_back(it->second);
+            windows_.erase(it);
         }
         auto weak = get_weak();
         (void)Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread().TryEnqueue(
@@ -209,8 +214,11 @@ void App::OnWindowDestroyed(const std::uint64_t window_id) noexcept {
 void App::ExitFromTray() noexcept {
     SetShuttingDown(true);
     tray_.Remove();
-    if (auto main_window = window_.try_as<VelocityCopyUI::MainWindow>()) {
-        if (auto* implementation = get_self<MainWindow>(main_window)) implementation->RequestAppExit();
+    for (auto& [id, window] : windows_) {
+        (void)id;
+        if (auto main_window = window.try_as<VelocityCopyUI::MainWindow>()) {
+            if (auto* implementation = get_self<MainWindow>(main_window)) implementation->RequestAppExit();
+        }
     }
     Microsoft::UI::Xaml::Application::Current().Exit();
 }
@@ -249,8 +257,7 @@ void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
         return;
     }
 
-    auto main_window = winrt::make<MainWindow>();
-    window_ = main_window;
+    auto main_window = CreateMainWindow();
     if (!tray_.Initialize(this)) {
         const auto error = GetLastError();
         velocitycopy::log_diagnostic(L"tray: initialization failed (Win32 " + std::to_wstring(error) + L")");
