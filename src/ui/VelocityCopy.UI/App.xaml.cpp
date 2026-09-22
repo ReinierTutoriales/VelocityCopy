@@ -96,6 +96,7 @@ void show_activation_error(const wchar_t* message) noexcept {
 
 App::App() {
     InitializeComponent();
+    DispatcherShutdownMode(Microsoft::UI::Xaml::DispatcherShutdownMode::OnExplicitShutdown);
 }
 
 App::~App() {
@@ -139,6 +140,15 @@ std::uint64_t App::NextWindowId() noexcept {
     return next_window_id_++;
 }
 
+void App::DeliverShellRequest(const velocitycopy::ShellRequest& request) {
+    auto main_window = window_.try_as<VelocityCopyUI::MainWindow>();
+    if (!main_window) {
+        main_window = winrt::make<MainWindow>();
+        window_ = main_window;
+    }
+    if (auto* implementation = get_self<MainWindow>(main_window)) implementation->HandleShellRequest(request);
+}
+
 void App::ShowPrimaryWindow() {
     auto main_window = window_.try_as<VelocityCopyUI::MainWindow>();
     if (!main_window) {
@@ -158,9 +168,8 @@ void App::ExitFromTray() noexcept {
     tray_.Remove();
     if (auto main_window = window_.try_as<VelocityCopyUI::MainWindow>()) {
         if (auto* implementation = get_self<MainWindow>(main_window)) implementation->RequestAppExit();
-    } else {
-        Microsoft::UI::Xaml::Application::Current().Exit();
     }
+    Microsoft::UI::Xaml::Application::Current().Exit();
 }
 
 void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
@@ -206,13 +215,8 @@ void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
         }
     }
 
-    auto deliver = [weak = winrt::weak_ref<winrt::VelocityCopyUI::MainWindow>{main_window}](
-                       const velocitycopy::ShellRequest& request) {
-        if (auto projected = weak.get()) {
-            if (auto* implementation = winrt::get_self<MainWindow>(projected)) {
-                implementation->HandleShellRequest(request);
-            }
-        }
+    auto deliver = [weak = get_weak()](const velocitycopy::ShellRequest& request) {
+        if (auto self = weak.get()) self->DeliverShellRequest(request);
     };
 
     if (initial_request) {
