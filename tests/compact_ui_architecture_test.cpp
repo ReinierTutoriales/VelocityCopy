@@ -159,7 +159,7 @@ int main() {
         return fail(14, "compact telemetry formatting must scale speed and represent multi-hour ETA compactly");
     }
 
-    if (!contains(body_of(execution, "void MainWindow::StartCopy("), "ResetTransferSurface();") ||
+    if (!contains(body_of(execution, "void MainWindow::StartTransfer("), "ResetTransferSurface();") ||
         !contains(body_of(menu, "void MainWindow::StartCopyPlan("), "ResetTransferSurface();") ||
         !contains(window, "void MainWindow::ResetTransferSurface()") ||
         !contains(body_of(window, "void MainWindow::ResetTransferSurface()"), "ErrorBar().IsOpen(false)") ||
