@@ -28,6 +28,7 @@ struct MainWindow : MainWindowT<MainWindow> {
     void ShowFromTray();
     void RequestAppExit() noexcept;
     [[nodiscard]] bool HasActiveTransfer() const noexcept;
+    [[nodiscard]] std::uint64_t WindowId() const noexcept { return window_id_; }
     void HandleShellRequest(const velocitycopy::ShellRequest& request);
 
     void OnDragEnter(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
