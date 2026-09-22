@@ -38,6 +38,7 @@ struct MainWindow : MainWindowT<MainWindow> {
     [[nodiscard]] std::optional<velocitycopy::ActiveSession> SessionSnapshot();
     [[nodiscard]] bool IsVisibleForRouting() const noexcept;
     [[nodiscard]] HWND NativeOwner() const noexcept { return hwnd_; }
+    void MoveNativeWindow(int x, int y) noexcept;
     enum class NativeDialogChoice : std::uint8_t { Cancel, Primary, Secondary };
     [[nodiscard]] const std::filesystem::path& ActiveDestination() const noexcept { return active_destination_; }
     [[nodiscard]] velocitycopy::FileOperation ActiveOperation() const noexcept { return active_operation_; }

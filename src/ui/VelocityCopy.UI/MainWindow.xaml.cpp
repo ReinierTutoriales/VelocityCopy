@@ -100,6 +100,13 @@ MainWindow::MainWindow() {
     ResizeWindow(72);
 }
 
+void MainWindow::MoveNativeWindow(const int x, const int y) noexcept {
+    try {
+        AppWindow().Move(Windows::Graphics::PointInt32{x, y});
+    } catch (...) {
+    }
+}
+
 void MainWindow::ApplyTitleBarInset() noexcept {
     try {
         HWND hwnd = hwnd_;
