@@ -121,14 +121,6 @@ private:
     winrt::fire_and_forget SaveQueueAsync();
     winrt::fire_and_forget LoadQueueAsync();
     winrt::fire_and_forget MaybeOfferRecoveryAsync();
-    static NativeDialogChoice ShowNativeDecisionDialog(
-        HWND owner,
-        const std::wstring& title,
-        const std::wstring& message,
-        const std::wstring& primary_label,
-        const std::wstring& secondary_label,
-        bool include_cancel,
-        const std::wstring& cancel_label = {}) noexcept;
     void ShowAboutDialog() noexcept;
     void ConfigureQueuePersistenceMenu();
     void InitializeTrayIntegration();
