@@ -18,7 +18,6 @@ constexpr UINT kTrayOpenCommand = 1;
 constexpr UINT kTrayExitCommand = 2;
 
 UINT g_taskbar_created_message = 0;
-std::atomic_uint64_t g_next_window_id{1};
 
 } // namespace
 
@@ -84,7 +83,6 @@ void MainWindow::InitializeTrayIntegration() {
         if (g_taskbar_created_message == 0) {
             g_taskbar_created_message = RegisterWindowMessageW(L"TaskbarCreated");
         }
-        if (window_id_ == 0) window_id_ = g_next_window_id.fetch_add(1, std::memory_order_relaxed);
         tray_window_hidden_ = IsWindowVisible(hwnd_) == FALSE;
         RefreshEfficiencyMode();
     } catch (...) {
