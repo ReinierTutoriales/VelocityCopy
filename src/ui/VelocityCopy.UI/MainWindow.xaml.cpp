@@ -35,11 +35,7 @@ bool accepts_active_transfer_drop(
 } // namespace
 
 MainWindow::MainWindow() {
-    if (auto current = Microsoft::UI::Xaml::Application::Current()) {
-        if (auto* implementation = dynamic_cast<App*>(get_self<Microsoft::UI::Xaml::Application>(current))) {
-            window_id_ = implementation->NextWindowId();
-        }
-    }
+    if (auto* app = App::Instance()) window_id_ = app->NextWindowId();
     InitializeComponent();
     dispatcher_ = Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
     ConfigureQueuePersistenceMenu();
