@@ -140,9 +140,12 @@ std::uint64_t App::NextWindowId() noexcept {
 }
 
 void App::ShowPrimaryWindow() {
-    if (auto main_window = window_.try_as<VelocityCopyUI::MainWindow>()) {
-        if (auto* implementation = get_self<MainWindow>(main_window)) implementation->ShowFromTray();
+    auto main_window = window_.try_as<VelocityCopyUI::MainWindow>();
+    if (!main_window) {
+        main_window = winrt::make<MainWindow>();
+        window_ = main_window;
     }
+    if (auto* implementation = get_self<MainWindow>(main_window)) implementation->ShowFromTray();
 }
 
 void App::OnWindowDestroyed(const std::uint64_t window_id) noexcept {
