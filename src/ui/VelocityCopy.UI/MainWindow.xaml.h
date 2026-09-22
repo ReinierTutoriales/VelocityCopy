@@ -30,7 +30,11 @@ struct MainWindow : MainWindowT<MainWindow> {
     void RequestAppExit() noexcept;
     [[nodiscard]] bool HasActiveTransfer() const noexcept;
     [[nodiscard]] std::uint64_t WindowId() const noexcept { return window_id_; }
-    void HandleShellRequest(const velocitycopy::ShellRequest& request);
+    void StartTransfer(velocitycopy::CopyJob job);
+    void AppendTransfer(velocitycopy::CopyJob job);
+    void EnqueueTransfer(velocitycopy::CopyJob job);
+    [[nodiscard]] const std::filesystem::path& ActiveDestination() const noexcept { return active_destination_; }
+    [[nodiscard]] velocitycopy::FileOperation ActiveOperation() const noexcept { return active_operation_; }
 
     void OnDragEnter(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
     void OnDragOver(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
@@ -131,9 +135,6 @@ private:
         LPARAM lparam,
         UINT_PTR subclass_id,
         DWORD_PTR ref_data);
-    void StartTransfer(velocitycopy::CopyJob job);
-    void AppendTransfer(velocitycopy::CopyJob job);
-    void EnqueueTransfer(velocitycopy::CopyJob job);
     void EnqueueAppend(
         velocitycopy::CopyJob job,
         std::shared_ptr<velocitycopy::LiveCopyPlan> target_plan,
@@ -184,7 +185,6 @@ private:
     velocitycopy::JobExecutor executor_;
     std::shared_ptr<velocitycopy::ExecutionControl> execution_control_;
     std::shared_ptr<AppendGate> append_gate_;
-    velocitycopy::ShellSession shell_session_;
     velocitycopy::ProgressPresenter presenter_{100};
     std::filesystem::path active_destination_;
     velocitycopy::FileOperation active_operation_{velocitycopy::FileOperation::Copy};

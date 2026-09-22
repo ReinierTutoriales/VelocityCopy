@@ -5,6 +5,7 @@
 
 #include "velocitycopy/efficiency_coordinator.hpp"
 #include "velocitycopy/ipc_transport.hpp"
+#include "velocitycopy/shell_session.hpp"
 
 #include <deque>
 #include <filesystem>
@@ -37,9 +38,14 @@ private:
     void ApplyEfficiencyMode(bool enabled) noexcept;
     void InitializeRecoveryFiles() noexcept;
     VelocityCopyUI::MainWindow CreateMainWindow();
+    void StartNextPendingRequest();
+    void DeliverConvertedJob(velocitycopy::CopyJob job);
     std::map<std::uint64_t, Microsoft::UI::Xaml::Window> windows_;
     std::vector<Microsoft::UI::Xaml::Window> retiring_windows_;
     std::deque<std::filesystem::path> pending_recovery_files_;
+    std::deque<velocitycopy::CopyJob> pending_requests_;
+    velocitycopy::ShellSession shell_session_;
+    bool request_in_flight_{};
     bool recovery_files_initialized_{};
     AppTray tray_;
     std::unique_ptr<velocitycopy::SingleInstance> instance_;

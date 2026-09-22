@@ -176,11 +176,45 @@ VelocityCopyUI::MainWindow App::CreateMainWindow() {
 }
 
 void App::DeliverShellRequest(const velocitycopy::ShellRequest& request) {
+    auto dispatch = shell_session_.dispatch(request);
+    if (dispatch.status != velocitycopy::ShellDispatchStatus::Accepted) {
+        ShowPrimaryWindow();
+        return;
+    }
+    if (dispatch.job) {
+        pending_requests_.push_back(std::move(*dispatch.job));
+        StartNextPendingRequest();
+        return;
+    }
+    if (dispatch.show_window) ShowPrimaryWindow();
+}
+
+void App::StartNextPendingRequest() {
+    if (request_in_flight_ || pending_requests_.empty()) return;
+    request_in_flight_ = true;
+    auto job = std::move(pending_requests_.front());
+    pending_requests_.pop_front();
+    DeliverConvertedJob(std::move(job));
+    request_in_flight_ = false;
+    StartNextPendingRequest();
+}
+
+void App::DeliverConvertedJob(velocitycopy::CopyJob job) {
     Microsoft::UI::Xaml::Window target{nullptr};
     if (!windows_.empty()) target = windows_.rbegin()->second;
     if (!target) target = CreateMainWindow();
     if (auto main_window = target.try_as<VelocityCopyUI::MainWindow>()) {
-        if (auto* implementation = get_self<MainWindow>(main_window)) implementation->HandleShellRequest(request);
+        if (auto* implementation = get_self<MainWindow>(main_window)) {
+            implementation->ShowFromTray();
+            if (!implementation->HasActiveTransfer()) {
+                implementation->StartTransfer(std::move(job));
+            } else if (velocitycopy::same_destination(implementation->ActiveDestination(), job.destination) &&
+                       implementation->ActiveOperation() == job.operation) {
+                implementation->AppendTransfer(std::move(job));
+            } else {
+                implementation->EnqueueTransfer(std::move(job));
+            }
+        }
     }
 }
 

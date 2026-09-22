@@ -58,9 +58,10 @@ int main() {
         return fail(1, "required production source missing");
     }
 
-    if (!contains(shell, "StartTransfer(std::move(job))") ||
-        !contains(shell, "AppendTransfer(std::move(job))") ||
-        !contains(shell, "EnqueueTransfer(std::move(job))") ||
+    if (!contains(app, "shell_session_.dispatch(request)") ||
+        !contains(app, "StartTransfer(std::move(job))") ||
+        !contains(app, "AppendTransfer(std::move(job))") ||
+        !contains(app, "EnqueueTransfer(std::move(job))") ||
         !contains(window, "AppendTransfer(std::move(job))") ||
         contains(xaml, "OnQueueOrStartCopyClick") || contains(xaml, "OnStartCopyClick") ||
         contains(header, "OnQueueOrStartCopyClick") || contains(header, "OnStartCopyClick") ||
@@ -110,7 +111,7 @@ int main() {
     }
 
     if (!contains(header, "queued_sessions_") || !contains(append, "queued_sessions_.push_back") ||
-        !contains(shell, "velocitycopy::same_destination(") ||
+        !contains(app, "velocitycopy::same_destination(") ||
         !contains(append, "EnqueueAppend") || !contains(execution, "StartNextQueuedSession")) {
         return fail(11, "compatible live drops must append while different sessions remain serialized");
     }
@@ -184,7 +185,7 @@ int main() {
     }
 
     if (contains(shell, "ShowAt(") || contains(shell, "choose_layout") || contains(shell, "flow_.make_job") ||
-        !contains(shell, "StartTransfer(")) {
+        !contains(app, "StartTransfer(")) {
         return fail(23, "Explorer transfer must start directly and never block on destination/layout UI");
     }
 
