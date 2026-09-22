@@ -2,6 +2,7 @@
 
 #include "MainWindow.g.h"
 
+#include "velocitycopy/app_storage.hpp"
 #include "velocitycopy/execution_control.hpp"
 #include "velocitycopy/job_executor.hpp"
 #include "velocitycopy/job_planner.hpp"
@@ -173,6 +174,7 @@ private:
     static hstring FormatSpeed(double bytes_per_second);
     static hstring FormatEta(double seconds);
 
+    std::wstring session_id_{velocitycopy::new_session_id()};
     velocitycopy::JobPlanner planner_;
     velocitycopy::JobPlanningWorker append_planner_;
     velocitycopy::JobExecutor executor_;
