@@ -27,6 +27,7 @@ struct MainWindow : MainWindowT<MainWindow> {
 
     void ShowFromTray();
     void RequestAppExit() noexcept;
+    [[nodiscard]] bool HasActiveTransfer() const noexcept;
     void HandleShellRequest(const velocitycopy::ShellRequest& request);
 
     void OnDragEnter(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
@@ -113,6 +114,7 @@ private:
     void InitializeTrayIntegration();
     void RemoveTrayIntegration() noexcept;
     void HideToTray() noexcept;
+    void DestroyCompletedWindow() noexcept;
     void RefreshEfficiencyMode() noexcept;
     [[nodiscard]] bool HasActiveWorkForEfficiencyMode() noexcept;
     void PersistRecoveryQueueNoThrow() noexcept;
