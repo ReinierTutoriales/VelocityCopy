@@ -25,3 +25,10 @@ inline std::string body_of(const std::string& text, const std::string& signature
     }
     return {};
 }
+
+inline std::size_t count_occurrences(const std::string& text, const std::string& value) {
+    if (value.empty()) return 0;
+    std::size_t count = 0;
+    for (std::size_t offset = 0; (offset = text.find(value, offset)) != std::string::npos; offset += value.size()) ++count;
+    return count;
+}

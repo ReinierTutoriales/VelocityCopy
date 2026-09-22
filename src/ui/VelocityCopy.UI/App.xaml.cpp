@@ -209,10 +209,16 @@ winrt::fire_and_forget App::ResolveStorageKeysAsync(velocitycopy::CopyJob job) {
     try {
         co_await winrt::resume_background();
         destination_key = velocitycopy::resolve_storage_key(job.destination);
-        if (!job.sources.empty()) {
-            source_key = velocitycopy::resolve_storage_key(job.sources.front());
-            for (std::size_t index = 1; index < job.sources.size(); ++index) {
-                const auto candidate = velocitycopy::resolve_storage_key(job.sources[index]);
+        std::vector<std::filesystem::path> parents;
+        parents.reserve(job.sources.size());
+        for (const auto& source : job.sources) {
+            auto parent = source.parent_path();
+            if (std::find(parents.begin(), parents.end(), parent) == parents.end()) parents.push_back(std::move(parent));
+        }
+        if (!parents.empty()) {
+            source_key = velocitycopy::resolve_storage_key(parents.front());
+            for (std::size_t index = 1; index < parents.size(); ++index) {
+                const auto candidate = velocitycopy::resolve_storage_key(parents[index]);
                 if (!velocitycopy::same_device(source_key, candidate)) {
                     source_key = {};
                     break;
@@ -224,7 +230,11 @@ winrt::fire_and_forget App::ResolveStorageKeysAsync(velocitycopy::CopyJob job) {
         velocitycopy::log_diagnostic(L"shell: storage-key resolution failed");
     }
 
-    co_await ui_thread;
+    try {
+        co_await ui_thread;
+    } catch (...) {
+        co_return;
+    }
     try {
         if (failed) ShowPrimaryWindowError();
         else DeliverConvertedJob(std::move(job), std::move(destination_key), std::move(source_key));
