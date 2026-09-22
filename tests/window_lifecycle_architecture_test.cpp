@@ -19,9 +19,10 @@ int main(){
  if(destroyed.find("ShowPrimaryWindow") != std::string::npos) return 11;
  const auto finish=body_of(exec,"void MainWindow::FinishCopy");
  if(finish.empty()) return 12;
- const auto pending=finish.find("HasPendingRecovery()");
  const auto destroy=finish.find("DestroyCompletedWindow();");
- if(pending == std::string::npos || destroy == std::string::npos || pending > destroy) return 13;
+ if(destroy == std::string::npos) return 13;
+ if(finish.find("HasPendingRecovery(") != std::string::npos ||
+    finish.find("MaybeOfferRecoveryAsync()") != std::string::npos) return 18;
  if(app.find("OnExplicitShutdown")==std::string::npos) return 6;
  if(app.find("velocitycopy::route_transfer(")==std::string::npos || app.find("CreateMainWindow()") == std::string::npos) return 14;
  if(app.find("IsVisibleForRouting()") == std::string::npos || app.find("!implementation->HasActiveTransfer()") == std::string::npos) return 15;
