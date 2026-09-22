@@ -23,6 +23,16 @@ int main(){
  if(destroy == std::string::npos) return 13;
  if(finish.find("HasPendingRecovery(") != std::string::npos ||
     finish.find("MaybeOfferRecoveryAsync()") != std::string::npos) return 18;
+ const auto show_from_tray=body_of(tray,"void MainWindow::ShowFromTray(");
+ if(show_from_tray.empty() || show_from_tray.find("MaybeOfferRecoveryAsync()") != std::string::npos) return 19;
+ const auto primary=body_of(app,"void App::ShowPrimaryWindow(");
+ if(primary.empty() || primary.find("implementation->ShowFromTray();") == std::string::npos ||
+    primary.find("implementation->OfferRecoveryIfIdle();") == std::string::npos) return 20;
+ const auto deliver_job=body_of(app,"void App::DeliverConvertedJob(");
+ if(deliver_job.empty() || deliver_job.find("OfferRecoveryIfIdle") != std::string::npos) return 21;
+ const auto launched=body_of(app,"void App::OnLaunched(");
+ if(launched.empty() || launched.find("if (!initial_request)") == std::string::npos ||
+    launched.find("implementation->OfferRecoveryIfIdle();") == std::string::npos) return 22;
  if(app.find("OnExplicitShutdown")==std::string::npos) return 6;
  if(app.find("velocitycopy::route_transfer(")==std::string::npos || app.find("CreateMainWindow()") == std::string::npos) return 14;
  if(app.find("IsVisibleForRouting()") == std::string::npos || app.find("!implementation->HasActiveTransfer()") == std::string::npos) return 15;
