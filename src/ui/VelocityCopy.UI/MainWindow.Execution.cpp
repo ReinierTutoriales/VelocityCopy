@@ -583,6 +583,9 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
             CurrentItemText().Text(loader.GetString(L"StatusCancelled"));
         } catch (...) {
         }
+        // Cancellation is a terminal user decision. Once its session state is
+        // cleared there is no attention left for this transfer window to own.
+        DestroyCompletedWindow();
         return;
     }
 
