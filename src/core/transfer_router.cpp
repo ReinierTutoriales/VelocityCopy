@@ -7,10 +7,25 @@ std::wstring path_key(const std::filesystem::path& p){auto s=p.lexically_normal(
 bool same_destination(const std::filesystem::path&a,const std::filesystem::path&b){return !a.empty()&&!b.empty()&&path_key(a)==path_key(b);}
 bool shares_device(const TransferRequest&r,const ActiveSession&s) noexcept {return same_device(r.destination,s.destination)||same_device(r.destination,s.source)||same_device(r.source,s.destination)||same_device(r.source,s.source);}
 }
+std::wstring fallback_volume_key(const std::filesystem::path& path) noexcept {
+ auto s=path.lexically_normal().wstring();
+ std::replace(s.begin(),s.end(),L'/',L'\\');
+ std::transform(s.begin(),s.end(),s.begin(),[](wchar_t ch){return static_cast<wchar_t>(std::towlower(ch));});
+ if(s.size()>=2&&s[0]==L'\\'&&s[1]==L'\\'){
+  const auto server_end=s.find(L'\\',2);
+  if(server_end!=std::wstring::npos){
+   const auto share_end=s.find(L'\\',server_end+1);
+   return share_end==std::wstring::npos?s:s.substr(0,share_end);
+  }
+  return s;
+ }
+ if(s.size()>=2&&s[1]==L':') return s.substr(0,2)+L"\\";
+ return {};
+}
 StorageKey resolve_storage_key(const std::filesystem::path& path) noexcept {
  const auto profile=StorageProfiler{}.inspect(path);
  StorageKey key{};
- key.volume=profile.volume_id;
+ key.volume=profile.volume_id.empty()?fallback_volume_key(profile.volume_root.empty()?path:profile.volume_root):profile.volume_id;
  // A StorageKey has room for one physical disk only. Publish it only when
  // Windows reports a fixed volume backed by exactly one physical disk;
  // spanned/striped volumes and non-fixed media deliberately remain unknown.
