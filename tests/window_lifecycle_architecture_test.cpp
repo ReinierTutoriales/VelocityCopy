@@ -22,10 +22,10 @@ int main(){
  if(tray.find("self->HasActiveTransfer()") == std::string::npos || tray.find("self->HideToTray();") == std::string::npos) return 1;
  if(tray.find("self->tray_exit_requested_ = true;")==std::string::npos) return 2;
  if(exec.find("DestroyCompletedWindow();")==std::string::npos) return 3;
- if(app.find("main_window = winrt::make<MainWindow>();")==std::string::npos) return 4;
+ if(app.find("auto main_window = winrt::make<MainWindow>();")==std::string::npos || app.find("windows_.insert_or_assign") == std::string::npos) return 4;
  const auto destroyed=body_of(app,"void App::OnWindowDestroyed");
- if(destroyed.empty() || destroyed.find("retiring_windows_") == std::string::npos || destroyed.find("window_ = nullptr") == std::string::npos || destroyed.find("TryEnqueue") == std::string::npos) return 5;
- const auto enqueue=destroyed.find("TryEnqueue"), detach=destroyed.find("window_ = nullptr");
+ if(destroyed.empty() || destroyed.find("retiring_windows_") == std::string::npos || destroyed.find("windows_.erase(it)") == std::string::npos || destroyed.find("TryEnqueue") == std::string::npos) return 5;
+ const auto enqueue=destroyed.find("TryEnqueue"), detach=destroyed.find("windows_.erase(it)");
  if(detach > enqueue) return 10;
  if(destroyed.find("ShowPrimaryWindow") != std::string::npos) return 11;
  const auto finish=body_of(exec,"void MainWindow::FinishCopy");
