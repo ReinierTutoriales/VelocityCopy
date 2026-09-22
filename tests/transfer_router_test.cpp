@@ -1,6 +1,9 @@
 #include "velocitycopy/transfer_router.hpp"
 using namespace velocitycopy;
 int main(){
+ const auto local=resolve_storage_key(std::filesystem::current_path());
+ if(local.volume.empty())return 20;
+ if(local.volume.rfind(L"\\\\?\\Volume{",0)!=0)return 21;
  TransferRequest r{L"D:\\out",FileOperation::Copy,{L"D:\\",1},{L"C:\\",0}};
  if(route_transfer(r,{}).decision!=RouteDecision::StartNew)return 1;
  ActiveSession s{7,L"D:\\out",FileOperation::Copy,true,{L"D:\\",1},{L"C:\\",0}};
