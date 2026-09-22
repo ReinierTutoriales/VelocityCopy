@@ -95,6 +95,7 @@ void show_activation_error(const wchar_t* message) noexcept {
 } // namespace
 
 App::App() {
+    s_instance = this;
     InitializeComponent();
     DispatcherShutdownMode(Microsoft::UI::Xaml::DispatcherShutdownMode::OnExplicitShutdown);
 }
@@ -110,6 +111,7 @@ App::~App() {
     }
     server_.reset();
     instance_.reset();
+    s_instance = nullptr;
 }
 
 
