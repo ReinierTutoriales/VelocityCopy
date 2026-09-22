@@ -208,6 +208,19 @@ StorageProfile StorageProfiler::inspect(const std::filesystem::path& path) const
     std::array<wchar_t, MAX_PATH> volume_root{};
     if (GetVolumePathNameW(existing.c_str(), volume_root.data(), static_cast<DWORD>(volume_root.size())) != 0) {
         profile.volume_root = volume_root.data();
+
+        // Resolve the mount point to the stable volume GUID used by the
+        // transfer router. This is intentionally independent of the fixed-disk
+        // DeviceIoControl probes below, so removable/network volumes can still
+        // carry a volume identity without synchronous hardware probing.
+        std::array<wchar_t, 64> volume_name{};
+        if (GetVolumeNameForVolumeMountPointW(
+                volume_root.data(),
+                volume_name.data(),
+                static_cast<DWORD>(volume_name.size())) != 0) {
+            profile.volume_id = volume_name.data();
+        }
+
         const auto drive_type = GetDriveTypeW(volume_root.data());
         profile.kind = map_drive_type(drive_type);
         profile.remote = drive_type == DRIVE_REMOTE;
