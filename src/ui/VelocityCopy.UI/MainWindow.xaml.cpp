@@ -238,7 +238,7 @@ fire_and_forget MainWindow::HandleDropAsync(DragEventArgs args) {
         job.sources = std::move(sources);
         job.destination = active_destination_;
         job.operation = active_operation_;
-        QueueOrStartCopy(std::move(job));
+        AppendTransfer(std::move(job));
         deferral.Complete();
     } catch (...) {
         deferral.Complete();

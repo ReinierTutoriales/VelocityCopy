@@ -130,14 +130,15 @@ private:
         LPARAM lparam,
         UINT_PTR subclass_id,
         DWORD_PTR ref_data);
-    void QueueOrStartCopy(velocitycopy::CopyJob job);
+    void StartTransfer(velocitycopy::CopyJob job);
+    void AppendTransfer(velocitycopy::CopyJob job);
+    void EnqueueTransfer(velocitycopy::CopyJob job);
     void EnqueueAppend(
         velocitycopy::CopyJob job,
         std::shared_ptr<velocitycopy::LiveCopyPlan> target_plan,
         std::shared_ptr<velocitycopy::ExecutionControl> target_control,
         std::shared_ptr<AppendGate> target_gate,
         bool reservation_already_held);
-    void StartCopy(velocitycopy::CopyJob job);
     void StartCopyPlan(velocitycopy::CopyPlan plan);
     void ResumeStoppedCopy();
     void ResumeConflictCopy(std::uint64_t replace_file_id);

@@ -1,63 +1,24 @@
 #include "pch.h"
 #include "MainWindow.xaml.h"
 
-#include <algorithm>
-#include <cwctype>
-
 using namespace winrt;
 
 namespace winrt::VelocityCopyUI::implementation {
-namespace {
 
-std::wstring destination_key(const std::filesystem::path& path) {
-    auto value = path.lexically_normal().wstring();
-    std::transform(value.begin(), value.end(), value.begin(), [](const wchar_t ch) {
-        return static_cast<wchar_t>(std::towlower(ch));
-    });
-    return value;
+void MainWindow::EnqueueTransfer(velocitycopy::CopyJob job) {
+    queued_sessions_.push_back(std::move(job));
+    RefreshQueue();
 }
 
-bool same_destination(
-    const std::filesystem::path& left,
-    const std::filesystem::path& right) {
-    return !left.empty() && !right.empty() && destination_key(left) == destination_key(right);
-}
-
-bool same_session(
-    const std::filesystem::path& active_destination,
-    const velocitycopy::FileOperation active_operation,
-    const velocitycopy::CopyJob& job) {
-    return same_destination(active_destination, job.destination) &&
-           active_operation == job.operation;
-}
-
-} // namespace
-
-void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
+void MainWindow::AppendTransfer(velocitycopy::CopyJob job) {
     RefreshEfficiencyMode();
+
     if (stop_requested_) {
-        if (same_session(active_destination_, active_operation_, job)) {
-            deferred_interrupted_jobs_.push_back(std::move(job));
-        } else {
-            queued_sessions_.push_back(std::move(job));
-        }
+        deferred_interrupted_jobs_.push_back(std::move(job));
         return;
     }
 
-    if (stopped_session_ && live_plan_ && append_gate_) {
-        if (!same_session(active_destination_, active_operation_, job)) {
-            queued_sessions_.push_back(std::move(job));
-            return;
-        }
-        EnqueueAppend(std::move(job), live_plan_, nullptr, append_gate_, false);
-        return;
-    }
-
-    if (conflict_session_ && live_plan_ && append_gate_) {
-        if (!same_session(active_destination_, active_operation_, job)) {
-            queued_sessions_.push_back(std::move(job));
-            return;
-        }
+    if ((stopped_session_ || conflict_session_) && live_plan_ && append_gate_) {
         EnqueueAppend(std::move(job), live_plan_, nullptr, append_gate_, false);
         return;
     }
@@ -65,22 +26,8 @@ void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
     auto target_plan = live_plan_;
     auto target_control = execution_control_;
     auto target_gate = append_gate_;
-
     if (!target_control || !target_gate) {
-        auto preview_sources = job.sources;
-        StartCopy(std::move(job));
-
-        // Planning can take noticeable time for large directory trees. Keep the
-        // disclosure useful immediately instead of leaving it disabled until the
-        // complete LiveCopyPlan has been materialized.
-        planning_sources_ = std::move(preview_sources);
-        QueueButton().IsEnabled(!planning_sources_.empty());
-        RefreshQueue();
-        return;
-    }
-
-    if (!same_session(active_destination_, active_operation_, job)) {
-        queued_sessions_.push_back(std::move(job));
+        EnqueueTransfer(std::move(job));
         return;
     }
 
@@ -94,7 +41,7 @@ void MainWindow::QueueOrStartCopy(velocitycopy::CopyJob job) {
             }
         }
         if (reserved) deferred_same_destination_jobs_.push_back(std::move(job));
-        else queued_sessions_.push_back(std::move(job));
+        else EnqueueTransfer(std::move(job));
         return;
     }
 
@@ -108,7 +55,7 @@ void MainWindow::EnqueueAppend(
     std::shared_ptr<AppendGate> target_gate,
     const bool reservation_already_held) {
     if (!target_plan || !target_gate) {
-        queued_sessions_.push_back(std::move(job));
+        EnqueueTransfer(std::move(job));
         return;
     }
 
@@ -122,10 +69,8 @@ void MainWindow::EnqueueAppend(
             }
         }
         if (!reserved) {
-            if ((stopped_session_ || conflict_session_) && same_session(active_destination_, active_operation_, job))
-                deferred_interrupted_jobs_.push_back(std::move(job));
-            else
-                queued_sessions_.push_back(std::move(job));
+            if (stopped_session_ || conflict_session_) deferred_interrupted_jobs_.push_back(std::move(job));
+            else EnqueueTransfer(std::move(job));
             return;
         }
     }
