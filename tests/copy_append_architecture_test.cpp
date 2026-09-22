@@ -212,6 +212,16 @@ int main() {
         !contains(start_copy_plan, "active_source_key_ = {}"))
         return fail(30, "loaded/recovered plans must clear storage keys inherited from the previous session");
 
+    const auto ask_pos = deliver_job.find("RouteDecision::Ask");
+    if (ask_pos == std::string::npos || !contains(deliver_job, "ShowNativeDecisionDialog(") ||
+        !contains(deliver_job, "route_preferences_") || !contains(deliver_job, "routing decision cancelled") ||
+        contains(deliver_job, "route.recommended =="))
+        return fail(32, "Ask routing must use the native decision dialog and process-local preferences instead of the provisional recommendation");
+    if (!contains(conflict, "pszVerificationText") || !contains(conflict, "verification_checked") ||
+        !contains(conflict, "remember_choice != nullptr ? &verification_checked : nullptr") ||
+        !contains(conflict, "MessageBoxW("))
+        return fail(33, "native routing decisions must support TaskDialog verification while MessageBox fallback cannot remember choices");
+
     const auto ui_root = root / "src/ui";
     for (const auto& entry : std::filesystem::recursive_directory_iterator(ui_root)) {
         if (!entry.is_regular_file()) continue;

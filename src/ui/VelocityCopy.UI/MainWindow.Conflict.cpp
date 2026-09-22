@@ -16,7 +16,9 @@ MainWindow::NativeDialogChoice MainWindow::ShowNativeDecisionDialog(
     const std::wstring& primary_label,
     const std::wstring& secondary_label,
     const bool include_cancel,
-    const std::wstring& cancel_label) noexcept {
+    const std::wstring& cancel_label,
+    bool* remember_choice) noexcept {
+    if (remember_choice != nullptr) *remember_choice = false;
     constexpr int kPrimary = 1001;
     constexpr int kSecondary = 1002;
 
@@ -45,11 +47,14 @@ MainWindow::NativeDialogChoice MainWindow::ShowNativeDecisionDialog(
                 config.cButtons = include_cancel ? 3u : 2u;
                 config.pButtons = buttons;
                 config.nDefaultButton = kPrimary;
+                if (remember_choice != nullptr) config.pszVerificationText = L"Remember my choice";
 
                 int selected = IDCANCEL;
-                const HRESULT hr = task_dialog(&config, &selected, nullptr, nullptr);
+                BOOL verification_checked = FALSE;
+                const HRESULT hr = task_dialog(&config, &selected, nullptr, remember_choice != nullptr ? &verification_checked : nullptr);
                 FreeLibrary(module);
                 if (SUCCEEDED(hr)) {
+                    if (remember_choice != nullptr) *remember_choice = verification_checked != FALSE;
                     if (selected == kPrimary) return NativeDialogChoice::Primary;
                     if (selected == kSecondary) return NativeDialogChoice::Secondary;
                     return NativeDialogChoice::Cancel;
