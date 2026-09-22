@@ -141,8 +141,8 @@ int main() {
         return fail(11, "startup source must not comment out is_startup_activation with a literal escape");
     }
 
-    if (!contains(shell_window, "shell_session_.dispatch(request)") ||
-        !contains(shell_window, "StartTransfer(std::move(job))") ||
+    if (!contains(app, "shell_session_.dispatch(request)") ||
+        !contains(app, "StartTransfer(std::move(job))") ||
         contains(shell_window, "BeginShellLayoutAsync") ||
         contains(shell_window, "CaptureClipboardFileSelection") ||
         contains(tray, "AddClipboardFormatListener") ||

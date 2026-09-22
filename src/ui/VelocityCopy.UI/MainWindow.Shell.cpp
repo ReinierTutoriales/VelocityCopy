@@ -2,37 +2,6 @@
 #include "MainWindow.xaml.h"
 
 namespace winrt::VelocityCopyUI::implementation {
-
-void MainWindow::HandleShellRequest(const velocitycopy::ShellRequest& request) {
-    try {
-        auto dispatch = shell_session_.dispatch(request);
-        if (dispatch.status != velocitycopy::ShellDispatchStatus::Accepted) {
-            ShowFromTray();
-            ShowError();
-            return;
-        }
-
-        if (dispatch.job) {
-            ShowFromTray();
-            auto job = std::move(*dispatch.job);
-            if (!HasActiveTransfer()) {
-                StartTransfer(std::move(job));
-            } else if (velocitycopy::same_destination(active_destination_, job.destination) &&
-                       active_operation_ == job.operation) {
-                AppendTransfer(std::move(job));
-            } else {
-                EnqueueTransfer(std::move(job));
-            }
-            return;
-        }
-
-        if (dispatch.show_window) {
-            ShowFromTray();
-        }
-    } catch (...) {
-        ShowFromTray();
-        ShowError();
-    }
+// Explorer request conversion/routing is process-wide in App. This translation
+// unit remains reserved for window-local shell presentation helpers.
 }
-
-} // namespace winrt::VelocityCopyUI::implementation
