@@ -200,10 +200,7 @@ void App::OnWindowDestroyed(const std::uint64_t window_id) noexcept {
         auto weak = get_weak();
         (void)Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread().TryEnqueue(
             [weak] {
-                if (auto self = weak.get()) {
-                    self->retiring_windows_.clear();
-                    if (self->HasPendingRecovery()) self->ShowPrimaryWindow();
-                }
+                if (auto self = weak.get()) self->retiring_windows_.clear();
             });
     } catch (...) {}
 }
