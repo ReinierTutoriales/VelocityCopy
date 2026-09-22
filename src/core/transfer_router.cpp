@@ -11,6 +11,10 @@ std::wstring fallback_volume_key(const std::filesystem::path& path) noexcept {
  auto s=path.lexically_normal().wstring();
  std::replace(s.begin(),s.end(),L'/',L'\\');
  std::transform(s.begin(),s.end(),s.begin(),[](wchar_t ch){return static_cast<wchar_t>(std::towlower(ch));});
+ // Strip Win32 extended-length/device prefixes so they map to the same
+ // identity as their plain form.
+ if(s.starts_with(L"\\\\?\\unc\\")) s=L"\\\\"+s.substr(8);
+ else if(s.starts_with(L"\\\\?\\")||s.starts_with(L"\\\\.\\")) s=s.substr(4);
  if(s.size()>=2&&s[0]==L'\\'&&s[1]==L'\\'){
   const auto server_end=s.find(L'\\',2);
   if(server_end!=std::wstring::npos){
