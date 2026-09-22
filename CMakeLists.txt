@@ -26,6 +26,7 @@ add_library(velocitycopy_core STATIC
     src/core/app_storage.cpp
     src/core/copy_engine.cpp
     src/core/destination_catalog.cpp
+    src/core/diagnostics.cpp
     src/core/efficiency_coordinator.cpp
     src/core/execution_control.cpp
     src/core/ipc_protocol.cpp
@@ -86,6 +87,7 @@ function(add_velocitycopy_test target source name)
 endfunction()
 
 add_velocitycopy_test(VelocityCopyAppStorageTest tests/app_storage_test.cpp velocitycopy_app_storage)
+add_velocitycopy_test(VelocityCopyDiagnosticsTest tests/diagnostics_test.cpp velocitycopy_diagnostics)
 add_velocitycopy_test(VelocityCopySmokeTest tests/smoke_test.cpp velocitycopy_smoke)
 add_velocitycopy_test(VelocityCopyQueueTest tests/queue_test.cpp velocitycopy_queue)
 add_velocitycopy_test(VelocityCopyPlanEditTest tests/plan_edit_test.cpp velocitycopy_plan_edit)

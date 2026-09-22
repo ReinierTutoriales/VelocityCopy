@@ -4,6 +4,7 @@
 
 #include "velocitycopy/process_activation.hpp"
 #include "velocitycopy/app_storage.hpp"
+#include "velocitycopy/diagnostics.hpp"
 
 #include <shellapi.h>
 
@@ -251,7 +252,8 @@ void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
     auto main_window = winrt::make<MainWindow>();
     window_ = main_window;
     if (!tray_.Initialize(this)) {
-        OutputDebugStringW(L"VelocityCopy: failed to initialize notification-area integration.\n");
+        const auto error = GetLastError();
+        velocitycopy::log_diagnostic(L"tray: initialization failed (Win32 " + std::to_wstring(error) + L")");
     }
     if (!startup_activation) {
         if (auto* implementation = winrt::get_self<MainWindow>(main_window)) {
