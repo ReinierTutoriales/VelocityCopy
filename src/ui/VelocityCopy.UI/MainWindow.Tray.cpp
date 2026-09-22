@@ -26,6 +26,13 @@ void MainWindow::InitializeTrayIntegration() {
         if (FAILED(window_native->get_WindowHandle(&hwnd_)) || hwnd_ == nullptr) { hwnd_ = nullptr; return; }
         if (!SetWindowSubclass(hwnd_, &MainWindow::TraySubclassProc, kTraySubclassId,
                                reinterpret_cast<DWORD_PTR>(this))) { hwnd_ = nullptr; return; }
+
+        // Every visible transfer window is a normal taskbar/switcher window. This is
+        // essential for native Windows multi-window grouping and live thumbnail previews.
+        // The notification-area icon remains app-level; it is not a replacement for the
+        // taskbar representation of individual transfer windows.
+        try { AppWindow().IsShownInSwitchers(true); } catch (...) {}
+
         tray_window_hidden_ = IsWindowVisible(hwnd_) == FALSE;
         RefreshEfficiencyMode();
     } catch (...) { RemoveTrayIntegration(); }
@@ -136,9 +143,11 @@ LRESULT CALLBACK MainWindow::TraySubclassProc(
 
     switch (message) {
     case WM_SYSCOMMAND:
+        // Minimize must remain a native Windows minimize operation. Do not convert it
+        // into "hide to tray": Windows needs the real top-level window in order to
+        // provide taskbar grouping, per-window previews and normal restore behavior.
         if ((wparam & 0xFFF0) == SC_MINIMIZE && !self->tray_exit_requested_) {
-            self->HideToTray();
-            return 0;
+            return DefSubclassProc(hwnd, message, wparam, lparam);
         }
         break;
 
