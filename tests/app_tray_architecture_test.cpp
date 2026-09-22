@@ -8,7 +8,9 @@ std::string read(const std::filesystem::path& p){std::ifstream in(p,std::ios::bi
 int main(){
  const auto ui=std::filesystem::path{VELOCITYCOPY_SOURCE_DIR}/"src/ui/VelocityCopy.UI";
  const auto tray=read(ui/"AppTray.cpp"), main=read(ui/"MainWindow.Tray.cpp"), app=read(ui/"App.xaml.h");
- if(tray.find("Shell_NotifyIconW")==std::string::npos || tray.find("HWND_MESSAGE")==std::string::npos) return 1;
+ if(tray.find("Shell_NotifyIconW")==std::string::npos || tray.find("WS_EX_TOOLWINDOW")==std::string::npos) return 1;
+ if(tray.find("HWND_MESSAGE")!=std::string::npos) return 4;
+ if(tray.find("PostMessageW(hwnd_, WM_NULL") == std::string::npos) return 5;
  if(main.find("Shell_NotifyIconW")!=std::string::npos || main.find("NOTIFYICONDATA")!=std::string::npos) return 2;
  if(app.find("AppTray tray_")==std::string::npos) return 3;
  return 0;
