@@ -167,7 +167,7 @@ std::uint64_t App::NextWindowId() noexcept {
     return next_window_id_++;
 }
 
-Microsoft::UI::Xaml::Window App::CreateMainWindow() {
+VelocityCopyUI::MainWindow App::CreateMainWindow() {
     auto main_window = winrt::make<MainWindow>();
     if (auto* implementation = get_self<MainWindow>(main_window)) {
         windows_.insert_or_assign(implementation->WindowId(), main_window);
