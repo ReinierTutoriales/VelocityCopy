@@ -26,7 +26,7 @@ struct App : AppT<App> {
     void SetShuttingDown(bool value) noexcept;
     std::uint64_t NextWindowId() noexcept;
     void ShowPrimaryWindow();
-    void ShowPrimaryWindowError();
+    void ShowPrimaryWindowError() noexcept;
     void ExitFromTray() noexcept;
     void DeliverShellRequest(const velocitycopy::ShellRequest& request);
     void OnWindowDestroyed(std::uint64_t window_id) noexcept;

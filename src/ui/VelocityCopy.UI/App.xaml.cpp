@@ -221,11 +221,15 @@ void App::DeliverConvertedJob(velocitycopy::CopyJob job) {
     }
 }
 
-void App::ShowPrimaryWindowError() {
-    Microsoft::UI::Xaml::Window target{nullptr};
-    if (!windows_.empty()) target = windows_.rbegin()->second;
-    if (!target) target = CreateMainWindow();
-    if (auto main_window = target.try_as<VelocityCopyUI::MainWindow>()) if (auto* implementation = get_self<MainWindow>(main_window)) implementation->ShowRequestError();
+void App::ShowPrimaryWindowError() noexcept {
+    try {
+        Microsoft::UI::Xaml::Window target{nullptr};
+        if (!windows_.empty()) target = windows_.rbegin()->second;
+        if (!target) target = CreateMainWindow();
+        if (auto main_window = target.try_as<VelocityCopyUI::MainWindow>()) if (auto* implementation = get_self<MainWindow>(main_window)) implementation->ShowRequestError();
+    } catch (...) {
+        velocitycopy::log_diagnostic(L"shell: could not show request error window");
+    }
 }
 
 void App::ShowPrimaryWindow() {
