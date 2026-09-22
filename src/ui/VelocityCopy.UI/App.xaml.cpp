@@ -416,7 +416,10 @@ void App::ShowPrimaryWindow() {
     if (!windows_.empty()) target = windows_.rbegin()->second;
     if (!target) target = CreateMainWindow();
     if (auto main_window = target.try_as<VelocityCopyUI::MainWindow>()) {
-        if (auto* implementation = get_self<MainWindow>(main_window)) implementation->ShowFromTray();
+        if (auto* implementation = get_self<MainWindow>(main_window)) {
+            implementation->ShowFromTray();
+            implementation->OfferRecoveryIfIdle();
+        }
     }
 }
 
@@ -492,6 +495,9 @@ void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
     if (!startup_activation) {
         if (auto* implementation = winrt::get_self<MainWindow>(main_window)) {
             implementation->ShowFromTray();
+            if (!initial_request) {
+                implementation->OfferRecoveryIfIdle();
+            }
         }
     }
 
