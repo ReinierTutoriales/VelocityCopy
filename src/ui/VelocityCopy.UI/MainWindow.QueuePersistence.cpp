@@ -73,15 +73,17 @@ void MainWindow::PersistRecoveryQueueNoThrow() noexcept {
             deferred_interrupted_jobs_.end());
         archive.queued_jobs.assign(queued_sessions_.begin(), queued_sessions_.end());
 
+        const auto dir = velocitycopy::app_data_directory();
+        if (!dir || session_id_.empty()) return;
+        const auto path = velocitycopy::recovery_file(*dir, session_id_);
+
         if (!archive.current_plan &&
             archive.current_append_jobs.empty() &&
             archive.queued_jobs.empty()) {
+            velocitycopy::retire_recovery_file(path);
             return;
         }
 
-        const auto folder = Windows::Storage::ApplicationData::Current().LocalFolder();
-        const auto path = std::filesystem::path(folder.Path().c_str()) /
-            L"VelocityCopy.Recovery.vcq";
         (void)velocitycopy::QueueArchiveStore{}.save(path, archive);
     } catch (...) {
     }
