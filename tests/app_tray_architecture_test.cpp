@@ -7,7 +7,7 @@
 std::string read(const std::filesystem::path& p){std::ifstream in(p,std::ios::binary);return {std::istreambuf_iterator<char>(in),{}};}
 int main(){
  const auto ui=std::filesystem::path{VELOCITYCOPY_SOURCE_DIR}/"src/ui/VelocityCopy.UI";
- const auto tray=read(ui/"AppTray.cpp"), main=read(ui/"MainWindow.Tray.cpp"), app=read(ui/"App.xaml.h"), app_cpp=read(ui/"App.xaml.cpp"), window_cpp=read(ui/"MainWindow.xaml.cpp");
+ const auto tray=read(ui/"AppTray.cpp"), main=read(ui/"MainWindow.Tray.cpp"), app=read(ui/"App.xaml.h"), app_cpp=read(ui/"App.xaml.cpp"), window_cpp=read(ui/"MainWindow.xaml.cpp"), conflict=read(ui/"MainWindow.Conflict.cpp");
  if(tray.find("Shell_NotifyIconW")==std::string::npos || tray.find("WS_EX_TOOLWINDOW")==std::string::npos) return 1;
  if(tray.find("HWND_MESSAGE")!=std::string::npos) return 4;
  if(tray.find("PostMessageW(hwnd_, WM_NULL") == std::string::npos) return 5;
@@ -27,13 +27,15 @@ int main(){
  if(minimize_block.find("HideToTray") != std::string::npos) return 11;
  if(minimize_block.find("DefSubclassProc") == std::string::npos) return 12;
 
- // 7f contract: every MainWindow must publish its WinUI ActualTheme to its native HWND,
- // and keep it synchronized so owned TaskDialogs/system chrome inherit the correct theme.
+ // 7f contract: every MainWindow publishes its WinUI ActualTheme to its own native HWND
+ // and keeps it synchronized; owned native dialogs then read that same DWM attribute.
  if(main.find("DwmSetWindowAttribute") == std::string::npos ||
     main.find("DWMWA_USE_IMMERSIVE_DARK_MODE") == std::string::npos) return 13;
  if(main.find("ActualThemeChanged") == std::string::npos ||
     main.find("sender.ActualTheme()") == std::string::npos) return 14;
  if(main.find("RootGrid().ActualTheme()") == std::string::npos) return 15;
+ if(conflict.find("DwmGetWindowAttribute") == std::string::npos ||
+    conflict.find("DWMWA_USE_IMMERSIVE_DARK_MODE") == std::string::npos) return 18;
 
  // Visible transfer windows start as normal switcher/taskbar windows; hiding is an
  // explicit tray operation, not a constructor side effect.
