@@ -10,15 +10,6 @@
 
 namespace {
 bool contains(const std::string& text, const std::string& value) { return text.find(value) != std::string::npos; }
-std::size_t count_occurrences(const std::string& text, const std::string& value) {
-    if (value.empty()) return 0;
-    std::size_t count = 0, offset = 0;
-    while ((offset = text.find(value, offset)) != std::string::npos) {
-        ++count;
-        offset += value.size();
-    }
-    return count;
-}
 int fail(const int code, const char* message) {
     std::cerr << "architecture contract " << code << ": " << message << '\n';
     return code;
