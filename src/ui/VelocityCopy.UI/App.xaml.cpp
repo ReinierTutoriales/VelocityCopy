@@ -145,6 +145,11 @@ void App::ShowPrimaryWindow() {
     }
 }
 
+void App::OnWindowDestroyed(const std::uint64_t window_id) noexcept {
+    RemoveEfficiencyVote(window_id);
+    window_ = nullptr;
+}
+
 void App::ExitFromTray() noexcept {
     SetShuttingDown(true);
     tray_.Remove();
