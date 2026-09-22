@@ -1,10 +1,22 @@
 #include "velocitycopy/transfer_router.hpp"
+#include "velocitycopy/storage_profiler.hpp"
 #include <algorithm>
 #include <cwctype>
 namespace velocitycopy { namespace {
 std::wstring path_key(const std::filesystem::path& p){auto s=p.lexically_normal().wstring();std::transform(s.begin(),s.end(),s.begin(),[](wchar_t c){return static_cast<wchar_t>(std::towlower(c));});while(s.size()>3&&(s.back()==L'\\'||s.back()==L'/'))s.pop_back();return s;}
 bool same_destination(const std::filesystem::path&a,const std::filesystem::path&b){return !a.empty()&&!b.empty()&&path_key(a)==path_key(b);}
 bool shares_device(const TransferRequest&r,const ActiveSession&s) noexcept {return same_device(r.destination,s.destination)||same_device(r.destination,s.source)||same_device(r.source,s.destination)||same_device(r.source,s.source);}
+}
+StorageKey resolve_storage_key(const std::filesystem::path& path) noexcept {
+ const auto profile=StorageProfiler{}.inspect(path);
+ StorageKey key{};
+ key.volume=profile.volume_id;
+ // A StorageKey has room for one physical disk only. Publish it only when
+ // Windows reports a fixed volume backed by exactly one physical disk;
+ // spanned/striped volumes and non-fixed media deliberately remain unknown.
+ if(profile.kind==StorageKind::Fixed&&profile.physical_disk_extents_available&&profile.physical_disk_numbers.size()==1)
+  key.disk=profile.physical_disk_numbers.front();
+ return key;
 }
 bool same_device(const StorageKey&a,const StorageKey&b) noexcept {
  if(!a.volume.empty()&&!b.volume.empty()){auto x=a.volume,y=b.volume;std::transform(x.begin(),x.end(),x.begin(),::towlower);std::transform(y.begin(),y.end(),y.begin(),::towlower);if(x==y)return true;}
