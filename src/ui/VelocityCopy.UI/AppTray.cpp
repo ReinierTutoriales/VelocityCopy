@@ -25,8 +25,11 @@ bool AppTray::Initialize(App* owner) noexcept {
         wc.hInstance = instance;
         wc.lpszClassName = kTrayWindowClass;
         if (!RegisterClassExW(&wc) && GetLastError() != ERROR_CLASS_ALREADY_EXISTS) return false;
-        hwnd_ = CreateWindowExW(0, kTrayWindowClass, L"VelocityCopy", 0, 0, 0, 0, 0,
-                                HWND_MESSAGE, nullptr, instance, this);
+        // Hidden top-level owner. Message-only windows do not receive broadcast messages,
+        // so they cannot observe TaskbarCreated after Explorer starts/restarts. A real
+        // top-level owner is also required by the standard notification-area menu pattern.
+        hwnd_ = CreateWindowExW(WS_EX_TOOLWINDOW, kTrayWindowClass, L"VelocityCopy", WS_POPUP,
+                                0, 0, 0, 0, nullptr, nullptr, instance, this);
         if (!hwnd_) return false;
 
         std::array<wchar_t, 32768> module_path{};
@@ -122,6 +125,7 @@ void AppTray::ShowMenu(POINT anchor) noexcept {
     const UINT command = TrackPopupMenuEx(menu, TPM_RETURNCMD | TPM_NONOTIFY | TPM_RIGHTBUTTON,
                                           anchor.x, anchor.y, hwnd_, nullptr);
     DestroyMenu(menu);
+    PostMessageW(hwnd_, WM_NULL, 0, 0);
     if (command == kTrayOpenCommand && owner_) owner_->ShowPrimaryWindow();
     else if (command == kTrayExitCommand && owner_) owner_->ExitFromTray();
 }
