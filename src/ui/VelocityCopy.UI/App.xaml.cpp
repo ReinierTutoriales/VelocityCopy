@@ -358,8 +358,41 @@ void App::DeliverConvertedJob(velocitycopy::CopyJob job, velocitycopy::StorageKe
         }
     }
     if (!target) {
+        HWND reference_hwnd = nullptr;
+        if (!windows_.empty()) {
+            if (auto reference_window = windows_.rbegin()->second.try_as<VelocityCopyUI::MainWindow>()) {
+                if (auto* reference = get_self<MainWindow>(reference_window)) reference_hwnd = reference->NativeOwner();
+            }
+        }
+
         auto window = CreateMainWindow();
         target = get_self<MainWindow>(window);
+        if (target && reference_hwnd != nullptr) {
+            MONITORINFO monitor_info{sizeof(monitor_info)};
+            const HMONITOR monitor = MonitorFromWindow(reference_hwnd, MONITOR_DEFAULTTONEAREST);
+            RECT reference_rect{};
+            RECT new_rect{};
+            if (monitor != nullptr && GetMonitorInfoW(monitor, &monitor_info) &&
+                GetWindowRect(target->NativeOwner(), &new_rect)) {
+                const int width = new_rect.right - new_rect.left;
+                const int height = new_rect.bottom - new_rect.top;
+                const UINT dpi = GetDpiForWindow(reference_hwnd);
+                const int offset = MulDiv(32, dpi == 0 ? USER_DEFAULT_SCREEN_DPI : static_cast<int>(dpi), USER_DEFAULT_SCREEN_DPI);
+                const int margin = offset;
+                int x = monitor_info.rcWork.left + margin;
+                int y = monitor_info.rcWork.top + margin;
+
+                if (!IsIconic(reference_hwnd) && GetWindowRect(reference_hwnd, &reference_rect)) {
+                    x = reference_rect.left + offset;
+                    y = reference_rect.top + offset;
+                    if (x + width > monitor_info.rcWork.right || y + height > monitor_info.rcWork.bottom) {
+                        x = monitor_info.rcWork.left + margin;
+                        y = monitor_info.rcWork.top + margin;
+                    }
+                }
+                target->MoveNativeWindow(x, y);
+            }
+        }
     }
     if (target) {
         target->ShowFromTray();
