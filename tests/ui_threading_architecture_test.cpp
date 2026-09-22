@@ -12,11 +12,6 @@ namespace {
 bool contains(const std::string& text, const std::string& value) {
     return text.find(value) != std::string::npos;
 }
-std::size_t count_occurrences(const std::string& text, const std::string& value) {
-    std::size_t count = 0;
-    for (std::size_t offset = 0; (offset = text.find(value, offset)) != std::string::npos; offset += value.size()) ++count;
-    return count;
-}
 int fail(int code, const char* message) {
     std::cerr << "UI threading architecture contract " << code << ": " << message << '\n';
     return code;
@@ -55,10 +50,24 @@ int main() {
         return fail(4, "append planner completions marshal through DispatcherQueue; shell dispatch stays synchronously on UI thread");
     }
 
+
+    const auto resolve = body_of(app, "App::ResolveStorageKeysAsync(");
+    if (resolve.empty() || !contains(resolve, "resume_background()")) return fail(5, "storage-key resolution must run off the UI thread");
+    if (resolve.find("resolve_storage_key(") < resolve.find("resume_background()")) return fail(5, "resolve_storage_key must run after resume_background");
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(root / "src/ui")) {
+        if (!entry.is_regular_file()) continue;
+        const auto text = read_source(entry.path());
+        const auto total = count_occurrences(text, "resolve_storage_key(");
+        const auto outside = entry.path().filename() == "App.xaml.cpp"
+            ? total - count_occurrences(resolve, "resolve_storage_key(")
+            : total;
+        if (outside != 0) return fail(5, "resolve_storage_key must only be called from ResolveStorageKeysAsync");
+    }
+
     const auto apply = execution.find("void MainWindow::ApplySnapshot");
     const auto finish = execution.find("void MainWindow::FinishCopy", apply);
     if (apply == std::string::npos || finish == std::string::npos || finish <= apply) {
-        return fail(5, "authoritative UI snapshot consumer missing");
+        return fail(6, "authoritative UI snapshot consumer missing");
     }
     const auto apply_body = execution.substr(apply, finish - apply);
     if (!contains(apply_body, "SetProgressFraction(fraction)") ||
@@ -67,7 +76,7 @@ int main() {
         !contains(window, "void MainWindow::SetProgressFraction") ||
         !contains(window, "ProgressFill().Width") ||
         !contains(window, "ProgressPercentText().Text")) {
-        return fail(6, "progress rendering must remain centralized behind the UI-thread snapshot consumer");
+        return fail(7, "progress rendering must remain centralized behind the UI-thread snapshot consumer");
     }
 
     return 0;
