@@ -6,7 +6,7 @@ namespace velocitycopy { namespace {
 std::wstring path_key(const std::filesystem::path& p){auto s=p.lexically_normal().wstring();std::transform(s.begin(),s.end(),s.begin(),[](wchar_t c){return static_cast<wchar_t>(std::towlower(c));});while(s.size()>3&&(s.back()==L'\\'||s.back()==L'/'))s.pop_back();return s;}
 bool shares_device(const TransferRequest&r,const ActiveSession&s) noexcept {return same_device(r.destination,s.destination)||same_device(r.destination,s.source)||same_device(r.source,s.destination)||same_device(r.source,s.source);}
 }
-bool same_destination(const std::filesystem::path&a,const std::filesystem::path&b) noexcept {return !a.empty()&&!b.empty()&&path_key(a)==path_key(b);}
+bool same_destination(const std::filesystem::path&a,const std::filesystem::path&b) {return !a.empty()&&!b.empty()&&path_key(a)==path_key(b);}
 std::wstring fallback_volume_key(const std::filesystem::path& path) noexcept {
  auto s=path.lexically_normal().wstring();
  std::replace(s.begin(),s.end(),L'/',L'\\');
@@ -37,7 +37,7 @@ StorageKey resolve_storage_key(const std::filesystem::path& path) noexcept {
   key.disk=profile.physical_disk_numbers.front();
  return key;
 }
-bool same_device(const StorageKey&a,const StorageKey&b) noexcept {
+bool same_device(const StorageKey&a,const StorageKey&b) {
  if(!a.volume.empty()&&!b.volume.empty()){auto x=a.volume,y=b.volume;std::transform(x.begin(),x.end(),x.begin(),::towlower);std::transform(y.begin(),y.end(),y.begin(),::towlower);if(x==y)return true;}
  return a.disk&&b.disk&&*a.disk==*b.disk;
 }

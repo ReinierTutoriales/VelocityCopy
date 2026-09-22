@@ -58,12 +58,14 @@ int main() {
         return fail(1, "required production source missing");
     }
 
-    if (!contains(shell, "QueueOrStartCopy(std::move(*dispatch.job))") ||
-        !contains(window, "QueueOrStartCopy(std::move(job))") ||
+    if (!contains(shell, "StartTransfer(std::move(job))") ||
+        !contains(shell, "AppendTransfer(std::move(job))") ||
+        !contains(shell, "EnqueueTransfer(std::move(job))") ||
+        !contains(window, "AppendTransfer(std::move(job))") ||
         contains(xaml, "OnQueueOrStartCopyClick") || contains(xaml, "OnStartCopyClick") ||
         contains(header, "OnQueueOrStartCopyClick") || contains(header, "OnStartCopyClick") ||
         contains(append, "OnQueueOrStartCopyClick") || contains(append, "OnStartCopyClick")) {
-        return fail(2, "Explorer and active-session drop must converge directly on QueueOrStartCopy without chooser handlers");
+        return fail(2, "Explorer must choose one explicit transfer action and active-session drop must append directly without chooser handlers");
     }
 
     if (!contains(append, "append_planner_.enqueue") || !contains(append, "planning_count") ||
@@ -108,7 +110,7 @@ int main() {
     }
 
     if (!contains(header, "queued_sessions_") || !contains(append, "queued_sessions_.push_back") ||
-        !contains(append, "same_session") || !contains(append, "same_destination") ||
+        !contains(shell, "velocitycopy::same_destination(") ||
         !contains(append, "EnqueueAppend") || !contains(execution, "StartNextQueuedSession")) {
         return fail(11, "compatible live drops must append while different sessions remain serialized");
     }
@@ -182,12 +184,18 @@ int main() {
     }
 
     if (contains(shell, "ShowAt(") || contains(shell, "choose_layout") || contains(shell, "flow_.make_job") ||
-        !contains(shell, "QueueOrStartCopy")) {
+        !contains(shell, "StartTransfer(")) {
         return fail(23, "Explorer transfer must start directly and never block on destination/layout UI");
     }
 
-    if (!contains(header, "planning_sources_") || !contains(append, "preview_sources") ||
-        !contains(append, "QueueButton().IsEnabled(!planning_sources_.empty())") ||
+    const auto start_transfer = [&] {
+        const auto start = execution.find("void MainWindow::StartTransfer(");
+        if (start == std::string::npos) return std::string{};
+        const auto end = execution.find("\n}\n", start);
+        return execution.substr(start, end == std::string::npos ? std::string::npos : end - start);
+    }();
+    if (!contains(header, "planning_sources_") || !contains(start_transfer, "planning_sources_ = job.sources") ||
+        !contains(start_transfer, "RefreshQueue();") ||
         !contains(queue, "kPlanningPreviewLimit") ||
         !contains(queue, "execution_control_ && !planning_sources_.empty()")) {
         return fail(24, "accepted sources must be inspectable from the queue while initial planning is still running");
@@ -199,6 +207,15 @@ int main() {
         !contains(header, "*accepting = false") ||
         count_occurrences(execution, "gate->condition.wait(") != 2) {
         return fail(25, "append-planner waits must be time-bounded so a blocked filesystem enumeration cannot freeze transfer finalization");
+    }
+
+    const auto ui_root = root / "src/ui";
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(ui_root)) {
+        if (!entry.is_regular_file()) continue;
+        const auto source = read_all(entry.path());
+        if (contains(source, "QueueOrStartCopy") || contains(source, "same_session") || contains(source, "StartCopy(")) {
+            return fail(26, "retired transfer decision names must not return anywhere under src/ui");
+        }
     }
 
     return 0;

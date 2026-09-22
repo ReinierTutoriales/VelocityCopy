@@ -142,7 +142,7 @@ int main() {
     }
 
     if (!contains(shell_window, "shell_session_.dispatch(request)") ||
-        !contains(shell_window, "QueueOrStartCopy(std::move(*dispatch.job))") ||
+        !contains(shell_window, "StartTransfer(std::move(job))") ||
         contains(shell_window, "BeginShellLayoutAsync") ||
         contains(shell_window, "CaptureClipboardFileSelection") ||
         contains(tray, "AddClipboardFormatListener") ||
@@ -156,7 +156,7 @@ int main() {
         !contains(window, "active_destination.empty()") ||
         !contains(window, "job.destination = active_destination_") ||
         !contains(window, "job.operation = active_operation_") ||
-        !contains(window, "QueueOrStartCopy(std::move(job))") ||
+        !contains(window, "AppendTransfer(std::move(job))") ||
         contains(window, "preferred_drop_operation") ||
         contains(window, "DragDropModifiers::Control") ||
         contains(window, "DragDropModifiers::Shift")) {
