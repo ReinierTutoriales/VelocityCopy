@@ -14,6 +14,7 @@ int main() {
     if (velocitycopy::recovery_session_id(L"VelocityCopy.Recovery.vcq")) return 4;
     if (velocitycopy::recovery_session_id(L"VelocityCopy.Recovery.{01234567-89AB-CDEF-8123-456789ABCDEF}.vcq.tmp")) return 5;
     if (velocitycopy::recovery_session_id(L"VelocityCopy.Recovery.{01234567-89AB-CDEF-8123-456789ABCDEF}.vcq.consumed")) return 6;
+    if (velocitycopy::recovery_session_id(L"VelocityCopy.Recovery.Shell.Application.vcq")) return 11;
 
     const auto root = std::filesystem::temp_directory_path() / velocitycopy::new_session_id();
     std::error_code ec;
