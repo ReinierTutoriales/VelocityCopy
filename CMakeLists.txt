@@ -26,6 +26,7 @@ add_library(velocitycopy_core STATIC
     src/core/app_storage.cpp
     src/core/copy_engine.cpp
     src/core/destination_catalog.cpp
+    src/core/efficiency_coordinator.cpp
     src/core/execution_control.cpp
     src/core/ipc_protocol.cpp
     src/core/ipc_transport.cpp
@@ -93,6 +94,7 @@ add_velocitycopy_test(VelocityCopyLivePlanStructureTest tests/live_plan_structur
 add_velocitycopy_test(VelocityCopyLivePlanSnapshotContractTest tests/live_plan_snapshot_contract_test.cpp velocitycopy_live_plan_snapshot_contract)
 add_velocitycopy_test(VelocityCopyParallelExecutorTest tests/job_executor_parallel_test.cpp velocitycopy_parallel_executor)
 add_velocitycopy_test(VelocityCopyExecutorAppendTest tests/job_executor_append_test.cpp velocitycopy_executor_append)
+add_velocitycopy_test(VelocityCopyEfficiencyCoordinatorTest tests/efficiency_coordinator_test.cpp velocitycopy_efficiency_coordinator)
 add_velocitycopy_test(VelocityCopyExecutionControlTest tests/execution_control_test.cpp velocitycopy_execution_control)
 add_velocitycopy_test(VelocityCopySkipTest tests/skip_test.cpp velocitycopy_skip)
 add_velocitycopy_test(VelocityCopyExistingDestinationTest tests/existing_destination_test.cpp velocitycopy_existing_destination)
