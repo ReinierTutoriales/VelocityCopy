@@ -5,7 +5,11 @@
 std::string body_of(const std::string& text, const std::string& signature) {
  const auto start=text.find(signature); if(start==std::string::npos) return {};
  const auto open=text.find('{',start); if(open==std::string::npos) return {};
- int depth=0; for(std::size_t i=open;i<text.size();++i){ if(text[i]=='{') ++depth; else if(text[i]=='}' && --depth==0) return text.substr(open,i-open+1); }
+ int depth=0;
+ for(std::size_t i=open;i<text.size();++i) {
+  if(text[i]=='{') ++depth;
+  else if(text[i]=='}') { --depth; if(depth==0) return text.substr(open,i-open+1); }
+ }
  return {};
 }
 #ifndef VELOCITYCOPY_SOURCE_DIR
