@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cwchar>
+#include <memory>
 #include <system_error>
 
 namespace velocitycopy {
@@ -15,8 +16,9 @@ constexpr std::wstring_view kPrefix = L"VelocityCopy.Recovery.";
 constexpr std::wstring_view kSuffix = L".vcq";
 
 bool valid_guid(const std::wstring& value) noexcept {
-    GUID guid{};
-    return CLSIDFromString(value.c_str(), &guid) == S_OK;
+    if (value.size() != 38 || value.front() != L'{' || value.back() != L'}') return false;
+    IID iid{};
+    return IIDFromString(value.c_str(), &iid) == S_OK;
 }
 } // namespace
 
@@ -25,15 +27,14 @@ std::optional<std::filesystem::path> app_data_directory() noexcept {
     if (FAILED(SHGetKnownFolderPath(FOLDERID_LocalAppData, KF_FLAG_DEFAULT, nullptr, &raw)) || raw == nullptr) {
         return std::nullopt;
     }
+    std::unique_ptr<wchar_t, decltype(&CoTaskMemFree)> owned(raw, &CoTaskMemFree);
     try {
-        std::filesystem::path dir = std::filesystem::path(raw) / L"VelocityCopy";
-        CoTaskMemFree(raw);
+        std::filesystem::path dir = std::filesystem::path(owned.get()) / L"VelocityCopy";
         std::error_code ec;
         std::filesystem::create_directories(dir, ec);
         if (ec && !std::filesystem::is_directory(dir, ec)) return std::nullopt;
         return dir;
     } catch (...) {
-        CoTaskMemFree(raw);
         return std::nullopt;
     }
 }
