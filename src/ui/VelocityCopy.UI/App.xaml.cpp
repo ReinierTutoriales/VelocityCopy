@@ -134,6 +134,10 @@ void App::SetShuttingDown(const bool value) noexcept {
     try { ApplyEfficiencyMode(efficiency_coordinator_.set_shutting_down(value)); } catch (...) {}
 }
 
+std::uint64_t App::NextWindowId() noexcept {
+    return next_window_id_++;
+}
+
 void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
     const bool startup_activation = is_startup_activation();
     const auto initial_request = inherited_shell_request();
