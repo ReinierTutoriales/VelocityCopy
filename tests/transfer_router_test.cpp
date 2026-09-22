@@ -13,5 +13,10 @@ int main(){
  r.destination={L"E:\\",{}}; r.source={L"X:\\",{}}; q=route_transfer(r,one); if(q.decision!=RouteDecision::StartNew)return 8;
  r.source={L"C:\\",{}}; one[0].source={L"C:\\",{}}; q=route_transfer(r,one); if(q.decision!=RouteDecision::Ask)return 9;
  ActiveSession many[]={{3,L"Z:\\x",FileOperation::Copy,true,{L"Z:\\",9},{L"Y:\\",8}},{7,L"E:\\out",FileOperation::Copy,true,{L"E:\\",{}},{L"C:\\",{}}}}; q=route_transfer(r,many); if(q.window_id!=7)return 10;
+ ActiveSession tie[]={{9,L"D:\\a",FileOperation::Copy,true,{L"D:\\",1},{L"C:\\",0}},{4,L"D:\\b",FileOperation::Copy,true,{L"D:\\",1},{L"C:\\",0}}};
+ TransferRequest t{L"D:\\c",FileOperation::Copy,{L"D:\\",1},{L"X:\\",{}}}; q=route_transfer(t,tie); if(q.window_id!=4)return 11;
+ ActiveSession prio[]={{4,L"D:\\b",FileOperation::Copy,true,{L"D:\\",1},{L"C:\\",0}},{9,L"D:\\c",FileOperation::Copy,true,{L"D:\\",1},{L"C:\\",0}}};
+ auto p=route_transfer(t,prio); if(p.decision!=RouteDecision::Ask||p.offered.empty()||p.offered[0]!=RouteChoice::Append||p.window_id!=9)return 12;
+ RoutePreferences parallel{{},RouteChoice::Parallel}; p=route_transfer(t,tie,parallel); if(p.decision!=RouteDecision::StartNew||p.window_id!=0)return 13;
  return 0;
 }
