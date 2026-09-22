@@ -3,8 +3,11 @@
 #include "App.xaml.h"
 
 #include <commctrl.h>
+#include <dwmapi.h>
 #include <shellapi.h>
 #include <shlobj_core.h>
+
+#pragma comment(lib, "dwmapi.lib")
 
 using namespace winrt;
 
@@ -12,6 +15,19 @@ namespace winrt::VelocityCopyUI::implementation {
 namespace {
 
 constexpr UINT_PTR kTraySubclassId = 0x56434F50;
+
+void sync_native_window_theme(
+    HWND hwnd,
+    Microsoft::UI::Xaml::ElementTheme theme) noexcept {
+    if (hwnd == nullptr) return;
+
+    const BOOL dark = theme == Microsoft::UI::Xaml::ElementTheme::Dark ? TRUE : FALSE;
+    (void)DwmSetWindowAttribute(
+        hwnd,
+        DWMWA_USE_IMMERSIVE_DARK_MODE,
+        &dark,
+        sizeof(dark));
+}
 
 } // namespace
 
@@ -26,6 +42,18 @@ void MainWindow::InitializeTrayIntegration() {
         if (FAILED(window_native->get_WindowHandle(&hwnd_)) || hwnd_ == nullptr) { hwnd_ = nullptr; return; }
         if (!SetWindowSubclass(hwnd_, &MainWindow::TraySubclassProc, kTraySubclassId,
                                reinterpret_cast<DWORD_PTR>(this))) { hwnd_ = nullptr; return; }
+
+        // Keep the native HWND theme synchronized with WinUI ActualTheme. Native-owned
+        // surfaces (TaskDialog, system menu, caption/Snap chrome) can then query the
+        // window's real DWM dark-mode state instead of guessing from an unset attribute.
+        sync_native_window_theme(hwnd_, RootGrid().ActualTheme());
+        auto weak = get_weak();
+        RootGrid().ActualThemeChanged(
+            [weak](Microsoft::UI::Xaml::FrameworkElement const& sender, IInspectable const&) {
+                if (auto self = weak.get()) {
+                    sync_native_window_theme(self->NativeOwner(), sender.ActualTheme());
+                }
+            });
 
         // Every visible transfer window is a normal taskbar/switcher window. This is
         // essential for native Windows multi-window grouping and live thumbnail previews.
