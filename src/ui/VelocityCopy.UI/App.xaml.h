@@ -48,6 +48,7 @@ private:
     std::deque<std::filesystem::path> pending_recovery_files_;
     std::deque<velocitycopy::CopyJob> pending_requests_;
     velocitycopy::ShellSession shell_session_;
+    velocitycopy::RoutePreferences route_preferences_;
     bool request_in_flight_{};
     bool recovery_files_initialized_{};
     AppTray tray_;

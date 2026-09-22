@@ -271,11 +271,44 @@ void App::DeliverConvertedJob(velocitycopy::CopyJob job, velocitycopy::StorageKe
     velocitycopy::RouteResult route{};
     for (int attempt = 0; attempt != 2; ++attempt) {
         const auto sessions = snapshot();
-        route = velocitycopy::route_transfer(request, sessions, {});
+        route = velocitycopy::route_transfer(request, sessions, route_preferences_);
         if (route.decision == velocitycopy::RouteDecision::Ask) {
-            route.decision = route.recommended == velocitycopy::RouteChoice::Append
+            auto* dialog_owner = find_window(route.window_id);
+            if (dialog_owner == nullptr || route.offered.size() != 2) {
+                velocitycopy::log_diagnostic(L"shell: routing decision dialog has no valid owner/options");
+                return;
+            }
+
+            const bool same_destination_prompt =
+                route.offered[0] == velocitycopy::RouteChoice::Append &&
+                route.offered[1] == velocitycopy::RouteChoice::Wait;
+            const std::wstring title = same_destination_prompt
+                ? L"Destination already in use"
+                : L"Storage device already in use";
+            const std::wstring message = same_destination_prompt
+                ? L"A transfer to this destination is already running. Add these files to it or wait?"
+                : L"Another transfer is using the same storage device. Wait or run this transfer in parallel?";
+            const std::wstring primary = same_destination_prompt ? L"Add" : L"Wait";
+            const std::wstring secondary = same_destination_prompt ? L"Wait" : L"Parallel";
+
+            bool remember = false;
+            const auto choice = MainWindow::ShowNativeDecisionDialog(
+                dialog_owner->NativeOwner(), title, message, primary, secondary, false, {}, &remember);
+            if (choice == MainWindow::NativeDialogChoice::Cancel) {
+                velocitycopy::log_diagnostic(L"shell: routing decision cancelled");
+                return;
+            }
+
+            const auto selected = choice == MainWindow::NativeDialogChoice::Primary
+                ? route.offered[0]
+                : route.offered[1];
+            if (remember) {
+                if (same_destination_prompt) route_preferences_.same_destination = selected;
+                else route_preferences_.same_device = selected;
+            }
+            route.decision = selected == velocitycopy::RouteChoice::Append
                 ? velocitycopy::RouteDecision::AppendTo
-                : route.recommended == velocitycopy::RouteChoice::Wait
+                : selected == velocitycopy::RouteChoice::Wait
                     ? velocitycopy::RouteDecision::WaitFor
                     : velocitycopy::RouteDecision::StartNew;
         }

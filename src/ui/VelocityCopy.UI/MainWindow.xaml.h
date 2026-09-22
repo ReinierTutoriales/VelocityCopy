@@ -36,8 +36,19 @@ struct MainWindow : MainWindowT<MainWindow> {
     void EnqueueTransfer(velocitycopy::CopyJob job, velocitycopy::StorageKey destination_key = {}, velocitycopy::StorageKey source_key = {});
     [[nodiscard]] std::optional<velocitycopy::ActiveSession> SessionSnapshot();
     [[nodiscard]] bool IsVisibleForRouting() const noexcept;
+    [[nodiscard]] HWND NativeOwner() const noexcept { return hwnd_; }
+    enum class NativeDialogChoice : std::uint8_t { Cancel, Primary, Secondary };
     [[nodiscard]] const std::filesystem::path& ActiveDestination() const noexcept { return active_destination_; }
     [[nodiscard]] velocitycopy::FileOperation ActiveOperation() const noexcept { return active_operation_; }
+    static NativeDialogChoice ShowNativeDecisionDialog(
+        HWND owner,
+        const std::wstring& title,
+        const std::wstring& message,
+        const std::wstring& primary_label,
+        const std::wstring& secondary_label,
+        bool include_cancel,
+        const std::wstring& cancel_label = {},
+        bool* remember_choice = nullptr) noexcept;
 
     void OnDragEnter(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
     void OnDragOver(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
@@ -70,12 +81,6 @@ private:
         velocitycopy::CopyJob job;
         velocitycopy::StorageKey destination;
         velocitycopy::StorageKey source;
-    };
-
-    enum class NativeDialogChoice : std::uint8_t {
-        Cancel,
-        Primary,
-        Secondary,
     };
 
     struct AppendGate {
