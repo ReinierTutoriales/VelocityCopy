@@ -20,6 +20,7 @@ struct App : AppT<App> {
     std::uint64_t NextWindowId() noexcept;
     void ShowPrimaryWindow();
     void ExitFromTray() noexcept;
+    void OnWindowDestroyed(std::uint64_t window_id) noexcept;
 
 private:
     void ApplyEfficiencyMode(bool enabled) noexcept;
