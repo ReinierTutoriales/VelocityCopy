@@ -15,7 +15,7 @@ bool EfficiencyCoordinator::set_shutting_down(const bool value) {
     return desired();
 }
 bool EfficiencyCoordinator::desired() const noexcept {
-    return !shutting_down_ && !votes_.empty() &&
+    return !shutting_down_ &&
         std::all_of(votes_.begin(), votes_.end(), [](const auto& vote) { return vote.second; });
 }
 } // namespace velocitycopy
