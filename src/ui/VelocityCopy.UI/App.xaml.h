@@ -16,6 +16,7 @@ struct App : AppT<App> {
     void ReportEfficiencyVote(std::uint64_t window_id, bool eligible) noexcept;
     void RemoveEfficiencyVote(std::uint64_t window_id) noexcept;
     void SetShuttingDown(bool value) noexcept;
+    std::uint64_t NextWindowId() noexcept;
 
 private:
     void ApplyEfficiencyMode(bool enabled) noexcept;
@@ -25,5 +26,6 @@ private:
     std::jthread ipc_thread_;
     velocitycopy::EfficiencyCoordinator efficiency_coordinator_;
     bool efficiency_mode_enabled_{};
+    std::uint64_t next_window_id_{1};
 };
 }
