@@ -112,7 +112,8 @@ int main() {
         return fail(11, "unused persistence state must not remain in MainWindow");
     }
 
-    if (!contains(recovery, "VelocityCopy.Recovery.vcq") ||
+    if (!contains(recovery, "list_recovery_files(") ||
+        !contains(recovery, "session_id_ =") ||
         !contains(recovery, "ShowNativeDecisionDialog(") ||
         !contains(recovery, "NativeDialogChoice::Primary") ||
         !contains(recovery, "NativeDialogChoice::Secondary") ||
@@ -120,7 +121,7 @@ int main() {
         contains(recovery, "XamlRoot") ||
         !contains(recovery, "revalidate_recovery_plan") ||
         !contains(recovery, "revalidate_recovery_job") ||
-        !contains(recovery, "retire_recovery_checkpoint") ||
+        !contains(recovery, "retire_recovery_file(") ||
         !contains(recovery, "StartCopyPlan(std::move(*archive->current_plan))")) {
         return fail(12, "shutdown recovery must require an explicit validated native resume/discard decision");
     }
