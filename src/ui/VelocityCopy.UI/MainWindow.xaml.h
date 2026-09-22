@@ -114,7 +114,6 @@ private:
     void HideToTray() noexcept;
     void ShowTrayMenu(POINT anchor) noexcept;
     void ExitFromTray() noexcept;
-    void SetEfficiencyMode(bool enabled) noexcept;
     void RefreshEfficiencyMode() noexcept;
     [[nodiscard]] bool HasActiveWorkForEfficiencyMode() noexcept;
     void PersistRecoveryQueueNoThrow() noexcept;
@@ -175,6 +174,7 @@ private:
     static hstring FormatEta(double seconds);
 
     std::wstring session_id_{velocitycopy::new_session_id()};
+    std::uint64_t window_id_{};
     velocitycopy::JobPlanner planner_;
     velocitycopy::JobPlanningWorker append_planner_;
     velocitycopy::JobExecutor executor_;
@@ -219,7 +219,6 @@ private:
     bool tray_v4_{};
     bool tray_exit_requested_{};
     bool tray_window_hidden_{};
-    bool efficiency_mode_enabled_{};
     bool session_ending_{};
     std::jthread copy_thread_;
 };
