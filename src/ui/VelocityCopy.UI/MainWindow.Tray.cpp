@@ -33,7 +33,7 @@ void MainWindow::InitializeTrayIntegration() {
 
 void MainWindow::RemoveTrayIntegration() noexcept {
     if (window_id_ != 0) {
-        if (auto app = Application::Current().try_as<VelocityCopyUI::App>()) {
+        if (auto app = Microsoft::UI::Xaml::Application::Current().try_as<VelocityCopyUI::App>()) {
             if (auto* implementation = get_self<App>(app)) implementation->RemoveEfficiencyVote(window_id_);
         }
     }
@@ -116,7 +116,7 @@ void MainWindow::RefreshEfficiencyMode() noexcept {
         !session_ending_ &&
         !HasActiveWorkForEfficiencyMode();
     if (window_id_ == 0) return;
-    if (auto app = Application::Current().try_as<VelocityCopyUI::App>()) {
+    if (auto app = Microsoft::UI::Xaml::Application::Current().try_as<VelocityCopyUI::App>()) {
         if (auto* implementation = get_self<App>(app)) implementation->ReportEfficiencyVote(window_id_, enable);
     }
 }
@@ -160,7 +160,7 @@ LRESULT CALLBACK MainWindow::TraySubclassProc(
     case WM_ENDSESSION:
         if (wparam != FALSE) {
             self->session_ending_ = true;
-            if (auto app = Application::Current().try_as<VelocityCopyUI::App>()) {
+            if (auto app = Microsoft::UI::Xaml::Application::Current().try_as<VelocityCopyUI::App>()) {
                 if (auto* implementation = get_self<App>(app)) implementation->SetShuttingDown(true);
             }
             self->RefreshEfficiencyMode();
@@ -171,7 +171,7 @@ LRESULT CALLBACK MainWindow::TraySubclassProc(
     case WM_DESTROY: {
         const auto id = self->window_id_;
         self->RemoveTrayIntegration();
-        if (auto app = Application::Current().try_as<VelocityCopyUI::App>()) {
+        if (auto app = Microsoft::UI::Xaml::Application::Current().try_as<VelocityCopyUI::App>()) {
             if (auto* implementation = get_self<App>(app)) implementation->OnWindowDestroyed(id);
         }
         break;
