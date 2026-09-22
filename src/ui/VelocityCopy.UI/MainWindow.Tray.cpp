@@ -11,13 +11,7 @@ using namespace winrt;
 namespace winrt::VelocityCopyUI::implementation {
 namespace {
 
-constexpr UINT kTrayCallbackMessage = WM_APP + 0x51;
 constexpr UINT_PTR kTraySubclassId = 0x56434F50;
-constexpr UINT kTrayIconId = 1;
-constexpr UINT kTrayOpenCommand = 1;
-constexpr UINT kTrayExitCommand = 2;
-
-UINT g_taskbar_created_message = 0;
 
 } // namespace
 
@@ -26,93 +20,24 @@ MainWindow::~MainWindow() {
 }
 
 void MainWindow::InitializeTrayIntegration() {
-    if (hwnd_ != nullptr) {
-        return;
-    }
-
+    if (hwnd_ != nullptr) return;
     try {
         auto window_native = this->m_inner.as<::IWindowNative>();
-        if (FAILED(window_native->get_WindowHandle(&hwnd_)) || hwnd_ == nullptr) {
-            hwnd_ = nullptr;
-            return;
-        }
-
-        if (!SetWindowSubclass(
-                hwnd_,
-                &MainWindow::TraySubclassProc,
-                kTraySubclassId,
-                reinterpret_cast<DWORD_PTR>(this))) {
-            hwnd_ = nullptr;
-            return;
-        }
-
-
-        std::array<wchar_t, 32768> module_path{};
-        SHFILEINFOW shell_info{};
-        const DWORD module_length = GetModuleFileNameW(
-            nullptr,
-            module_path.data(),
-            static_cast<DWORD>(module_path.size()));
-        if (module_length != 0 && module_length < module_path.size() &&
-            SHGetFileInfoW(
-                module_path.data(),
-                FILE_ATTRIBUTE_NORMAL,
-                &shell_info,
-                sizeof(shell_info),
-                SHGFI_ICON | SHGFI_SMALLICON) != 0) {
-            tray_icon_ = shell_info.hIcon;
-        }
-        if (tray_icon_ == nullptr) {
-            tray_icon_ = CopyIcon(LoadIconW(nullptr, IDI_APPLICATION));
-        }
-
-        tray_data_ = {};
-        tray_data_.cbSize = sizeof(tray_data_);
-        tray_data_.hWnd = hwnd_;
-        tray_data_.uID = kTrayIconId;
-        tray_data_.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
-        tray_data_.uCallbackMessage = kTrayCallbackMessage;
-        tray_data_.hIcon = tray_icon_;
-        wcscpy_s(tray_data_.szTip, L"VelocityCopy");
-
-        tray_added_ = Shell_NotifyIconW(NIM_ADD, &tray_data_) != FALSE;
-        if (tray_added_) {
-            tray_data_.uVersion = NOTIFYICON_VERSION_4;
-            tray_v4_ = Shell_NotifyIconW(NIM_SETVERSION, &tray_data_) != FALSE;
-        }
-        if (g_taskbar_created_message == 0) {
-            g_taskbar_created_message = RegisterWindowMessageW(L"TaskbarCreated");
-        }
+        if (FAILED(window_native->get_WindowHandle(&hwnd_)) || hwnd_ == nullptr) { hwnd_ = nullptr; return; }
+        if (!SetWindowSubclass(hwnd_, &MainWindow::TraySubclassProc, kTraySubclassId,
+                               reinterpret_cast<DWORD_PTR>(this))) { hwnd_ = nullptr; return; }
         tray_window_hidden_ = IsWindowVisible(hwnd_) == FALSE;
         RefreshEfficiencyMode();
-    } catch (...) {
-        RemoveTrayIntegration();
-    }
+    } catch (...) { RemoveTrayIntegration(); }
 }
 
 void MainWindow::RemoveTrayIntegration() noexcept {
-
-    if (tray_added_) {
-        (void)Shell_NotifyIconW(NIM_DELETE, &tray_data_);
-        tray_added_ = false;
-    }
-    tray_v4_ = false;
     if (window_id_ != 0) {
         if (auto app = Application::Current().try_as<VelocityCopyUI::App>()) {
             if (auto* implementation = get_self<App>(app)) implementation->RemoveEfficiencyVote(window_id_);
         }
     }
-
-    if (hwnd_ != nullptr) {
-        (void)RemoveWindowSubclass(hwnd_, &MainWindow::TraySubclassProc, kTraySubclassId);
-    }
-
-    if (tray_icon_ != nullptr) {
-        DestroyIcon(tray_icon_);
-        tray_icon_ = nullptr;
-    }
-
-    tray_data_ = {};
+    if (hwnd_ != nullptr) (void)RemoveWindowSubclass(hwnd_, &MainWindow::TraySubclassProc, kTraySubclassId);
     hwnd_ = nullptr;
 }
 
@@ -152,59 +77,10 @@ void MainWindow::ShowFromTray() {
     MaybeOfferRecoveryAsync();
 }
 
-void MainWindow::ShowTrayMenu(POINT anchor) noexcept {
-    if (hwnd_ == nullptr) {
-        return;
-    }
-
-    HMENU menu = CreatePopupMenu();
-    if (menu == nullptr) {
-        return;
-    }
-
-    std::wstring open_text = L"Open VelocityCopy";
-    std::wstring exit_text = L"Exit";
-    try {
-        Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-        open_text = loader.GetString(L"TrayOpen").c_str();
-        exit_text = loader.GetString(L"TrayExit").c_str();
-    } catch (...) {
-    }
-
-    (void)AppendMenuW(menu, MF_STRING, kTrayOpenCommand, open_text.c_str());
-    (void)AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    (void)AppendMenuW(menu, MF_STRING, kTrayExitCommand, exit_text.c_str());
-
-    if (anchor.x == -1 && anchor.y == -1) {
-        GetCursorPos(&anchor);
-    }
-    SetForegroundWindow(hwnd_);
-    const UINT command = TrackPopupMenuEx(
-        menu,
-        TPM_RETURNCMD | TPM_NONOTIFY | TPM_RIGHTBUTTON,
-        anchor.x,
-        anchor.y,
-        hwnd_,
-        nullptr);
-    DestroyMenu(menu);
-
-    if (command == kTrayOpenCommand) {
-        ShowFromTray();
-    } else if (command == kTrayExitCommand) {
-        ExitFromTray();
-    }
-}
-
-void MainWindow::ExitFromTray() noexcept {
+void MainWindow::RequestAppExit() noexcept {
     tray_exit_requested_ = true;
     RefreshEfficiencyMode();
-    if (tray_added_) {
-        (void)Shell_NotifyIconW(NIM_DELETE, &tray_data_);
-        tray_added_ = false;
-    }
-    if (hwnd_ != nullptr) {
-        PostMessageW(hwnd_, WM_CLOSE, 0, 0);
-    }
+    if (hwnd_ != nullptr) PostMessageW(hwnd_, WM_CLOSE, 0, 0);
 }
 
 bool MainWindow::HasActiveWorkForEfficiencyMode() noexcept {
@@ -244,47 +120,6 @@ LRESULT CALLBACK MainWindow::TraySubclassProc(
     auto* self = reinterpret_cast<MainWindow*>(ref_data);
     if (self == nullptr) {
         return DefSubclassProc(hwnd, message, wparam, lparam);
-    }
-
-    if (message == kTrayCallbackMessage) {
-        UINT notification = 0;
-        UINT icon_id = 0;
-        POINT anchor{-1, -1};
-
-        if (self->tray_v4_) {
-            notification = LOWORD(lparam);
-            icon_id = HIWORD(lparam);
-            anchor.x = static_cast<short>(LOWORD(wparam));
-            anchor.y = static_cast<short>(HIWORD(wparam));
-        } else {
-            notification = static_cast<UINT>(lparam);
-            icon_id = static_cast<UINT>(wparam);
-        }
-
-        if (icon_id == kTrayIconId) {
-            if (notification == WM_LBUTTONUP ||
-                notification == WM_LBUTTONDBLCLK ||
-                notification == NIN_SELECT ||
-                notification == NIN_KEYSELECT) {
-                self->ShowFromTray();
-                return 0;
-            }
-            if (notification == WM_RBUTTONUP || notification == WM_CONTEXTMENU) {
-                self->ShowTrayMenu(anchor);
-                return 0;
-            }
-        }
-    }
-
-    if (g_taskbar_created_message != 0 && message == g_taskbar_created_message) {
-        self->tray_data_.uVersion = 0;
-        self->tray_added_ = Shell_NotifyIconW(NIM_ADD, &self->tray_data_) != FALSE;
-        self->tray_v4_ = false;
-        if (self->tray_added_) {
-            self->tray_data_.uVersion = NOTIFYICON_VERSION_4;
-            self->tray_v4_ = Shell_NotifyIconW(NIM_SETVERSION, &self->tray_data_) != FALSE;
-        }
-        return 0;
     }
 
     switch (message) {
