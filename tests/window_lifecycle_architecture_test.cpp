@@ -27,6 +27,12 @@ int main(){
  if(destroyed.empty() || destroyed.find("retiring_windows_") == std::string::npos || destroyed.find("window_ = nullptr") == std::string::npos || destroyed.find("TryEnqueue") == std::string::npos) return 5;
  const auto enqueue=destroyed.find("TryEnqueue"), detach=destroyed.find("window_ = nullptr");
  if(detach > enqueue) return 10;
+ if(destroyed.find("ShowPrimaryWindow") != std::string::npos) return 11;
+ const auto finish=body_of(exec,"void MainWindow::FinishCopy");
+ if(finish.empty()) return 12;
+ const auto pending=finish.find("HasPendingRecovery()");
+ const auto destroy=finish.find("DestroyCompletedWindow();");
+ if(pending == std::string::npos || destroy == std::string::npos || pending > destroy) return 13;
  if(app.find("OnExplicitShutdown")==std::string::npos) return 6;
  if(app.find("weak_ref<winrt::VelocityCopyUI::MainWindow>")!=std::string::npos) return 7;
  if(app.find("DeliverShellRequest(request)") == std::string::npos) return 8;
