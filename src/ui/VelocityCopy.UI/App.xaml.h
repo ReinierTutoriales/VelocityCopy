@@ -9,6 +9,7 @@
 #include <deque>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <thread>
 #include <vector>
 
