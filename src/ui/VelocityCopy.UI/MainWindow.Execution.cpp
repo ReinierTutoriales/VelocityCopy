@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "MainWindow.xaml.h"
+#include "App.xaml.h"
 
 using namespace winrt;
 using namespace Microsoft::UI::Xaml;
@@ -648,10 +649,16 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
                     : L"StatusCompleted"));
         } catch (...) {
         }
-        // Completed transfer windows are sessions, not the process lifetime.
-        // Destroy the finished window; AppTray keeps the process reachable and
-        // can create a fresh transfer window on demand.
-        DestroyCompletedWindow();
+        // A finished session with more saved checkpoints keeps its window and
+        // offers the next one. Closing a window must never create another one.
+        if (auto* app = App::Instance(); app && app->HasPendingRecovery()) {
+            recovery_prompt_checked_ = false;
+            MaybeOfferRecoveryAsync();
+        } else {
+            // Completed transfer windows are sessions, not the process lifetime.
+            // AppTray keeps the process reachable and can create a fresh window.
+            DestroyCompletedWindow();
+        }
         return;
     }
     StartNextQueuedSession();
