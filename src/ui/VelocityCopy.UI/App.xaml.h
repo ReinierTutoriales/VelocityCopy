@@ -6,6 +6,7 @@
 #include "velocitycopy/efficiency_coordinator.hpp"
 #include "velocitycopy/ipc_transport.hpp"
 #include "velocitycopy/shell_session.hpp"
+#include "velocitycopy/transfer_router.hpp"
 
 #include <deque>
 #include <filesystem>

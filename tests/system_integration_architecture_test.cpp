@@ -141,7 +141,7 @@ int main() {
     }
 
     if (!contains(app, "shell_session_.dispatch(request)") ||
-        !contains(app, "StartTransfer(std::move(job))") ||
+        !contains(app, "StartTransfer(std::move(job), std::move(destination_key), std::move(source_key))") ||
         contains(app, "BeginShellLayoutAsync") ||
         contains(app, "CaptureClipboardFileSelection") ||
         contains(tray, "AddClipboardFormatListener") ||

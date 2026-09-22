@@ -195,10 +195,13 @@ int main() {
         return fail(25, "append-planner waits must be time-bounded so a blocked filesystem enumeration cannot freeze transfer finalization");
     }
 
-    const auto pending_start = app.find("void App::StartNextPendingRequest()");
-    const auto pending_end = app.find("\n}\n", pending_start);
-    const auto pending_body = pending_start == std::string::npos ? std::string{} : app.substr(pending_start, pending_end - pending_start);
-    if (!contains(pending_body, "catch (...)") || pending_body.find("request_in_flight_ = false") < pending_body.find("catch (...)") || !contains(app, "ShowPrimaryWindowError();")) return fail(27, "Explorer FIFO must recover from delivery failures and surface rejected requests");
+    const auto resolve_body = body_of(app, "App::ResolveStorageKeysAsync(");
+    if (resolve_body.empty() || !contains(resolve_body, "catch (...)") ||
+        resolve_body.find("request_in_flight_ = false") < resolve_body.find("catch (...)") ||
+        !contains(resolve_body, "StartNextPendingRequest();") ||
+        !contains(app, "ShowPrimaryWindowError();")) {
+        return fail(27, "Explorer FIFO must recover from asynchronous resolution/delivery failures and continue with the next request");
+    }
 
     const auto ui_root = root / "src/ui";
     for (const auto& entry : std::filesystem::recursive_directory_iterator(ui_root)) {
