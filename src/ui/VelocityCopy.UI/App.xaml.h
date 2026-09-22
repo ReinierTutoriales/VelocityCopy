@@ -6,6 +6,8 @@
 #include "velocitycopy/efficiency_coordinator.hpp"
 #include "velocitycopy/ipc_transport.hpp"
 
+#include <deque>
+#include <filesystem>
 #include <memory>
 #include <thread>
 #include <vector>
@@ -24,12 +26,18 @@ struct App : AppT<App> {
     void ExitFromTray() noexcept;
     void DeliverShellRequest(const velocitycopy::ShellRequest& request);
     void OnWindowDestroyed(std::uint64_t window_id) noexcept;
+    std::optional<std::filesystem::path> TakeRecoveryFile() noexcept;
+    void ReturnRecoveryFile(std::filesystem::path path) noexcept;
+    [[nodiscard]] bool HasPendingRecovery() const noexcept { return !pending_recovery_files_.empty(); }
 
 private:
     static inline App* s_instance = nullptr;
     void ApplyEfficiencyMode(bool enabled) noexcept;
+    void InitializeRecoveryFiles() noexcept;
     Microsoft::UI::Xaml::Window window_{nullptr};
     std::vector<Microsoft::UI::Xaml::Window> retiring_windows_;
+    std::deque<std::filesystem::path> pending_recovery_files_;
+    bool recovery_files_initialized_{};
     AppTray tray_;
     std::unique_ptr<velocitycopy::SingleInstance> instance_;
     std::shared_ptr<velocitycopy::ShellIpcServer> server_;
