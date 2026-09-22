@@ -41,6 +41,17 @@ void MainWindow::RemoveTrayIntegration() noexcept {
     hwnd_ = nullptr;
 }
 
+bool MainWindow::HasActiveTransfer() const noexcept {
+    return execution_control_ != nullptr || stopped_session_ || conflict_session_ || stop_requested_;
+}
+
+void MainWindow::DestroyCompletedWindow() noexcept {
+    if (HasActiveTransfer() || hwnd_ == nullptr) return;
+    tray_exit_requested_ = true;
+    RefreshEfficiencyMode();
+    DestroyWindow(hwnd_);
+}
+
 void MainWindow::HideToTray() noexcept {
     if (tray_exit_requested_ || hwnd_ == nullptr) {
         return;
@@ -132,7 +143,8 @@ LRESULT CALLBACK MainWindow::TraySubclassProc(
 
     case WM_CLOSE:
         if (!self->tray_exit_requested_) {
-            self->HideToTray();
+            if (self->HasActiveTransfer()) self->HideToTray();
+            else self->DestroyCompletedWindow();
             return 0;
         }
         break;
@@ -152,9 +164,14 @@ LRESULT CALLBACK MainWindow::TraySubclassProc(
         }
         break;
 
-    case WM_DESTROY:
+    case WM_DESTROY: {
+        const auto id = self->window_id_;
         self->RemoveTrayIntegration();
+        if (auto app = Application::Current().try_as<VelocityCopyUI::App>()) {
+            if (auto* implementation = get_self<App>(app)) implementation->OnWindowDestroyed(id);
+        }
         break;
+    }
     }
 
     return DefSubclassProc(hwnd, message, wparam, lparam);
