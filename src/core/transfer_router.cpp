@@ -11,15 +11,19 @@ bool same_device(const StorageKey&a,const StorageKey&b) noexcept {
  return a.disk&&b.disk&&*a.disk==*b.disk;
 }
 RouteResult route_transfer(const TransferRequest&r,std::span<const ActiveSession> sessions,const RoutePreferences&p){
- for(const auto&s:sessions) if(same_destination(r.destination_root,s.destination_root)&&r.operation==s.operation&&s.accepting_appends){
-  if(p.same_destination==RouteChoice::Append)return {RouteDecision::AppendTo,s.window_id,{},RouteChoice::Append};
-  if(p.same_destination==RouteChoice::Wait)return {RouteDecision::WaitFor,s.window_id,{},RouteChoice::Append};
-  return {RouteDecision::Ask,s.window_id,{RouteChoice::Append,RouteChoice::Wait},RouteChoice::Append};
+ const ActiveSession* best=nullptr;
+ for(const auto&s:sessions) if(same_destination(r.destination_root,s.destination_root)&&r.operation==s.operation&&s.accepting_appends&&(best==nullptr||s.window_id<best->window_id)) best=&s;
+ if(best){
+  if(p.same_destination==RouteChoice::Append)return {RouteDecision::AppendTo,best->window_id,{},RouteChoice::Append};
+  if(p.same_destination==RouteChoice::Wait)return {RouteDecision::WaitFor,best->window_id,{},RouteChoice::Append};
+  return {RouteDecision::Ask,best->window_id,{RouteChoice::Append,RouteChoice::Wait},RouteChoice::Append};
  }
- for(const auto&s:sessions) if(shares_device(r,s)){
-  if(p.same_device==RouteChoice::Wait)return {RouteDecision::WaitFor,s.window_id,{},RouteChoice::Wait};
-  if(p.same_device==RouteChoice::Parallel)return {RouteDecision::StartNew,s.window_id,{},RouteChoice::Wait};
-  return {RouteDecision::Ask,s.window_id,{RouteChoice::Wait,RouteChoice::Parallel},RouteChoice::Wait};
+ best=nullptr;
+ for(const auto&s:sessions) if(shares_device(r,s)&&(best==nullptr||s.window_id<best->window_id)) best=&s;
+ if(best){
+  if(p.same_device==RouteChoice::Wait)return {RouteDecision::WaitFor,best->window_id,{},RouteChoice::Wait};
+  if(p.same_device==RouteChoice::Parallel)return {RouteDecision::StartNew,0,{},RouteChoice::Wait};
+  return {RouteDecision::Ask,best->window_id,{RouteChoice::Wait,RouteChoice::Parallel},RouteChoice::Wait};
  }
  return {RouteDecision::StartNew,0,{},RouteChoice::Parallel};
 }
