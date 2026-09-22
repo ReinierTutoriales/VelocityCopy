@@ -33,9 +33,7 @@ void MainWindow::InitializeTrayIntegration() {
 
 void MainWindow::RemoveTrayIntegration() noexcept {
     if (window_id_ != 0) {
-        if (auto current = Microsoft::UI::Xaml::Application::Current()) {
-            if (auto* implementation = dynamic_cast<App*>(get_self<Microsoft::UI::Xaml::Application>(current))) implementation->RemoveEfficiencyVote(window_id_);
-        }
+        if (auto* app = App::Instance()) app->RemoveEfficiencyVote(window_id_);
     }
     if (hwnd_ != nullptr) (void)RemoveWindowSubclass(hwnd_, &MainWindow::TraySubclassProc, kTraySubclassId);
     hwnd_ = nullptr;
@@ -116,9 +114,7 @@ void MainWindow::RefreshEfficiencyMode() noexcept {
         !session_ending_ &&
         !HasActiveWorkForEfficiencyMode();
     if (window_id_ == 0) return;
-    if (auto current = Microsoft::UI::Xaml::Application::Current()) {
-        if (auto* implementation = dynamic_cast<App*>(get_self<Microsoft::UI::Xaml::Application>(current))) implementation->ReportEfficiencyVote(window_id_, enable);
-    }
+    if (auto* app = App::Instance()) app->ReportEfficiencyVote(window_id_, enable);
 }
 
 LRESULT CALLBACK MainWindow::TraySubclassProc(
@@ -160,9 +156,7 @@ LRESULT CALLBACK MainWindow::TraySubclassProc(
     case WM_ENDSESSION:
         if (wparam != FALSE) {
             self->session_ending_ = true;
-            if (auto app = Microsoft::UI::Xaml::Application::Current().try_as<VelocityCopyUI::App>()) {
-                if (auto* implementation = get_self<App>(app)) implementation->SetShuttingDown(true);
-            }
+            if (auto* app = App::Instance()) app->SetShuttingDown(true);
             self->RefreshEfficiencyMode();
             self->PersistRecoveryQueueNoThrow();
         }
@@ -171,9 +165,7 @@ LRESULT CALLBACK MainWindow::TraySubclassProc(
     case WM_DESTROY: {
         const auto id = self->window_id_;
         self->RemoveTrayIntegration();
-        if (auto current = Microsoft::UI::Xaml::Application::Current()) {
-            if (auto* implementation = dynamic_cast<App*>(get_self<Microsoft::UI::Xaml::Application>(current))) implementation->OnWindowDestroyed(id);
-        }
+        if (auto* app = App::Instance()) app->OnWindowDestroyed(id);
         break;
     }
     }
