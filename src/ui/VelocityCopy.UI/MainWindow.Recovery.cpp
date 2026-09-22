@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "MainWindow.xaml.h"
+#include "App.xaml.h"
 
 using namespace winrt;
 using namespace Microsoft::UI::Xaml;
@@ -73,17 +74,17 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
         co_return;
     }
 
-    const auto dir = velocitycopy::app_data_directory();
-    if (!dir) {
+    auto* app = App::Instance();
+    if (app == nullptr) {
         recovery_prompt_checked_ = true;
         co_return;
     }
-    const auto files = velocitycopy::list_recovery_files(*dir);
-    if (files.empty()) {
+    const auto recovery_file = app->TakeRecoveryFile();
+    if (!recovery_file) {
         recovery_prompt_checked_ = true;
         co_return;
     }
-    const auto path = files.front();
+    const auto path = *recovery_file;
     const auto recovered_session_id = velocitycopy::recovery_session_id(path);
     if (!recovered_session_id) {
         recovery_prompt_checked_ = true;
@@ -121,7 +122,8 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
         velocitycopy::retire_recovery_file(path, L".invalid");
         co_await ui_thread;
         recovery_prompt_active_ = false;
-        recovery_prompt_checked_ = true;
+        recovery_prompt_checked_ = false;
+        MaybeOfferRecoveryAsync();
         co_return;
     }
 
@@ -131,7 +133,8 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
         velocitycopy::retire_recovery_file(path);
         co_await ui_thread;
         recovery_prompt_active_ = false;
-        recovery_prompt_checked_ = true;
+        recovery_prompt_checked_ = false;
+        MaybeOfferRecoveryAsync();
         co_return;
     }
 
@@ -170,11 +173,13 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
     if (choice == NativeDialogChoice::Secondary) {
         velocitycopy::retire_recovery_file(path);
         recovery_prompt_active_ = false;
-        recovery_prompt_checked_ = true;
+        recovery_prompt_checked_ = false;
+        MaybeOfferRecoveryAsync();
         co_return;
     }
 
     if (choice != NativeDialogChoice::Primary) {
+        app->ReturnRecoveryFile(path);
         recovery_prompt_active_ = false;
         co_return;
     }
