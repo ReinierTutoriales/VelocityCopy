@@ -31,6 +31,7 @@ struct MainWindow : MainWindowT<MainWindow> {
     void RequestAppExit() noexcept;
     [[nodiscard]] bool HasActiveTransfer() const noexcept;
     [[nodiscard]] std::uint64_t WindowId() const noexcept { return window_id_; }
+    [[nodiscard]] const std::wstring& SessionId() const noexcept { return session_id_; }
     void StartTransfer(velocitycopy::CopyJob job, velocitycopy::StorageKey destination_key = {}, velocitycopy::StorageKey source_key = {});
     void AppendTransfer(velocitycopy::CopyJob job);
     void EnqueueTransfer(velocitycopy::CopyJob job, velocitycopy::StorageKey destination_key = {}, velocitycopy::StorageKey source_key = {});

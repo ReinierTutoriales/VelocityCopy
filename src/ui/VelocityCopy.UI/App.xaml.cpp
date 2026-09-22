@@ -123,7 +123,16 @@ void App::InitializeRecoveryFiles() noexcept {
     recovery_files_initialized_ = true;
     try {
         if (const auto dir = velocitycopy::app_data_directory()) {
-            const auto files = velocitycopy::list_recovery_files(*dir);
+            std::vector<std::wstring> active_session_ids;
+            active_session_ids.reserve(windows_.size());
+            for (auto& [id, window] : windows_) {
+                (void)id;
+                if (auto main_window = window.try_as<VelocityCopyUI::MainWindow>()) {
+                    if (auto* implementation = get_self<MainWindow>(main_window); implementation && !implementation->SessionId().empty())
+                        active_session_ids.push_back(implementation->SessionId());
+                }
+            }
+            const auto files = velocitycopy::list_recovery_files(*dir, active_session_ids);
             pending_recovery_files_.assign(files.begin(), files.end());
         }
     } catch (...) {}
