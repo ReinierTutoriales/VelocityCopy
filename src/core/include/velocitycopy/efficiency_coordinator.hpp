@@ -3,6 +3,7 @@
 #include <unordered_map>
 
 namespace velocitycopy {
+// UI thread only. Callers must marshal votes to the UI thread.
 class EfficiencyCoordinator {
 public:
     bool update(std::uint64_t window_id, bool eligible);
