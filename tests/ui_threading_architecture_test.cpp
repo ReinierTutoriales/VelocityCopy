@@ -1,5 +1,6 @@
+#include "architecture_support.hpp"
+
 #include <filesystem>
-#include <fstream>
 #include <iostream>
 #include <string>
 
@@ -8,19 +9,6 @@
 #endif
 
 namespace {
-std::string read_all(const std::filesystem::path& path) {
-    std::ifstream stream(path, std::ios::binary);
-    if (!stream) return {};
-    std::string text{std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
-    std::erase(text, '\r');
-    return text;
-}
-std::string body_of(const std::string& text, const std::string& signature) {
-    const auto start = text.find(signature);
-    if (start == std::string::npos) return {};
-    const auto end = text.find("\n}\n", start);
-    return text.substr(start, end == std::string::npos ? std::string::npos : end - start);
-}
 bool contains(const std::string& text, const std::string& value) {
     return text.find(value) != std::string::npos;
 }
@@ -37,11 +25,11 @@ int fail(int code, const char* message) {
 
 int main() {
     const std::filesystem::path root{VELOCITYCOPY_SOURCE_DIR};
-    const auto header = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.h");
-    const auto execution = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Execution.cpp");
-    const auto append = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.CopyAppend.cpp");
-    const auto app = read_all(root / "src/ui/VelocityCopy.UI/App.xaml.cpp");
-    const auto window = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
+    const auto header = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.h");
+    const auto execution = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Execution.cpp");
+    const auto append = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.CopyAppend.cpp");
+    const auto app = read_source(root / "src/ui/VelocityCopy.UI/App.xaml.cpp");
+    const auto window = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
     if (header.empty() || execution.empty() || append.empty() || app.empty() || window.empty()) {
         return fail(1, "required WinUI source missing");
     }
