@@ -18,6 +18,7 @@ enum class StorageKind {
 struct StorageProfile {
     StorageKind kind{StorageKind::Unknown};
     std::filesystem::path volume_root;
+    std::wstring volume_id;
     std::uint32_t logical_sector_bytes{};
     std::uint32_t physical_sector_bytes{};
     std::uint32_t device_type{};
