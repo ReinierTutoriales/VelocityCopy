@@ -16,6 +16,8 @@ namespace winrt::VelocityCopyUI::implementation {
 namespace {
 
 constexpr wchar_t kRepositoryUrl[] = L"https://github.com/ReinierTutoriales/VelocityCopy";
+constexpr int kAboutWidthEpx = 388;
+constexpr int kAboutHeightEpx = 286;
 
 std::wstring compiled_version() {
     if constexpr (VELOCITYCOPY_VERSION_BUILD == 0) {
@@ -100,6 +102,20 @@ hstring resource_or(
 
 void MainWindow::ShowAboutDialog() noexcept {
     try {
+        if (about_window_) {
+            about_window_.Activate();
+            try {
+                HWND about_hwnd{};
+                auto native = about_window_.as<::IWindowNative>();
+                if (SUCCEEDED(native->get_WindowHandle(&about_hwnd)) && about_hwnd != nullptr) {
+                    ShowWindow(about_hwnd, SW_RESTORE);
+                    SetForegroundWindow(about_hwnd);
+                }
+            } catch (...) {
+            }
+            return;
+        }
+
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
         const auto title = resource_or(loader, L"AboutTitle", L"VelocityCopy");
         const auto tagline = resource_or(
@@ -112,21 +128,50 @@ void MainWindow::ShowAboutDialog() noexcept {
         const auto repository_label = resource_or(loader, L"AboutRepositoryLabel", L"View project on GitHub");
         const auto version = executable_version();
 
-        Flyout about;
+        Window about;
+        about.Title(title);
+
+        StackPanel root;
+        root.Spacing(0);
+        try { root.RequestedTheme(RootGrid().ActualTheme()); } catch (...) {}
+
+        Border title_bar;
+        title_bar.Height(32);
+        title_bar.Padding(Thickness{12, 0, 110, 0});
+
+        StackPanel title_identity;
+        title_identity.Orientation(Orientation::Horizontal);
+        title_identity.Spacing(7);
+        title_identity.VerticalAlignment(VerticalAlignment::Center);
+
+        Image title_logo;
+        title_logo.Width(16);
+        title_logo.Height(16);
+        title_logo.Stretch(Stretch::Uniform);
+        BitmapImage title_logo_source;
+        title_logo_source.UriSource(Uri{L"ms-appx:///Assets/VelocityCopy.png"});
+        title_logo.Source(title_logo_source);
+        title_identity.Children().Append(title_logo);
+
+        TextBlock title_text;
+        title_text.Text(L"VelocityCopy");
+        title_text.FontSize(12);
+        title_text.FontWeight(Windows::UI::Text::FontWeights::SemiBold());
+        title_text.VerticalAlignment(VerticalAlignment::Center);
+        title_identity.Children().Append(title_text);
+        title_bar.Child(title_identity);
+        root.Children().Append(title_bar);
 
         StackPanel panel;
-        panel.Width(316);
         panel.Spacing(0);
-        panel.Padding(Thickness{18, 16, 18, 16});
+        panel.Padding(Thickness{24, 18, 24, 22});
 
-        // A short accent mark keeps the flyout visually tied to the compact transfer
-        // surface without dominating the content hierarchy.
         Border accent;
         accent.Width(46);
         accent.Height(3);
         accent.HorizontalAlignment(HorizontalAlignment::Left);
         accent.CornerRadius(CornerRadius{2});
-        accent.Margin(Thickness{0, 0, 0, 16});
+        accent.Margin(Thickness{0, 0, 0, 17});
         try {
             accent.Background(
                 Application::Current().Resources()
@@ -139,7 +184,7 @@ void MainWindow::ShowAboutDialog() noexcept {
         StackPanel header;
         header.Orientation(Orientation::Horizontal);
         header.Spacing(13);
-        header.Margin(Thickness{0, 0, 0, 15});
+        header.Margin(Thickness{0, 0, 0, 16});
 
         Image logo;
         logo.Width(44);
@@ -194,17 +239,68 @@ void MainWindow::ShowAboutDialog() noexcept {
         repository.Padding(Thickness{0});
         panel.Children().Append(repository);
 
-        about.Content(panel);
-        // Render in its own windowed popup so it is never clipped by the compact
-        // transfer surface, whether the queue is collapsed or expanded.
-        about.ShouldConstrainToRootBounds(false);
-        about.ShowAt(OptionsButton());
+        root.Children().Append(panel);
+        about.Content(root);
+
+        try {
+            about.SystemBackdrop(Microsoft::UI::Xaml::Media::MicaBackdrop{});
+        } catch (...) {
+        }
+
+        // Use the same extended title-bar model as the compact transfer surface. This
+        // gives About a real Windows caption close button and a draggable title region
+        // instead of a transient Flyout that cannot be moved.
+        about.ExtendsContentIntoTitleBar(true);
+        about.SetTitleBar(title_bar);
+
+        HWND about_hwnd{};
+        try {
+            auto native = about.as<::IWindowNative>();
+            if (SUCCEEDED(native->get_WindowHandle(&about_hwnd)) && about_hwnd != nullptr && hwnd_ != nullptr) {
+                SetWindowLongPtrW(about_hwnd, GWLP_HWNDPARENT, reinterpret_cast<LONG_PTR>(hwnd_));
+            }
+        } catch (...) {
+            about_hwnd = nullptr;
+        }
+
+        try {
+            auto app_window = about.AppWindow();
+            if (auto presenter = app_window.Presenter().try_as<Microsoft::UI::Windowing::OverlappedPresenter>()) {
+                presenter.IsMinimizable(false);
+                presenter.IsMaximizable(false);
+                presenter.IsResizable(false);
+            }
+            app_window.SetIcon(L"Assets\\VelocityCopy.ico");
+
+            const UINT dpi = hwnd_ != nullptr ? GetDpiForWindow(hwnd_) : USER_DEFAULT_SCREEN_DPI;
+            const int width = MulDiv(kAboutWidthEpx, dpi == 0 ? USER_DEFAULT_SCREEN_DPI : static_cast<int>(dpi), USER_DEFAULT_SCREEN_DPI);
+            const int height = MulDiv(kAboutHeightEpx, dpi == 0 ? USER_DEFAULT_SCREEN_DPI : static_cast<int>(dpi), USER_DEFAULT_SCREEN_DPI);
+            app_window.Resize(Windows::Graphics::SizeInt32{width, height});
+
+            RECT owner_rect{};
+            if (hwnd_ != nullptr && GetWindowRect(hwnd_, &owner_rect)) {
+                const int x = owner_rect.left + ((owner_rect.right - owner_rect.left) - width) / 2;
+                const int y = owner_rect.top + ((owner_rect.bottom - owner_rect.top) - height) / 2;
+                app_window.Move(Windows::Graphics::PointInt32{x, y});
+            }
+        } catch (...) {
+        }
+
+        auto weak = get_weak();
+        about.Closed([weak](auto const&, auto const&) {
+            if (auto self = weak.get()) self->about_window_ = nullptr;
+        });
+        about_window_ = about;
+        about.Activate();
+        if (about_hwnd != nullptr) SetForegroundWindow(about_hwnd);
         return;
     } catch (...) {
+        about_window_ = nullptr;
     }
 
-    // Last-resort fallback only. The normal About experience is a themed WinUI
-    // flyout; this path prevents a broken auxiliary surface from affecting copies.
+    // Last-resort fallback only. The normal About experience is now its own themed,
+    // movable WinUI window; this path prevents an auxiliary-surface failure from
+    // affecting active copies.
     try {
         const auto version = executable_version();
         const auto message = std::format(
