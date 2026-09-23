@@ -24,7 +24,7 @@ std::string block_from(const std::string& text, const std::string& marker) {
 int main(){
  const auto ui=std::filesystem::path{VELOCITYCOPY_SOURCE_DIR}/"src/ui/VelocityCopy.UI";
  const auto tray=read_source(ui/"MainWindow.Tray.cpp"), exec=read_source(ui/"MainWindow.Execution.cpp"), app=read_source(ui/"App.xaml.cpp");
- if(tray.find("self->HasActiveTransfer()") == std::string::npos || tray.find("self->HideToTray();") == std::string::npos) return 1;
+ if(tray.find("self->HasActiveTransfer()") == std::string::npos || tray.find("self->CancelAndCloseWindow();") == std::string::npos) return 1;
  if(tray.find("self->tray_exit_requested_ = true;")==std::string::npos) return 2;
  if(exec.find("DestroyCompletedWindow();")==std::string::npos) return 3;
  if(app.find("auto main_window = winrt::make<MainWindow>();")==std::string::npos || app.find("windows_.insert_or_assign") == std::string::npos) return 4;
@@ -58,6 +58,10 @@ int main(){
  const auto attention_cancel=block_from(cancel_session,"if (stopped_session_ || conflict_session_)");
  if(attention_cancel.empty() || attention_cancel.find("if (queued_sessions_.empty()) DestroyCompletedWindow();") == std::string::npos ||
     attention_cancel.find("else StartNextQueuedSession();") == std::string::npos) return 27;
+ const auto stopped_finalizer=body_of(exec,"void MainWindow::FinalizeStoppedSessionIfEmpty()");
+ if(stopped_finalizer.empty() ||
+    stopped_finalizer.find("if (queued_sessions_.empty()) DestroyCompletedWindow();") == std::string::npos ||
+    stopped_finalizer.find("else StartNextQueuedSession();") == std::string::npos) return 28;
 
  const auto show_from_tray=body_of(tray,"void MainWindow::ShowFromTray(");
  if(show_from_tray.empty() || show_from_tray.find("MaybeOfferRecoveryAsync()") != std::string::npos) return 19;
