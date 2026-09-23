@@ -143,7 +143,17 @@ MainWindow::NativeDialogChoice MainWindow::ShowNativeDecisionDialog(
                 TASKDIALOGCONFIG config{};
                 config.cbSize = sizeof(config);
                 config.hwndParent = owner;
-                config.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION | TDF_SIZE_TO_CONTENT;
+                config.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION;
+                if (remember_choice != nullptr) {
+                    // Routing prompts are intentionally a little narrower than the native
+                    // auto-size result so their hierarchy feels closer to the compact
+                    // transfer surface. cxWidth is expressed in dialog units.
+                    config.cxWidth = 240;
+                } else {
+                    // Conflict/recovery dialogs can contain paths or longer recovery copy;
+                    // preserve the established content-sized behavior for those surfaces.
+                    config.dwFlags |= TDF_SIZE_TO_CONTENT;
+                }
                 config.pszWindowTitle = L"VelocityCopy";
                 config.pszMainInstruction = display_title.c_str();
                 config.pszContent = display_message.c_str();
