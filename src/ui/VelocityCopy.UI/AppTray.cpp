@@ -73,6 +73,7 @@ void AppTray::Remove() noexcept {
     icon_ = nullptr;
     data_ = {};
     owner_ = nullptr;
+    open_dispatch_active_ = false;
 }
 
 LRESULT CALLBACK AppTray::WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
@@ -83,6 +84,22 @@ LRESULT CALLBACK AppTray::WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPA
         SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(self));
     }
     return self ? self->HandleMessage(hwnd, message, wparam, lparam) : DefWindowProcW(hwnd, message, wparam, lparam);
+}
+
+void AppTray::OpenPrimaryWindow() noexcept {
+    if (open_dispatch_active_ || owner_ == nullptr) return;
+
+    // Shell_NotifyIcon can deliver more than one activation notification for one
+    // physical click (for example WM_LBUTTONUP plus NIN_SELECT). Creating a WinUI
+    // Window can re-enter the native message pump before App has registered it in
+    // windows_, so a nested activation used to observe an empty registry and create
+    // a second idle copier. Keep the whole App::ShowPrimaryWindow call guarded.
+    open_dispatch_active_ = true;
+    try {
+        owner_->ShowPrimaryWindow();
+    } catch (...) {
+    }
+    open_dispatch_active_ = false;
 }
 
 LRESULT AppTray::HandleMessage(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) noexcept {
@@ -97,7 +114,7 @@ LRESULT AppTray::HandleMessage(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
         if (icon_id == kTrayIconId) {
             if (notification == WM_LBUTTONUP || notification == WM_LBUTTONDBLCLK ||
                 notification == NIN_SELECT || notification == NIN_KEYSELECT) {
-                if (owner_) owner_->ShowPrimaryWindow(); return 0;
+                OpenPrimaryWindow(); return 0;
             }
             if (notification == WM_RBUTTONUP || notification == WM_CONTEXTMENU) {
                 ShowMenu(anchor); return 0;
@@ -127,7 +144,7 @@ void AppTray::ShowMenu(POINT anchor) noexcept {
                                           anchor.x, anchor.y, hwnd_, nullptr);
     DestroyMenu(menu);
     PostMessageW(hwnd_, WM_NULL, 0, 0);
-    if (command == kTrayOpenCommand && owner_) owner_->ShowPrimaryWindow();
+    if (command == kTrayOpenCommand) OpenPrimaryWindow();
     else if (command == kTrayExitCommand && owner_) owner_->ExitFromTray();
 }
 
