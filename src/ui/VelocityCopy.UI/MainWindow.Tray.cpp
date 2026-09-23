@@ -32,6 +32,15 @@ void sync_native_window_theme(
 } // namespace
 
 MainWindow::~MainWindow() {
+    try {
+        if (about_window_) {
+            auto about = about_window_;
+            about_window_ = nullptr;
+            about.Close();
+        }
+    } catch (...) {
+        about_window_ = nullptr;
+    }
     RemoveTrayIntegration();
 }
 
@@ -98,6 +107,29 @@ void MainWindow::HideToTray() noexcept {
     ShowWindow(hwnd_, SW_HIDE);
     tray_window_hidden_ = true;
     RefreshEfficiencyMode();
+}
+
+void MainWindow::CancelAndCloseWindow() noexcept {
+    if (tray_exit_requested_) return;
+
+    // Closing a transfer window is an explicit cancellation of all work owned by that
+    // window. Unlike the Cancel button, which preserves jobs explicitly placed in Wait,
+    // the window-close affordance means this transfer surface itself is being retired.
+    tray_exit_requested_ = true;
+    queued_sessions_.clear();
+
+    try {
+        AppWindow().IsShownInSwitchers(false);
+    } catch (...) {
+    }
+    if (hwnd_ != nullptr) ShowWindow(hwnd_, SW_HIDE);
+    tray_window_hidden_ = true;
+    RefreshEfficiencyMode();
+
+    // The executor owns references into this window while it is running, so request
+    // cancellation first and let FinishCopy() perform the final Close/WM_DESTROY once
+    // the worker has unwound. Stopped/conflict sessions close synchronously here.
+    CancelCurrentSession();
 }
 
 void MainWindow::ShowFromTray() {
@@ -181,7 +213,7 @@ LRESULT CALLBACK MainWindow::TraySubclassProc(
     case WM_CLOSE:
         if (!self->tray_exit_requested_) {
             if (self->HasActiveTransfer()) {
-                self->HideToTray();
+                self->CancelAndCloseWindow();
                 return 0;
             }
             self->tray_exit_requested_ = true;
