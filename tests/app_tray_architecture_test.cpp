@@ -7,7 +7,7 @@
 std::string read(const std::filesystem::path& p){std::ifstream in(p,std::ios::binary);return {std::istreambuf_iterator<char>(in),{}};}
 int main(){
  const auto ui=std::filesystem::path{VELOCITYCOPY_SOURCE_DIR}/"src/ui/VelocityCopy.UI";
- const auto tray=read(ui/"AppTray.cpp"), tray_h=read(ui/"AppTray.h"), main=read(ui/"MainWindow.Tray.cpp"), app=read(ui/"App.xaml.h"), app_cpp=read(ui/"App.xaml.cpp"), window_cpp=read(ui/"MainWindow.xaml.cpp"), conflict=read(ui/"MainWindow.Conflict.cpp");
+ const auto tray=read(ui/"AppTray.cpp"), tray_h=read(ui/"AppTray.h"), main=read(ui/"MainWindow.Tray.cpp"), app=read(ui/"App.xaml.h"), app_cpp=read(ui/"App.xaml.cpp"), window_cpp=read(ui/"MainWindow.xaml.cpp"), conflict=read(ui/"MainWindow.Conflict.cpp"), append=read(ui/"MainWindow.CopyAppend.cpp"), about=read(ui/"MainWindow.About.cpp"), window_h=read(ui/"MainWindow.xaml.h");
  if(tray.find("Shell_NotifyIconW")==std::string::npos || tray.find("WS_EX_TOOLWINDOW")==std::string::npos) return 1;
  if(tray.find("HWND_MESSAGE")!=std::string::npos) return 4;
  if(tray.find("PostMessageW(hwnd_, WM_NULL") == std::string::npos) return 5;
@@ -60,5 +60,35 @@ int main(){
  if(direct_open == std::string::npos || tray.find("owner_->ShowPrimaryWindow()", direct_open + 1) != std::string::npos) return 23;
  if(tray.find("OpenPrimaryWindow(); return 0;") == std::string::npos ||
     tray.find("if (command == kTrayOpenCommand) OpenPrimaryWindow();") == std::string::npos) return 24;
+
+ // Closing an active transfer window means cancel-and-retire, not hide-and-keep-copying.
+ // Queued WaitFor work belongs to that closing window and must not restart behind the user's back.
+ const auto close = main.find("case WM_CLOSE");
+ if(close == std::string::npos) return 25;
+ const auto close_end = main.find("case WM_QUERYENDSESSION", close);
+ if(close_end == std::string::npos) return 26;
+ const auto close_block = main.substr(close, close_end - close);
+ if(close_block.find("CancelAndCloseWindow();") == std::string::npos ||
+    close_block.find("HideToTray();") != std::string::npos) return 27;
+ const auto cancel_close = main.find("void MainWindow::CancelAndCloseWindow() noexcept");
+ if(cancel_close == std::string::npos) return 28;
+ const auto cancel_close_end = main.find("void MainWindow::ShowFromTray", cancel_close);
+ if(cancel_close_end == std::string::npos) return 29;
+ const auto cancel_close_block = main.substr(cancel_close, cancel_close_end - cancel_close);
+ if(cancel_close_block.find("tray_exit_requested_ = true") == std::string::npos ||
+    cancel_close_block.find("queued_sessions_.clear()") == std::string::npos ||
+    cancel_close_block.find("CancelCurrentSession();") == std::string::npos) return 30;
+ if(append.find("tray_exit_requested_ || !HasActiveTransfer()") == std::string::npos ||
+    append.find("return !tray_exit_requested_ && hwnd_ != nullptr") == std::string::npos) return 31;
+
+ // About is a real top-level WinUI window: movable via the same extended title-bar model,
+ // closable through Windows caption chrome, fixed-size, and retained exactly while open.
+ if(window_h.find("Microsoft::UI::Xaml::Window about_window_{nullptr}") == std::string::npos) return 32;
+ if(about.find("Window about;") == std::string::npos ||
+    about.find("about.ExtendsContentIntoTitleBar(true)") == std::string::npos ||
+    about.find("about.SetTitleBar(title_bar)") == std::string::npos ||
+    about.find("presenter.IsResizable(false)") == std::string::npos ||
+    about.find("about.Closed([weak]") == std::string::npos ||
+    about.find("about_window_ = about") == std::string::npos) return 33;
  return 0;
 }
