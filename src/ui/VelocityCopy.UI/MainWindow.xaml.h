@@ -129,6 +129,7 @@ private:
     void InitializeTrayIntegration();
     void RemoveTrayIntegration() noexcept;
     void HideToTray() noexcept;
+    void CancelAndCloseWindow() noexcept;
     void DestroyCompletedWindow() noexcept;
     void RefreshEfficiencyMode() noexcept;
     [[nodiscard]] bool HasActiveWorkForEfficiencyMode() noexcept;
@@ -212,6 +213,7 @@ private:
     Microsoft::UI::Xaml::Controls::MenuFlyoutItem skip_menu_item_{nullptr};
     Microsoft::UI::Xaml::Controls::MenuFlyoutItem stop_menu_item_{nullptr};
     Microsoft::UI::Xaml::Controls::MenuFlyoutItem about_menu_item_{nullptr};
+    Microsoft::UI::Xaml::Window about_window_{nullptr};
     Microsoft::UI::Xaml::Thickness base_caption_content_padding_{};
     std::atomic_bool cancel_requested_{false};
     double progress_fraction_{};
