@@ -181,6 +181,10 @@ VelocityCopyUI::MainWindow App::CreateMainWindow() {
     auto main_window = winrt::make<MainWindow>();
     if (auto* implementation = get_self<MainWindow>(main_window)) {
         windows_.insert_or_assign(implementation->WindowId(), main_window);
+        velocitycopy::log_diagnostic(
+            L"window: created id=" + std::to_wstring(implementation->WindowId()) +
+            L" pid=" + std::to_wstring(GetCurrentProcessId()) +
+            L" registered=" + std::to_wstring(windows_.size()));
     }
     return main_window;
 }
@@ -416,11 +420,17 @@ void App::ShowPrimaryWindowError() noexcept {
 }
 
 void App::ShowPrimaryWindow() {
+    velocitycopy::log_diagnostic(
+        L"tray: show primary pid=" + std::to_wstring(GetCurrentProcessId()) +
+        L" registered=" + std::to_wstring(windows_.size()));
     Microsoft::UI::Xaml::Window target{nullptr};
     if (!windows_.empty()) target = windows_.rbegin()->second;
     if (!target) target = CreateMainWindow();
     if (auto main_window = target.try_as<VelocityCopyUI::MainWindow>()) {
         if (auto* implementation = get_self<MainWindow>(main_window)) {
+            velocitycopy::log_diagnostic(
+                L"tray: selected id=" + std::to_wstring(implementation->WindowId()) +
+                L" pid=" + std::to_wstring(GetCurrentProcessId()));
             implementation->ShowFromTray();
             implementation->OfferRecoveryIfIdle();
         }
@@ -437,6 +447,10 @@ void App::OnWindowDestroyed(const std::uint64_t window_id) noexcept {
             retiring_windows_.push_back(it->second);
             windows_.erase(it);
         }
+        velocitycopy::log_diagnostic(
+            L"window: destroyed id=" + std::to_wstring(window_id) +
+            L" pid=" + std::to_wstring(GetCurrentProcessId()) +
+            L" registered=" + std::to_wstring(windows_.size()));
         auto weak = get_weak();
         (void)Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread().TryEnqueue(
             [weak] {
