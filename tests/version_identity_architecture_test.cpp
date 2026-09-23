@@ -87,10 +87,12 @@ int main() {
     if (!contains(about, "GetFileVersionInfoSizeW") || !contains(about, "GetFileVersionInfoW") ||
         !contains(about, "VerQueryValueW") || !contains(about, "compiled_version()") ||
         !contains(about, "VELOCITYCOPY_VERSION_MAJOR") || contains(about, "return L\"Unknown\"") ||
-        !contains(about, "Flyout about") || !contains(about, "AccentFillColorDefaultBrush") ||
+        !contains(about, "Window about") || !contains(about, "about.ExtendsContentIntoTitleBar(true)") ||
+        !contains(about, "about.SetTitleBar(title_bar)") || !contains(about, "AccentFillColorDefaultBrush") ||
         !contains(about, "Assets/VelocityCopy.png") || !contains(about, "HyperlinkButton") ||
-        !contains(about, "NavigateUri") || contains(about, "TaskDialogIndirect") || contains(about, "ContentDialog")) {
-        return fail(6, "About must be themed WinUI, show product identity, and never degrade to an Unknown version");
+        !contains(about, "NavigateUri") || contains(about, "Flyout about") ||
+        contains(about, "TaskDialogIndirect") || contains(about, "ContentDialog")) {
+        return fail(6, "About must be a themed movable WinUI window, show product identity, and never degrade to an Unknown version");
     }
 
     if (!contains(persistence, "ActionAbout") || !contains(persistence, "OnAboutClick") ||
@@ -118,7 +120,7 @@ int main() {
         return fail(9, "installer DISPLAY_VERSION must derive from the same executable version header");
     }
 
-    if (!contains(spec, "About is a themed WinUI flyout") ||
+    if (!contains(spec, "About is a themed, movable WinUI window") ||
         !contains(spec, "must never display `Unknown`")) {
         return fail(10, "UI specification must lock the About visual and version fallback contract");
     }
