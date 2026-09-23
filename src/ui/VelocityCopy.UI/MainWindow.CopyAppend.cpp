@@ -6,7 +6,7 @@ using namespace winrt;
 namespace winrt::VelocityCopyUI::implementation {
 
 std::optional<velocitycopy::ActiveSession> MainWindow::SessionSnapshot() {
-    if (!HasActiveTransfer() || active_destination_.empty()) return std::nullopt;
+    if (tray_exit_requested_ || !HasActiveTransfer() || active_destination_.empty()) return std::nullopt;
     bool accepting = false;
     if (append_gate_) {
         std::lock_guard gate_lock(append_gate_->mutex);
@@ -16,7 +16,7 @@ std::optional<velocitycopy::ActiveSession> MainWindow::SessionSnapshot() {
 }
 
 bool MainWindow::IsVisibleForRouting() const noexcept {
-    return hwnd_ != nullptr && !tray_window_hidden_ && IsWindowVisible(hwnd_) != FALSE;
+    return !tray_exit_requested_ && hwnd_ != nullptr && !tray_window_hidden_ && IsWindowVisible(hwnd_) != FALSE;
 }
 
 void MainWindow::EnqueueTransfer(velocitycopy::CopyJob job, velocitycopy::StorageKey destination_key, velocitycopy::StorageKey source_key) {
