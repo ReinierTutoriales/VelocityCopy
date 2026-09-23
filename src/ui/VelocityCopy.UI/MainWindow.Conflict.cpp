@@ -143,17 +143,11 @@ MainWindow::NativeDialogChoice MainWindow::ShowNativeDecisionDialog(
                 TASKDIALOGCONFIG config{};
                 config.cbSize = sizeof(config);
                 config.hwndParent = owner;
-                config.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION;
-                if (remember_choice != nullptr) {
-                    // Routing prompts are intentionally a little narrower than the native
-                    // auto-size result so their hierarchy feels closer to the compact
-                    // transfer surface. cxWidth is expressed in dialog units.
-                    config.cxWidth = 240;
-                } else {
-                    // Conflict/recovery dialogs can contain paths or longer recovery copy;
-                    // preserve the established content-sized behavior for those surfaces.
-                    config.dwFlags |= TDF_SIZE_TO_CONTENT;
-                }
+                config.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION | TDF_POSITION_RELATIVE_TO_WINDOW;
+                // Keep every native decision surface in the same compact family. Routing
+                // includes a verification row, so it stays slightly narrower; conflict and
+                // recovery get a little more room without expanding to long-path width.
+                config.cxWidth = remember_choice != nullptr ? 240 : 260;
                 config.pszWindowTitle = L"VelocityCopy";
                 config.pszMainInstruction = display_title.c_str();
                 config.pszContent = display_message.c_str();
@@ -208,7 +202,10 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
         std::wstring message = loader.GetString(L"ConflictMessage").c_str();
         if (!conflict.conflict_destination.empty()) {
             message.append(L"\n\n");
-            message.append(conflict.conflict_destination.wstring());
+            const auto filename = conflict.conflict_destination.filename();
+            message.append(filename.empty()
+                ? conflict.conflict_destination.wstring()
+                : filename.wstring());
         }
 
         // All modal decisions use a separate native top-level dialog owned by
@@ -329,7 +326,8 @@ void MainWindow::FinalizeConflictSessionIfEmpty() {
     SpeedText().Text(L"—");
     EtaText().Text(L"—");
     SetProgressFraction(1.0);
-    StartNextQueuedSession();
+    if (queued_sessions_.empty()) DestroyCompletedWindow();
+    else StartNextQueuedSession();
 }
 
 } // namespace winrt::VelocityCopyUI::implementation
