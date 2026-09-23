@@ -177,5 +177,15 @@ int main() {
         !contains(conflict, "TaskDialogIndirect")) {
         return fail(16, "modal conflict and recovery decisions must remain native top-level dialogs outside the compact XAML surface");
     }
+
+    if (!contains(conflict, "config.hwndParent = owner;") ||
+        !contains(conflict, "config.pszMainInstruction = display_title.c_str();") ||
+        !contains(conflict, "config.pszContent = display_message.c_str();") ||
+        !contains(conflict, "config.pfCallback = &TaskDialogThemeCallback;") ||
+        !contains(conflict, "config.pszVerificationText = remember_label.c_str();") ||
+        !contains(conflict, "config.cxWidth = 240;") ||
+        !contains(conflict, "config.dwFlags |= TDF_SIZE_TO_CONTENT;")) {
+        return fail(17, "routing TaskDialog polish must keep owner/theme/verification plumbing while fixing only the routing prompt width");
+    }
     return 0;
 }
