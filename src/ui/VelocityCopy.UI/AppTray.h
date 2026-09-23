@@ -20,6 +20,7 @@ public:
 private:
     static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
     LRESULT HandleMessage(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) noexcept;
+    void OpenPrimaryWindow() noexcept;
     void ShowMenu(POINT anchor) noexcept;
     void RestoreIcon() noexcept;
 
@@ -30,5 +31,6 @@ private:
     UINT taskbar_created_message_{};
     bool added_{};
     bool v4_{};
+    bool open_dispatch_active_{};
 };
 }
