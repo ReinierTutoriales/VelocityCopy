@@ -701,7 +701,8 @@ void MainWindow::FinalizeStoppedSessionIfEmpty() {
     ResizeWindow(72);
     SetExecutionButtonsIdle();
     SetProgressFraction(1.0);
-    StartNextQueuedSession();
+    if (queued_sessions_.empty()) DestroyCompletedWindow();
+    else StartNextQueuedSession();
 }
 
 } // namespace winrt::VelocityCopyUI::implementation
