@@ -115,13 +115,18 @@ void MainWindow::ShowAboutDialog() noexcept {
         Flyout about;
 
         StackPanel panel;
-        panel.Width(300);
-        panel.Spacing(12);
-        panel.Padding(Thickness{16, 14, 16, 14});
+        panel.Width(316);
+        panel.Spacing(0);
+        panel.Padding(Thickness{18, 16, 18, 16});
 
+        // A short accent mark keeps the flyout visually tied to the compact transfer
+        // surface without dominating the content hierarchy.
         Border accent;
+        accent.Width(46);
         accent.Height(3);
+        accent.HorizontalAlignment(HorizontalAlignment::Left);
         accent.CornerRadius(CornerRadius{2});
+        accent.Margin(Thickness{0, 0, 0, 16});
         try {
             accent.Background(
                 Application::Current().Resources()
@@ -133,11 +138,12 @@ void MainWindow::ShowAboutDialog() noexcept {
 
         StackPanel header;
         header.Orientation(Orientation::Horizontal);
-        header.Spacing(12);
+        header.Spacing(13);
+        header.Margin(Thickness{0, 0, 0, 15});
 
         Image logo;
-        logo.Width(40);
-        logo.Height(40);
+        logo.Width(44);
+        logo.Height(44);
         logo.Stretch(Stretch::Uniform);
         BitmapImage logo_source;
         logo_source.UriSource(Uri{L"ms-appx:///Assets/VelocityCopy.png"});
@@ -146,18 +152,18 @@ void MainWindow::ShowAboutDialog() noexcept {
 
         StackPanel identity;
         identity.VerticalAlignment(VerticalAlignment::Center);
-        identity.Spacing(2);
+        identity.Spacing(3);
 
         TextBlock product;
         product.Text(title);
-        product.FontSize(19);
+        product.FontSize(20);
         product.FontWeight(Windows::UI::Text::FontWeights::SemiBold());
         identity.Children().Append(product);
 
         TextBlock version_text;
         version_text.Text(replace_version_token(std::wstring(version_format.c_str()), version));
-        version_text.FontSize(12);
-        version_text.Opacity(0.66);
+        version_text.FontSize(11.5);
+        version_text.Opacity(0.60);
         identity.Children().Append(version_text);
 
         header.Children().Append(identity);
@@ -166,21 +172,25 @@ void MainWindow::ShowAboutDialog() noexcept {
         TextBlock description;
         description.Text(tagline);
         description.TextWrapping(TextWrapping::Wrap);
-        description.FontSize(12.5);
-        description.Opacity(0.82);
+        description.FontSize(13);
+        description.LineHeight(18);
+        description.Opacity(0.88);
+        description.Margin(Thickness{0, 0, 0, 14});
         panel.Children().Append(description);
 
         TextBlock metadata;
         metadata.Text(hstring(
             std::wstring(publisher.c_str()) + L"  •  " + std::wstring(license.c_str())));
         metadata.FontSize(11.5);
-        metadata.Opacity(0.62);
+        metadata.Opacity(0.58);
+        metadata.Margin(Thickness{0, 0, 0, 9});
         panel.Children().Append(metadata);
 
         HyperlinkButton repository;
         repository.Content(box_value(repository_label));
         repository.NavigateUri(Uri{kRepositoryUrl});
         repository.HorizontalAlignment(HorizontalAlignment::Left);
+        repository.FontSize(12.5);
         repository.Padding(Thickness{0});
         panel.Children().Append(repository);
 
