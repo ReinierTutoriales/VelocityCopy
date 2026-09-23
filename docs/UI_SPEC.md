@@ -86,7 +86,7 @@ The compact copier surface must never be resized merely to make a modal decision
 
 - File-conflict decisions (`Replace`, `Skip`, `Cancel`) use a separate native top-level dialog owned by the VelocityCopy HWND.
 - Lightweight command flyouts such as the options menu may use normal popup/flyout presentation.
-- About is a themed WinUI flyout launched from Options, not a legacy TaskDialog or MessageBox during the normal path.
+- About is a themed, movable WinUI window launched from Options, with native close chrome and a fixed non-resizable presentation; it is not a legacy TaskDialog or MessageBox during the normal path.
 - The About version resolver reads the running executable `VERSIONINFO` first and falls back to the compile-time `Version.h` identity. The UI must never display `Unknown` for a build whose compile-time version is known.
 - Skip and Stop are menu commands, not hidden XAML buttons. Their enabled state is refreshed when Options opens and after transfer-state mutations.
 
