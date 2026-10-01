@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "MainWindow.xaml.h"
+#include "UiTokens.h"
 
 using namespace winrt;
 using namespace Microsoft::UI::Xaml;
@@ -13,8 +14,8 @@ void MainWindow::RefreshQueue() {
 
     auto append_visual = [&](const std::filesystem::path& source, const std::optional<std::uint64_t> id) {
         StackPanel row;
-        row.Spacing(2);
-        row.Margin(Thickness{8, 4, 8, 4});
+        row.Spacing(velocitycopy::ui::token_double(L"QueueItemLineSpacing", 2));
+        row.Margin(velocitycopy::ui::token_thickness(L"QueueItemPadding", Thickness{8, 4, 8, 4}));
         row.HorizontalAlignment(HorizontalAlignment::Stretch);
         if (id) {
             row.Tag(box_value(*id));
@@ -25,14 +26,14 @@ void MainWindow::RefreshQueue() {
         name.TextTrimming(TextTrimming::CharacterEllipsis);
         name.MaxLines(1);
         name.FontWeight(Windows::UI::Text::FontWeights::SemiBold());
-        name.FontSize(12);
+        name.FontSize(velocitycopy::ui::token_double(L"QueueItemNameFontSize", 12));
 
         TextBlock location;
         location.Text(hstring(source.parent_path().wstring()));
         location.TextTrimming(TextTrimming::CharacterEllipsis);
         location.MaxLines(1);
-        location.Opacity(0.56);
-        location.FontSize(10.5);
+        location.Opacity(velocitycopy::ui::token_double(L"QueueItemLocationOpacity", 0.56));
+        location.FontSize(velocitycopy::ui::token_double(L"QueueItemLocationFontSize", 10.5));
 
         row.Children().Append(name);
         row.Children().Append(location);
@@ -246,7 +247,7 @@ void MainWindow::OnQueueClick(IInspectable const&, RoutedEventArgs const&) {
         RefreshQueue();
         ResizeWindowToContent();
     } else {
-        ResizeWindow(72);
+        ResizeWindow(velocitycopy::ui::token_int(L"CompactSurfaceHeight", 72));
     }
 }
 

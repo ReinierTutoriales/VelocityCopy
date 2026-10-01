@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "MainWindow.xaml.h"
 #include "App.xaml.h"
+#include "UiTokens.h"
 #if __has_include("MainWindow.g.cpp")
 #include "MainWindow.g.cpp"
 #endif
@@ -15,8 +16,6 @@ using namespace Microsoft::UI::Xaml::Controls;
 
 namespace winrt::VelocityCopyUI::implementation {
 namespace {
-
-constexpr int kCompactWindowWidthEpx = 380;
 
 bool accepts_active_transfer_drop(
     const std::filesystem::path& active_destination,
@@ -38,6 +37,7 @@ MainWindow::MainWindow() {
     if (auto* app = App::Instance()) window_id_ = app->NextWindowId();
     InitializeComponent();
     dispatcher_ = Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
+    ErrorBar().Margin(Thickness{0, velocitycopy::ui::token_double(L"CaptionRowHeight", 34), 0, 0});
     ConfigureQueuePersistenceMenu();
     try {
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
@@ -96,7 +96,7 @@ MainWindow::MainWindow() {
 
     InitializeTrayIntegration();
     ApplyTitleBarInset();
-    ResizeWindow(72);
+    ResizeWindow(velocitycopy::ui::token_int(L"CompactSurfaceHeight", 72));
 }
 
 void MainWindow::MoveNativeWindow(const int x, const int y) noexcept {
@@ -149,7 +149,7 @@ void MainWindow::ResizeWindow(const int height_epx) {
         if (SUCCEEDED(window_native->get_WindowHandle(&hwnd)) && hwnd != nullptr) {
             const auto dpi = GetDpiForWindow(hwnd);
             if (dpi == 0) return;
-            const int width = MulDiv(kCompactWindowWidthEpx, static_cast<int>(dpi), 96);
+            const int width = MulDiv(velocitycopy::ui::token_int(L"CompactWindowWidth", 380), static_cast<int>(dpi), 96);
             const int height = MulDiv(height_epx, static_cast<int>(dpi), 96);
             SetWindowPos(hwnd, nullptr, 0, 0, width, height,
                          SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
@@ -161,17 +161,17 @@ void MainWindow::ResizeWindow(const int height_epx) {
 
 void MainWindow::ResizeWindowToContent() {
     if (QueuePanel().Visibility() != Visibility::Visible) {
-        ResizeWindow(72);
+        ResizeWindow(velocitycopy::ui::token_int(L"CompactSurfaceHeight", 72));
         return;
     }
 
     const auto measured_width = RootGrid().ActualWidth() > 0.0
         ? static_cast<float>(RootGrid().ActualWidth())
-        : static_cast<float>(kCompactWindowWidthEpx);
+        : static_cast<float>(velocitycopy::ui::token_int(L"CompactWindowWidth", 380));
     QueuePanel().Measure({measured_width, std::numeric_limits<float>::infinity()});
     const auto desired_queue_height = static_cast<double>(QueuePanel().DesiredSize().Height);
-    const auto expanded_height = static_cast<int>(std::ceil(72.0 + desired_queue_height));
-    ResizeWindow((std::clamp)(expanded_height, 176, 340));
+    const auto expanded_height = static_cast<int>(std::ceil(velocitycopy::ui::token_double(L"CompactSurfaceHeight", 72.0) + desired_queue_height));
+    ResizeWindow((std::clamp)(expanded_height, velocitycopy::ui::token_int(L"QueueExpandedMinHeight", 176), velocitycopy::ui::token_int(L"QueueExpandedMaxHeight", 340)));
     RootGrid().UpdateLayout();
 }
 

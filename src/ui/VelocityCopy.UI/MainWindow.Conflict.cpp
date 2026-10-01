@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "MainWindow.xaml.h"
+#include "UiTokens.h"
 
 #include <commctrl.h>
 #include <dwmapi.h>
@@ -321,7 +322,7 @@ void MainWindow::FinalizeConflictSessionIfEmpty() {
     QueueButton().IsEnabled(false);
     QueuePanel().Visibility(Visibility::Collapsed);
     QueueChevron().Glyph(L"\xE70D");
-    ResizeWindow(72);
+    ResizeWindow(velocitycopy::ui::token_int(L"CompactSurfaceHeight", 72));
     SetExecutionButtonsIdle();
     SpeedText().Text(L"—");
     EtaText().Text(L"—");
