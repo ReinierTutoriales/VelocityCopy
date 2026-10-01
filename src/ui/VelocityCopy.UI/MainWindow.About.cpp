@@ -154,7 +154,7 @@ void MainWindow::ShowAboutDialog() noexcept {
 
         TextBlock title_text;
         title_text.Text(L"VelocityCopy");
-        title_text.FontSize(velocitycopy::ui::token_double(L"AboutTitleBarFontSize", 12));
+        title_text.FontSize(velocitycopy::ui::token_double(L"CaptionFontSize", 12));
         title_text.FontWeight(Windows::UI::Text::FontWeights::SemiBold());
         title_text.VerticalAlignment(VerticalAlignment::Center);
         title_identity.Children().Append(title_text);
@@ -200,14 +200,14 @@ void MainWindow::ShowAboutDialog() noexcept {
 
         TextBlock product;
         product.Text(title);
-        product.FontSize(velocitycopy::ui::token_double(L"AboutProductFontSize", 20));
+        product.FontSize(velocitycopy::ui::token_double(L"SubtitleFontSize", 20));
         product.FontWeight(Windows::UI::Text::FontWeights::SemiBold());
         identity.Children().Append(product);
 
         TextBlock version_text;
         version_text.Text(replace_version_token(std::wstring(version_format.c_str()), version));
-        version_text.FontSize(velocitycopy::ui::token_double(L"AboutSecondaryFontSize", 12));
-        try { version_text.Foreground(Application::Current().Resources().Lookup(box_value(L"TextFillColorSecondaryBrush")).as<Brush>()); } catch (...) {}
+        version_text.FontSize(velocitycopy::ui::token_double(L"CaptionFontSize", 12));
+        velocitycopy::ui::apply_text_style(version_text, L"SecondaryTextStyle");
         identity.Children().Append(version_text);
 
         header.Children().Append(identity);
@@ -216,7 +216,7 @@ void MainWindow::ShowAboutDialog() noexcept {
         TextBlock description;
         description.Text(tagline);
         description.TextWrapping(TextWrapping::Wrap);
-        description.FontSize(velocitycopy::ui::token_double(L"AboutBodyFontSize", 14));
+        description.FontSize(velocitycopy::ui::token_double(L"BodyFontSize", 14));
         description.LineHeight(velocitycopy::ui::token_double(L"AboutBodyLineHeight", 20));
         description.Margin(velocitycopy::ui::token_thickness(L"AboutBodyMargin", Thickness{0, 0, 0, 16}));
         panel.Children().Append(description);
@@ -224,8 +224,8 @@ void MainWindow::ShowAboutDialog() noexcept {
         TextBlock metadata;
         metadata.Text(hstring(
             std::wstring(publisher.c_str()) + L"  •  " + std::wstring(license.c_str())));
-        metadata.FontSize(velocitycopy::ui::token_double(L"AboutSecondaryFontSize", 12));
-        try { metadata.Foreground(Application::Current().Resources().Lookup(box_value(L"TextFillColorTertiaryBrush")).as<Brush>()); } catch (...) {}
+        metadata.FontSize(velocitycopy::ui::token_double(L"CaptionFontSize", 12));
+        velocitycopy::ui::apply_text_style(metadata, L"TertiaryTextStyle");
         metadata.Margin(velocitycopy::ui::token_thickness(L"AboutMetadataMargin", Thickness{0, 0, 0, 8}));
         panel.Children().Append(metadata);
 
@@ -233,7 +233,7 @@ void MainWindow::ShowAboutDialog() noexcept {
         repository.Content(box_value(repository_label));
         repository.NavigateUri(Uri{kRepositoryUrl});
         repository.HorizontalAlignment(HorizontalAlignment::Left);
-        repository.FontSize(velocitycopy::ui::token_double(L"AboutLinkFontSize", 14));
+        repository.FontSize(velocitycopy::ui::token_double(L"BodyFontSize", 14));
         repository.Padding(Thickness{0});
         panel.Children().Append(repository);
 
@@ -272,7 +272,7 @@ void MainWindow::ShowAboutDialog() noexcept {
 
             const UINT dpi = hwnd_ != nullptr ? GetDpiForWindow(hwnd_) : USER_DEFAULT_SCREEN_DPI;
             const int width = MulDiv(velocitycopy::ui::token_int(L"AboutWindowWidth", 388), dpi == 0 ? USER_DEFAULT_SCREEN_DPI : static_cast<int>(dpi), USER_DEFAULT_SCREEN_DPI);
-            const int height = MulDiv(velocitycopy::ui::token_int(L"AboutWindowHeight", 286), dpi == 0 ? USER_DEFAULT_SCREEN_DPI : static_cast<int>(dpi), USER_DEFAULT_SCREEN_DPI);
+            const int height = MulDiv(velocitycopy::ui::token_int(L"AboutWindowHeight", 288), dpi == 0 ? USER_DEFAULT_SCREEN_DPI : static_cast<int>(dpi), USER_DEFAULT_SCREEN_DPI);
             app_window.Resize(Windows::Graphics::SizeInt32{width, height});
 
             RECT owner_rect{};

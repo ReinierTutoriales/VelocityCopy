@@ -76,7 +76,7 @@ MainWindow::MainWindow() {
     const auto queue_ceiling = velocitycopy::ui::token_double(L"QueueExpandedMaxHeight", 340);
     const auto compact_height = velocitycopy::ui::token_double(L"CompactSurfaceHeight", 72);
     const auto header_height = velocitycopy::ui::token_double(L"QueueHeaderMinHeight", 28);
-    const auto command_height = velocitycopy::ui::token_double(L"QueueCommandButtonSize", 32);
+    const auto command_height = velocitycopy::ui::token_double(L"ActionButtonSize", 32);
     QueueList().MaxHeight((std::max)(0.0, queue_ceiling - compact_height -
         queue_padding.Top - queue_padding.Bottom - header_height - list_margin.Top - list_margin.Bottom -
         commands_margin.Top - commands_margin.Bottom - command_height));
