@@ -61,7 +61,7 @@ inline constexpr std::uint64_t kMinimumResolutionWeight = 1;
 [[nodiscard]] constexpr bool is_valid_item_transition(ItemState from, ItemState to) noexcept {
     switch (from) {
     case ItemState::Pending:
-        return to == ItemState::Active;
+        return to == ItemState::Active || to == ItemState::Terminal;
     case ItemState::Active:
         return to == ItemState::Pending || to == ItemState::Parked || to == ItemState::Terminal;
     case ItemState::Parked:
