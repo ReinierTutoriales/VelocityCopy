@@ -1,7 +1,16 @@
 #include "velocitycopy/item_result.hpp"
 
-#include <cassert>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+
+#define CHECK(condition)                                                        \
+    do {                                                                        \
+        if (!(condition)) {                                                     \
+            std::fprintf(stderr, "%s:%d: CHECK failed: %s\\n", __FILE__, __LINE__, #condition); \
+            std::abort();                                                       \
+        }                                                                       \
+    } while (false)
 
 int main() {
     using namespace velocitycopy;
@@ -37,24 +46,24 @@ int main() {
     result.outcome = ItemOutcome::Skipped;
     result.hresult = 0;
     result.destination_preexisted = true;
-    assert(result.file_id == 7);
-    assert(result.outcome == ItemOutcome::Skipped);
-    assert(result.destination_preexisted);
+    CHECK(result.file_id == 7);
+    CHECK(result.outcome == ItemOutcome::Skipped);
+    CHECK(result.destination_preexisted);
 
     ItemIncident incident{};
     incident.file_id = 9;
     incident.hresult = -1;
     incident.destination_preexisted = false;
-    assert(incident.file_id == 9);
-    assert(incident.hresult == -1);
+    CHECK(incident.file_id == 9);
+    CHECK(incident.hresult == -1);
 
     TransferCounters counters{};
     counters.bytes_written_physical = 150;
     counters.bytes_succeeded = 100;
     counters.resolution_weight = 100;
     counters.resolution_total = 100;
-    assert(counters.bytes_written_physical >= counters.bytes_succeeded);
-    assert(counters.resolution_weight <= counters.resolution_total);
+    CHECK(counters.bytes_written_physical >= counters.bytes_succeeded);
+    CHECK(counters.resolution_weight <= counters.resolution_total);
 
     return 0;
 }
