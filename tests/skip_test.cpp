@@ -48,8 +48,8 @@ int wmain() {
 
     JobExecutor executor;
 
-    // New destination: a targeted pre-start Skip removes only that file from
-    // the logical plan and continues the same session.
+    // New destination: a targeted pre-start Skip resolves only that file as
+    // Skipped (it stays in the denominator) and continues the same session.
     {
         const auto destination = root / L"safe";
         LiveCopyPlan plan(make_plan(source, destination));
@@ -70,9 +70,14 @@ int wmain() {
         if (!result.success || result.cancelled || result.stopped || !saw_second ||
             fs::exists(destination / L"a.txt") ||
             !fs::exists(destination / L"b.txt") ||
-            plan.total_files() != 1 || plan.total_bytes() != 4 ||
+            plan.total_files() != 2 || plan.total_bytes() != 8 ||
             plan.completed_files() != 1 || plan.completed_bytes() != 4 ||
-            plan.remaining_files() != 0) {
+            plan.remaining_files() != 0 ||
+            result.outcomes.skipped != 1 || result.outcomes.succeeded != 1 ||
+            plan.resolution_view().counters.resolution_weight !=
+                plan.resolution_view().counters.resolution_total ||
+            plan.retained_results().size() != 1 ||
+            plan.retained_results()[0].outcome != ItemOutcome::Skipped) {
             fs::remove_all(root, ec);
             return 1;
         }

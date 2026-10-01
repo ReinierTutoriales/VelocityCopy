@@ -57,7 +57,8 @@ int main() {
         !contains(executor_cpp, "control.consume_skip(file_id)") ||
         !contains(executor_cpp, "CopyDecision::Skip") ||
         !contains(executor_cpp, "remove_partial_destination") ||
-        !contains(executor_cpp, "plan.skip_active(file_id)")) {
+        !contains(executor_cpp, "plan.resolve_active(file_id, ItemOutcome::Skipped") ||
+        contains(executor_cpp, "plan.skip_active(file_id)")) {
         return fail(3, "executor targeted Skip path incomplete");
     }
 
