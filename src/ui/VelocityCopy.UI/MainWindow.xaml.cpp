@@ -37,7 +37,7 @@ MainWindow::MainWindow() {
     if (auto* app = App::Instance()) window_id_ = app->NextWindowId();
     InitializeComponent();
     dispatcher_ = Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
-    ErrorBar().Margin(Thickness{0, velocitycopy::ui::token_double(L"CaptionRowHeight", 34), 0, 0});
+    ErrorBar().Margin(Thickness{0, velocitycopy::ui::token_double(L"CaptionRowHeight", 32), 0, 0});
     ConfigureQueuePersistenceMenu();
     try {
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
@@ -68,6 +68,18 @@ MainWindow::MainWindow() {
     ExtendsContentIntoTitleBar(true);
     SetTitleBar(TitleBarDragRegion());
     base_caption_content_padding_ = CaptionContentGrid().Padding();
+
+    // Derive the queue viewport from the single expanded-height ceiling.
+    const auto queue_padding = velocitycopy::ui::token_thickness(L"QueuePanelPadding", Thickness{8, 8, 8, 12});
+    const auto list_margin = velocitycopy::ui::token_thickness(L"QueueListMargin", Thickness{0, 4, 0, 0});
+    const auto commands_margin = velocitycopy::ui::token_thickness(L"QueueCommandsMargin", Thickness{0, 8, 0, 0});
+    const auto queue_ceiling = velocitycopy::ui::token_double(L"QueueExpandedMaxHeight", 340);
+    const auto compact_height = velocitycopy::ui::token_double(L"CompactSurfaceHeight", 72);
+    const auto header_height = velocitycopy::ui::token_double(L"QueueHeaderMinHeight", 28);
+    const auto command_height = velocitycopy::ui::token_double(L"QueueCommandButtonSize", 32);
+    QueueList().MaxHeight((std::max)(0.0, queue_ceiling - compact_height -
+        queue_padding.Top - queue_padding.Bottom - header_height - list_margin.Top - list_margin.Bottom -
+        commands_margin.Top - commands_margin.Bottom - command_height));
 
     try {
         auto app_window = AppWindow();
@@ -113,8 +125,16 @@ void MainWindow::ApplyTitleBarInset() noexcept {
         const auto dpi = GetDpiForWindow(hwnd);
         if (dpi == 0) return;
 
+        const auto title_bar = AppWindow().TitleBar();
         const double right_inset_epx =
-            AppWindow().TitleBar().RightInset() * 96.0 / static_cast<double>(dpi);
+            title_bar.RightInset() * 96.0 / static_cast<double>(dpi);
+        double title_height_epx = velocitycopy::ui::token_double(L"CaptionRowHeight", 32);
+        if (title_bar.Height() > 0) {
+            title_height_epx = title_bar.Height() * 96.0 / static_cast<double>(dpi);
+        }
+        TitleBarDragRegion().Height(title_height_epx);
+        CaptionRowDefinition().Height(GridLength{title_height_epx, GridUnitType::Pixel});
+        ErrorBar().Margin(Thickness{0, title_height_epx, 0, 0});
         CaptionContentGrid().Padding(Thickness{
             base_caption_content_padding_.Left,
             base_caption_content_padding_.Top,

@@ -155,11 +155,11 @@ int main() {
         return fail(11, "unused menu wrappers and compact-size state must not accumulate as dead code");
     }
 
-    if (!contains(tokens, "<x:Double x:Key=\"CaptionRowHeight\">34</x:Double>") ||
-        !contains(tokens, "<GridLength x:Key=\"CaptionRowGridLength\">34</GridLength>") ||
+    if (!contains(tokens, "<x:Double x:Key=\"CaptionRowHeight\">32</x:Double>") ||
+        !contains(tokens, "<GridLength x:Key=\"CaptionRowGridLength\">32</GridLength>") ||
         !contains(tokens, "<x:Double x:Key=\"TelemetrySpeedMinWidth\">64</x:Double>") ||
         !contains(tokens, "<x:Double x:Key=\"TelemetryPercentMinWidth\">36</x:Double>") ||
-        !contains(tokens, "<Thickness x:Key=\"TransferContentPadding\">8,4,8,4</Thickness>") ||
+        !contains(tokens, "<Thickness x:Key=\"TransferContentPadding\">8,0,8,8</Thickness>") ||
         !contains(tokens, "<Thickness x:Key=\"QueuePanelPadding\">8,8,8,12</Thickness>") ||
         !contains(xaml, "Height=\"{StaticResource CaptionRowHeight}\"") ||
         !contains(xaml, "<RowDefinition Height=\"{StaticResource CaptionRowGridLength}\" />") ||
@@ -168,12 +168,33 @@ int main() {
         return fail(12, "compact resources must be live, shared and free of unreachable width states");
     }
 
-    for (const auto* key : {"CaptionRowHeight", "QueueMaxHeightCompact",
-                            "TelemetrySpeedMinWidth", "TelemetryPercentMinWidth"}) {
+    for (const auto* key : {"CaptionRowHeight", "TelemetrySpeedMinWidth", "TelemetryPercentMinWidth"}) {
         if (contains(xaml, std::string("Definition Height=\"{StaticResource ") + key) ||
             contains(xaml, std::string("Definition Width=\"{StaticResource ") + key)) {
             return fail(30, "Double token used on a GridLength property");
         }
+    }
+
+    // Step 3a design-system invariants: runtime title height follows AppWindow
+    // (with a 32 epx fallback), controls use the 4 epx grid, and typography/icons
+    // stay on the Windows scale. Visual validation remains a separate gate.
+    if (!contains(window, "title_bar.Height() * 96.0 / static_cast<double>(dpi)") ||
+        !contains(window, "CaptionRowDefinition().Height") ||
+        !contains(tokens, "<x:Double x:Key=\"CompactSurfaceHeight\">72</x:Double>") ||
+        !contains(tokens, "<x:Double x:Key=\"SurfaceActionButtonSize\">32</x:Double>") ||
+        !contains(tokens, "<x:Double x:Key=\"QueueCommandButtonSize\">32</x:Double>") ||
+        !contains(tokens, "<x:Double x:Key=\"ActionIconSize\">16</x:Double>") ||
+        !contains(tokens, "<x:Double x:Key=\"CurrentItemFontSize\">14</x:Double>") ||
+        !contains(tokens, "<x:Double x:Key=\"TelemetryFontSize\">12</x:Double>") ||
+        !contains(tokens, "<x:Double x:Key=\"QueueTitleFontSize\">14</x:Double>") ||
+        !contains(tokens, "<x:Double x:Key=\"QueueCountFontSize\">12</x:Double>") ||
+        contains(tokens, "CancelIconSize") || contains(tokens, "DisclosureIconSize") ||
+        contains(tokens, "TelemetrySecondaryOpacity") || contains(tokens, "TelemetryEmphasisOpacity") ||
+        contains(tokens, "QueueCountOpacity") || contains(tokens, "QueueItemLocationOpacity") ||
+        contains(tokens, "QueueMaxHeightCompact") ||
+        !contains(xaml, "TextFillColorSecondaryBrush") || !contains(xaml, "TextFillColorTertiaryBrush") ||
+        !contains(window, "queue_ceiling - compact_height")) {
+        return fail(17, "step 3a design-system invariants must remain normalized and runtime-aware");
     }
 
     if (!contains(execution, "if (SpeedText().Text() != speed)") ||
