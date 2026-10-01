@@ -15,7 +15,7 @@ CopyPlan LiveCopyPlan::export_remaining_plan() const {
     plan.source_roots = source_roots_;
     plan.destination_root = destination_root_;
     plan.operation = operation_;
-    plan.files.reserve(active_files_.size() + pending_files_.size());
+    plan.files.reserve(active_files_.size() + parked_files_.size() + pending_files_.size());
 
     std::uint64_t next_id = 1;
     auto append_file = [&](const PlannedFile& source) {
@@ -34,6 +34,11 @@ CopyPlan LiveCopyPlan::export_remaining_plan() const {
     // behind a potentially very large pending queue.
     for (const auto& file : active_files_) {
         append_file(file);
+    }
+    // Parked items are unresolved. The archive format is pending-only, so they
+    // are exported as pending work rather than being lost on recovery.
+    for (const auto& parked : parked_files_) {
+        append_file(parked.file);
     }
     for (const auto& file : pending_files_) {
         append_file(file);
