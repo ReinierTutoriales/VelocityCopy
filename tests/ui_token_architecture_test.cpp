@@ -71,17 +71,19 @@ int main(){
   static const std::regex e{R"re(<(?:x:Double|Thickness|GridLength) x:Key="(\w+)">([^<]+)<)re"};
   for(std::sregex_iterator it(text.begin(),text.end(),e),end;it!=end;++it) values[(*it)[1].str()]=numbers((*it)[2].str());
   auto scalar=[&](const char* key){auto it=values.find(key);return it==values.end()||it->second.empty()?-1.0:it->second.front();};
-  if(contains(text,"SurfaceActionButtonSize")||contains(text,"QueueCommandButtonSize")) return false;
+  for(const char* retired:{"SurfaceActionButtonSize","QueueCommandButtonSize","ActionRowHeight","BodyStrongFontSize","SkipIconSize","StopIconSize","CancelIconSize","DisclosureIconSize","QueueItemNameFontSize","QueueItemLocationFontSize"}) if(contains(text,retired)) return false;
   const auto icon=scalar("ActionIconSize"); if(icon!=16&&icon!=20&&icon!=24&&icon!=32) return false;
   auto pad=values.find("TransferContentPadding"); if(pad==values.end()||pad->second.size()!=4) return false;
   if(scalar("CompactSurfaceHeight")!=scalar("CaptionRowHeight")+scalar("ActionButtonSize")+pad->second[1]+pad->second[3]) return false;
-  for(const char* key:{"CaptionFontSize","BodyFontSize","SubtitleFontSize"}) { const auto v=scalar(key); if(v!=12&&v!=14&&v!=20) return false; }
+  for(const auto& [key,vals]:values) if(key.ends_with("FontSize")) for(double v:vals) if(v!=12&&v!=14&&v!=20) return false;
   for(const auto& [key,vals]:values) {
    if(key.find("Opacity")!=std::string::npos||key.find("Radius")!=std::string::npos||key.find("FontSize")!=std::string::npos) continue;
    for(double v:vals) if(std::fmod(v,4.0)!=0.0) return false;
   }
-  if(contains(text,"TelemetrySecondaryOpacity")||contains(text,"QueueCountOpacity")||contains(text,"QueueItemLocationOpacity")||contains(text,"AboutMetadataOpacity")) return false;
-  return contains(text,"SecondaryTextStyle")&&contains(text,"TertiaryTextStyle");
+  for(const auto& [key,vals]:values) if(key.ends_with("Opacity")&&key!="ProgressFillOpacity") return false;
+  if(scalar("CaptionRowGridLength")!=scalar("CaptionRowHeight")) return false;
+  static const std::regex text_style{R"re(<Style x:Key="[^"]+" TargetType="TextBlock">[\s\S]*?<Setter Property="Foreground" Value="\{ThemeResource TextFillColor[^}]+\}"\s*/>[\s\S]*?</Style>)re"};
+  return contains(text,"SecondaryTextStyle")&&contains(text,"TertiaryTextStyle")&&count_occurrences(text,"TargetType=\"TextBlock\"")==static_cast<std::size_t>(std::distance(std::sregex_iterator(text.begin(),text.end(),text_style),std::sregex_iterator{}));
  };
  if(!validate_design_tokens(tokens)) return fail(20,"design token invariants failed");
  auto mutate=[&](const std::string& from,const std::string& to){auto copy=tokens;auto pos=copy.find(from);if(pos==std::string::npos)return std::string{};copy.replace(pos,from.size(),to);return copy;};
@@ -91,7 +93,13 @@ int main(){
   {"<x:Double x:Key=\"CompactSurfaceHeight\">72</x:Double>","<x:Double x:Key=\"CompactSurfaceHeight\">70</x:Double>"},
   {"<Thickness x:Key=\"QueueListMargin\">0,4,0,0</Thickness>","<Thickness x:Key=\"QueueListMargin\">0,7,0,0</Thickness>"},
   {"<x:Double x:Key=\"ActionButtonSize\">32</x:Double>","<x:Double x:Key=\"ActionButtonSize\">30</x:Double>"},
-  {"<x:Double x:Key=\"ProgressFillOpacity\">0.12</x:Double>","<x:Double x:Key=\"ProgressFillOpacity\">0.12</x:Double><x:Double x:Key=\"QueueCountOpacity\">0.58</x:Double>"}
+  {"<x:Double x:Key=\"ProgressFillOpacity\">0.12</x:Double>","<x:Double x:Key=\"ProgressFillOpacity\">0.12</x:Double><x:Double x:Key=\"QueueCountOpacity\">0.58</x:Double>"},
+  {"<x:Double x:Key=\"BodyFontSize\">14</x:Double>","<x:Double x:Key=\"BodyFontSize\">14</x:Double><x:Double x:Key=\"BodyStrongFontSize\">14</x:Double>"},
+  {"<x:Double x:Key=\"BodyFontSize\">14</x:Double>","<x:Double x:Key=\"BodyFontSize\">14</x:Double><x:Double x:Key=\"ExperimentalFontSize\">10.5</x:Double>"},
+  {"<x:Double x:Key=\"ProgressFillOpacity\">0.12</x:Double>","<x:Double x:Key=\"ProgressFillOpacity\">0.12</x:Double><x:Double x:Key=\"AboutVersionOpacity\">0.6</x:Double>"},
+  {"<x:Double x:Key=\"ActionButtonSize\">32</x:Double>","<x:Double x:Key=\"ActionButtonSize\">32</x:Double><x:Double x:Key=\"ActionRowHeight\">32</x:Double>"},
+  {"<x:Double x:Key=\"ActionIconSize\">16</x:Double>","<x:Double x:Key=\"ActionIconSize\">16</x:Double><x:Double x:Key=\"CancelIconSize\">12</x:Double>"},
+  {"Value=\"{ThemeResource TextFillColorSecondaryBrush}\"","Value=\"Red\""}
  };
  for(const auto& [from,to]:mutations){auto changed=mutate(from,to);if(changed.empty())return fail(26,"mutation anchor missing");if(validate_design_tokens(changed))return fail(26,"mutated design tokens unexpectedly accepted");}
  const auto queue=read_source(root/"src/ui/VelocityCopy.UI/MainWindow.Queue.cpp");
