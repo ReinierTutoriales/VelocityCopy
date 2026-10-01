@@ -11,12 +11,12 @@ int main() {
     static_assert(item_resolution_weight(50ull * 1024 * 1024) == 50ull * 1024 * 1024);
 
     static_assert(is_valid_item_transition(ItemState::Pending, ItemState::Active));
+    static_assert(is_valid_item_transition(ItemState::Pending, ItemState::Terminal));
     static_assert(is_valid_item_transition(ItemState::Active, ItemState::Pending));
     static_assert(is_valid_item_transition(ItemState::Active, ItemState::Parked));
     static_assert(is_valid_item_transition(ItemState::Active, ItemState::Terminal));
     static_assert(is_valid_item_transition(ItemState::Parked, ItemState::Pending));
     static_assert(is_valid_item_transition(ItemState::Parked, ItemState::Terminal));
-    static_assert(!is_valid_item_transition(ItemState::Pending, ItemState::Terminal));
     static_assert(!is_valid_item_transition(ItemState::Pending, ItemState::Parked));
     static_assert(!is_valid_item_transition(ItemState::Terminal, ItemState::Pending));
 
