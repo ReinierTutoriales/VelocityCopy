@@ -73,7 +73,11 @@ int main() {
         return fail(5, "window surface itself must remain the only progress indicator");
     }
 
-    if (!contains(window, "constexpr int kCompactWindowWidthEpx = 380") ||
+    // DesignTokens.xaml is the single width source; C++ reads it through the
+    // UiTokens.h accessor with an identical fallback.
+    if (!contains(tokens, "<x:Double x:Key=\"CompactWindowWidth\">380</x:Double>") ||
+        !contains(window, "token_int(L\"CompactWindowWidth\", 380)") ||
+        contains(window, "kCompactWindowWidthEpx") ||
         contains(tokens, "WindowCompactWidth") || contains(tokens, "WindowMinWidth") ||
         contains(tokens, "WindowComfortableBreakpoint")) {
         return fail(6, "compact geometry must have one runtime width source instead of dead resource mirrors");
