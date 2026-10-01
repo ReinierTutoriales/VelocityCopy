@@ -14,7 +14,7 @@ void MainWindow::RefreshQueue() {
 
     auto append_visual = [&](const std::filesystem::path& source, const std::optional<std::uint64_t> id) {
         StackPanel row;
-        row.Spacing(velocitycopy::ui::token_double(L"QueueItemLineSpacing", 2));
+        row.Spacing(velocitycopy::ui::token_double(L"QueueItemLineSpacing", 4));
         row.Margin(velocitycopy::ui::token_thickness(L"QueueItemPadding", Thickness{8, 4, 8, 4}));
         row.HorizontalAlignment(HorizontalAlignment::Stretch);
         if (id) {
@@ -26,14 +26,16 @@ void MainWindow::RefreshQueue() {
         name.TextTrimming(TextTrimming::CharacterEllipsis);
         name.MaxLines(1);
         name.FontWeight(Windows::UI::Text::FontWeights::SemiBold());
-        name.FontSize(velocitycopy::ui::token_double(L"QueueItemNameFontSize", 12));
+        name.FontSize(velocitycopy::ui::token_double(L"QueueItemNameFontSize", 14));
 
         TextBlock location;
         location.Text(hstring(source.parent_path().wstring()));
         location.TextTrimming(TextTrimming::CharacterEllipsis);
         location.MaxLines(1);
-        location.Opacity(velocitycopy::ui::token_double(L"QueueItemLocationOpacity", 0.56));
-        location.FontSize(velocitycopy::ui::token_double(L"QueueItemLocationFontSize", 10.5));
+        try {
+            location.Foreground(Application::Current().Resources().Lookup(box_value(L"TextFillColorSecondaryBrush")).as<Microsoft::UI::Xaml::Media::Brush>());
+        } catch (...) {}
+        location.FontSize(velocitycopy::ui::token_double(L"QueueItemLocationFontSize", 12));
 
         row.Children().Append(name);
         row.Children().Append(location);

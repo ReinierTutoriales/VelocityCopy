@@ -136,11 +136,11 @@ void MainWindow::ShowAboutDialog() noexcept {
 
         Border title_bar;
         title_bar.Height(velocitycopy::ui::token_double(L"AboutTitleBarHeight", 32));
-        title_bar.Padding(velocitycopy::ui::token_thickness(L"AboutTitleBarPadding", Thickness{12, 0, 110, 0}));
+        title_bar.Padding(velocitycopy::ui::token_thickness(L"AboutTitleBarPadding", Thickness{12, 0, 112, 0}));
 
         StackPanel title_identity;
         title_identity.Orientation(Orientation::Horizontal);
-        title_identity.Spacing(velocitycopy::ui::token_double(L"AboutTitleIdentitySpacing", 7));
+        title_identity.Spacing(velocitycopy::ui::token_double(L"AboutTitleIdentitySpacing", 8));
         title_identity.VerticalAlignment(VerticalAlignment::Center);
 
         Image title_logo;
@@ -163,14 +163,14 @@ void MainWindow::ShowAboutDialog() noexcept {
 
         StackPanel panel;
         panel.Spacing(0);
-        panel.Padding(velocitycopy::ui::token_thickness(L"AboutPanelPadding", Thickness{24, 18, 24, 22}));
+        panel.Padding(velocitycopy::ui::token_thickness(L"AboutPanelPadding", Thickness{24, 20, 24, 24}));
 
         Border accent;
-        accent.Width(velocitycopy::ui::token_double(L"AboutAccentWidth", 46));
-        accent.Height(velocitycopy::ui::token_double(L"AboutAccentHeight", 3));
+        accent.Width(velocitycopy::ui::token_double(L"AboutAccentWidth", 48));
+        accent.Height(velocitycopy::ui::token_double(L"AboutAccentHeight", 4));
         accent.HorizontalAlignment(HorizontalAlignment::Left);
         accent.CornerRadius(CornerRadius{velocitycopy::ui::token_double(L"AboutAccentRadius", 2)});
-        accent.Margin(velocitycopy::ui::token_thickness(L"AboutAccentMargin", Thickness{0, 0, 0, 17}));
+        accent.Margin(velocitycopy::ui::token_thickness(L"AboutAccentMargin", Thickness{0, 0, 0, 16}));
         try {
             accent.Background(
                 Application::Current().Resources()
@@ -182,7 +182,7 @@ void MainWindow::ShowAboutDialog() noexcept {
 
         StackPanel header;
         header.Orientation(Orientation::Horizontal);
-        header.Spacing(velocitycopy::ui::token_double(L"AboutHeaderSpacing", 13));
+        header.Spacing(velocitycopy::ui::token_double(L"AboutHeaderSpacing", 12));
         header.Margin(velocitycopy::ui::token_thickness(L"AboutHeaderMargin", Thickness{0, 0, 0, 16}));
 
         Image logo;
@@ -196,7 +196,7 @@ void MainWindow::ShowAboutDialog() noexcept {
 
         StackPanel identity;
         identity.VerticalAlignment(VerticalAlignment::Center);
-        identity.Spacing(velocitycopy::ui::token_double(L"AboutIdentitySpacing", 3));
+        identity.Spacing(velocitycopy::ui::token_double(L"AboutIdentitySpacing", 4));
 
         TextBlock product;
         product.Text(title);
@@ -206,8 +206,8 @@ void MainWindow::ShowAboutDialog() noexcept {
 
         TextBlock version_text;
         version_text.Text(replace_version_token(std::wstring(version_format.c_str()), version));
-        version_text.FontSize(velocitycopy::ui::token_double(L"AboutSecondaryFontSize", 11.5));
-        version_text.Opacity(velocitycopy::ui::token_double(L"AboutVersionOpacity", 0.60));
+        version_text.FontSize(velocitycopy::ui::token_double(L"AboutSecondaryFontSize", 12));
+        try { version_text.Foreground(Application::Current().Resources().Lookup(box_value(L"TextFillColorSecondaryBrush")).as<Brush>()); } catch (...) {}
         identity.Children().Append(version_text);
 
         header.Children().Append(identity);
@@ -216,25 +216,24 @@ void MainWindow::ShowAboutDialog() noexcept {
         TextBlock description;
         description.Text(tagline);
         description.TextWrapping(TextWrapping::Wrap);
-        description.FontSize(velocitycopy::ui::token_double(L"AboutBodyFontSize", 13));
-        description.LineHeight(velocitycopy::ui::token_double(L"AboutBodyLineHeight", 18));
-        description.Opacity(velocitycopy::ui::token_double(L"AboutBodyOpacity", 0.88));
-        description.Margin(velocitycopy::ui::token_thickness(L"AboutBodyMargin", Thickness{0, 0, 0, 14}));
+        description.FontSize(velocitycopy::ui::token_double(L"AboutBodyFontSize", 14));
+        description.LineHeight(velocitycopy::ui::token_double(L"AboutBodyLineHeight", 20));
+        description.Margin(velocitycopy::ui::token_thickness(L"AboutBodyMargin", Thickness{0, 0, 0, 16}));
         panel.Children().Append(description);
 
         TextBlock metadata;
         metadata.Text(hstring(
             std::wstring(publisher.c_str()) + L"  •  " + std::wstring(license.c_str())));
-        metadata.FontSize(velocitycopy::ui::token_double(L"AboutSecondaryFontSize", 11.5));
-        metadata.Opacity(velocitycopy::ui::token_double(L"AboutMetadataOpacity", 0.58));
-        metadata.Margin(velocitycopy::ui::token_thickness(L"AboutMetadataMargin", Thickness{0, 0, 0, 9}));
+        metadata.FontSize(velocitycopy::ui::token_double(L"AboutSecondaryFontSize", 12));
+        try { metadata.Foreground(Application::Current().Resources().Lookup(box_value(L"TextFillColorTertiaryBrush")).as<Brush>()); } catch (...) {}
+        metadata.Margin(velocitycopy::ui::token_thickness(L"AboutMetadataMargin", Thickness{0, 0, 0, 8}));
         panel.Children().Append(metadata);
 
         HyperlinkButton repository;
         repository.Content(box_value(repository_label));
         repository.NavigateUri(Uri{kRepositoryUrl});
         repository.HorizontalAlignment(HorizontalAlignment::Left);
-        repository.FontSize(velocitycopy::ui::token_double(L"AboutLinkFontSize", 12.5));
+        repository.FontSize(velocitycopy::ui::token_double(L"AboutLinkFontSize", 14));
         repository.Padding(Thickness{0});
         panel.Children().Append(repository);
 

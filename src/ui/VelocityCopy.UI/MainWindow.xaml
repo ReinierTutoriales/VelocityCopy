@@ -36,7 +36,7 @@
                 <Grid x:Name="TransferContentGrid"
                       Padding="{StaticResource TransferContentPadding}">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="{StaticResource CaptionRowGridLength}" />
+                        <RowDefinition x:Name="CaptionRowDefinition" Height="{StaticResource CaptionRowGridLength}" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
@@ -85,17 +85,16 @@
                             <TextBlock x:Name="SpeedText"
                                        Text="—"
                                        MinWidth="{StaticResource TelemetrySpeedMinWidth}"
-                                       Opacity="{StaticResource TelemetrySecondaryOpacity}"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                        FontSize="{StaticResource TelemetryFontSize}" />
                             <TextBlock x:Name="ProgressPercentText"
                                        Text="0%"
                                        MinWidth="{StaticResource TelemetryPercentMinWidth}"
-                                       Opacity="{StaticResource TelemetryEmphasisOpacity}"
                                        FontSize="{StaticResource TelemetryFontSize}"
                                        FontWeight="SemiBold" />
                             <TextBlock x:Name="EtaText"
                                        Text="—"
-                                       Opacity="{StaticResource TelemetrySecondaryOpacity}"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                        FontSize="{StaticResource TelemetryFontSize}" />
                         </StackPanel>
 
@@ -130,7 +129,7 @@
                                 <FontIcon x:Name="CancelIcon"
                                           FontFamily="Segoe Fluent Icons"
                                           Glyph="&#xE71A;"
-                                          FontSize="{StaticResource CancelIconSize}" />
+                                          FontSize="{StaticResource ActionIconSize}" />
                             </Button>
 
                             <Button x:Name="OptionsButton"
@@ -156,7 +155,7 @@
                                 <FontIcon x:Name="QueueChevron"
                                           FontFamily="Segoe Fluent Icons"
                                           Glyph="&#xE70D;"
-                                          FontSize="{StaticResource DisclosureIconSize}" />
+                                          FontSize="{StaticResource ActionIconSize}" />
                             </Button>
                         </StackPanel>
                     </Grid>
@@ -187,14 +186,13 @@
                 <TextBlock x:Name="QueueCountText"
                            Grid.Column="1"
                            VerticalAlignment="Center"
-                           Opacity="{StaticResource QueueCountOpacity}"
+                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                            FontSize="{StaticResource QueueCountFontSize}" />
             </Grid>
 
             <ListView x:Name="QueueList"
                       Grid.Row="1"
                       Margin="{StaticResource QueueListMargin}"
-                      MaxHeight="{StaticResource QueueMaxHeightCompact}"
                       SelectionMode="Extended"
                       SelectionChanged="OnQueueSelectionChanged"
                       KeyDown="OnQueueKeyDown"
