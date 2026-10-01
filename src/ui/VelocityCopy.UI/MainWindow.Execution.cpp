@@ -22,7 +22,6 @@ void MainWindow::SetExecutionButtonsPlanning() {
     current_file_skippable_ = false;
     paused_ = false;
     RefreshExecutionMenuState();
-    RefreshExecutionButtonState();
 }
 
 void MainWindow::SetExecutionButtonsRunning() {
@@ -40,7 +39,6 @@ void MainWindow::SetExecutionButtonsRunning() {
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), label);
     } catch (...) {}
     RefreshExecutionMenuState();
-    RefreshExecutionButtonState();
 }
 
 void MainWindow::SetExecutionButtonsIdle() {
@@ -60,7 +58,6 @@ void MainWindow::SetExecutionButtonsIdle() {
     } catch (...) {}
     RefreshEfficiencyMode();
     RefreshExecutionMenuState();
-    RefreshExecutionButtonState();
 }
 
 void MainWindow::SetExecutionButtonsStopped() {
@@ -78,7 +75,6 @@ void MainWindow::SetExecutionButtonsStopped() {
     } catch (...) {}
     RefreshEfficiencyMode();
     RefreshExecutionMenuState();
-    RefreshExecutionButtonState();
 }
 
 void MainWindow::SetExecutionButtonsConflict() {
@@ -92,7 +88,6 @@ void MainWindow::SetExecutionButtonsConflict() {
     paused_ = false;
     RefreshEfficiencyMode();
     RefreshExecutionMenuState();
-    RefreshExecutionButtonState();
 }
 
 velocitycopy::JobResult MainWindow::RunLivePlanSession(
@@ -367,15 +362,6 @@ void MainWindow::OnPauseClick(IInspectable const&, RoutedEventArgs const&) {
         // Localization failure must never mutate the execution state.
     }
     RefreshExecutionMenuState();
-    RefreshExecutionButtonState();
-}
-
-void MainWindow::RefreshExecutionButtonState() {
-    const bool active = execution_control_ != nullptr;
-    SkipButton().IsEnabled(velocitycopy::can_skip_current_file(
-        active, current_file_id_, current_file_skippable_,
-        paused_, stopped_session_, conflict_session_, stop_requested_));
-    StopButton().IsEnabled(active && !stopped_session_ && !conflict_session_ && !stop_requested_);
 }
 
 void MainWindow::OnSkipClick(IInspectable const&, RoutedEventArgs const&) {
@@ -389,7 +375,7 @@ void MainWindow::OnSkipClick(IInspectable const&, RoutedEventArgs const&) {
             stop_requested_)) return;
     execution_control_->request_skip(current_file_id_);
     current_file_skippable_ = false;
-    RefreshExecutionButtonState();
+    RefreshExecutionMenuState();
 }
 
 void MainWindow::OnStopClick(IInspectable const&, RoutedEventArgs const&) {
@@ -402,7 +388,6 @@ void MainWindow::OnStopClick(IInspectable const&, RoutedEventArgs const&) {
     SpeedText().Text(L"—");
     EtaText().Text(L"—");
     RefreshExecutionMenuState();
-    RefreshExecutionButtonState();
 }
 
 void MainWindow::OnCancelClick(IInspectable const&, RoutedEventArgs const&) {
@@ -467,9 +452,9 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
         snapshot.current_file_skippable != current_file_skippable_;
     current_file_id_ = snapshot.current_file_id;
     current_file_skippable_ = snapshot.current_file_skippable;
-    // The visible Skip button has no Opening hook like the menu; it must follow
-    // the current file as snapshots arrive, or it stays disabled all transfer.
-    if (skip_state_changed) RefreshExecutionButtonState();
+    // Skip/Stop live only in Options. The menu also refreshes on Opening, but an
+    // already-open menu must follow the current file as snapshots arrive.
+    if (skip_state_changed) RefreshExecutionMenuState();
 
     if (!snapshot.current_source.empty()) {
         const hstring filename(snapshot.current_source.filename().wstring());

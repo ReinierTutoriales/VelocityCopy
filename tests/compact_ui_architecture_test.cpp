@@ -45,8 +45,6 @@ int main() {
         !contains(xaml, "x:Name=\"PrimaryActionCluster\"") ||
         !contains(xaml, "HorizontalAlignment=\"Right\"") ||
         !contains(xaml, "x:Name=\"PauseButton\"") ||
-        !contains(xaml, "x:Name=\"SkipButton\"") ||
-        !contains(xaml, "x:Name=\"StopButton\"") ||
         !contains(xaml, "x:Name=\"CancelButton\"") ||
         !contains(xaml, "x:Name=\"OptionsButton\"") ||
         !contains(xaml, "x:Name=\"QueueButton\"")) {
@@ -61,11 +59,49 @@ int main() {
         return fail(3, "telemetry must not share the caption-constrained filename row");
     }
 
-    if (!contains(xaml, "Click=\"OnSkipClick\"") || !contains(xaml, "Click=\"OnStopClick\"") ||
-        !contains(execution, "SkipButton().IsEnabled") || !contains(execution, "StopButton().IsEnabled") ||
-        !contains(window, "ToolTipService::SetToolTip(SkipButton()") ||
-        !contains(window, "ToolTipService::SetToolTip(StopButton()")) {
-        return fail(4, "skip and stop must remain visible primary transfer controls with live state and tooltips");
+    // UI_SPEC: the compact surface has exactly four primary actions (Pause/Resume,
+    // Cancel, Options, queue disclosure). Skip and Stop are Options menu commands
+    // only, with dynamic enablement; no visible or hidden XAML buttons.
+    const auto refresh_menu = body_of(menu, "void MainWindow::RefreshExecutionMenuState(");
+    const auto cluster_start = xaml.find("x:Name=\"PrimaryActionCluster\"");
+    const auto cluster_end = cluster_start == std::string::npos ? std::string::npos
+                                                                : xaml.find("</StackPanel>", cluster_start);
+    const auto primary_action_count = cluster_end == std::string::npos
+        ? 0
+        : count_occurrences(xaml.substr(cluster_start, cluster_end - cluster_start), "<Button");
+    if (contains(xaml, "SkipButton") || contains(xaml, "StopButton") ||
+        contains(xaml, "OnSkipClick") || contains(xaml, "OnStopClick") ||
+        contains(execution, "SkipButton()") || contains(execution, "StopButton()") ||
+        contains(window, "SkipButton()") || contains(window, "StopButton()") ||
+        contains(header, "RefreshExecutionButtonState") ||
+        contains(tokens, "SkipIconSize") || contains(tokens, "StopIconSize") ||
+        primary_action_count != 4 ||
+        !contains(menu, "skip_menu_item_.Click({this, &MainWindow::OnMenuSkipClick})") ||
+        !contains(menu, "stop_menu_item_.Click({this, &MainWindow::OnMenuStopClick})") ||
+        !contains(refresh_menu, "skip_menu_item_.IsEnabled(velocitycopy::can_skip_current_file(") ||
+        !contains(refresh_menu, "stop_menu_item_.IsEnabled(") ||
+        !contains(menu, "menu.Opening")) {
+        return fail(4, "skip and stop must exist only as Options menu commands with dynamic enablement");
+    }
+
+    // Iconography: one glyph, one meaning. Disclosure owns the chevrons; queue
+    // reordering uses arrows; removing a queue entry must not read as deleting a
+    // file; Cancel must not reuse the window-close X.
+    const auto glyph_of = [&](const std::string& button) {
+        const auto start = xaml.find("x:Name=\"" + button + "\"");
+        if (start == std::string::npos) return std::string{};
+        const auto end = xaml.find("</Button>", start);
+        const auto element = xaml.substr(start, end - start);
+        const auto glyph = element.find("Glyph=\"");
+        return glyph == std::string::npos ? std::string{} : element.substr(glyph + 7, 8);
+    };
+    if (glyph_of("QueueButton") != "&#xE70D;" ||
+        glyph_of("QueueMoveUpButton") != "&#xE74A;" ||
+        glyph_of("QueueMoveDownButton") != "&#xE74B;" ||
+        glyph_of("QueueRemoveButton") != "&#xE738;" ||
+        glyph_of("CancelButton") != "&#xE71A;" ||
+        contains(xaml, "&#xE74D;") || contains(xaml, "&#xE711;") || contains(xaml, "&#xE8BB;")) {
+        return fail(16, "action glyphs must be unambiguous and match their command semantics");
     }
 
     if (contains(xaml, "<ProgressBar") ||

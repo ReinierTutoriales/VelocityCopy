@@ -78,18 +78,18 @@ int main() {
         return fail(5, "Skip identity/safety and pure availability contract must reach UI state");
     }
 
-    if (!contains(xaml, "x:Name=\"SkipButton\"") || !contains(xaml, "Click=\"OnSkipClick\"") ||
-        !contains(xaml, "x:Name=\"StopButton\"") || !contains(xaml, "Click=\"OnStopClick\"") ||
+    if (contains(xaml, "SkipButton") || contains(xaml, "StopButton") ||
+        contains(xaml, "OnSkipClick") || contains(xaml, "OnStopClick") ||
         !contains(window_h, "current_file_skippable_") ||
         !contains(execution, "snapshot.current_file_skippable") ||
-        !contains(body_of(execution, "void MainWindow::ApplySnapshot("), "RefreshExecutionButtonState();") ||
-        !contains(body_of(execution, "void MainWindow::RefreshExecutionButtonState("), "can_skip_current_file(") ||
+        !contains(body_of(execution, "void MainWindow::ApplySnapshot("), "RefreshExecutionMenuState();") ||
+        !contains(body_of(menu, "void MainWindow::RefreshExecutionMenuState("), "can_skip_current_file(") ||
         !contains(body_of(execution, "void MainWindow::OnSkipClick("), "can_skip_current_file(") ||
         !contains(execution, "request_skip(current_file_id_)") ||
         !contains(menu, "skip_menu_item_.Click({this, &MainWindow::OnMenuSkipClick})") ||
         !contains(menu, "menu.Opening") || !contains(menu, "RefreshExecutionMenuState()") ||
         !contains(execution, "Localization failure must never mutate the execution state")) {
-        return fail(6, "Skip must be available from the visible button and the menu through one safe predicate");
+        return fail(6, "Skip must be available only from the Options menu through one safe predicate");
     }
 
     return 0;
