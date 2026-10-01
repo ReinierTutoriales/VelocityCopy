@@ -1,5 +1,6 @@
 #pragma once
 
+#include "velocitycopy/item_result.hpp"
 #include "velocitycopy/job_planner.hpp"
 
 #include <algorithm>
@@ -9,6 +10,7 @@
 #include <filesystem>
 #include <mutex>
 #include <optional>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -27,7 +29,30 @@ struct LiveQueueView {
     std::vector<PlannedFile> pending_files;
     std::uint64_t pending_count{};
     std::uint64_t active_count{};
+    std::uint64_t parked_count{};
     std::uint64_t completed_files{};
+};
+
+struct ItemOutcomeCounts {
+    std::uint64_t succeeded{};
+    std::uint64_t skipped{};
+    std::uint64_t failed{};
+    std::uint64_t copied_source_retained{};
+};
+
+// Per-item resolution view. resolution_weight / resolution_total is the visible
+// progress ("all work resolved"); bytes_written_physical feeds throughput only;
+// bytes_succeeded is the final statistic.
+struct LiveResolutionView {
+    TransferCounters counters;
+    ItemOutcomeCounts outcomes;
+    std::uint64_t pending_files{};
+    std::uint64_t active_files{};
+    std::uint64_t parked_files{};
+
+    [[nodiscard]] std::uint64_t unresolved_files() const noexcept {
+        return pending_files + active_files + parked_files;
+    }
 };
 
 struct LiveDirectoryBatch {
@@ -96,6 +121,36 @@ public:
     void release_active(std::uint64_t file_id) noexcept;
     [[nodiscard]] bool skip_active(std::uint64_t file_id) noexcept;
 
+    // Per-item resolution API (ItemState contract). Runs alongside the legacy
+    // complete/release/skip API until the executor migrates.
+    //
+    // Retention policy: every terminal item gets an ItemOutcome, but only
+    // Skipped, Failed and CopiedSourceRetained keep a full ItemResult in
+    // memory. Succeeded is counters-only and keeps its destination reservation.
+    // Skipped and Failed release the reservation: that destination was not
+    // produced.
+    [[nodiscard]] bool park_active(
+        std::uint64_t file_id, std::int32_t hresult, bool destination_preexisted) noexcept;
+    [[nodiscard]] bool unpark(std::uint64_t file_id) noexcept;
+    [[nodiscard]] bool resolve_pending(
+        std::uint64_t file_id, ItemOutcome outcome, std::int32_t hresult,
+        bool destination_preexisted) noexcept;
+    [[nodiscard]] bool resolve_active(
+        std::uint64_t file_id, ItemOutcome outcome, std::int32_t hresult,
+        bool destination_preexisted) noexcept;
+    [[nodiscard]] bool resolve_parked(
+        std::uint64_t file_id, ItemOutcome outcome, std::int32_t hresult,
+        bool destination_preexisted) noexcept;
+    // cumulative_attempt_bytes is the CopyFile2 TotalBytesTransferred value of
+    // the current attempt. A new attempt starts at acquire_next()/unpark().
+    void record_attempt_bytes(std::uint64_t file_id, std::uint64_t cumulative_attempt_bytes) noexcept;
+
+    [[nodiscard]] LiveResolutionView resolution_view() const noexcept;
+    [[nodiscard]] std::vector<ItemResult> retained_results() const;
+    [[nodiscard]] std::vector<ItemIncident> parked_incidents() const;
+    [[nodiscard]] std::uint64_t unresolved_files() const noexcept;
+
+
     [[nodiscard]] std::uint64_t total_bytes() const noexcept;
     [[nodiscard]] std::uint64_t total_files() const noexcept;
     [[nodiscard]] std::uint64_t completed_bytes() const noexcept;
@@ -107,6 +162,18 @@ private:
     [[nodiscard]] std::deque<PlannedFile>::iterator find_pending(std::uint64_t file_id) noexcept;
     [[nodiscard]] std::vector<PlannedFile>::iterator find_active(std::uint64_t file_id) noexcept;
     void recompute_largest_file_bytes_locked() noexcept;
+
+    struct ParkedFile {
+        PlannedFile file;
+        ItemIncident incident;
+    };
+
+    [[nodiscard]] std::vector<ParkedFile>::iterator find_parked(std::uint64_t file_id) noexcept;
+    [[nodiscard]] bool resolve_locked(
+        const PlannedFile& file, ItemOutcome outcome, std::int32_t hresult,
+        bool destination_preexisted);
+    void drop_in_flight_locked(std::uint64_t file_id) noexcept;
+
 
     std::vector<PlannedDirectory> directories_;
     std::size_t materialized_directory_count_{};
@@ -123,6 +190,13 @@ private:
     std::uint64_t completed_files_{};
     std::uint64_t largest_file_bytes_{};
     std::uint64_t next_file_id_{1};
+
+    std::vector<ParkedFile> parked_files_;
+    std::vector<ItemResult> retained_results_;
+    std::unordered_map<std::uint64_t, std::uint64_t> high_water_;
+    std::unordered_map<std::uint64_t, std::uint64_t> attempt_bytes_;
+    TransferCounters counters_{};
+    ItemOutcomeCounts outcomes_{};
 };
 
 } // namespace velocitycopy
