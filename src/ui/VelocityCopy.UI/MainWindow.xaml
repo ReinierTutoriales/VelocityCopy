@@ -119,28 +119,6 @@
                                           FontSize="{StaticResource ActionIconSize}" />
                             </Button>
 
-                            <Button x:Name="SkipButton"
-                                    Click="OnSkipClick"
-                                    IsEnabled="False"
-                                    Width="{StaticResource SurfaceActionButtonSize}"
-                                    Height="{StaticResource SurfaceActionButtonSize}"
-                                    Padding="0"
-                                    BorderThickness="0"
-                                    Background="Transparent">
-                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE72A;" FontSize="{StaticResource SkipIconSize}" />
-                            </Button>
-
-                            <Button x:Name="StopButton"
-                                    Click="OnStopClick"
-                                    IsEnabled="False"
-                                    Width="{StaticResource SurfaceActionButtonSize}"
-                                    Height="{StaticResource SurfaceActionButtonSize}"
-                                    Padding="0"
-                                    BorderThickness="0"
-                                    Background="Transparent">
-                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE71A;" FontSize="{StaticResource StopIconSize}" />
-                            </Button>
-
                             <Button x:Name="CancelButton"
                                     Click="OnCancelClick"
                                     IsEnabled="False"
@@ -151,7 +129,7 @@
                                     Background="Transparent">
                                 <FontIcon x:Name="CancelIcon"
                                           FontFamily="Segoe Fluent Icons"
-                                          Glyph="&#xE711;"
+                                          Glyph="&#xE71A;"
                                           FontSize="{StaticResource CancelIconSize}" />
                             </Button>
 
@@ -242,7 +220,7 @@
                         Padding="0"
                         BorderThickness="0"
                         Margin="{StaticResource QueueCommandGapMargin}">
-                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE70E;" FontSize="{StaticResource ActionIconSize}" />
+                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74A;" FontSize="{StaticResource ActionIconSize}" />
                 </Button>
                 <Button x:Name="QueueMoveDownButton"
                         Grid.Column="1"
@@ -252,7 +230,7 @@
                         Padding="0"
                         BorderThickness="0"
                         Margin="{StaticResource QueueCommandGapMargin}">
-                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE70D;" FontSize="{StaticResource ActionIconSize}" />
+                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74B;" FontSize="{StaticResource ActionIconSize}" />
                 </Button>
                 <Button x:Name="QueueRemoveButton"
                         Grid.Column="2"
@@ -261,7 +239,7 @@
                         Height="{StaticResource QueueCommandButtonSize}"
                         Padding="0"
                         BorderThickness="0">
-                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74D;" FontSize="{StaticResource ActionIconSize}" />
+                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE738;" FontSize="{StaticResource ActionIconSize}" />
                 </Button>
             </Grid>
         </Grid>

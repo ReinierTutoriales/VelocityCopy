@@ -19,8 +19,8 @@
     <x:Double x:Key="TelemetrySecondaryOpacity">0.62</x:Double><x:Double x:Key="TelemetryEmphasisOpacity">0.82</x:Double>
     <x:Double x:Key="QueueCountOpacity">0.58</x:Double><x:Double x:Key="QueueItemLocationOpacity">0.56</x:Double>
     <x:Double x:Key="ProgressFillOpacity">0.12</x:Double>
-    <x:Double x:Key="ActionIconSize">12</x:Double><x:Double x:Key="SkipIconSize">11.5</x:Double>
-    <x:Double x:Key="CancelIconSize">11.5</x:Double><x:Double x:Key="StopIconSize">10.5</x:Double>
+    <x:Double x:Key="ActionIconSize">12</x:Double>
+    <x:Double x:Key="CancelIconSize">11.5</x:Double>
     <x:Double x:Key="DisclosureIconSize">11</x:Double><x:Double x:Key="SurfaceActionButtonSize">24</x:Double>
     <x:Double x:Key="QueueCommandButtonSize">28</x:Double><x:Double x:Key="BrandMarkSize">20</x:Double>
     <x:Double x:Key="TelemetrySpeedMinWidth">64</x:Double><x:Double x:Key="TelemetryPercentMinWidth">36</x:Double>
