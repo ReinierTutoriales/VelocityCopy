@@ -44,7 +44,7 @@ bool AppTray::Initialize(App* owner) noexcept {
         data_.cbSize = sizeof(data_);
         data_.hWnd = hwnd_;
         data_.uID = kTrayIconId;
-        data_.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
+        data_.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP | NIF_SHOWTIP;
         data_.uCallbackMessage = kTrayCallbackMessage;
         data_.hIcon = icon_;
         wcscpy_s(data_.szTip, L"VelocityCopy");
