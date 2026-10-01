@@ -1,5 +1,6 @@
 #include "architecture_support.hpp"
 #include <filesystem>
+#include <cmath>
 #include <iostream>
 #include <map>
 #include <regex>
@@ -30,7 +31,7 @@ int main(){
  const auto accessor=read_source(root/"src/ui/VelocityCopy.UI/UiTokens.h");
  const auto xaml=read_source(root/"src/ui/VelocityCopy.UI/MainWindow.xaml");
  if(tokens.empty()||accessor.empty()||xaml.empty()) return fail(1,"required UI token source missing");
- for(const auto* key:{"CompactSurfaceHeight","CompactWindowWidth","CaptionRowHeight","QueueExpandedMinHeight","QueueExpandedMaxHeight","QueueItemNameFontSize","QueueItemLocationFontSize","AboutWindowWidth","AboutWindowHeight"})
+ for(const auto* key:{"CompactSurfaceHeight","CompactWindowWidth","CaptionRowHeight","QueueExpandedMinHeight","QueueExpandedMaxHeight","ActionButtonSize","ActionIconSize","CaptionFontSize","BodyFontSize","SubtitleFontSize","AboutWindowWidth","AboutWindowHeight"})
   if(!contains(tokens,std::string("x:Key=\"")+key+"\"")) return fail(2,"required token missing");
  if(!contains(accessor,"Application::Current().Resources().Lookup")||!contains(accessor,"token_double")||!contains(accessor,"token_thickness")||!contains(xaml,"Height=\"{StaticResource CompactSurfaceHeight}\"")||!contains(read_source(root/"src/ui/VelocityCopy.UI/MainWindow.xaml.cpp"),"token_double(L\"CaptionRowHeight\", 32)")) return fail(3,"XAML/C++ token bridge incomplete");
  for(const auto* name:{"MainWindow.xaml.cpp","MainWindow.Queue.cpp","MainWindow.Conflict.cpp","MainWindow.Execution.cpp","MainWindow.QueuePersistence.cpp"}){
@@ -63,5 +64,42 @@ int main(){
   checked += matched;
  }
  if (checked == 0) return fail(8, "no C++ token reads found");
+
+ // Contracts 20-26 are data invariants and are mutation-tested in memory.
+ auto validate_design_tokens = [](const std::string& text) {
+  std::map<std::string,std::vector<double>> values;
+  static const std::regex e{R"re(<(?:x:Double|Thickness|GridLength) x:Key="(\w+)">([^<]+)<)re"};
+  for(std::sregex_iterator it(text.begin(),text.end(),e),end;it!=end;++it) values[(*it)[1].str()]=numbers((*it)[2].str());
+  auto scalar=[&](const char* key){auto it=values.find(key);return it==values.end()||it->second.empty()?-1.0:it->second.front();};
+  if(contains(text,"SurfaceActionButtonSize")||contains(text,"QueueCommandButtonSize")) return false;
+  const auto icon=scalar("ActionIconSize"); if(icon!=16&&icon!=20&&icon!=24&&icon!=32) return false;
+  auto pad=values.find("TransferContentPadding"); if(pad==values.end()||pad->second.size()!=4) return false;
+  if(scalar("CompactSurfaceHeight")!=scalar("CaptionRowHeight")+scalar("ActionButtonSize")+pad->second[1]+pad->second[3]) return false;
+  for(const char* key:{"CaptionFontSize","BodyFontSize","SubtitleFontSize"}) { const auto v=scalar(key); if(v!=12&&v!=14&&v!=20) return false; }
+  for(const auto& [key,vals]:values) {
+   if(key.find("Opacity")!=std::string::npos||key.find("Radius")!=std::string::npos||key.find("FontSize")!=std::string::npos) continue;
+   for(double v:vals) if(std::fmod(v,4.0)!=0.0) return false;
+  }
+  if(contains(text,"TelemetrySecondaryOpacity")||contains(text,"QueueCountOpacity")||contains(text,"QueueItemLocationOpacity")||contains(text,"AboutMetadataOpacity")) return false;
+  return contains(text,"SecondaryTextStyle")&&contains(text,"TertiaryTextStyle");
+ };
+ if(!validate_design_tokens(tokens)) return fail(20,"design token invariants failed");
+ auto mutate=[&](const std::string& from,const std::string& to){auto copy=tokens;auto pos=copy.find(from);if(pos==std::string::npos)return std::string{};copy.replace(pos,from.size(),to);return copy;};
+ const std::vector<std::pair<std::string,std::string>> mutations={
+  {"<x:Double x:Key=\"ActionIconSize\">16</x:Double>","<x:Double x:Key=\"ActionIconSize\">13</x:Double>"},
+  {"<x:Double x:Key=\"ActionButtonSize\">32</x:Double>","<x:Double x:Key=\"ActionButtonSize\">32</x:Double><x:Double x:Key=\"QueueCommandButtonSize\">32</x:Double>"},
+  {"<x:Double x:Key=\"CompactSurfaceHeight\">72</x:Double>","<x:Double x:Key=\"CompactSurfaceHeight\">70</x:Double>"},
+  {"<Thickness x:Key=\"QueueListMargin\">0,4,0,0</Thickness>","<Thickness x:Key=\"QueueListMargin\">0,7,0,0</Thickness>"},
+  {"<x:Double x:Key=\"ActionButtonSize\">32</x:Double>","<x:Double x:Key=\"ActionButtonSize\">30</x:Double>"},
+  {"<x:Double x:Key=\"ProgressFillOpacity\">0.12</x:Double>","<x:Double x:Key=\"ProgressFillOpacity\">0.12</x:Double><x:Double x:Key=\"QueueCountOpacity\">0.58</x:Double>"}
+ };
+ for(const auto& [from,to]:mutations){auto changed=mutate(from,to);if(changed.empty())return fail(26,"mutation anchor missing");if(validate_design_tokens(changed))return fail(26,"mutated design tokens unexpectedly accepted");}
+ const auto queue=read_source(root/"src/ui/VelocityCopy.UI/MainWindow.Queue.cpp");
+ const auto about=read_source(root/"src/ui/VelocityCopy.UI/MainWindow.About.cpp");
+ if(contains(queue,"TextFillColorSecondaryBrush")||contains(about,"TextFillColorSecondaryBrush")||contains(about,"TextFillColorTertiaryBrush")||
+    !contains(queue,"apply_text_style(location, L\"SecondaryTextStyle\")")||
+    !contains(about,"apply_text_style(version_text, L\"SecondaryTextStyle\")")||
+    !contains(about,"apply_text_style(metadata, L\"TertiaryTextStyle\")"))
+  return fail(27,"C++ text must use theme-aware dictionary styles instead of captured brushes");
  return 0;
 }

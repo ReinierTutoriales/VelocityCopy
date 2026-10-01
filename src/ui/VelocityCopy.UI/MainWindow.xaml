@@ -65,7 +65,7 @@
                                    TextTrimming="CharacterEllipsis"
                                    MaxLines="1"
                                    FontWeight="SemiBold"
-                                   FontSize="{StaticResource CurrentItemFontSize}" />
+                                   FontSize="{StaticResource BodyFontSize}" />
                     </Grid>
 
                     <Grid x:Name="BottomContentGrid"
@@ -86,16 +86,16 @@
                                        Text="—"
                                        MinWidth="{StaticResource TelemetrySpeedMinWidth}"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                       FontSize="{StaticResource TelemetryFontSize}" />
+                                       FontSize="{StaticResource CaptionFontSize}" />
                             <TextBlock x:Name="ProgressPercentText"
                                        Text="0%"
                                        MinWidth="{StaticResource TelemetryPercentMinWidth}"
-                                       FontSize="{StaticResource TelemetryFontSize}"
+                                       FontSize="{StaticResource CaptionFontSize}"
                                        FontWeight="SemiBold" />
                             <TextBlock x:Name="EtaText"
                                        Text="—"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                       FontSize="{StaticResource TelemetryFontSize}" />
+                                       FontSize="{StaticResource CaptionFontSize}" />
                         </StackPanel>
 
                         <StackPanel x:Name="PrimaryActionCluster"
@@ -107,8 +107,8 @@
                             <Button x:Name="PauseButton"
                                     Click="OnPauseClick"
                                     IsEnabled="False"
-                                    Width="{StaticResource SurfaceActionButtonSize}"
-                                    Height="{StaticResource SurfaceActionButtonSize}"
+                                    Width="{StaticResource ActionButtonSize}"
+                                    Height="{StaticResource ActionButtonSize}"
                                     Padding="0"
                                     BorderThickness="0"
                                     Background="Transparent">
@@ -121,8 +121,8 @@
                             <Button x:Name="CancelButton"
                                     Click="OnCancelClick"
                                     IsEnabled="False"
-                                    Width="{StaticResource SurfaceActionButtonSize}"
-                                    Height="{StaticResource SurfaceActionButtonSize}"
+                                    Width="{StaticResource ActionButtonSize}"
+                                    Height="{StaticResource ActionButtonSize}"
                                     Padding="0"
                                     BorderThickness="0"
                                     Background="Transparent">
@@ -133,8 +133,8 @@
                             </Button>
 
                             <Button x:Name="OptionsButton"
-                                    Width="{StaticResource SurfaceActionButtonSize}"
-                                    Height="{StaticResource SurfaceActionButtonSize}"
+                                    Width="{StaticResource ActionButtonSize}"
+                                    Height="{StaticResource ActionButtonSize}"
                                     Padding="0"
                                     BorderThickness="0"
                                     Background="Transparent">
@@ -147,8 +147,8 @@
                             <Button x:Name="QueueButton"
                                     Click="OnQueueClick"
                                     IsEnabled="True"
-                                    Width="{StaticResource SurfaceActionButtonSize}"
-                                    Height="{StaticResource SurfaceActionButtonSize}"
+                                    Width="{StaticResource ActionButtonSize}"
+                                    Height="{StaticResource ActionButtonSize}"
                                     Padding="0"
                                     BorderThickness="0"
                                     Background="Transparent">
@@ -182,12 +182,12 @@
                            x:Uid="QueueTitle"
                            VerticalAlignment="Center"
                            FontWeight="SemiBold"
-                           FontSize="{StaticResource QueueTitleFontSize}" />
+                           FontSize="{StaticResource BodyFontSize}" />
                 <TextBlock x:Name="QueueCountText"
                            Grid.Column="1"
                            VerticalAlignment="Center"
                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                           FontSize="{StaticResource QueueCountFontSize}" />
+                           FontSize="{StaticResource CaptionFontSize}" />
             </Grid>
 
             <ListView x:Name="QueueList"
@@ -213,8 +213,8 @@
                 </Grid.ColumnDefinitions>
                 <Button x:Name="QueueMoveUpButton"
                         Click="OnQueueMoveUpClick"
-                        Width="{StaticResource QueueCommandButtonSize}"
-                        Height="{StaticResource QueueCommandButtonSize}"
+                        Width="{StaticResource ActionButtonSize}"
+                        Height="{StaticResource ActionButtonSize}"
                         Padding="0"
                         BorderThickness="0"
                         Margin="{StaticResource QueueCommandGapMargin}">
@@ -223,8 +223,8 @@
                 <Button x:Name="QueueMoveDownButton"
                         Grid.Column="1"
                         Click="OnQueueMoveDownClick"
-                        Width="{StaticResource QueueCommandButtonSize}"
-                        Height="{StaticResource QueueCommandButtonSize}"
+                        Width="{StaticResource ActionButtonSize}"
+                        Height="{StaticResource ActionButtonSize}"
                         Padding="0"
                         BorderThickness="0"
                         Margin="{StaticResource QueueCommandGapMargin}">
@@ -233,8 +233,8 @@
                 <Button x:Name="QueueRemoveButton"
                         Grid.Column="2"
                         Click="OnQueueRemoveClick"
-                        Width="{StaticResource QueueCommandButtonSize}"
-                        Height="{StaticResource QueueCommandButtonSize}"
+                        Width="{StaticResource ActionButtonSize}"
+                        Height="{StaticResource ActionButtonSize}"
                         Padding="0"
                         BorderThickness="0">
                     <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE738;" FontSize="{StaticResource ActionIconSize}" />

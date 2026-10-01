@@ -182,13 +182,12 @@ int main() {
     if (!contains(window, "title_bar.Height() * 96.0 / static_cast<double>(dpi)") ||
         !contains(window, "CaptionRowDefinition().Height") ||
         !contains(tokens, "<x:Double x:Key=\"CompactSurfaceHeight\">72</x:Double>") ||
-        !contains(tokens, "<x:Double x:Key=\"SurfaceActionButtonSize\">32</x:Double>") ||
-        !contains(tokens, "<x:Double x:Key=\"QueueCommandButtonSize\">32</x:Double>") ||
+        !contains(tokens, "<x:Double x:Key=\"ActionButtonSize\">32</x:Double>") ||
+        contains(tokens, "SurfaceActionButtonSize") || contains(tokens, "QueueCommandButtonSize") ||
         !contains(tokens, "<x:Double x:Key=\"ActionIconSize\">16</x:Double>") ||
-        !contains(tokens, "<x:Double x:Key=\"CurrentItemFontSize\">14</x:Double>") ||
-        !contains(tokens, "<x:Double x:Key=\"TelemetryFontSize\">12</x:Double>") ||
-        !contains(tokens, "<x:Double x:Key=\"QueueTitleFontSize\">14</x:Double>") ||
-        !contains(tokens, "<x:Double x:Key=\"QueueCountFontSize\">12</x:Double>") ||
+        !contains(tokens, "<x:Double x:Key=\"CaptionFontSize\">12</x:Double>") ||
+        !contains(tokens, "<x:Double x:Key=\"BodyFontSize\">14</x:Double>") ||
+        !contains(tokens, "<x:Double x:Key=\"SubtitleFontSize\">20</x:Double>") ||
         contains(tokens, "CancelIconSize") || contains(tokens, "DisclosureIconSize") ||
         contains(tokens, "TelemetrySecondaryOpacity") || contains(tokens, "TelemetryEmphasisOpacity") ||
         contains(tokens, "QueueCountOpacity") || contains(tokens, "QueueItemLocationOpacity") ||

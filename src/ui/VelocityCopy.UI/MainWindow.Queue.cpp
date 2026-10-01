@@ -26,16 +26,14 @@ void MainWindow::RefreshQueue() {
         name.TextTrimming(TextTrimming::CharacterEllipsis);
         name.MaxLines(1);
         name.FontWeight(Windows::UI::Text::FontWeights::SemiBold());
-        name.FontSize(velocitycopy::ui::token_double(L"QueueItemNameFontSize", 14));
+        name.FontSize(velocitycopy::ui::token_double(L"BodyFontSize", 14));
 
         TextBlock location;
         location.Text(hstring(source.parent_path().wstring()));
         location.TextTrimming(TextTrimming::CharacterEllipsis);
         location.MaxLines(1);
-        try {
-            location.Foreground(Application::Current().Resources().Lookup(box_value(L"TextFillColorSecondaryBrush")).as<Microsoft::UI::Xaml::Media::Brush>());
-        } catch (...) {}
-        location.FontSize(velocitycopy::ui::token_double(L"QueueItemLocationFontSize", 12));
+        velocitycopy::ui::apply_text_style(location, L"SecondaryTextStyle");
+        location.FontSize(velocitycopy::ui::token_double(L"CaptionFontSize", 12));
 
         row.Children().Append(name);
         row.Children().Append(location);
