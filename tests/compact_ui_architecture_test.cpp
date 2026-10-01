@@ -129,7 +129,8 @@ int main() {
     if (!contains(xaml, "x:Name=\"CaptionContentGrid\"") ||
         !contains(header, "void ApplyTitleBarInset() noexcept") ||
         !contains(header, "base_caption_content_padding_") ||
-        !contains(window, "AppWindow().TitleBar().RightInset()") ||
+        !contains(window, "const auto title_bar = AppWindow().TitleBar();") ||
+        !contains(window, "title_bar.RightInset()") ||
         !contains(window, "CaptionContentGrid().Padding") ||
         contains(window, "TransferContentGrid().Padding(Thickness{")) {
         return fail(8, "caption inset must affect only the top filename row, not telemetry/actions");
@@ -162,7 +163,7 @@ int main() {
         !contains(tokens, "<Thickness x:Key=\"TransferContentPadding\">8,0,8,8</Thickness>") ||
         !contains(tokens, "<Thickness x:Key=\"QueuePanelPadding\">8,8,8,12</Thickness>") ||
         !contains(xaml, "Height=\"{StaticResource CaptionRowHeight}\"") ||
-        !contains(xaml, "<RowDefinition Height=\"{StaticResource CaptionRowGridLength}\" />") ||
+        !contains(xaml, "<RowDefinition x:Name=\"CaptionRowDefinition\" Height=\"{StaticResource CaptionRowGridLength}\" />") ||
         !contains(xaml, "Padding=\"{StaticResource QueuePanelPadding}\"") ||
         contains(xaml, "ComfortableState") || contains(tokens, "QueueMaxHeightComfortable")) {
         return fail(12, "compact resources must be live, shared and free of unreachable width states");
