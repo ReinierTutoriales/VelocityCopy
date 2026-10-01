@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "MainWindow.xaml.h"
+#include "UiTokens.h"
 #include "Version.h"
 
 #include <winver.h>
@@ -16,8 +17,6 @@ namespace winrt::VelocityCopyUI::implementation {
 namespace {
 
 constexpr wchar_t kRepositoryUrl[] = L"https://github.com/ReinierTutoriales/VelocityCopy";
-constexpr int kAboutWidthEpx = 388;
-constexpr int kAboutHeightEpx = 286;
 
 std::wstring compiled_version() {
     if constexpr (VELOCITYCOPY_VERSION_BUILD == 0) {
@@ -136,17 +135,17 @@ void MainWindow::ShowAboutDialog() noexcept {
         try { root.RequestedTheme(RootGrid().ActualTheme()); } catch (...) {}
 
         Border title_bar;
-        title_bar.Height(32);
-        title_bar.Padding(Thickness{12, 0, 110, 0});
+        title_bar.Height(velocitycopy::ui::token_double(L"AboutTitleBarHeight", 32));
+        title_bar.Padding(velocitycopy::ui::token_thickness(L"AboutTitleBarPadding", Thickness{12, 0, 110, 0}));
 
         StackPanel title_identity;
         title_identity.Orientation(Orientation::Horizontal);
-        title_identity.Spacing(7);
+        title_identity.Spacing(velocitycopy::ui::token_double(L"AboutTitleIdentitySpacing", 7));
         title_identity.VerticalAlignment(VerticalAlignment::Center);
 
         Image title_logo;
-        title_logo.Width(16);
-        title_logo.Height(16);
+        title_logo.Width(velocitycopy::ui::token_double(L"AboutTitleLogoSize", 16));
+        title_logo.Height(velocitycopy::ui::token_double(L"AboutTitleLogoSize", 16));
         title_logo.Stretch(Stretch::Uniform);
         BitmapImage title_logo_source;
         title_logo_source.UriSource(Uri{L"ms-appx:///Assets/VelocityCopy.png"});
@@ -155,7 +154,7 @@ void MainWindow::ShowAboutDialog() noexcept {
 
         TextBlock title_text;
         title_text.Text(L"VelocityCopy");
-        title_text.FontSize(12);
+        title_text.FontSize(velocitycopy::ui::token_double(L"AboutTitleBarFontSize", 12));
         title_text.FontWeight(Windows::UI::Text::FontWeights::SemiBold());
         title_text.VerticalAlignment(VerticalAlignment::Center);
         title_identity.Children().Append(title_text);
@@ -164,14 +163,14 @@ void MainWindow::ShowAboutDialog() noexcept {
 
         StackPanel panel;
         panel.Spacing(0);
-        panel.Padding(Thickness{24, 18, 24, 22});
+        panel.Padding(velocitycopy::ui::token_thickness(L"AboutPanelPadding", Thickness{24, 18, 24, 22}));
 
         Border accent;
-        accent.Width(46);
-        accent.Height(3);
+        accent.Width(velocitycopy::ui::token_double(L"AboutAccentWidth", 46));
+        accent.Height(velocitycopy::ui::token_double(L"AboutAccentHeight", 3));
         accent.HorizontalAlignment(HorizontalAlignment::Left);
-        accent.CornerRadius(CornerRadius{2});
-        accent.Margin(Thickness{0, 0, 0, 17});
+        accent.CornerRadius(CornerRadius{velocitycopy::ui::token_double(L"AboutAccentRadius", 2)});
+        accent.Margin(velocitycopy::ui::token_thickness(L"AboutAccentMargin", Thickness{0, 0, 0, 17}));
         try {
             accent.Background(
                 Application::Current().Resources()
@@ -183,12 +182,12 @@ void MainWindow::ShowAboutDialog() noexcept {
 
         StackPanel header;
         header.Orientation(Orientation::Horizontal);
-        header.Spacing(13);
-        header.Margin(Thickness{0, 0, 0, 16});
+        header.Spacing(velocitycopy::ui::token_double(L"AboutHeaderSpacing", 13));
+        header.Margin(velocitycopy::ui::token_thickness(L"AboutHeaderMargin", Thickness{0, 0, 0, 16}));
 
         Image logo;
-        logo.Width(44);
-        logo.Height(44);
+        logo.Width(velocitycopy::ui::token_double(L"AboutHeroLogoSize", 44));
+        logo.Height(velocitycopy::ui::token_double(L"AboutHeroLogoSize", 44));
         logo.Stretch(Stretch::Uniform);
         BitmapImage logo_source;
         logo_source.UriSource(Uri{L"ms-appx:///Assets/VelocityCopy.png"});
@@ -197,18 +196,18 @@ void MainWindow::ShowAboutDialog() noexcept {
 
         StackPanel identity;
         identity.VerticalAlignment(VerticalAlignment::Center);
-        identity.Spacing(3);
+        identity.Spacing(velocitycopy::ui::token_double(L"AboutIdentitySpacing", 3));
 
         TextBlock product;
         product.Text(title);
-        product.FontSize(20);
+        product.FontSize(velocitycopy::ui::token_double(L"AboutProductFontSize", 20));
         product.FontWeight(Windows::UI::Text::FontWeights::SemiBold());
         identity.Children().Append(product);
 
         TextBlock version_text;
         version_text.Text(replace_version_token(std::wstring(version_format.c_str()), version));
-        version_text.FontSize(11.5);
-        version_text.Opacity(0.60);
+        version_text.FontSize(velocitycopy::ui::token_double(L"AboutSecondaryFontSize", 11.5));
+        version_text.Opacity(velocitycopy::ui::token_double(L"AboutVersionOpacity", 0.60));
         identity.Children().Append(version_text);
 
         header.Children().Append(identity);
@@ -217,25 +216,25 @@ void MainWindow::ShowAboutDialog() noexcept {
         TextBlock description;
         description.Text(tagline);
         description.TextWrapping(TextWrapping::Wrap);
-        description.FontSize(13);
-        description.LineHeight(18);
-        description.Opacity(0.88);
-        description.Margin(Thickness{0, 0, 0, 14});
+        description.FontSize(velocitycopy::ui::token_double(L"AboutBodyFontSize", 13));
+        description.LineHeight(velocitycopy::ui::token_double(L"AboutBodyLineHeight", 18));
+        description.Opacity(velocitycopy::ui::token_double(L"AboutBodyOpacity", 0.88));
+        description.Margin(velocitycopy::ui::token_thickness(L"AboutBodyMargin", Thickness{0, 0, 0, 14}));
         panel.Children().Append(description);
 
         TextBlock metadata;
         metadata.Text(hstring(
             std::wstring(publisher.c_str()) + L"  •  " + std::wstring(license.c_str())));
-        metadata.FontSize(11.5);
-        metadata.Opacity(0.58);
-        metadata.Margin(Thickness{0, 0, 0, 9});
+        metadata.FontSize(velocitycopy::ui::token_double(L"AboutSecondaryFontSize", 11.5));
+        metadata.Opacity(velocitycopy::ui::token_double(L"AboutMetadataOpacity", 0.58));
+        metadata.Margin(velocitycopy::ui::token_thickness(L"AboutMetadataMargin", Thickness{0, 0, 0, 9}));
         panel.Children().Append(metadata);
 
         HyperlinkButton repository;
         repository.Content(box_value(repository_label));
         repository.NavigateUri(Uri{kRepositoryUrl});
         repository.HorizontalAlignment(HorizontalAlignment::Left);
-        repository.FontSize(12.5);
+        repository.FontSize(velocitycopy::ui::token_double(L"AboutLinkFontSize", 12.5));
         repository.Padding(Thickness{0});
         panel.Children().Append(repository);
 
@@ -273,8 +272,8 @@ void MainWindow::ShowAboutDialog() noexcept {
             app_window.SetIcon(L"Assets\\VelocityCopy.ico");
 
             const UINT dpi = hwnd_ != nullptr ? GetDpiForWindow(hwnd_) : USER_DEFAULT_SCREEN_DPI;
-            const int width = MulDiv(kAboutWidthEpx, dpi == 0 ? USER_DEFAULT_SCREEN_DPI : static_cast<int>(dpi), USER_DEFAULT_SCREEN_DPI);
-            const int height = MulDiv(kAboutHeightEpx, dpi == 0 ? USER_DEFAULT_SCREEN_DPI : static_cast<int>(dpi), USER_DEFAULT_SCREEN_DPI);
+            const int width = MulDiv(velocitycopy::ui::token_int(L"AboutWindowWidth", 388), dpi == 0 ? USER_DEFAULT_SCREEN_DPI : static_cast<int>(dpi), USER_DEFAULT_SCREEN_DPI);
+            const int height = MulDiv(velocitycopy::ui::token_int(L"AboutWindowHeight", 286), dpi == 0 ? USER_DEFAULT_SCREEN_DPI : static_cast<int>(dpi), USER_DEFAULT_SCREEN_DPI);
             app_window.Resize(Windows::Graphics::SizeInt32{width, height});
 
             RECT owner_rect{};

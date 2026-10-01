@@ -17,14 +17,14 @@
 
         <Grid x:Name="TransferSurface"
               Grid.Row="0"
-              Height="72"
+              Height="{StaticResource CompactSurfaceHeight}"
               SizeChanged="OnTransferSurfaceSizeChanged">
             <Grid>
                 <Border x:Name="ProgressFill"
                         Width="0"
                         HorizontalAlignment="Left"
                         Background="{ThemeResource AccentFillColorDefaultBrush}"
-                        Opacity="0.12" />
+                        Opacity="{StaticResource ProgressFillOpacity}" />
 
                 <Grid x:Name="TitleBarDragRegion"
                       Height="{StaticResource CaptionRowHeight}"
@@ -51,8 +51,8 @@
                         <Image x:Name="BrandLogo"
                                Grid.Column="0"
                                Source="Assets/VelocityCopy.png"
-                               Width="20"
-                               Height="20"
+                               Width="{StaticResource BrandMarkSize}"
+                               Height="{StaticResource BrandMarkSize}"
                                Margin="{StaticResource BrandToContentMargin}"
                                VerticalAlignment="Center"
                                Stretch="Uniform"
@@ -65,12 +65,12 @@
                                    TextTrimming="CharacterEllipsis"
                                    MaxLines="1"
                                    FontWeight="SemiBold"
-                                   FontSize="12.5" />
+                                   FontSize="{StaticResource CurrentItemFontSize}" />
                     </Grid>
 
                     <Grid x:Name="BottomContentGrid"
                           Grid.Row="1"
-                          ColumnSpacing="8">
+                          ColumnSpacing="{StaticResource SpaceRelated}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
@@ -81,22 +81,22 @@
                                     Orientation="Horizontal"
                                     HorizontalAlignment="Left"
                                     VerticalAlignment="Center"
-                                    Spacing="4">
+                                    Spacing="{StaticResource SpaceTight}">
                             <TextBlock x:Name="SpeedText"
                                        Text="—"
                                        MinWidth="{StaticResource TelemetrySpeedMinWidth}"
-                                       Opacity="0.62"
-                                       FontSize="10.5" />
+                                       Opacity="{StaticResource TelemetrySecondaryOpacity}"
+                                       FontSize="{StaticResource TelemetryFontSize}" />
                             <TextBlock x:Name="ProgressPercentText"
                                        Text="0%"
                                        MinWidth="{StaticResource TelemetryPercentMinWidth}"
-                                       Opacity="0.82"
-                                       FontSize="10.5"
+                                       Opacity="{StaticResource TelemetryEmphasisOpacity}"
+                                       FontSize="{StaticResource TelemetryFontSize}"
                                        FontWeight="SemiBold" />
                             <TextBlock x:Name="EtaText"
                                        Text="—"
-                                       Opacity="0.62"
-                                       FontSize="10.5" />
+                                       Opacity="{StaticResource TelemetrySecondaryOpacity}"
+                                       FontSize="{StaticResource TelemetryFontSize}" />
                         </StackPanel>
 
                         <StackPanel x:Name="PrimaryActionCluster"
@@ -104,81 +104,81 @@
                                     Orientation="Horizontal"
                                     HorizontalAlignment="Right"
                                     VerticalAlignment="Center"
-                                    Spacing="4">
+                                    Spacing="{StaticResource SpaceTight}">
                             <Button x:Name="PauseButton"
                                     Click="OnPauseClick"
                                     IsEnabled="False"
-                                    Width="24"
-                                    Height="24"
+                                    Width="{StaticResource SurfaceActionButtonSize}"
+                                    Height="{StaticResource SurfaceActionButtonSize}"
                                     Padding="0"
                                     BorderThickness="0"
                                     Background="Transparent">
                                 <FontIcon x:Name="PauseIcon"
                                           FontFamily="Segoe Fluent Icons"
                                           Glyph="&#xE769;"
-                                          FontSize="12" />
+                                          FontSize="{StaticResource ActionIconSize}" />
                             </Button>
 
                             <Button x:Name="SkipButton"
                                     Click="OnSkipClick"
                                     IsEnabled="False"
-                                    Width="24"
-                                    Height="24"
+                                    Width="{StaticResource SurfaceActionButtonSize}"
+                                    Height="{StaticResource SurfaceActionButtonSize}"
                                     Padding="0"
                                     BorderThickness="0"
                                     Background="Transparent">
-                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE72A;" FontSize="11.5" />
+                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE72A;" FontSize="{StaticResource SkipIconSize}" />
                             </Button>
 
                             <Button x:Name="StopButton"
                                     Click="OnStopClick"
                                     IsEnabled="False"
-                                    Width="24"
-                                    Height="24"
+                                    Width="{StaticResource SurfaceActionButtonSize}"
+                                    Height="{StaticResource SurfaceActionButtonSize}"
                                     Padding="0"
                                     BorderThickness="0"
                                     Background="Transparent">
-                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE71A;" FontSize="10.5" />
+                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE71A;" FontSize="{StaticResource StopIconSize}" />
                             </Button>
 
                             <Button x:Name="CancelButton"
                                     Click="OnCancelClick"
                                     IsEnabled="False"
-                                    Width="24"
-                                    Height="24"
+                                    Width="{StaticResource SurfaceActionButtonSize}"
+                                    Height="{StaticResource SurfaceActionButtonSize}"
                                     Padding="0"
                                     BorderThickness="0"
                                     Background="Transparent">
                                 <FontIcon x:Name="CancelIcon"
                                           FontFamily="Segoe Fluent Icons"
                                           Glyph="&#xE711;"
-                                          FontSize="11.5" />
+                                          FontSize="{StaticResource CancelIconSize}" />
                             </Button>
 
                             <Button x:Name="OptionsButton"
-                                    Width="24"
-                                    Height="24"
+                                    Width="{StaticResource SurfaceActionButtonSize}"
+                                    Height="{StaticResource SurfaceActionButtonSize}"
                                     Padding="0"
                                     BorderThickness="0"
                                     Background="Transparent">
                                 <FontIcon x:Name="OptionsIcon"
                                           FontFamily="Segoe Fluent Icons"
                                           Glyph="&#xE712;"
-                                          FontSize="12" />
+                                          FontSize="{StaticResource ActionIconSize}" />
                             </Button>
 
                             <Button x:Name="QueueButton"
                                     Click="OnQueueClick"
                                     IsEnabled="True"
-                                    Width="24"
-                                    Height="24"
+                                    Width="{StaticResource SurfaceActionButtonSize}"
+                                    Height="{StaticResource SurfaceActionButtonSize}"
                                     Padding="0"
                                     BorderThickness="0"
                                     Background="Transparent">
                                 <FontIcon x:Name="QueueChevron"
                                           FontFamily="Segoe Fluent Icons"
                                           Glyph="&#xE70D;"
-                                          FontSize="11" />
+                                          FontSize="{StaticResource DisclosureIconSize}" />
                             </Button>
                         </StackPanel>
                     </Grid>
@@ -196,7 +196,7 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <Grid x:Name="QueueHeader" MinHeight="28">
+            <Grid x:Name="QueueHeader" MinHeight="{StaticResource QueueHeaderMinHeight}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
@@ -205,17 +205,17 @@
                            x:Uid="QueueTitle"
                            VerticalAlignment="Center"
                            FontWeight="SemiBold"
-                           FontSize="12" />
+                           FontSize="{StaticResource QueueTitleFontSize}" />
                 <TextBlock x:Name="QueueCountText"
                            Grid.Column="1"
                            VerticalAlignment="Center"
-                           Opacity="0.58"
-                           FontSize="11" />
+                           Opacity="{StaticResource QueueCountOpacity}"
+                           FontSize="{StaticResource QueueCountFontSize}" />
             </Grid>
 
             <ListView x:Name="QueueList"
                       Grid.Row="1"
-                      Margin="0,4,0,0"
+                      Margin="{StaticResource QueueListMargin}"
                       MaxHeight="{StaticResource QueueMaxHeightCompact}"
                       SelectionMode="Extended"
                       SelectionChanged="OnQueueSelectionChanged"
@@ -228,7 +228,7 @@
                       DragItemsCompleted="OnQueueDragItemsCompleted"
                       HorizontalContentAlignment="Stretch" />
 
-            <Grid Grid.Row="2" Margin="0,8,0,0">
+            <Grid Grid.Row="2" Margin="{StaticResource QueueCommandsMargin}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
@@ -237,31 +237,31 @@
                 </Grid.ColumnDefinitions>
                 <Button x:Name="QueueMoveUpButton"
                         Click="OnQueueMoveUpClick"
-                        Width="28"
-                        Height="28"
+                        Width="{StaticResource QueueCommandButtonSize}"
+                        Height="{StaticResource QueueCommandButtonSize}"
                         Padding="0"
                         BorderThickness="0"
-                        Margin="0,0,4,0">
-                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE70E;" FontSize="12" />
+                        Margin="{StaticResource QueueCommandGapMargin}">
+                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE70E;" FontSize="{StaticResource ActionIconSize}" />
                 </Button>
                 <Button x:Name="QueueMoveDownButton"
                         Grid.Column="1"
                         Click="OnQueueMoveDownClick"
-                        Width="28"
-                        Height="28"
+                        Width="{StaticResource QueueCommandButtonSize}"
+                        Height="{StaticResource QueueCommandButtonSize}"
                         Padding="0"
                         BorderThickness="0"
-                        Margin="0,0,4,0">
-                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE70D;" FontSize="12" />
+                        Margin="{StaticResource QueueCommandGapMargin}">
+                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE70D;" FontSize="{StaticResource ActionIconSize}" />
                 </Button>
                 <Button x:Name="QueueRemoveButton"
                         Grid.Column="2"
                         Click="OnQueueRemoveClick"
-                        Width="28"
-                        Height="28"
+                        Width="{StaticResource QueueCommandButtonSize}"
+                        Height="{StaticResource QueueCommandButtonSize}"
                         Padding="0"
                         BorderThickness="0">
-                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74D;" FontSize="12" />
+                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74D;" FontSize="{StaticResource ActionIconSize}" />
                 </Button>
             </Grid>
         </Grid>
@@ -271,7 +271,6 @@
                  IsOpen="False"
                  Severity="Error"
                  IsClosable="True"
-                 VerticalAlignment="Top"
-                 Margin="0,34,0,0" />
+                 VerticalAlignment="Top" />
     </Grid>
 </Window>

@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "MainWindow.xaml.h"
+#include "UiTokens.h"
 #include "velocitycopy/diagnostics.hpp"
 
 using namespace winrt;
@@ -374,7 +375,7 @@ void MainWindow::StartCopyPlan(velocitycopy::CopyPlan plan) {
     QueueList().Items().Clear();
     QueueCountText().Text(L"0");
     QueuePanel().Visibility(Visibility::Collapsed);
-    ResizeWindow(72);
+    ResizeWindow(velocitycopy::ui::token_int(L"CompactSurfaceHeight", 72));
     SetProgressFraction(0.0);
 
     auto live = std::make_shared<velocitycopy::LiveCopyPlan>(std::move(plan));

@@ -11,7 +11,7 @@ VelocityCopy is a compact Windows 11 copy/move utility. The window itself is the
 - Related-control spacing: **8 epx**
 - Tight inline spacing: **4 epx**
 
-Only resources consumed by the live XAML belong in `DesignTokens.xaml`; do not mirror runtime constants there merely for documentation.
+`DesignTokens.xaml` is the canonical source for UI design values consumed by live XAML or by the typed `UiTokens.h` accessor. C++ fallbacks must preserve the same value and are guarded by architecture tests; do not mirror unrelated runtime constants there merely for documentation.
 
 ## Collapsed composition
 
