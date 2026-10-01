@@ -137,12 +137,26 @@ int wmain() {
         LiveCopyPlan live(initial_plan(source, destination));
         ExecutionControl control;
         control.request_skip(1);
-        bool saw_adjusted_totals = false;
+        bool saw_resolved_totals = false;
         const auto result = executor.execute(live, control, JobExecutionOptions{1}, [&](const JobProgress& progress) {
-            if (progress.total_files == 1 && progress.total_bytes == 1) saw_adjusted_totals = true;
+            if (progress.total_files == 2 && progress.total_bytes == 2 &&
+                progress.completed_files == 2 && progress.transferred_bytes == 2) {
+                saw_resolved_totals = true;
+            }
             return JobDecision::Continue;
         });
-        if (!result.success || result.cancelled || result.stopped || !saw_adjusted_totals || fs::exists(destination / L"a.txt") || !fs::exists(destination / L"b.txt") || live.total_files() != 1 || live.total_bytes() != 1 || live.completed_files() != 1 || live.completed_bytes() != 1 || live.remaining_files() != 0) { fs::remove_all(root, ec); return 8; }
+        const auto resolution = live.resolution_view();
+        const auto retained = live.retained_results();
+        if (!result.success || result.cancelled || result.stopped || !saw_resolved_totals ||
+            fs::exists(destination / L"a.txt") || !fs::exists(destination / L"b.txt") ||
+            live.total_files() != 2 || live.total_bytes() != 2 ||
+            live.completed_files() != 1 || live.completed_bytes() != 1 || live.remaining_files() != 0 ||
+            result.outcomes.skipped != 1 || result.outcomes.succeeded != 1 ||
+            resolution.counters.resolution_weight != resolution.counters.resolution_total ||
+            retained.size() != 1 || retained[0].file_id != 1 ||
+            retained[0].outcome != ItemOutcome::Skipped) {
+            fs::remove_all(root, ec); return 8;
+        }
     }
 
     // Directory materialization is executor-owned. A drained plan can accept a
