@@ -51,6 +51,7 @@ LiveCopyPlan::LiveCopyPlan(CopyPlan plan)
             next_file_id_ = std::max(next_file_id_, file.id + 1);
         }
         reserved_destination_keys_.insert(normalized_path_key(file.destination));
+        counters_.resolution_total += item_resolution_weight(file.size);
     }
 }
 
@@ -94,6 +95,7 @@ LiveQueueView LiveCopyPlan::queue_view(const std::size_t max_items) const {
         pending_files_.begin() + static_cast<std::ptrdiff_t>(count));
     view.pending_count = static_cast<std::uint64_t>(pending_files_.size());
     view.active_count = static_cast<std::uint64_t>(active_files_.size());
+    view.parked_count = static_cast<std::uint64_t>(parked_files_.size());
     view.completed_files = completed_files_;
     return view;
 }
@@ -101,7 +103,8 @@ LiveQueueView LiveCopyPlan::queue_view(const std::size_t max_items) const {
 LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan, const bool allow_drained) noexcept {
     try {
         std::lock_guard lock(mutex_);
-        if (!allow_drained && pending_files_.empty() && active_files_.empty()) {
+        if (!allow_drained && pending_files_.empty() && active_files_.empty() &&
+            parked_files_.empty()) {
             return LivePlanAppendResult::Drained;
         }
         if (normalized_path_key(plan.destination_root) != normalized_path_key(destination_root_)) {
@@ -119,6 +122,15 @@ LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan, const bool allow_draine
             const auto available_ids =
                 std::numeric_limits<std::uint64_t>::max() - next_file_id_ + 1;
             if (plan.files.size() > available_ids) return LivePlanAppendResult::InternalFailure;
+        }
+
+        std::uint64_t incoming_weight = 0;
+        for (const auto& file : plan.files) {
+            const auto weight = item_resolution_weight(file.size);
+            if (weight > std::numeric_limits<std::uint64_t>::max() - counters_.resolution_total - incoming_weight) {
+                return LivePlanAppendResult::SizeOverflow;
+            }
+            incoming_weight += weight;
         }
 
         std::vector<std::wstring> incoming_keys;
@@ -165,6 +177,7 @@ LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan, const bool allow_draine
         next_file_id_ = assigned_id;
         total_bytes_ += plan.total_bytes;
         total_files_ += static_cast<std::uint64_t>(plan.files.size());
+        counters_.resolution_total += incoming_weight;
         largest_file_bytes_ = std::max(largest_file_bytes_, plan.largest_file_bytes);
         return LivePlanAppendResult::Appended;
     } catch (...) {
@@ -316,11 +329,13 @@ std::size_t LiveCopyPlan::remove_pending_files(const std::vector<std::uint64_t>&
         std::vector<RemovalInfo> removals;
         removals.reserve(std::min(selected.size(), pending_files_.size()));
         std::uint64_t removed_bytes = 0;
+        std::uint64_t removed_weight = 0;
         bool removed_largest = false;
         for (const auto& file : pending_files_) {
             if (!selected.contains(file.id)) continue;
             removals.push_back({file.size, normalized_path_key(file.destination)});
             removed_bytes += file.size;
+            removed_weight += item_resolution_weight(file.size);
             removed_largest = removed_largest || file.size == largest_file_bytes_;
         }
         if (removals.empty()) return 0;
@@ -331,6 +346,11 @@ std::size_t LiveCopyPlan::remove_pending_files(const std::vector<std::uint64_t>&
         total_bytes_ -= std::min(total_bytes_, removed_bytes);
         total_files_ -= std::min<std::uint64_t>(
             total_files_, static_cast<std::uint64_t>(removals.size()));
+        // Removing a Pending item is a plan edit, not a resolution.
+        counters_.resolution_total -= std::min(counters_.resolution_total, removed_weight);
+        for (const auto& file : pending_files_) {
+            if (selected.contains(file.id)) drop_in_flight_locked(file.id);
+        }
         std::erase_if(pending_files_, [&](const PlannedFile& file) {
             return selected.contains(file.id);
         });
@@ -349,6 +369,7 @@ std::optional<PlannedFile> LiveCopyPlan::acquire_next() noexcept {
     PlannedFile file = std::move(pending_files_.front());
     pending_files_.pop_front();
     active_files_.push_back(file);
+    attempt_bytes_.erase(file.id);
     return file;
 }
 
@@ -359,6 +380,17 @@ void LiveCopyPlan::complete_active(const std::uint64_t file_id) noexcept {
     const auto remaining_bytes = total_bytes_ > completed_bytes_ ? total_bytes_ - completed_bytes_ : 0;
     completed_bytes_ += std::min(it->size, remaining_bytes);
     if (completed_files_ < total_files_) ++completed_files_;
+    // Legacy completion is the Succeeded fast path of the per-item contract.
+    const auto weight = item_resolution_weight(it->size);
+    std::uint64_t high_water = 0;
+    if (const auto hw = high_water_.find(file_id); hw != high_water_.end()) {
+        high_water = hw->second;
+        high_water_.erase(hw);
+    }
+    counters_.resolution_weight += weight - std::min(weight, high_water);
+    counters_.bytes_succeeded += it->size;
+    ++outcomes_.succeeded;
+    attempt_bytes_.erase(file_id);
     active_files_.erase(it);
 }
 
@@ -382,6 +414,11 @@ bool LiveCopyPlan::skip_active(const std::uint64_t file_id) noexcept {
         const auto destination_key = normalized_path_key(it->destination);
 
         reserved_destination_keys_.erase(destination_key);
+        // Legacy skip removes the item from the plan (pre-contract semantics).
+        // It is retired when the executor migrates to resolve_active(Skipped).
+        counters_.resolution_total -= std::min(
+            counters_.resolution_total, item_resolution_weight(skipped_size));
+        drop_in_flight_locked(file_id);
         total_bytes_ -= std::min(total_bytes_, skipped_size);
         if (total_files_ != 0) {
             --total_files_;
@@ -419,6 +456,209 @@ std::uint64_t LiveCopyPlan::remaining_files() const noexcept {
 std::uint64_t LiveCopyPlan::largest_file_bytes() const noexcept {
     std::lock_guard lock(mutex_);
     return largest_file_bytes_;
+}
+
+std::vector<LiveCopyPlan::ParkedFile>::iterator LiveCopyPlan::find_parked(
+    const std::uint64_t file_id) noexcept {
+    return std::find_if(parked_files_.begin(), parked_files_.end(), [file_id](const ParkedFile& parked) {
+        return parked.file.id == file_id;
+    });
+}
+
+void LiveCopyPlan::drop_in_flight_locked(const std::uint64_t file_id) noexcept {
+    if (const auto hw = high_water_.find(file_id); hw != high_water_.end()) {
+        counters_.resolution_weight -= std::min(counters_.resolution_weight, hw->second);
+        high_water_.erase(hw);
+    }
+    attempt_bytes_.erase(file_id);
+}
+
+// Preconditions: mutex_ held; `file` is still in its source container. May
+// throw only before any state is changed (allocation of the retained result or
+// of the destination key), so callers can return false with the plan intact.
+bool LiveCopyPlan::resolve_locked(
+    const PlannedFile& file,
+    const ItemOutcome outcome,
+    const std::int32_t hresult,
+    const bool destination_preexisted) {
+    const bool releases_destination =
+        outcome == ItemOutcome::Skipped || outcome == ItemOutcome::Failed;
+    std::wstring destination_key;
+    if (releases_destination) destination_key = normalized_path_key(file.destination);
+    if (outcome != ItemOutcome::Succeeded) {
+        retained_results_.push_back(ItemResult{
+            file.id, outcome, hresult, file.source, file.destination, destination_preexisted});
+    }
+
+    const auto weight = item_resolution_weight(file.size);
+    std::uint64_t high_water = 0;
+    if (const auto hw = high_water_.find(file.id); hw != high_water_.end()) {
+        high_water = hw->second;
+        high_water_.erase(hw);
+    }
+    counters_.resolution_weight += weight - std::min(weight, high_water);
+    attempt_bytes_.erase(file.id);
+    if (is_successful_transfer(outcome)) counters_.bytes_succeeded += file.size;
+    if (releases_destination) reserved_destination_keys_.erase(destination_key);
+
+    switch (outcome) {
+    case ItemOutcome::Succeeded: ++outcomes_.succeeded; break;
+    case ItemOutcome::Skipped: ++outcomes_.skipped; break;
+    case ItemOutcome::Failed: ++outcomes_.failed; break;
+    case ItemOutcome::CopiedSourceRetained: ++outcomes_.copied_source_retained; break;
+    }
+
+    // Keep the legacy accessors coherent while both APIs coexist.
+    if (is_successful_transfer(outcome)) {
+        const auto remaining_bytes = total_bytes_ > completed_bytes_ ? total_bytes_ - completed_bytes_ : 0;
+        completed_bytes_ += std::min(file.size, remaining_bytes);
+        if (completed_files_ < total_files_) ++completed_files_;
+    }
+    return true;
+}
+
+bool LiveCopyPlan::park_active(
+    const std::uint64_t file_id,
+    const std::int32_t hresult,
+    const bool destination_preexisted) noexcept {
+    static_assert(is_valid_item_transition(ItemState::Active, ItemState::Parked));
+    try {
+        std::lock_guard lock(mutex_);
+        auto it = find_active(file_id);
+        if (it == active_files_.end()) return false;
+        ParkedFile parked{*it, ItemIncident{
+            it->id, hresult, it->source, it->destination, destination_preexisted}};
+        parked_files_.push_back(std::move(parked));
+        active_files_.erase(it);
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
+bool LiveCopyPlan::unpark(const std::uint64_t file_id) noexcept {
+    static_assert(is_valid_item_transition(ItemState::Parked, ItemState::Pending));
+    try {
+        std::lock_guard lock(mutex_);
+        auto it = find_parked(file_id);
+        if (it == parked_files_.end()) return false;
+        pending_files_.push_front(it->file);
+        parked_files_.erase(it);
+        // The retry is a new attempt; the high-water mark is kept so the
+        // visible progress does not move backwards.
+        attempt_bytes_.erase(file_id);
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
+bool LiveCopyPlan::resolve_pending(
+    const std::uint64_t file_id,
+    const ItemOutcome outcome,
+    const std::int32_t hresult,
+    const bool destination_preexisted) noexcept {
+    static_assert(is_valid_item_transition(ItemState::Pending, ItemState::Terminal));
+    try {
+        std::lock_guard lock(mutex_);
+        auto it = find_pending(file_id);
+        if (it == pending_files_.end()) return false;
+        if (!resolve_locked(*it, outcome, hresult, destination_preexisted)) return false;
+        pending_files_.erase(it);
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
+bool LiveCopyPlan::resolve_active(
+    const std::uint64_t file_id,
+    const ItemOutcome outcome,
+    const std::int32_t hresult,
+    const bool destination_preexisted) noexcept {
+    static_assert(is_valid_item_transition(ItemState::Active, ItemState::Terminal));
+    try {
+        std::lock_guard lock(mutex_);
+        auto it = find_active(file_id);
+        if (it == active_files_.end()) return false;
+        if (!resolve_locked(*it, outcome, hresult, destination_preexisted)) return false;
+        active_files_.erase(it);
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
+bool LiveCopyPlan::resolve_parked(
+    const std::uint64_t file_id,
+    const ItemOutcome outcome,
+    const std::int32_t hresult,
+    const bool destination_preexisted) noexcept {
+    static_assert(is_valid_item_transition(ItemState::Parked, ItemState::Terminal));
+    try {
+        std::lock_guard lock(mutex_);
+        auto it = find_parked(file_id);
+        if (it == parked_files_.end()) return false;
+        if (!resolve_locked(it->file, outcome, hresult, destination_preexisted)) return false;
+        parked_files_.erase(it);
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
+void LiveCopyPlan::record_attempt_bytes(
+    const std::uint64_t file_id,
+    const std::uint64_t cumulative_attempt_bytes) noexcept {
+    try {
+        std::lock_guard lock(mutex_);
+        auto it = find_active(file_id);
+        if (it == active_files_.end()) return;
+
+        auto& last = attempt_bytes_[file_id];
+        auto& high_water = high_water_[file_id];
+        // A smaller cumulative value means CopyFile2 restarted the attempt.
+        const auto delta = cumulative_attempt_bytes >= last
+            ? cumulative_attempt_bytes - last
+            : cumulative_attempt_bytes;
+        last = cumulative_attempt_bytes;
+        counters_.bytes_written_physical += delta;
+
+        const auto next = resolution_high_water(high_water, it->size, cumulative_attempt_bytes, false);
+        counters_.resolution_weight += next - high_water;
+        high_water = next;
+    } catch (...) {
+    }
+}
+
+LiveResolutionView LiveCopyPlan::resolution_view() const noexcept {
+    std::lock_guard lock(mutex_);
+    LiveResolutionView view{};
+    view.counters = counters_;
+    view.outcomes = outcomes_;
+    view.pending_files = static_cast<std::uint64_t>(pending_files_.size());
+    view.active_files = static_cast<std::uint64_t>(active_files_.size());
+    view.parked_files = static_cast<std::uint64_t>(parked_files_.size());
+    return view;
+}
+
+std::vector<ItemResult> LiveCopyPlan::retained_results() const {
+    std::lock_guard lock(mutex_);
+    return retained_results_;
+}
+
+std::vector<ItemIncident> LiveCopyPlan::parked_incidents() const {
+    std::lock_guard lock(mutex_);
+    std::vector<ItemIncident> incidents;
+    incidents.reserve(parked_files_.size());
+    for (const auto& parked : parked_files_) incidents.push_back(parked.incident);
+    return incidents;
+}
+
+std::uint64_t LiveCopyPlan::unresolved_files() const noexcept {
+    std::lock_guard lock(mutex_);
+    return static_cast<std::uint64_t>(
+        pending_files_.size() + active_files_.size() + parked_files_.size());
 }
 
 } // namespace velocitycopy
