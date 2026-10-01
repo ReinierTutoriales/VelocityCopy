@@ -26,11 +26,13 @@ std::optional<UiSnapshot> ProgressPresenter::observe(
         has_sample_ = true;
         last_sample_ms_ = now_ms;
         last_emit_ms_ = now_ms;
-        last_sample_bytes_ = progress.transferred_bytes;
+        last_sample_bytes_ = progress.bytes_written_physical;
     } else if (now_ms > last_sample_ms_) {
         const auto elapsed_ms = now_ms - last_sample_ms_;
-        const auto delta_bytes = progress.transferred_bytes >= last_sample_bytes_
-            ? progress.transferred_bytes - last_sample_bytes_
+        // Speed is physical I/O only. Logical progress jumps when an item is
+        // skipped or fails and must not register as throughput.
+        const auto delta_bytes = progress.bytes_written_physical >= last_sample_bytes_
+            ? progress.bytes_written_physical - last_sample_bytes_
             : 0;
         const double instant_rate = elapsed_ms == 0
             ? 0.0
@@ -44,7 +46,7 @@ std::optional<UiSnapshot> ProgressPresenter::observe(
         }
 
         last_sample_ms_ = now_ms;
-        last_sample_bytes_ = progress.transferred_bytes;
+        last_sample_bytes_ = progress.bytes_written_physical;
     }
 
     const bool finished = progress.total_bytes == 0

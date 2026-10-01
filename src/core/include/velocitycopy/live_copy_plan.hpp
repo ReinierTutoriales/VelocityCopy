@@ -138,6 +138,11 @@ public:
     [[nodiscard]] bool resolve_active(
         std::uint64_t file_id, ItemOutcome outcome, std::int32_t hresult,
         bool destination_preexisted) noexcept;
+    // Resolves every Pending item whose destination is inside `directory` as
+    // Failed with `hresult` (e.g. the directory could not be created). Returns
+    // the number of items resolved.
+    [[nodiscard]] std::size_t fail_pending_under(
+        const std::filesystem::path& directory, std::int32_t hresult) noexcept;
     [[nodiscard]] bool resolve_parked(
         std::uint64_t file_id, ItemOutcome outcome, std::int32_t hresult,
         bool destination_preexisted) noexcept;

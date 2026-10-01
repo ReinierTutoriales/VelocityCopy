@@ -607,6 +607,37 @@ bool LiveCopyPlan::resolve_parked(
     }
 }
 
+std::size_t LiveCopyPlan::fail_pending_under(
+    const std::filesystem::path& directory,
+    const std::int32_t hresult) noexcept {
+    try {
+        auto prefix = normalized_path_key(directory);
+        if (prefix.empty()) return 0;
+        if (prefix.back() != L'\\' && prefix.back() != L'/') prefix.push_back(L'\\');
+        const auto alternate = [&] {
+            auto value = prefix;
+            value.back() = value.back() == L'\\' ? L'/' : L'\\';
+            return value;
+        }();
+
+        std::lock_guard lock(mutex_);
+        std::size_t resolved = 0;
+        for (auto it = pending_files_.begin(); it != pending_files_.end();) {
+            const auto key = normalized_path_key(it->destination);
+            if (!key.starts_with(prefix) && !key.starts_with(alternate)) {
+                ++it;
+                continue;
+            }
+            if (!resolve_locked(*it, ItemOutcome::Failed, hresult, false)) return resolved;
+            it = pending_files_.erase(it);
+            ++resolved;
+        }
+        return resolved;
+    } catch (...) {
+        return 0;
+    }
+}
+
 void LiveCopyPlan::record_attempt_bytes(
     const std::uint64_t file_id,
     const std::uint64_t cumulative_attempt_bytes) noexcept {

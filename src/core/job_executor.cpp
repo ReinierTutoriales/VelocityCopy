@@ -34,6 +34,16 @@ bool is_destination_conflict(const std::int32_t code) noexcept {
            code == static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_ALREADY_EXISTS));
 }
 
+// Destination-wide conditions invalidate every remaining item, so they stay
+// session-fatal instead of becoming one Failed result per file. A future cut
+// may turn them into pause + notice.
+bool is_session_fatal(const std::int32_t code) noexcept {
+    return code == static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_DISK_FULL)) ||
+           code == static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_HANDLE_DISK_FULL)) ||
+           code == static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_DEVICE_NOT_CONNECTED)) ||
+           code == static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_NOT_READY));
+}
+
 std::int32_t remove_moved_source_file(const std::filesystem::path& source) noexcept {
     std::error_code ec;
     const bool removed = std::filesystem::remove(source, ec);
@@ -115,56 +125,6 @@ std::int32_t remove_empty_source_directories(
     }
 }
 
-struct ConcurrentProgressState {
-    mutable std::mutex mutex;
-    std::uint64_t completed_bytes{};
-    std::uint64_t completed_files{};
-    std::unordered_map<std::uint64_t, std::uint64_t> active_bytes;
-
-    ConcurrentProgressState(
-        const std::uint64_t initial_completed_bytes,
-        const std::uint64_t initial_completed_files) noexcept
-        : completed_bytes(initial_completed_bytes), completed_files(initial_completed_files) {}
-
-    void update_active(const PlannedFile& file, const std::uint64_t transferred) {
-        std::lock_guard lock(mutex);
-        auto& current = active_bytes[file.id];
-        current = std::max(current, std::min(transferred, file.size));
-    }
-
-    void complete(const PlannedFile& file) {
-        std::lock_guard lock(mutex);
-        active_bytes.erase(file.id);
-        if (std::numeric_limits<std::uint64_t>::max() - completed_bytes < file.size) {
-            completed_bytes = std::numeric_limits<std::uint64_t>::max();
-        } else {
-            completed_bytes += file.size;
-        }
-        if (completed_files != std::numeric_limits<std::uint64_t>::max()) {
-            ++completed_files;
-        }
-    }
-
-    void release(const std::uint64_t file_id) {
-        std::lock_guard lock(mutex);
-        active_bytes.erase(file_id);
-    }
-
-    [[nodiscard]] std::pair<std::uint64_t, std::uint64_t> totals() const {
-        std::lock_guard lock(mutex);
-        std::uint64_t transferred = completed_bytes;
-        for (const auto& [file_id, partial] : active_bytes) {
-            (void)file_id;
-            if (std::numeric_limits<std::uint64_t>::max() - transferred < partial) {
-                transferred = std::numeric_limits<std::uint64_t>::max();
-                break;
-            }
-            transferred += partial;
-        }
-        return {transferred, completed_files};
-    }
-};
-
 struct ConcurrentResultState {
     mutable std::mutex mutex;
     std::int32_t first_error{S_OK};
@@ -218,10 +178,12 @@ WorkloadProfile workload_from_plan(const CopyPlan& plan) noexcept {
 }
 
 WorkloadProfile workload_from_live_plan(const LiveCopyPlan& plan) noexcept {
-    const auto total_bytes = plan.total_bytes();
-    const auto completed_bytes = plan.completed_bytes();
+    const auto view = plan.resolution_view();
+    const auto& counters = view.counters;
     return {
-        completed_bytes < total_bytes ? total_bytes - completed_bytes : 0,
+        counters.resolution_weight < counters.resolution_total
+            ? counters.resolution_total - counters.resolution_weight
+            : 0,
         plan.remaining_files(),
         plan.largest_file_bytes(),
     };
@@ -355,16 +317,23 @@ JobResult JobExecutor::execute(
     const JobExecutionOptions& options,
     const JobProgressCallback& progress) const noexcept {
     try {
+        auto finish = [&plan](JobResult result) noexcept {
+            result.outcomes = plan.resolution_view().outcomes;
+            return result;
+        };
+
         const auto directory_batch = plan.pending_directories();
         for (const auto& directory : directory_batch.directories) {
             std::error_code ec;
             std::filesystem::create_directories(directory.destination, ec);
             if (ec) {
-                return {
-                    false,
-                    false,
-                    static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value())),
-                };
+                const auto code = static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
+                if (is_session_fatal(code)) {
+                    return finish({false, false, code});
+                }
+                // A directory that cannot be created fails only the items that
+                // depend on it; the rest of the plan continues.
+                (void)plan.fail_pending_under(directory.destination, code);
             }
         }
         plan.mark_directories_materialized(directory_batch.through_index);
@@ -374,17 +343,16 @@ JobResult JobExecutor::execute(
             if (plan.operation() == FileOperation::Move) {
                 const auto cleanup = remove_empty_source_directories(plan.source_roots());
                 if (cleanup != S_OK) {
-                    return {false, false, cleanup};
+                    return finish({false, false, cleanup});
                 }
             }
-            return {true, false, S_OK};
+            return finish({true, false, S_OK});
         }
 
         const auto worker_count = std::clamp<std::uint32_t>(
             options.worker_count,
             1,
             static_cast<std::uint32_t>(std::min<std::uint64_t>(remaining_files, kMaxCopyWorkers)));
-        ConcurrentProgressState progress_state{plan.completed_bytes(), plan.completed_files()};
         ConcurrentResultState result_state;
         std::mutex callback_mutex;
         std::vector<JobResult> worker_results(worker_count, {true, false, S_OK, false});
@@ -396,12 +364,17 @@ JobResult JobExecutor::execute(
                 return true;
             }
             std::lock_guard callback_lock(callback_mutex);
-            const auto [transferred, completed] = progress_state.totals();
+            // Single source of truth: the plan's per-item resolution state.
+            const auto view = plan.resolution_view();
+            const auto& outcomes = view.outcomes;
+            const auto resolved_files = outcomes.succeeded + outcomes.skipped +
+                outcomes.failed + outcomes.copied_source_retained;
             JobProgress aggregate{};
-            aggregate.total_bytes = plan.total_bytes();
-            aggregate.transferred_bytes = std::min(transferred, aggregate.total_bytes);
-            aggregate.total_files = plan.total_files();
-            aggregate.completed_files = std::min(completed, aggregate.total_files);
+            aggregate.total_bytes = view.counters.resolution_total;
+            aggregate.transferred_bytes = std::min(view.counters.resolution_weight, aggregate.total_bytes);
+            aggregate.bytes_written_physical = view.counters.bytes_written_physical;
+            aggregate.total_files = resolved_files + view.unresolved_files();
+            aggregate.completed_files = resolved_files;
             aggregate.current_file_id = active ? file.id : 0;
             aggregate.current_file_skippable = active && skippable;
             aggregate.current_source = file.source;
@@ -415,6 +388,8 @@ JobResult JobExecutor::execute(
 
         for (std::uint32_t worker_index = 0; worker_index < worker_count; ++worker_index) {
             workers.emplace_back([&, worker_index] {
+                std::uint64_t held_file_id = 0;
+                for (;;) {
                 try {
                     for (;;) {
                         auto directive = control.directive();
@@ -441,6 +416,7 @@ JobResult JobExecutor::execute(
                             return;
                         }
                         const auto file_id = file->id;
+                        held_file_id = file_id;
 
                         directive = control.directive();
                         if (directive == ExecutionDirective::Cancel || directive == ExecutionDirective::Stop) {
@@ -476,8 +452,8 @@ JobResult JobExecutor::execute(
                         if (!skip_allowed) {
                             (void)control.consume_skip(file_id);
                         } else if (control.consume_skip(file_id)) {
-                            progress_state.release(file_id);
-                            if (!plan.skip_active(file_id)) {
+                            
+                            if (!plan.resolve_active(file_id, ItemOutcome::Skipped, S_OK, false)) {
                                 result_state.record_error(static_cast<std::int32_t>(E_FAIL));
                                 control.request_cancel();
                                 worker_results[worker_index] = {
@@ -502,6 +478,7 @@ JobResult JobExecutor::execute(
 
                         bool resume_from_pause = false;
                         bool skipped = false;
+                        bool failed = false;
 
                         for (;;) {
                             bool skip_requested = false;
@@ -519,7 +496,7 @@ JobResult JobExecutor::execute(
                                     options.suggested_buffer_bytes,
                                 },
                                 [&](const CopyProgress& file_progress) {
-                                    progress_state.update_active(*file, file_progress.transferred_bytes);
+                                    plan.record_attempt_bytes(file_id, file_progress.transferred_bytes);
                                     if (skip_allowed && control.consume_skip(file_id)) {
                                         skip_requested = true;
                                         return CopyDecision::Skip;
@@ -544,9 +521,9 @@ JobResult JobExecutor::execute(
                             }
 
                             if (skip_requested) {
-                                progress_state.release(file_id);
+                                
                                 remove_partial_destination(file->destination);
-                                if (!plan.skip_active(file_id)) {
+                                if (!plan.resolve_active(file_id, ItemOutcome::Skipped, S_OK, false)) {
                                     result_state.record_error(static_cast<std::int32_t>(E_FAIL));
                                     control.request_cancel();
                                     worker_results[worker_index] = {
@@ -565,7 +542,7 @@ JobResult JobExecutor::execute(
                                 static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_PAUSED))) {
                                 const auto next = control.wait_while_paused();
                                 if (next == ExecutionDirective::Cancel) {
-                                    progress_state.release(file_id);
+                                    
                                     if (skip_allowed) {
                                         remove_partial_destination(file->destination);
                                     }
@@ -579,7 +556,7 @@ JobResult JobExecutor::execute(
                                     return;
                                 }
                                 if (next == ExecutionDirective::Stop) {
-                                    progress_state.release(file_id);
+                                    
                                     if (skip_allowed) {
                                         remove_partial_destination(file->destination);
                                     }
@@ -594,7 +571,7 @@ JobResult JobExecutor::execute(
                             const bool aborted = result.native_code ==
                                 static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED));
                             if (aborted && control.directive() == ExecutionDirective::Stop) {
-                                progress_state.release(file_id);
+                                
                                 if (skip_allowed) {
                                     remove_partial_destination(file->destination);
                                 }
@@ -603,15 +580,23 @@ JobResult JobExecutor::execute(
                                 return;
                             }
 
-                            progress_state.release(file_id);
+                            
                             const bool cancelled = aborted;
-                            if (cancelled && skip_allowed) {
-                                remove_partial_destination(file->destination);
+                            if (!cancelled && !is_session_fatal(result.native_code) &&
+                                !is_destination_conflict(result.native_code)) {
+                                if (skip_allowed) remove_partial_destination(file->destination);
+                                if (!plan.resolve_active(file_id, ItemOutcome::Failed, result.native_code, !skip_allowed)) {
+                                    result_state.record_error(static_cast<std::int32_t>(E_FAIL));
+                                    control.request_cancel();
+                                    worker_results[worker_index] = {false, false, static_cast<std::int32_t>(E_FAIL), false};
+                                    return;
+                                }
+                                failed = true;
+                                break;
                             }
+                            if (cancelled && skip_allowed) remove_partial_destination(file->destination);
                             plan.release_active(file_id);
-                            if (!cancelled) {
-                                result_state.record_error(result.native_code, &*file);
-                            }
+                            if (!cancelled) result_state.record_error(result.native_code, &*file);
                             control.request_cancel();
                             worker_results[worker_index] = {
                                 false,
@@ -622,7 +607,7 @@ JobResult JobExecutor::execute(
                             return;
                         }
 
-                        if (skipped) {
+                        if (skipped || failed) {
                             if (!emit_progress(*file, false, false)) {
                                 worker_results[worker_index] = {
                                     false,
@@ -638,22 +623,32 @@ JobResult JobExecutor::execute(
                         if (plan.operation() == FileOperation::Move) {
                             const auto remove_source = remove_moved_source_file(file->source);
                             if (remove_source != S_OK) {
-                                progress_state.release(file_id);
-                                plan.release_active(file_id);
-                                result_state.record_error(remove_source, &*file);
-                                control.request_cancel();
-                                worker_results[worker_index] = {
-                                    false,
-                                    false,
-                                    remove_source,
-                                    false,
-                                };
-                                return;
+                                if (!plan.resolve_active(
+                                        file_id, ItemOutcome::CopiedSourceRetained, remove_source, !skip_allowed)) {
+                                    result_state.record_error(static_cast<std::int32_t>(E_FAIL));
+                                    control.request_cancel();
+                                    worker_results[worker_index] = {
+                                        false, false, static_cast<std::int32_t>(E_FAIL), false,
+                                    };
+                                    return;
+                                }
+                                if (!emit_progress(*file, false, false)) {
+                                    worker_results[worker_index] = {
+                                        false, true,
+                                        static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED)), false,
+                                    };
+                                    return;
+                                }
+                                continue;
                             }
                         }
 
-                        progress_state.complete(*file);
-                        plan.complete_active(file_id);
+                        if (!plan.resolve_active(file_id, ItemOutcome::Succeeded, S_OK, !skip_allowed)) {
+                            result_state.record_error(static_cast<std::int32_t>(E_FAIL));
+                            control.request_cancel();
+                            worker_results[worker_index] = {false, false, static_cast<std::int32_t>(E_FAIL), false};
+                            return;
+                        }
                         if (!emit_progress(*file, false, false)) {
                             worker_results[worker_index] = {
                                 false,
@@ -678,9 +673,15 @@ JobResult JobExecutor::execute(
                     const auto code = error.code().value();
                     const auto native = static_cast<std::int32_t>(
                         HRESULT_FROM_WIN32(code == 0 ? ERROR_INVALID_DATA : code));
+                    if (!is_session_fatal(native) && held_file_id != 0 &&
+                        plan.resolve_active(held_file_id, ItemOutcome::Failed, native, false)) {
+                        held_file_id = 0;
+                        continue;
+                    }
                     result_state.record_error(native);
                     control.request_cancel();
                     worker_results[worker_index] = {false, false, native, false};
+                    return;
                 } catch (...) {
                     result_state.record_error(static_cast<std::int32_t>(E_FAIL));
                     control.request_cancel();
@@ -690,6 +691,8 @@ JobResult JobExecutor::execute(
                         static_cast<std::int32_t>(E_FAIL),
                         false,
                     };
+                    return;
+                }
                 }
             });
         }
@@ -697,25 +700,25 @@ JobResult JobExecutor::execute(
         workers.clear();
 
         if (result_state.error() != S_OK) {
-            return result_state.failure_result();
+            return finish(result_state.failure_result());
         }
         for (const auto& worker_result : worker_results) {
             if (worker_result.cancelled) {
-                return worker_result;
+                return finish(worker_result);
             }
         }
         for (const auto& worker_result : worker_results) {
             if (worker_result.stopped) {
-                return worker_result;
+                return finish(worker_result);
             }
         }
         if (plan.operation() == FileOperation::Move) {
             const auto cleanup = remove_empty_source_directories(plan.source_roots());
             if (cleanup != S_OK) {
-                return {false, false, cleanup, false};
+                return finish({false, false, cleanup, false});
             }
         }
-        return {true, false, S_OK, false};
+        return finish({true, false, S_OK, false});
     } catch (const std::filesystem::filesystem_error& error) {
         const auto code = error.code().value();
         return {

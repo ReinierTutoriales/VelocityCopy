@@ -15,8 +15,14 @@
 namespace velocitycopy {
 
 struct JobProgress {
+    // Logical progress (per-item resolution contract): total_bytes is the
+    // resolution total and transferred_bytes the resolved weight. Skipped and
+    // Failed items count as resolved; their bytes were not copied.
     std::uint64_t total_bytes{};
     std::uint64_t transferred_bytes{};
+    // Physical I/O actually written, including partial and retried attempts.
+    // Speed and ETA derive from this, never from the logical progress.
+    std::uint64_t bytes_written_physical{};
     std::uint64_t total_files{};
     std::uint64_t completed_files{};
     std::uint64_t current_file_id{};
@@ -41,6 +47,10 @@ struct JobResult {
     std::uint64_t conflict_file_id{};
     std::filesystem::path conflict_source;
     std::filesystem::path conflict_destination;
+    // Per-item outcomes of the session. success means no unresolved items and
+    // no session-fatal error; outcomes.failed/skipped distinguish a clean
+    // finish from a finish with errors.
+    ItemOutcomeCounts outcomes{};
 };
 
 enum class ConflictPolicy : std::uint8_t {
