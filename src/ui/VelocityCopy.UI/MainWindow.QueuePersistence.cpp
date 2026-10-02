@@ -359,12 +359,12 @@ fire_and_forget MainWindow::LoadQueueAsync() {
 bool MainWindow::StartCopyPlan(
     velocitycopy::CopyPlan plan,
     std::vector<velocitycopy::SourceRemovalRecovery> source_removals) {
-    ResetTransferSurface();
-    // Loaded/recovered plans bypass routing, so never inherit the previous session's storage identity.
-    active_destination_key_ = {};
-    active_source_key_ = {};
     if (plan.destination_root.empty() ||
         (plan.files.empty() && plan.directories.empty() && source_removals.empty())) {
+        ResetTransferSurface();
+        // Loaded/recovered plans bypass routing, so never inherit the previous session's storage identity.
+        active_destination_key_ = {};
+        active_source_key_ = {};
         StartNextQueuedSession();
         RefreshQueueCommandState();
         return false;
@@ -379,6 +379,11 @@ bool MainWindow::StartCopyPlan(
             return false;
         }
     }
+
+    ResetTransferSurface();
+    // Loaded/recovered plans bypass routing, so never inherit the previous session's storage identity.
+    active_destination_key_ = {};
+    active_source_key_ = {};
 
     active_destination_ = live->destination_root();
     active_operation_ = live->operation();

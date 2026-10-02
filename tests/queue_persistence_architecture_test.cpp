@@ -166,5 +166,17 @@ int main() {
         return fail(16, "recovery checkpoint must survive until live state adoption succeeds");
     }
 
+    const auto start_copy = persistence.find("bool MainWindow::StartCopyPlan(");
+    const auto restore = persistence.find("restore_parked_source_removal", start_copy);
+    const auto reset = persistence.find("ResetTransferSurface()", restore);
+    const auto clear_destination_key = persistence.find("active_destination_key_ = {}", restore);
+    const auto clear_source_key = persistence.find("active_source_key_ = {}", restore);
+    if (start_copy == std::string::npos || restore == std::string::npos ||
+        reset == std::string::npos || clear_destination_key == std::string::npos ||
+        clear_source_key == std::string::npos ||
+        reset < restore || clear_destination_key < restore || clear_source_key < restore) {
+        return fail(17, "StartCopyPlan must validate restored recovery before mutating the active surface");
+    }
+
     return 0;
 }
