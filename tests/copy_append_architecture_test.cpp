@@ -273,7 +273,7 @@ int main() {
         if (contains(source, "resume_requested_") || contains(source, "conflict_resume_intent_"))
             return fail(37, "retired resume_requested_/conflict_resume_intent_ fields must not return");
     }
-    if (!contains(header, "enum class InterruptedSessionState : std::uint8_t { None, Stopped, Conflict };") ||
+    if (!contains(header, "enum class InterruptedSessionState : std::uint8_t { None, Stopped, Conflict, Decision };") ||
         count_occurrences(header, "InterruptedSessionState interrupted_session_{InterruptedSessionState::None};") != 1 ||
         !contains(header, "bool stop_requested_{};")) {
         return fail(36, "interrupted session must be one enum field; stop_requested_ stays a separate transition flag");
@@ -313,6 +313,25 @@ int main() {
     for (const char* entry : {"interrupted_session_ = InterruptedSessionState::Stopped;\n        pending_resume_ = {};",
                               "interrupted_session_ = InterruptedSessionState::Conflict;\n        pending_resume_ = {};"})
         if (!contains(execution, entry)) return fail(37, "entering an interrupted state must clear pending resume");
+
+    // Contract 38: both Decision outcomes that may leave executable work use
+    // one launcher. Skip-all must account for concurrent append planning before
+    // finalizing, and close the gate only after the session is truly drained.
+    const auto resume_parked = body_of(execution, "void MainWindow::ResumeParkedFailures()");
+    const auto resolve_parked = body_of(execution, "void MainWindow::ResolveParkedFailures()");
+    const auto start_decision = body_of(execution, "void MainWindow::StartDecisionSession()");
+    if (resume_parked.empty() || resolve_parked.empty() || start_decision.empty() ||
+        !contains(resume_parked, "StartDecisionSession();") ||
+        !contains(resolve_parked, "planning_count != 0") ||
+        !contains(resolve_parked, "remaining_files() != 0") ||
+        !contains(resolve_parked, "has_pending_directories()") ||
+        !contains(resolve_parked, "StartDecisionSession();") ||
+        !contains(resolve_parked, "append_gate_->accepting = false") ||
+        count_occurrences(start_decision, "RunLivePlanSession(") != 1 ||
+        contains(resume_parked, "RunLivePlanSession(") ||
+        contains(resolve_parked, "RunLivePlanSession(")) {
+        return fail(38, "Decision retry/skip paths must preserve appended work and share one session launcher");
+    }
 
     const auto reset_item = body_of(execution, "void MainWindow::ResetCurrentItemState() noexcept");
     const auto reset_interrupted = body_of(execution, "void MainWindow::ResetInterruptedSessionState() noexcept");
