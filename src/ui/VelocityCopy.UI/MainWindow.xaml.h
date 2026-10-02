@@ -51,6 +51,7 @@ struct MainWindow : MainWindowT<MainWindow> {
         const std::wstring& secondary_label,
         bool include_cancel,
         const std::wstring& cancel_label = {},
+        const std::wstring& verification_label = {},
         bool* remember_choice = nullptr) noexcept;
 
     void OnDragEnter(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);

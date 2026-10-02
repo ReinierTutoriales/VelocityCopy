@@ -15,22 +15,6 @@ using namespace Microsoft::UI::Xaml;
 using namespace Microsoft::UI::Xaml::Controls;
 
 namespace winrt::VelocityCopyUI::implementation {
-namespace {
-
-std::wstring localized_or(
-    Microsoft::Windows::ApplicationModel::Resources::ResourceLoader const& loader,
-    wchar_t const* key,
-    wchar_t const* fallback) {
-    try {
-        const auto value = loader.GetString(key);
-        return value.empty() ? std::wstring(fallback) : std::wstring(value.c_str());
-    } catch (...) {
-        return std::wstring(fallback);
-    }
-}
-
-} // namespace
-
 MainWindow::NativeDialogChoice MainWindow::ShowNativeDecisionDialog(
     HWND owner,
     const std::wstring& title,
@@ -39,51 +23,17 @@ MainWindow::NativeDialogChoice MainWindow::ShowNativeDecisionDialog(
     const std::wstring& secondary_label,
     const bool include_cancel,
     const std::wstring& cancel_label,
+    const std::wstring& verification_label,
     bool* remember_choice) noexcept {
-    std::wstring display_title = title;
-    std::wstring display_message = message;
-    std::wstring display_primary = primary_label;
-    std::wstring display_secondary = secondary_label;
-    std::wstring display_cancel = cancel_label;
-    std::wstring remember_label = L"Remember my choice";
-
-    try {
-        Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-        remember_label = localized_or(loader, L"DialogRememberChoice", L"Remember my choice");
-
-        if (title == L"Destination already in use") {
-            display_title = localized_or(loader, L"RoutingDestinationInUseTitle", L"Destination already in use");
-            display_message = localized_or(
-                loader,
-                L"RoutingDestinationInUseMessage",
-                L"A transfer to this destination is already running. Add these files to it or wait?");
-            display_primary = localized_or(loader, L"RoutingActionAdd", L"Add");
-            display_secondary = localized_or(loader, L"RoutingActionWait", L"Wait");
-        } else if (title == L"Storage device already in use") {
-            display_title = localized_or(loader, L"RoutingStorageInUseTitle", L"Storage device already in use");
-            display_message = localized_or(
-                loader,
-                L"RoutingStorageInUseMessage",
-                L"Another transfer is using the same storage device. Wait or run this transfer in parallel?");
-            display_primary = localized_or(loader, L"RoutingActionWait", L"Wait");
-            display_secondary = localized_or(loader, L"RoutingActionParallel", L"Parallel");
-        }
-
-        if (include_cancel && display_cancel.empty()) {
-            display_cancel = localized_or(loader, L"ActionCancel", L"Cancel");
-        }
-    } catch (...) {
-    }
-
     const auto decision = velocitycopy::ui::show_native_decision(
         velocitycopy::ui::NativeDecisionOptions{
             owner,
-            std::move(display_title),
-            std::move(display_message),
-            std::move(display_primary),
-            std::move(display_secondary),
-            std::move(display_cancel),
-            std::move(remember_label),
+            title,
+            message,
+            primary_label,
+            secondary_label,
+            cancel_label,
+            verification_label,
             include_cancel,
         },
         remember_choice);
@@ -125,9 +75,19 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
 
         // All modal decisions use a separate native top-level dialog owned by
         // VelocityCopy. Never constrain a modal choice to the compact XAML root.
+        const std::wstring apply_to_all_label =
+            loader.GetString(L"ConflictApplyToAll").c_str();
         bool apply_to_all = false;
         const auto choice = ShowNativeDecisionDialog(
-            hwnd_, title, message, replace_label, skip_label, true, cancel_label, &apply_to_all);
+            hwnd_,
+            title,
+            message,
+            replace_label,
+            skip_label,
+            true,
+            cancel_label,
+            apply_to_all_label,
+            &apply_to_all);
 
         if (!conflict_session_ || !live_plan_) co_return;
 

@@ -25,6 +25,7 @@
   <data name="ActionReplace" xml:space="preserve"><value>Reemplazar</value></data>
   <data name="ConflictTitle" xml:space="preserve"><value>El archivo ya existe</value></data>
   <data name="ConflictMessage" xml:space="preserve"><value>Ya existe un archivo con el mismo nombre en el destino. Elige qué hacer con este archivo.</value></data>
+  <data name="ConflictApplyToAll" xml:space="preserve"><value>Aplicar a todos los conflictos restantes</value></data>
   <data name="RoutingDestinationInUseTitle" xml:space="preserve"><value>El destino ya está en uso</value></data>
   <data name="RoutingDestinationInUseMessage" xml:space="preserve"><value>Ya hay una transferencia en curso hacia este destino. ¿Agregar estos archivos a esa transferencia o esperar?</value></data>
   <data name="RoutingStorageInUseTitle" xml:space="preserve"><value>El dispositivo de almacenamiento está en uso</value></data>
