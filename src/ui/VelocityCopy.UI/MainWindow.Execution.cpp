@@ -336,6 +336,10 @@ void MainWindow::PublishLivePlan(std::shared_ptr<velocitycopy::LiveCopyPlan> pla
 }
 
 void MainWindow::OnPauseClick(IInspectable const&, RoutedEventArgs const&) {
+    if (interrupted_session_ == InterruptedSessionState::Decision) {
+        ShowRetryDecisionAsync();
+        return;
+    }
     if (interrupted_session_ == InterruptedSessionState::Stopped) {
         ResumeStoppedCopy();
         return;
@@ -515,6 +519,13 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         active_destination_ = live_plan_->destination_root();
         active_operation_ = live_plan_->operation();
         SetExecutionButtonsConflict();
+        PauseButton().IsEnabled(true);
+        try {
+            Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
+            const auto label = loader.GetString(L"ActionRetryAll");
+            ToolTipService::SetToolTip(PauseButtonHost(), box_value(label));
+            Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), label);
+        } catch (...) {}
         RefreshQueue();
         QueueButton().IsEnabled(live_plan_->remaining_files() != 0 || live_plan_->has_pending_directories());
         SpeedText().Text(L"—");

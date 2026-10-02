@@ -346,6 +346,18 @@ int main() {
         return fail(39, "Decision dismissal must preserve work and source-removal retry must be explicit");
     }
 
+    // Contract 40: dismissing the Decision dialog must leave an in-window
+    // affordance to reopen it; RetrySourceRemoval attempts are advanced only
+    // by the explicit retry execution path.
+    const auto pause_click = body_of(execution, "void MainWindow::OnPauseClick(");
+    if (pause_click.empty() ||
+        !contains(pause_click, "InterruptedSessionState::Decision") ||
+        !contains(pause_click, "ShowRetryDecisionAsync();") ||
+        !contains(execution, "PauseButton().IsEnabled(true);") ||
+        !contains(execution, "ActionRetryAll")) {
+        return fail(40, "Decision dismissal must leave a retry affordance in the transfer window");
+    }
+
     const auto reset_item = body_of(execution, "void MainWindow::ResetCurrentItemState() noexcept");
     const auto reset_interrupted = body_of(execution, "void MainWindow::ResetInterruptedSessionState() noexcept");
     if (reset_item.empty() || !contains(reset_item, "current_file_id_ = 0") ||

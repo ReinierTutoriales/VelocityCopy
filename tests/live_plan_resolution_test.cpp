@@ -170,6 +170,18 @@ void retry_attempt_count_advances_across_unpark() {
     CHECK(incidents[0].attempt_count == 2);
 }
 
+void source_removal_retry_attempt_advances_while_parked() {
+    LiveCopyPlan plan{make_plan()};
+    (void)plan.acquire_next();
+    CHECK(plan.park_active(1, kAccessDenied, true, RecoveryAction::RetrySourceRemoval));
+    auto incidents = plan.parked_incidents();
+    CHECK(incidents.size() == 1 && incidents[0].attempt_count == 1);
+    CHECK(plan.begin_parked_retry(1, RecoveryAction::RetrySourceRemoval));
+    incidents = plan.parked_incidents();
+    CHECK(incidents.size() == 1 && incidents[0].attempt_count == 2);
+    CHECK(!plan.begin_parked_retry(1, RecoveryAction::RetryTransfer));
+}
+
 void pending_can_resolve_terminally_without_becoming_active() {
     LiveCopyPlan plan{make_plan()};
     CHECK(plan.resolve_pending(4, ItemOutcome::Failed, kAccessDenied, false));
@@ -262,6 +274,7 @@ int main() {
     parked_keeps_session_alive_and_is_never_acquired();
     retry_never_moves_visible_progress_backwards();
     retry_attempt_count_advances_across_unpark();
+    source_removal_retry_attempt_advances_while_parked();
     pending_can_resolve_terminally_without_becoming_active();
     removing_pending_is_a_plan_edit();
     invalid_transitions_are_rejected();

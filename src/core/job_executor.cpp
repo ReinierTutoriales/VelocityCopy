@@ -330,6 +330,9 @@ JobResult JobExecutor::execute(
         if (options.retry_source_removals) {
         for (const auto& incident : plan.parked_incidents()) {
             if (incident.recovery_action != RecoveryAction::RetrySourceRemoval) continue;
+            if (!plan.begin_parked_retry(incident.file_id, RecoveryAction::RetrySourceRemoval)) {
+                return finish({false, false, static_cast<std::int32_t>(E_FAIL)});
+            }
             const auto remove_source = remove_moved_source_file(incident.source);
             if (remove_source == S_OK) {
                 if (!plan.resolve_parked(

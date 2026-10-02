@@ -133,6 +133,7 @@ public:
         std::uint64_t file_id, std::int32_t hresult, bool destination_preexisted,
         RecoveryAction recovery_action = RecoveryAction::RetryTransfer) noexcept;
     [[nodiscard]] bool unpark(std::uint64_t file_id) noexcept;
+    [[nodiscard]] bool begin_parked_retry(std::uint64_t file_id, RecoveryAction action) noexcept;
     [[nodiscard]] bool resolve_pending(
         std::uint64_t file_id, ItemOutcome outcome, std::int32_t hresult,
         bool destination_preexisted) noexcept;
