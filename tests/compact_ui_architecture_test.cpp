@@ -211,7 +211,7 @@ int main() {
     }
 
     if (!contains(body_of(execution, "void MainWindow::StartTransfer("), "ResetTransferSurface();") ||
-        !contains(body_of(menu, "void MainWindow::StartCopyPlan("), "ResetTransferSurface();") ||
+        !contains(body_of(menu, "bool MainWindow::StartCopyPlan("), "ResetTransferSurface();") ||
         !contains(window, "void MainWindow::ResetTransferSurface()") ||
         !contains(body_of(window, "void MainWindow::ResetTransferSurface()"), "ErrorBar().IsOpen(false)") ||
         !contains(body_of(window, "void MainWindow::ResetTransferSurface()"), "ErrorBar().Message(L\"\")")) {
