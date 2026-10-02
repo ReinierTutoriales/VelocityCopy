@@ -333,6 +333,19 @@ int main() {
         return fail(38, "Decision retry/skip paths must preserve appended work and share one session launcher");
     }
 
+    // Contract 39: source-removal retries are explicit Decision work, and
+    // dismissing the decision dialog must not cancel or destroy the session.
+    const auto retry_dialog = body_of(execution, "void MainWindow::ShowRetryDecisionAsync()");
+    const auto decision_launcher = body_of(execution, "void MainWindow::StartDecisionSession(");
+    if (retry_dialog.empty() || decision_launcher.empty() ||
+        contains(retry_dialog, "CancelCurrentSession()") ||
+        !contains(resume_parked, "StartDecisionSession(true)") ||
+        !contains(resolve_parked, "StartDecisionSession(false)") ||
+        !contains(decision_launcher, "retry_source_removals") ||
+        !contains(execution, "options.retry_source_removals = retry_source_removals")) {
+        return fail(39, "Decision dismissal must preserve work and source-removal retry must be explicit");
+    }
+
     const auto reset_item = body_of(execution, "void MainWindow::ResetCurrentItemState() noexcept");
     const auto reset_interrupted = body_of(execution, "void MainWindow::ResetInterruptedSessionState() noexcept");
     if (reset_item.empty() || !contains(reset_item, "current_file_id_ = 0") ||

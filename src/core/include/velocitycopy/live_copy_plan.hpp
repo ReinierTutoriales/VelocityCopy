@@ -131,8 +131,7 @@ public:
     // produced.
     [[nodiscard]] bool park_active(
         std::uint64_t file_id, std::int32_t hresult, bool destination_preexisted,
-        RecoveryAction recovery_action = RecoveryAction::RetryTransfer,
-        std::uint32_t attempt_count = 1) noexcept;
+        RecoveryAction recovery_action = RecoveryAction::RetryTransfer) noexcept;
     [[nodiscard]] bool unpark(std::uint64_t file_id) noexcept;
     [[nodiscard]] bool resolve_pending(
         std::uint64_t file_id, ItemOutcome outcome, std::int32_t hresult,
@@ -202,6 +201,7 @@ private:
     std::vector<ItemResult> retained_results_;
     std::unordered_map<std::uint64_t, std::uint64_t> high_water_;
     std::unordered_map<std::uint64_t, std::uint64_t> attempt_bytes_;
+    std::unordered_map<std::uint64_t, std::uint32_t> attempt_counts_;
     TransferCounters counters_{};
     ItemOutcomeCounts outcomes_{};
 };

@@ -77,6 +77,7 @@ int wmain() {
             plan.parked_incidents().size() != 1 ||
             plan.parked_incidents()[0].file_id != 2 ||
             plan.parked_incidents()[0].recovery_action != RecoveryAction::RetryTransfer ||
+            plan.parked_incidents()[0].attempt_count != 1 ||
             !fs::exists(destination / L"a.txt") || fs::exists(destination / L"b.txt") ||
             !fs::exists(destination / L"c.txt") ||
             last_total == 0 || last_transferred >= last_total ||
@@ -108,6 +109,7 @@ int wmain() {
             !results.empty() ||
             plan.parked_incidents().size() != 1 ||
             plan.parked_incidents()[0].recovery_action != RecoveryAction::RetrySourceRemoval ||
+            plan.parked_incidents()[0].attempt_count != 1 ||
             !fs::exists(destination / L"b.txt") || !fs::exists(source / L"b.txt") ||
             fs::exists(source / L"a.txt") || fs::exists(source / L"c.txt") ||
             plan.resolution_view().counters.bytes_succeeded != 8 ||

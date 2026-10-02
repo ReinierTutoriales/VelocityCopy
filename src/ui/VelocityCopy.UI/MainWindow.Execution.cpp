@@ -99,7 +99,8 @@ velocitycopy::JobResult MainWindow::RunLivePlanSession(
     const std::stop_token stop_token,
     const bool publish_plan,
     std::uint64_t replace_file_id,
-    const velocitycopy::ConflictPolicy conflict_policy) {
+    const velocitycopy::ConflictPolicy conflict_policy,
+    const bool retry_source_removals) {
     auto weak = get_weak();
     auto dispatcher = dispatcher_;
 
@@ -113,6 +114,7 @@ velocitycopy::JobResult MainWindow::RunLivePlanSession(
     for (;;) {
         auto options = executor_.recommend_options(*plan);
         options.conflict_policy = conflict_policy;
+        options.retry_source_removals = retry_source_removals;
         if (replace_file_id != 0) {
             options.worker_count = 1;
             options.replace_file_id = replace_file_id;
@@ -713,9 +715,10 @@ void MainWindow::ShowRetryDecisionAsync() {
         if (interrupted_session_ != InterruptedSessionState::Decision || !live_plan_) return;
         if (choice == NativeDialogChoice::Primary) ResumeParkedFailures();
         else if (choice == NativeDialogChoice::Secondary) ResolveParkedFailures();
-        else CancelCurrentSession();
+        // Closing/cancelling the decision dialog is non-destructive. The
+        // parked session remains available for a later decision.
     } catch (...) {
-        if (interrupted_session_ == InterruptedSessionState::Decision) CancelCurrentSession();
+        // Preserve Decision state and all unresolved work.
     }
 }
 
@@ -728,10 +731,10 @@ void MainWindow::ResumeParkedFailures() {
             return;
         }
     }
-    StartDecisionSession();
+    StartDecisionSession(true);
 }
 
-void MainWindow::StartDecisionSession() {
+void MainWindow::StartDecisionSession(const bool retry_source_removals) {
     if (interrupted_session_ != InterruptedSessionState::Decision || !live_plan_) return;
     interrupted_session_ = InterruptedSessionState::None;
     cancel_requested_.store(false, std::memory_order_relaxed);
@@ -745,7 +748,9 @@ void MainWindow::StartDecisionSession() {
     auto weak = get_weak();
     auto dispatcher = dispatcher_;
     copy_thread_ = std::jthread([this, weak, dispatcher, plan, control, gate](std::stop_token token) {
-        const auto result = RunLivePlanSession(plan, control, gate, token, false, 0);
+        const auto result = RunLivePlanSession(
+            plan, control, gate, token, false, 0,
+            velocitycopy::ConflictPolicy::Prompt, retry_source_removals);
         (void)dispatcher.TryEnqueue([weak, result]() {
             if (auto self = weak.get()) self->FinishCopy(result);
         });
@@ -770,7 +775,7 @@ void MainWindow::ResolveParkedFailures() {
         planning = append_gate_->planning_count != 0;
     }
     if (planning || live_plan_->remaining_files() != 0 || live_plan_->has_pending_directories()) {
-        StartDecisionSession();
+        StartDecisionSession(false);
         return;
     }
     if (append_gate_) {
