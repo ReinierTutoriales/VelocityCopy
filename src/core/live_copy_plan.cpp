@@ -520,14 +520,17 @@ bool LiveCopyPlan::resolve_locked(
 bool LiveCopyPlan::park_active(
     const std::uint64_t file_id,
     const std::int32_t hresult,
-    const bool destination_preexisted) noexcept {
+    const bool destination_preexisted,
+    const RecoveryAction recovery_action,
+    const std::uint32_t attempt_count) noexcept {
     static_assert(is_valid_item_transition(ItemState::Active, ItemState::Parked));
     try {
         std::lock_guard lock(mutex_);
         auto it = find_active(file_id);
         if (it == active_files_.end()) return false;
         ParkedFile parked{*it, ItemIncident{
-            it->id, hresult, it->source, it->destination, destination_preexisted}};
+            it->id, hresult, it->source, it->destination, destination_preexisted,
+            recovery_action, attempt_count}};
         parked_files_.push_back(std::move(parked));
         active_files_.erase(it);
         return true;
@@ -541,7 +544,10 @@ bool LiveCopyPlan::unpark(const std::uint64_t file_id) noexcept {
     try {
         std::lock_guard lock(mutex_);
         auto it = find_parked(file_id);
-        if (it == parked_files_.end()) return false;
+        if (it == parked_files_.end() ||
+            it->incident.recovery_action != RecoveryAction::RetryTransfer) {
+            return false;
+        }
         pending_files_.push_front(it->file);
         parked_files_.erase(it);
         // The retry is a new attempt; the high-water mark is kept so the

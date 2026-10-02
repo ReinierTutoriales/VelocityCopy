@@ -334,6 +334,47 @@ int main() {
         }
     }
 
+    // Recovery action is part of the parked item's type contract. A Move whose
+    // copy succeeded but source deletion failed must never be returned to the
+    // transfer queue: retrying it as a normal Move would conflict with its own
+    // already-produced destination.
+    {
+        LiveCopyPlan recovery_plan(make_plan(source, destination));
+        const auto transfer_failure = recovery_plan.acquire_next();
+        const auto source_removal_failure = recovery_plan.acquire_next();
+        if (!transfer_failure || !source_removal_failure ||
+            !recovery_plan.park_active(
+                transfer_failure->id, -1, false, RecoveryAction::RetryTransfer, 2) ||
+            !recovery_plan.park_active(
+                source_removal_failure->id, -2, true, RecoveryAction::RetrySourceRemoval, 1)) {
+            fs::remove_all(root, ec);
+            return 36;
+        }
+
+        const auto incidents = recovery_plan.parked_incidents();
+        if (incidents.size() != 2 ||
+            incidents[0].recovery_action != RecoveryAction::RetryTransfer ||
+            incidents[0].attempt_count != 2 ||
+            incidents[1].recovery_action != RecoveryAction::RetrySourceRemoval ||
+            incidents[1].attempt_count != 1) {
+            fs::remove_all(root, ec);
+            return 37;
+        }
+
+        if (!recovery_plan.unpark(transfer_failure->id) ||
+            recovery_plan.unpark(source_removal_failure->id)) {
+            fs::remove_all(root, ec);
+            return 38;
+        }
+        const auto retry = recovery_plan.acquire_next();
+        if (!retry || retry->id != transfer_failure->id ||
+            recovery_plan.resolution_view().parked_files != 1) {
+            fs::remove_all(root, ec);
+            return 39;
+        }
+        recovery_plan.release_active(retry->id);
+    }
+
     LiveCopyPlan live_plan(make_plan(source, destination));
     JobExecutor executor;
     ExecutionControl edit_control;
