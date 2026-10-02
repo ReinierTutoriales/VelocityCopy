@@ -37,7 +37,6 @@ MainWindow::MainWindow() {
     if (auto* app = App::Instance()) window_id_ = app->NextWindowId();
     InitializeComponent();
     dispatcher_ = Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
-    ErrorBar().Margin(Thickness{0, velocitycopy::ui::token_double(L"CaptionRowHeight", 32), 0, 0});
     ConfigureQueuePersistenceMenu();
     try {
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
@@ -51,9 +50,9 @@ MainWindow::MainWindow() {
         const auto move_up = loader.GetString(L"ActionMoveUp");
         const auto move_down = loader.GetString(L"ActionMoveDown");
         const auto remove = loader.GetString(L"ActionRemove");
-        ToolTipService::SetToolTip(QueueMoveUpButton(), box_value(move_up));
-        ToolTipService::SetToolTip(QueueMoveDownButton(), box_value(move_down));
-        ToolTipService::SetToolTip(QueueRemoveButton(), box_value(remove));
+        ToolTipService::SetToolTip(QueueMoveUpButtonHost(), box_value(move_up));
+        ToolTipService::SetToolTip(QueueMoveDownButtonHost(), box_value(move_down));
+        ToolTipService::SetToolTip(QueueRemoveButtonHost(), box_value(remove));
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(QueueMoveUpButton(), move_up);
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(QueueMoveDownButton(), move_down);
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(QueueRemoveButton(), remove);
@@ -158,7 +157,6 @@ void MainWindow::ApplyTitleBarInset() noexcept {
         }
         TitleBarDragRegion().Height(title_height_epx);
         CaptionRowDefinition().Height(GridLength{title_height_epx, GridUnitType::Pixel});
-        ErrorBar().Margin(Thickness{0, title_height_epx, 0, 0});
         CaptionContentGrid().Padding(Thickness{
             base_caption_content_padding_.Left,
             base_caption_content_padding_.Top,
