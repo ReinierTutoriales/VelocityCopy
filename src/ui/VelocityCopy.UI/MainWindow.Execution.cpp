@@ -657,7 +657,6 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
                     result.outcomes.skipped,
                     retained_label.c_str(),
                     result.outcomes.copied_source_retained)));
-                ResizeWindowToContent();
             } else {
                 CurrentItemText().Text(loader.GetString(
                     active_operation_ == velocitycopy::FileOperation::Move
