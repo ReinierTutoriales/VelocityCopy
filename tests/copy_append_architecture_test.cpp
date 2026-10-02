@@ -224,6 +224,20 @@ int main() {
         !contains(auxiliary, "MessageBoxW("))
         return fail(33, "native routing decisions must support TaskDialog verification while MessageBox fallback cannot remember choices");
 
+    const auto run_live = body_of(execution, "velocitycopy::JobResult MainWindow::RunLivePlanSession(");
+    const auto resume_conflict = body_of(conflict, "void MainWindow::ResumeConflictCopy(");
+    const auto show_conflict = body_of(conflict, "fire_and_forget MainWindow::ShowConflictDialogAsync(");
+    if (run_live.empty() || !contains(run_live, "options.conflict_policy = conflict_policy") ||
+        !contains(executor_cpp, "options.conflict_policy == ConflictPolicy::ReplaceAll") ||
+        !contains(executor_cpp, "options.conflict_policy == ConflictPolicy::SkipAll") ||
+        show_conflict.empty() || !contains(show_conflict, "ConflictApplyToAll") ||
+        !contains(show_conflict, "ConflictPolicy::ReplaceAll") ||
+        !contains(show_conflict, "ConflictPolicy::SkipAll") ||
+        resume_conflict.empty() || !contains(resume_conflict, "ConflictResumeIntent") &&
+            !contains(header, "struct ConflictResumeIntent")) {
+        return fail(34, "apply-to-all conflict decisions must flow from the native dialog through the session into JobExecutionOptions");
+    }
+
     const auto ui_root = root / "src/ui";
     for (const auto& entry : std::filesystem::recursive_directory_iterator(ui_root)) {
         if (!entry.is_regular_file()) continue;
