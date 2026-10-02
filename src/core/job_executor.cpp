@@ -449,9 +449,12 @@ JobResult JobExecutor::execute(
                         }
 
                         const bool skip_allowed = destination_is_safe_to_discard(file->destination);
+                        const bool skip_by_policy =
+                            options.conflict_policy == ConflictPolicy::SkipAll &&
+                            std::filesystem::exists(file->destination);
                         if (!skip_allowed) {
                             (void)control.consume_skip(file_id);
-                        } else if (control.consume_skip(file_id)) {
+                        } else if (skip_by_policy || control.consume_skip(file_id)) {
                             
                             if (!plan.resolve_active(file_id, ItemOutcome::Skipped, S_OK, false)) {
                                 result_state.record_error(static_cast<std::int32_t>(E_FAIL));
@@ -482,9 +485,11 @@ JobResult JobExecutor::execute(
 
                         for (;;) {
                             bool skip_requested = false;
-                            const auto existing_policy = options.replace_file_id == file_id
-                                ? ExistingDestinationPolicy::Replace
-                                : options.existing_destination;
+                            const auto existing_policy =
+                                options.replace_file_id == file_id ||
+                                options.conflict_policy == ConflictPolicy::ReplaceAll
+                                    ? ExistingDestinationPolicy::Replace
+                                    : options.existing_destination;
 
                             const auto result = engine_.copy_file(
                                 file->source,
