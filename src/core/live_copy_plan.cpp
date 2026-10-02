@@ -565,6 +565,21 @@ bool LiveCopyPlan::unpark(const std::uint64_t file_id) noexcept {
     }
 }
 
+bool LiveCopyPlan::begin_parked_retry(
+    const std::uint64_t file_id,
+    const RecoveryAction action) noexcept {
+    try {
+        std::lock_guard lock(mutex_);
+        auto it = find_parked(file_id);
+        if (it == parked_files_.end() || it->incident.recovery_action != action) return false;
+        ++it->incident.attempt_count;
+        attempt_counts_[file_id] = it->incident.attempt_count;
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
 bool LiveCopyPlan::resolve_pending(
     const std::uint64_t file_id,
     const ItemOutcome outcome,
