@@ -152,5 +152,10 @@ int main() {
         return fail(14, "v3 must persist and restore source-removal decisions independently of CopyPlan");
     }
 
+    if (!contains(persistence, "live_plan_->unresolved_files() != 0 ||") ||
+        !contains(persistence, "!live_plan_->parked_source_removals().empty()")) {
+        return fail(15, "save queue must remain enabled for source-removal-only recovery work");
+    }
+
     return 0;
 }
