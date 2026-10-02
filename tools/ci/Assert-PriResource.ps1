@@ -37,8 +37,15 @@ if (-not $resource) { throw "PRI dump does not contain resource key $Key" }
 
 $text = $resource.OuterXml
 foreach ($language in $Languages) {
-    if ($text -notmatch [regex]::Escape($language)) {
+    $qualifier = "Language-" + $language.ToUpperInvariant()
+    $candidate = @($resource.SelectNodes("./*[local-name()='Candidate']")) |
+        Where-Object { [string]$_.qualifiers -eq $qualifier } |
+        Select-Object -First 1
+    if (-not $candidate) {
         throw "PRI resource $Key has no candidate qualified for $language"
+    }
+    if ([string]::IsNullOrWhiteSpace([string]$candidate.Value)) {
+        throw "PRI resource $Key has an empty value for $language"
     }
 }
 Write-Host "Validated VelocityCopy.WinUI.pri: $Key => $($Languages -join ', ')"
