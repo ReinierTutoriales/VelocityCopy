@@ -159,6 +159,7 @@ private:
         bool reservation_already_held);
     void StartCopyPlan(velocitycopy::CopyPlan plan);
     void ResumeStoppedCopy();
+    void ContinueInterruptedSessionAfterPlanning();
     void ResumeConflictCopy(std::uint64_t replace_file_id, velocitycopy::ConflictPolicy policy = velocitycopy::ConflictPolicy::Prompt);
     void CancelCurrentSession();
     void StartNextQueuedSession();

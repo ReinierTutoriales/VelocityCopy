@@ -62,6 +62,20 @@ void MainWindow::AppendTransfer(velocitycopy::CopyJob job) {
     EnqueueAppend(std::move(job), std::move(target_plan), std::move(target_control), std::move(target_gate), false);
 }
 
+void MainWindow::ContinueInterruptedSessionAfterPlanning() {
+    if (conflict_session_ && resume_requested_) {
+        ResumeConflictCopy(
+            conflict_resume_intent_.replace_file_id,
+            conflict_resume_intent_.policy);
+    } else if (stopped_session_ && resume_requested_) {
+        ResumeStoppedCopy();
+    } else if (conflict_session_) {
+        FinalizeConflictSessionIfEmpty();
+    } else if (stopped_session_) {
+        FinalizeStoppedSessionIfEmpty();
+    }
+}
+
 void MainWindow::EnqueueAppend(
     velocitycopy::CopyJob job,
     std::shared_ptr<velocitycopy::LiveCopyPlan> target_plan,
@@ -103,16 +117,7 @@ void MainWindow::EnqueueAppend(
                 (void)dispatcher.TryEnqueue([weak, target_gate]() {
                     if (auto self = weak.get(); self && self->append_gate_ == target_gate) {
                         self->ShowError();
-                        if (self->conflict_session_ && self->resume_requested_)
-                            self->ResumeConflictCopy(
-                                self->conflict_resume_intent_.replace_file_id,
-                                self->conflict_resume_intent_.policy);
-                        else if (self->stopped_session_ && self->resume_requested_)
-                            self->ResumeStoppedCopy();
-                        else if (self->conflict_session_)
-                            self->FinalizeConflictSessionIfEmpty();
-                        else
-                            self->FinalizeStoppedSessionIfEmpty();
+                        self->ContinueInterruptedSessionAfterPlanning();
                     }
                 });
             };
@@ -164,16 +169,7 @@ void MainWindow::EnqueueAppend(
                     case velocitycopy::LivePlanAppendResult::SizeOverflow:
                     case velocitycopy::LivePlanAppendResult::InternalFailure:
                         self->ShowError();
-                        if (self->conflict_session_ && self->resume_requested_)
-                            self->ResumeConflictCopy(
-                                self->conflict_resume_intent_.replace_file_id,
-                                self->conflict_resume_intent_.policy);
-                        else if (self->stopped_session_ && self->resume_requested_)
-                            self->ResumeStoppedCopy();
-                        else if (self->conflict_session_)
-                            self->FinalizeConflictSessionIfEmpty();
-                        else
-                            self->FinalizeStoppedSessionIfEmpty();
+                        self->ContinueInterruptedSessionAfterPlanning();
                         return;
                     }
                 }
