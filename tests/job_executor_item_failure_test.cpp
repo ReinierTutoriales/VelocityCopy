@@ -79,7 +79,7 @@ int wmain() {
             plan.parked_incidents()[0].recovery_action != RecoveryAction::RetryTransfer ||
             !fs::exists(destination / L"a.txt") || fs::exists(destination / L"b.txt") ||
             !fs::exists(destination / L"c.txt") ||
-            last_total == 0 || last_transferred != last_total ||
+            last_total == 0 || last_transferred >= last_total ||
             plan.unresolved_files() != 1) {
             fs::remove_all(root, ec);
             return 2;
@@ -110,7 +110,8 @@ int wmain() {
             plan.parked_incidents()[0].recovery_action != RecoveryAction::RetrySourceRemoval ||
             !fs::exists(destination / L"b.txt") || !fs::exists(source / L"b.txt") ||
             fs::exists(source / L"a.txt") || fs::exists(source / L"c.txt") ||
-            plan.resolution_view().counters.bytes_succeeded != 12) {
+            plan.resolution_view().counters.bytes_succeeded != 8 ||
+            plan.unresolved_files() != 1) {
             fs::remove_all(root, ec);
             return 4;
         }
