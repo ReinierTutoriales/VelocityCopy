@@ -130,7 +130,9 @@ public:
     // Skipped and Failed release the reservation: that destination was not
     // produced.
     [[nodiscard]] bool park_active(
-        std::uint64_t file_id, std::int32_t hresult, bool destination_preexisted) noexcept;
+        std::uint64_t file_id, std::int32_t hresult, bool destination_preexisted,
+        RecoveryAction recovery_action = RecoveryAction::RetryTransfer,
+        std::uint32_t attempt_count = 1) noexcept;
     [[nodiscard]] bool unpark(std::uint64_t file_id) noexcept;
     [[nodiscard]] bool resolve_pending(
         std::uint64_t file_id, ItemOutcome outcome, std::int32_t hresult,

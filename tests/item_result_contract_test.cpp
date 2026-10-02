@@ -54,8 +54,12 @@ int main() {
     incident.file_id = 9;
     incident.hresult = -1;
     incident.destination_preexisted = false;
+    incident.recovery_action = RecoveryAction::RetrySourceRemoval;
+    incident.attempt_count = 3;
     CHECK(incident.file_id == 9);
     CHECK(incident.hresult == -1);
+    CHECK(incident.recovery_action == RecoveryAction::RetrySourceRemoval);
+    CHECK(incident.attempt_count == 3);
 
     TransferCounters counters{};
     counters.bytes_written_physical = 150;

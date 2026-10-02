@@ -29,12 +29,19 @@ struct ItemResult {
     bool destination_preexisted{};
 };
 
+enum class RecoveryAction {
+    RetryTransfer,
+    RetrySourceRemoval,
+};
+
 struct ItemIncident {
     std::uint64_t file_id{};
     std::int32_t hresult{};
     std::filesystem::path source;
     std::filesystem::path destination;
     bool destination_preexisted{};
+    RecoveryAction recovery_action{RecoveryAction::RetryTransfer};
+    std::uint32_t attempt_count{1};
 };
 
 struct TransferCounters {
