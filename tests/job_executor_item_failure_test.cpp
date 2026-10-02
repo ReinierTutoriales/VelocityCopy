@@ -72,14 +72,15 @@ int wmain() {
 
         const auto results = plan.retained_results();
         if (!result.success || result.cancelled || result.stopped || result.destination_conflict ||
-            result.outcomes.succeeded != 2 || result.outcomes.failed != 1 ||
-            results.size() != 1 || results[0].file_id != 2 ||
-            results[0].outcome != ItemOutcome::Failed || results[0].hresult != kSharingViolation ||
-            results[0].destination_preexisted ||
+            result.outcomes.succeeded != 2 || result.outcomes.failed != 0 || result.parked_files != 1 ||
+            !results.empty() ||
+            plan.parked_incidents().size() != 1 ||
+            plan.parked_incidents()[0].file_id != 2 ||
+            plan.parked_incidents()[0].recovery_action != RecoveryAction::RetryTransfer ||
             !fs::exists(destination / L"a.txt") || fs::exists(destination / L"b.txt") ||
             !fs::exists(destination / L"c.txt") ||
             last_total == 0 || last_transferred != last_total ||
-            plan.unresolved_files() != 0) {
+            plan.unresolved_files() != 1) {
             fs::remove_all(root, ec);
             return 2;
         }
@@ -102,9 +103,11 @@ int wmain() {
 
         const auto results = plan.retained_results();
         if (!result.success || result.cancelled || result.stopped ||
-            result.outcomes.succeeded != 2 || result.outcomes.copied_source_retained != 1 ||
-            result.outcomes.failed != 0 ||
-            results.size() != 1 || results[0].outcome != ItemOutcome::CopiedSourceRetained ||
+            result.outcomes.succeeded != 2 || result.outcomes.copied_source_retained != 0 ||
+            result.outcomes.failed != 0 || result.parked_files != 1 ||
+            !results.empty() ||
+            plan.parked_incidents().size() != 1 ||
+            plan.parked_incidents()[0].recovery_action != RecoveryAction::RetrySourceRemoval ||
             !fs::exists(destination / L"b.txt") || !fs::exists(source / L"b.txt") ||
             fs::exists(source / L"a.txt") || fs::exists(source / L"c.txt") ||
             plan.resolution_view().counters.bytes_succeeded != 12) {
