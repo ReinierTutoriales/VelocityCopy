@@ -196,17 +196,23 @@ void MainWindow::ResizeWindow(const int height_epx) {
 }
 
 void MainWindow::ResizeWindowToContent() {
-    if (QueuePanel().Visibility() != Visibility::Visible) {
-        ResizeWindow(velocitycopy::ui::token_int(L"CompactSurfaceHeight", 72));
-        return;
-    }
-
     const auto measured_width = RootGrid().ActualWidth() > 0.0
         ? static_cast<float>(RootGrid().ActualWidth())
         : static_cast<float>(velocitycopy::ui::token_int(L"CompactWindowWidth", 380));
+    double notice_height = 0.0;
+    if (ErrorBar().IsOpen()) {
+        ErrorBar().Measure({measured_width, std::numeric_limits<float>::infinity()});
+        notice_height = ErrorBar().DesiredSize().Height;
+    }
+    if (QueuePanel().Visibility() != Visibility::Visible) {
+        ResizeWindow(static_cast<int>(std::ceil(
+            velocitycopy::ui::token_double(L"CompactSurfaceHeight", 72.0) + notice_height)));
+        return;
+    }
+
     QueuePanel().Measure({measured_width, std::numeric_limits<float>::infinity()});
     const auto desired_queue_height = static_cast<double>(QueuePanel().DesiredSize().Height);
-    const auto expanded_height = static_cast<int>(std::ceil(velocitycopy::ui::token_double(L"CompactSurfaceHeight", 72.0) + desired_queue_height));
+    const auto expanded_height = static_cast<int>(std::ceil(velocitycopy::ui::token_double(L"CompactSurfaceHeight", 72.0) + notice_height + desired_queue_height));
     ResizeWindow((std::clamp)(expanded_height, velocitycopy::ui::token_int(L"QueueExpandedMinHeight", 176), velocitycopy::ui::token_int(L"QueueExpandedMaxHeight", 340)));
     RootGrid().UpdateLayout();
 }

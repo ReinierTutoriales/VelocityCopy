@@ -645,6 +645,10 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
                 const auto failed_label = loader.GetString(L"OutcomeFailed");
                 const auto skipped_label = loader.GetString(L"OutcomeSkipped");
                 const auto retained_label = loader.GetString(L"OutcomeSourceRetained");
+                ErrorBar().Severity(
+                    result.outcomes.failed == 0 && result.outcomes.copied_source_retained == 0
+                        ? InfoBarSeverity::Warning
+                        : InfoBarSeverity::Error);
                 ShowError(hstring(std::format(
                     L"{}: {}, {}: {}, {}: {}",
                     failed_label.c_str(),
@@ -653,6 +657,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
                     result.outcomes.skipped,
                     retained_label.c_str(),
                     result.outcomes.copied_source_retained)));
+                ResizeWindowToContent();
             } else {
                 CurrentItemText().Text(loader.GetString(
                     active_operation_ == velocitycopy::FileOperation::Move
