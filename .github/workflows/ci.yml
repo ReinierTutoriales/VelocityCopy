@@ -11,6 +11,20 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  diff-check:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check patch whitespace
+        shell: pwsh
+        run: |
+          git fetch origin main
+          git diff --check origin/main...HEAD
+
   core:
     runs-on: windows-latest
     strategy:
