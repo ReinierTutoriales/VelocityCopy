@@ -31,9 +31,11 @@ int main() {
     const auto window = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
     const auto tokens = read_source(root / "src/ui/DesignTokens.xaml");
     const auto spec = read_source(root / "docs/UI_SPEC.md");
+    const auto conflict = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Conflict.cpp");
+    const auto about = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.About.cpp");
 
     if (xaml.empty() || header.empty() || execution.empty() || queue.empty() ||
-        menu.empty() || window.empty() || tokens.empty() || spec.empty()) {
+        menu.empty() || window.empty() || tokens.empty() || spec.empty() || conflict.empty() || about.empty()) {
         return fail(1, "required UI source missing");
     }
 
@@ -241,6 +243,16 @@ int main() {
         !contains(finish_copy, "if (completed_with_issues)") ||
         !contains(finish_copy, "DestroyCompletedWindow()")) {
         return fail(32, "per-item failed/skipped outcomes must produce a visible non-clean terminal state");
+    }
+
+    // Auxiliary decision/about surfaces must remain real top-level windows. They
+    // may be modal-owned for activation, but must never be positioned as content
+    // inside or relative to the 72 epx compact transfer surface.
+    if (contains(conflict, "TDF_POSITION_RELATIVE_TO_WINDOW") ||
+        contains(about, "GWLP_HWNDPARENT") ||
+        contains(about, "GetWindowRect(hwnd_") ||
+        contains(about, "MessageBoxW(hwnd_")) {
+        return fail(33, "auxiliary dialogs/windows must not be embedded or positioned relative to the compact surface");
     }
 
     return 0;
