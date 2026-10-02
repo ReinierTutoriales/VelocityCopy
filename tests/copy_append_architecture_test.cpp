@@ -255,7 +255,8 @@ int main() {
         !contains(continue_interrupted, "ResumeStoppedCopy()") ||
         !contains(continue_interrupted, "FinalizeConflictSessionIfEmpty()") ||
         !contains(continue_interrupted, "FinalizeStoppedSessionIfEmpty()") ||
-        count_occurrences(append, "conflict_resume_intent_.replace_file_id") != 1) {
+        count_occurrences(append, "conflict_resume_intent_.replace_file_id") != 1 ||
+        count_occurrences(append, "ContinueInterruptedSessionAfterPlanning();") != 3) {
         return fail(35, "planner completion must route interrupted-session continuation through one decision point");
     }
 

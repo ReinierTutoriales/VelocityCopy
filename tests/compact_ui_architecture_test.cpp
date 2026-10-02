@@ -268,5 +268,19 @@ int main() {
         return fail(36, "initial compact-window placement must derive from the monitor work area exactly once");
     }
 
+    if (!contains(xaml, "QueueMoveUpButtonHost") || !contains(xaml, "QueueMoveDownButtonHost") ||
+        !contains(xaml, "QueueRemoveButtonHost") ||
+        !contains(window, "ToolTipService::SetToolTip(QueueMoveUpButtonHost()") ||
+        !contains(window, "ToolTipService::SetToolTip(QueueMoveDownButtonHost()") ||
+        !contains(window, "ToolTipService::SetToolTip(QueueRemoveButtonHost()")) {
+        return fail(38, "disabled queue commands must expose tooltips through enabled host elements");
+    }
+    if (contains(xaml, "Grid.RowSpan=\"2\"") ||
+        !contains(execution, "InfoBarSeverity::Warning") ||
+        !contains(window, "notice_height") ||
+        !contains(execution, "ResizeWindowToContent();")) {
+        return fail(39, "terminal issue notices must distinguish skip-only warnings and reserve layout space");
+    }
+
     return 0;
 }
