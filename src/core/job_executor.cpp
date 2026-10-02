@@ -450,7 +450,7 @@ JobResult JobExecutor::execute(
 
                         const bool skip_allowed = destination_is_safe_to_discard(file->destination);
                         if (skip_allowed && control.consume_skip(file_id)) {
-                            
+
                             if (!plan.resolve_active(file_id, ItemOutcome::Skipped, S_OK, false)) {
                                 result_state.record_error(static_cast<std::int32_t>(E_FAIL));
                                 control.request_cancel();
@@ -524,7 +524,7 @@ JobResult JobExecutor::execute(
                             }
 
                             if (skip_requested) {
-                                
+
                                 remove_partial_destination(file->destination);
                                 if (!plan.resolve_active(file_id, ItemOutcome::Skipped, S_OK, false)) {
                                     result_state.record_error(static_cast<std::int32_t>(E_FAIL));
@@ -545,7 +545,7 @@ JobResult JobExecutor::execute(
                                 static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_PAUSED))) {
                                 const auto next = control.wait_while_paused();
                                 if (next == ExecutionDirective::Cancel) {
-                                    
+
                                     if (skip_allowed) {
                                         remove_partial_destination(file->destination);
                                     }
@@ -559,7 +559,7 @@ JobResult JobExecutor::execute(
                                     return;
                                 }
                                 if (next == ExecutionDirective::Stop) {
-                                    
+
                                     if (skip_allowed) {
                                         remove_partial_destination(file->destination);
                                     }
@@ -574,7 +574,7 @@ JobResult JobExecutor::execute(
                             const bool aborted = result.native_code ==
                                 static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED));
                             if (aborted && control.directive() == ExecutionDirective::Stop) {
-                                
+
                                 if (skip_allowed) {
                                     remove_partial_destination(file->destination);
                                 }
@@ -583,12 +583,12 @@ JobResult JobExecutor::execute(
                                 return;
                             }
 
-                            
+
                             const bool cancelled = aborted;
                             if (!cancelled &&
                                 options.conflict_policy == ConflictPolicy::SkipAll &&
                                 is_destination_conflict(result.native_code)) {
-                                if (!plan.resolve_active(file_id, ItemOutcome::Skipped, S_OK, false)) {
+                                if (!plan.resolve_active(file_id, ItemOutcome::Skipped, S_OK, true)) {
                                     result_state.record_error(static_cast<std::int32_t>(E_FAIL));
                                     control.request_cancel();
                                     worker_results[worker_index] = {
