@@ -174,19 +174,19 @@ int main() {
         contains(conflict, "ContentDialog") ||
         !contains(recovery, "ShowNativeDecisionDialog") ||
         !contains(conflict, "ShowNativeDecisionDialog") ||
-        !contains(conflict, "TaskDialogIndirect")) {
+        !contains(auxiliary, "TaskDialogIndirect")) {
         return fail(16, "modal conflict and recovery decisions must remain native top-level dialogs outside the compact XAML surface");
     }
 
-    if (!contains(conflict, "config.hwndParent = owner;") ||
-        !contains(conflict, "config.pszMainInstruction = display_title.c_str();") ||
-        !contains(conflict, "config.pszContent = display_message.c_str();") ||
-        !contains(conflict, "config.pfCallback = &TaskDialogThemeCallback;") ||
-        !contains(conflict, "config.pszVerificationText = remember_label.c_str();") ||
-        contains(conflict, "TDF_POSITION_RELATIVE_TO_WINDOW") ||
-        !contains(conflict, "config.cxWidth = remember_choice != nullptr ? 240 : 260;") ||
+    if (!contains(auxiliary, "config.hwndParent = options.owner;") ||
+        !contains(auxiliary, "config.pszMainInstruction = options.title.c_str();") ||
+        !contains(auxiliary, "config.pszContent = options.message.c_str();") ||
+        !contains(auxiliary, "config.pfCallback = &task_dialog_theme_callback;") ||
+        !contains(auxiliary, "config.pszVerificationText = options.verification_label.c_str();") ||
+        contains(auxiliary, "TDF_POSITION_RELATIVE_TO_WINDOW") ||
+        !contains(auxiliary, "config.cxWidth = verification_checked != nullptr ? 240 : 260;") ||
         !contains(conflict, "conflict.conflict_destination.filename()") ||
-        contains(conflict, "TDF_SIZE_TO_CONTENT")) {
+        contains(auxiliary, "TDF_SIZE_TO_CONTENT")) {
         return fail(17, "native decision dialogs must keep owner/theme/verification plumbing without positioning inside the compact owner surface");
     }
     return 0;
