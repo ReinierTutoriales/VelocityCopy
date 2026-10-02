@@ -188,14 +188,13 @@ void MainWindow::ResumeConflictCopy(
     if (live_plan_->remaining_files() == 0 && !live_plan_->has_pending_directories()) {
         resume_requested_ = false;
         conflict_replace_file_id_ = 0;
-    conflict_policy_ = velocitycopy::ConflictPolicy::Prompt;
+        conflict_policy_ = velocitycopy::ConflictPolicy::Prompt;
         FinalizeConflictSessionIfEmpty();
         return;
     }
 
     resume_requested_ = false;
     conflict_replace_file_id_ = 0;
-    conflict_policy_ = velocitycopy::ConflictPolicy::Prompt;
     conflict_policy_ = policy;
     conflict_session_ = false;
     stopped_session_ = false;
