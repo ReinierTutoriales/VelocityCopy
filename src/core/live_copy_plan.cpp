@@ -370,6 +370,7 @@ std::optional<PlannedFile> LiveCopyPlan::acquire_next() noexcept {
     pending_files_.pop_front();
     active_files_.push_back(file);
     attempt_bytes_.erase(file.id);
+    attempt_counts_.erase(file.id);
     return file;
 }
 
@@ -521,13 +522,14 @@ bool LiveCopyPlan::park_active(
     const std::uint64_t file_id,
     const std::int32_t hresult,
     const bool destination_preexisted,
-    const RecoveryAction recovery_action,
-    const std::uint32_t attempt_count) noexcept {
+    const RecoveryAction recovery_action) noexcept {
     static_assert(is_valid_item_transition(ItemState::Active, ItemState::Parked));
     try {
         std::lock_guard lock(mutex_);
         auto it = find_active(file_id);
         if (it == active_files_.end()) return false;
+        const auto attempt_it = attempt_counts_.find(file_id);
+        const auto attempt_count = attempt_it == attempt_counts_.end() ? 1u : attempt_it->second;
         ParkedFile parked{*it, ItemIncident{
             it->id, hresult, it->source, it->destination, destination_preexisted,
             recovery_action, attempt_count}};
@@ -549,6 +551,7 @@ bool LiveCopyPlan::unpark(const std::uint64_t file_id) noexcept {
             return false;
         }
         pending_files_.push_front(it->file);
+        attempt_counts_[file_id] = it->incident.attempt_count + 1;
         parked_files_.erase(it);
         // The retry is a new attempt; the high-water mark is kept so the
         // visible progress does not move backwards.

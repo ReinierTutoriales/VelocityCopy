@@ -327,6 +327,7 @@ JobResult JobExecutor::execute(
         // A RetrySourceRemoval is already copied. It is deliberately never
         // unparked into transfer work; a resumed decision session retries only
         // deletion of the original source.
+        if (options.retry_source_removals) {
         for (const auto& incident : plan.parked_incidents()) {
             if (incident.recovery_action != RecoveryAction::RetrySourceRemoval) continue;
             const auto remove_source = remove_moved_source_file(incident.source);
@@ -337,6 +338,7 @@ JobResult JobExecutor::execute(
                     return finish({false, false, static_cast<std::int32_t>(E_FAIL)});
                 }
             }
+        }
         }
 
         const auto directory_batch = plan.pending_directories();

@@ -188,7 +188,8 @@ private:
         std::stop_token stop_token,
         bool publish_plan,
         std::uint64_t replace_file_id = 0,
-        velocitycopy::ConflictPolicy conflict_policy = velocitycopy::ConflictPolicy::Prompt);
+        velocitycopy::ConflictPolicy conflict_policy = velocitycopy::ConflictPolicy::Prompt,
+        bool retry_source_removals = false);
     void PublishLivePlan(std::shared_ptr<velocitycopy::LiveCopyPlan> plan);
     void RefreshQueue();
     void RefreshQueueCommandState();
@@ -208,7 +209,7 @@ private:
     void ShowRetryDecisionAsync();
     void ResumeParkedFailures();
     void ResolveParkedFailures();
-    void StartDecisionSession();
+    void StartDecisionSession(bool retry_source_removals);
     void FinalizeStoppedSessionIfEmpty();
     void FinalizeConflictSessionIfEmpty();
     void ApplySnapshot(const velocitycopy::UiSnapshot& snapshot);

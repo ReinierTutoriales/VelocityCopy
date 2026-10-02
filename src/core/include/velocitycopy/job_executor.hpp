@@ -67,6 +67,7 @@ struct JobExecutionOptions {
     ExistingDestinationPolicy existing_destination{ExistingDestinationPolicy::Fail};
     std::uint64_t replace_file_id{};
     ConflictPolicy conflict_policy{ConflictPolicy::Prompt};
+    bool retry_source_removals{};
 };
 
 class JobExecutor final {
