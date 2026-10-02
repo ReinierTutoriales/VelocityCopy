@@ -254,9 +254,7 @@ void MainWindow::ShowAboutDialog() noexcept {
         HWND about_hwnd{};
         try {
             auto native = about.as<::IWindowNative>();
-            if (SUCCEEDED(native->get_WindowHandle(&about_hwnd)) && about_hwnd != nullptr && hwnd_ != nullptr) {
-                SetWindowLongPtrW(about_hwnd, GWLP_HWNDPARENT, reinterpret_cast<LONG_PTR>(hwnd_));
-            }
+            (void)native->get_WindowHandle(&about_hwnd);
         } catch (...) {
             about_hwnd = nullptr;
         }
@@ -275,12 +273,8 @@ void MainWindow::ShowAboutDialog() noexcept {
             const int height = MulDiv(velocitycopy::ui::token_int(L"AboutWindowHeight", 288), dpi == 0 ? USER_DEFAULT_SCREEN_DPI : static_cast<int>(dpi), USER_DEFAULT_SCREEN_DPI);
             app_window.Resize(Windows::Graphics::SizeInt32{width, height});
 
-            RECT owner_rect{};
-            if (hwnd_ != nullptr && GetWindowRect(hwnd_, &owner_rect)) {
-                const int x = owner_rect.left + ((owner_rect.right - owner_rect.left) - width) / 2;
-                const int y = owner_rect.top + ((owner_rect.bottom - owner_rect.top) - height) / 2;
-                app_window.Move(Windows::Graphics::PointInt32{x, y});
-            }
+            // About is an independent top-level auxiliary window. Do not attach or
+            // position it relative to the compact transfer surface.
         } catch (...) {
         }
 
@@ -305,7 +299,7 @@ void MainWindow::ShowAboutDialog() noexcept {
             L"VelocityCopy {}\nReinierTutoriales · MIT License\n{}",
             version,
             kRepositoryUrl);
-        MessageBoxW(hwnd_, message.c_str(), L"VelocityCopy", MB_OK | MB_ICONINFORMATION);
+        MessageBoxW(nullptr, message.c_str(), L"VelocityCopy", MB_OK | MB_ICONINFORMATION);
     } catch (...) {
     }
 }

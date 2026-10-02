@@ -144,7 +144,7 @@ MainWindow::NativeDialogChoice MainWindow::ShowNativeDecisionDialog(
                 TASKDIALOGCONFIG config{};
                 config.cbSize = sizeof(config);
                 config.hwndParent = owner;
-                config.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION | TDF_POSITION_RELATIVE_TO_WINDOW;
+                config.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION;
                 // Keep every native decision surface in the same compact family. Routing
                 // includes a verification row, so it stays slightly narrower; conflict and
                 // recovery get a little more room without expanding to long-path width.
