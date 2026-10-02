@@ -212,8 +212,8 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
         empty.destination_root = archive->source_removals.front().destination.parent_path();
         adopted = StartCopyPlan(std::move(empty), std::move(archive->source_removals));
     } else {
-        StartNextQueuedSession();
-        RefreshQueueCommandState();
+        // A queued-only archive has no current state to adopt. Publish its
+        // future sessions below before attempting to start the first one.
         adopted = true;
     }
 
@@ -225,11 +225,14 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
     }
 
     session_id_ = *recovered_session_id;
+    const bool queued_only = !live_plan_ && !archive->queued_jobs.empty();
     for (auto& job : archive->queued_jobs) {
         job.id = next_job_id_++;
         job.state = velocitycopy::JobState::Pending;
         queued_sessions_.push_back({std::move(job), {}, {}});
     }
+    if (queued_only) StartNextQueuedSession();
+    RefreshQueueCommandState();
 
     velocitycopy::retire_recovery_file(path);
     recovery_prompt_active_ = false;
