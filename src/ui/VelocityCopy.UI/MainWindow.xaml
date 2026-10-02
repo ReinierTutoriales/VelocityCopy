@@ -13,6 +13,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <Grid x:Name="TransferSurface"
@@ -173,8 +174,14 @@
             </Grid>
         </Grid>
 
+        <InfoBar x:Name="ErrorBar"
+                 Grid.Row="1"
+                 IsOpen="False"
+                 Severity="Error"
+                 IsClosable="True" />
+
         <Grid x:Name="QueuePanel"
-              Grid.Row="1"
+              Grid.Row="2"
               Visibility="Collapsed"
               Padding="{StaticResource QueuePanelPadding}">
             <Grid.RowDefinitions>
@@ -221,42 +228,51 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <Button x:Name="QueueMoveUpButton"
-                        Click="OnQueueMoveUpClick"
-                        Width="{StaticResource ActionButtonSize}"
-                        Height="{StaticResource ActionButtonSize}"
-                        Padding="0"
-                        BorderThickness="0"
-                        Margin="{StaticResource QueueCommandGapMargin}">
-                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74A;" FontSize="{StaticResource ActionIconSize}" />
-                </Button>
-                <Button x:Name="QueueMoveDownButton"
-                        Grid.Column="1"
-                        Click="OnQueueMoveDownClick"
-                        Width="{StaticResource ActionButtonSize}"
-                        Height="{StaticResource ActionButtonSize}"
-                        Padding="0"
-                        BorderThickness="0"
-                        Margin="{StaticResource QueueCommandGapMargin}">
-                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74B;" FontSize="{StaticResource ActionIconSize}" />
-                </Button>
-                <Button x:Name="QueueRemoveButton"
-                        Grid.Column="2"
-                        Click="OnQueueRemoveClick"
-                        Width="{StaticResource ActionButtonSize}"
-                        Height="{StaticResource ActionButtonSize}"
-                        Padding="0"
-                        BorderThickness="0">
-                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE738;" FontSize="{StaticResource ActionIconSize}" />
-                </Button>
+                <Grid x:Name="QueueMoveUpButtonHost"
+                      Width="{StaticResource ActionButtonSize}"
+                      Height="{StaticResource ActionButtonSize}"
+                      Margin="{StaticResource QueueCommandGapMargin}"
+                      Background="Transparent">
+                    <Button x:Name="QueueMoveUpButton"
+                            Click="OnQueueMoveUpClick"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch"
+                            Padding="0"
+                            BorderThickness="0">
+                        <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74A;" FontSize="{StaticResource ActionIconSize}" />
+                    </Button>
+                </Grid>
+                <Grid x:Name="QueueMoveDownButtonHost"
+                      Grid.Column="1"
+                      Width="{StaticResource ActionButtonSize}"
+                      Height="{StaticResource ActionButtonSize}"
+                      Margin="{StaticResource QueueCommandGapMargin}"
+                      Background="Transparent">
+                    <Button x:Name="QueueMoveDownButton"
+                            Click="OnQueueMoveDownClick"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch"
+                            Padding="0"
+                            BorderThickness="0">
+                        <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74B;" FontSize="{StaticResource ActionIconSize}" />
+                    </Button>
+                </Grid>
+                <Grid x:Name="QueueRemoveButtonHost"
+                      Grid.Column="2"
+                      Width="{StaticResource ActionButtonSize}"
+                      Height="{StaticResource ActionButtonSize}"
+                      Background="Transparent">
+                    <Button x:Name="QueueRemoveButton"
+                            Click="OnQueueRemoveClick"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch"
+                            Padding="0"
+                            BorderThickness="0">
+                        <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE738;" FontSize="{StaticResource ActionIconSize}" />
+                    </Button>
+                </Grid>
             </Grid>
         </Grid>
 
-        <InfoBar x:Name="ErrorBar"
-                 Grid.RowSpan="2"
-                 IsOpen="False"
-                 Severity="Error"
-                 IsClosable="True"
-                 VerticalAlignment="Top" />
     </Grid>
 </Window>
