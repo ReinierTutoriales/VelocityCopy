@@ -24,6 +24,7 @@ int main() {
     const auto window = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
     const auto append = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.CopyAppend.cpp");
     const auto conflict = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Conflict.cpp");
+    const auto auxiliary = read_source(root / "src/ui/VelocityCopy.UI/AuxiliarySurface.cpp");
     const auto execution = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Execution.cpp");
     const auto queue = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Queue.cpp");
     const auto persistence = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.QueuePersistence.cpp");
@@ -39,7 +40,7 @@ int main() {
     const auto executor_cpp = read_source(root / "src/core/job_executor.cpp");
 
     if (app.empty() || xaml.empty() || header.empty() || window.empty() ||
-        append.empty() || conflict.empty() || execution.empty() || queue.empty() || persistence.empty() || project.empty() ||
+        append.empty() || conflict.empty() || auxiliary.empty() || execution.empty() || queue.empty() || persistence.empty() || project.empty() ||
         manifest.empty() || explorer.empty() || cli.empty() || cmake.empty() ||
         engine_h.empty() || engine_cpp.empty() || live_h.empty() || executor_h.empty() || executor_cpp.empty()) {
         return fail(1, "required production source missing");
@@ -142,7 +143,8 @@ int main() {
     }
 
     if (!contains(execution, "destination_conflict") || !contains(execution, "SetExecutionButtonsConflict") ||
-        !contains(execution, "ShowConflictDialogAsync") || !contains(conflict, "TaskDialogIndirect") ||
+        !contains(execution, "ShowConflictDialogAsync") || !contains(conflict, "show_native_decision") ||
+        !contains(auxiliary, "TaskDialogIndirect") ||
         contains(conflict, "ContentDialog") || contains(conflict, ".XamlRoot(") ||
         !contains(conflict, "ActionReplace") || !contains(conflict, "ActionSkip") ||
         !contains(conflict, "ResumeConflictCopy") || !contains(conflict, "CancelCurrentSession")) {
@@ -217,9 +219,9 @@ int main() {
         !contains(deliver_job, "route_preferences_") || !contains(deliver_job, "routing decision cancelled") ||
         contains(deliver_job, "route.recommended =="))
         return fail(32, "Ask routing must use the native decision dialog and process-local preferences instead of the provisional recommendation");
-    if (!contains(conflict, "pszVerificationText") || !contains(conflict, "verification_checked") ||
-        !contains(conflict, "remember_choice != nullptr ? &verification_checked : nullptr") ||
-        !contains(conflict, "MessageBoxW("))
+    if (!contains(auxiliary, "pszVerificationText") || !contains(auxiliary, "verification_checked") ||
+        !contains(auxiliary, "verification_checked != nullptr ? &checked : nullptr") ||
+        !contains(auxiliary, "MessageBoxW("))
         return fail(33, "native routing decisions must support TaskDialog verification while MessageBox fallback cannot remember choices");
 
     const auto ui_root = root / "src/ui";
