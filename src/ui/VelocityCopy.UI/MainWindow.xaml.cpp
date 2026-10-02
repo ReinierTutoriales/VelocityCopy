@@ -43,8 +43,8 @@ MainWindow::MainWindow() {
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
         const auto pause = loader.GetString(L"ActionPause");
         const auto cancel = loader.GetString(L"ActionCancel");
-        ToolTipService::SetToolTip(PauseButton(), box_value(pause));
-        ToolTipService::SetToolTip(CancelButton(), box_value(cancel));
+        ToolTipService::SetToolTip(PauseButtonHost(), box_value(pause));
+        ToolTipService::SetToolTip(CancelButtonHost(), box_value(cancel));
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), pause);
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(CancelButton(), cancel);
 

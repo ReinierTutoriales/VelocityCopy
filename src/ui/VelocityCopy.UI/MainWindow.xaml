@@ -104,33 +104,43 @@
                                     HorizontalAlignment="Right"
                                     VerticalAlignment="Center"
                                     Spacing="{StaticResource SpaceTight}">
-                            <Button x:Name="PauseButton"
-                                    Click="OnPauseClick"
-                                    IsEnabled="False"
-                                    Width="{StaticResource ActionButtonSize}"
-                                    Height="{StaticResource ActionButtonSize}"
-                                    Padding="0"
-                                    BorderThickness="0"
-                                    Background="Transparent">
-                                <FontIcon x:Name="PauseIcon"
-                                          FontFamily="Segoe Fluent Icons"
-                                          Glyph="&#xE769;"
-                                          FontSize="{StaticResource ActionIconSize}" />
-                            </Button>
+                            <Grid x:Name="PauseButtonHost"
+                                  Width="{StaticResource ActionButtonSize}"
+                                  Height="{StaticResource ActionButtonSize}"
+                                  Background="Transparent">
+                                <Button x:Name="PauseButton"
+                                        Click="OnPauseClick"
+                                        IsEnabled="False"
+                                        HorizontalAlignment="Stretch"
+                                        VerticalAlignment="Stretch"
+                                        Padding="0"
+                                        BorderThickness="0"
+                                        Background="Transparent">
+                                    <FontIcon x:Name="PauseIcon"
+                                              FontFamily="Segoe Fluent Icons"
+                                              Glyph="&#xE769;"
+                                              FontSize="{StaticResource ActionIconSize}" />
+                                </Button>
+                            </Grid>
 
-                            <Button x:Name="CancelButton"
-                                    Click="OnCancelClick"
-                                    IsEnabled="False"
-                                    Width="{StaticResource ActionButtonSize}"
-                                    Height="{StaticResource ActionButtonSize}"
-                                    Padding="0"
-                                    BorderThickness="0"
-                                    Background="Transparent">
-                                <FontIcon x:Name="CancelIcon"
-                                          FontFamily="Segoe Fluent Icons"
-                                          Glyph="&#xE71A;"
-                                          FontSize="{StaticResource ActionIconSize}" />
-                            </Button>
+                            <Grid x:Name="CancelButtonHost"
+                                  Width="{StaticResource ActionButtonSize}"
+                                  Height="{StaticResource ActionButtonSize}"
+                                  Background="Transparent">
+                                <Button x:Name="CancelButton"
+                                        Click="OnCancelClick"
+                                        IsEnabled="False"
+                                        HorizontalAlignment="Stretch"
+                                        VerticalAlignment="Stretch"
+                                        Padding="0"
+                                        BorderThickness="0"
+                                        Background="Transparent">
+                                    <FontIcon x:Name="CancelIcon"
+                                              FontFamily="Segoe Fluent Icons"
+                                              Glyph="&#xE71A;"
+                                              FontSize="{StaticResource ActionIconSize}" />
+                                </Button>
+                            </Grid>
 
                             <Button x:Name="OptionsButton"
                                     Width="{StaticResource ActionButtonSize}"
