@@ -747,7 +747,7 @@ void MainWindow::StartDecisionSession(const bool retry_source_removals) {
     SetExecutionButtonsRunning();
     auto weak = get_weak();
     auto dispatcher = dispatcher_;
-    copy_thread_ = std::jthread([this, weak, dispatcher, plan, control, gate](std::stop_token token) {
+    copy_thread_ = std::jthread([this, weak, dispatcher, plan, control, gate, retry_source_removals](std::stop_token token) {
         const auto result = RunLivePlanSession(
             plan, control, gate, token, false, 0,
             velocitycopy::ConflictPolicy::Prompt, retry_source_removals);

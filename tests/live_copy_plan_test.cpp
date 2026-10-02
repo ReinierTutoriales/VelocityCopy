@@ -344,9 +344,9 @@ int main() {
         const auto source_removal_failure = recovery_plan.acquire_next();
         if (!transfer_failure || !source_removal_failure ||
             !recovery_plan.park_active(
-                transfer_failure->id, -1, false, RecoveryAction::RetryTransfer, 2) ||
+                transfer_failure->id, -1, false, RecoveryAction::RetryTransfer) ||
             !recovery_plan.park_active(
-                source_removal_failure->id, -2, true, RecoveryAction::RetrySourceRemoval, 1)) {
+                source_removal_failure->id, -2, true, RecoveryAction::RetrySourceRemoval)) {
             fs::remove_all(root, ec);
             return 36;
         }
@@ -354,7 +354,7 @@ int main() {
         const auto incidents = recovery_plan.parked_incidents();
         if (incidents.size() != 2 ||
             incidents[0].recovery_action != RecoveryAction::RetryTransfer ||
-            incidents[0].attempt_count != 2 ||
+            incidents[0].attempt_count != 1 ||
             incidents[1].recovery_action != RecoveryAction::RetrySourceRemoval ||
             incidents[1].attempt_count != 1) {
             fs::remove_all(root, ec);
