@@ -153,7 +153,7 @@ private:
         bool reservation_already_held);
     void StartCopyPlan(velocitycopy::CopyPlan plan);
     void ResumeStoppedCopy();
-    void ResumeConflictCopy(std::uint64_t replace_file_id);
+    void ResumeConflictCopy(std::uint64_t replace_file_id, velocitycopy::ConflictPolicy policy = velocitycopy::ConflictPolicy::Prompt);
     void CancelCurrentSession();
     void StartNextQueuedSession();
     [[nodiscard]] velocitycopy::JobResult RunLivePlanSession(
@@ -162,7 +162,8 @@ private:
         std::shared_ptr<AppendGate> gate,
         std::stop_token stop_token,
         bool publish_plan,
-        std::uint64_t replace_file_id = 0);
+        std::uint64_t replace_file_id = 0,
+        velocitycopy::ConflictPolicy conflict_policy = velocitycopy::ConflictPolicy::Prompt);
     void PublishLivePlan(std::shared_ptr<velocitycopy::LiveCopyPlan> plan);
     void RefreshQueue();
     void RefreshQueueCommandState();
@@ -228,6 +229,7 @@ private:
     std::uint64_t last_queue_completed_files_{};
     std::uint64_t current_file_id_{};
     std::uint64_t conflict_replace_file_id_{};
+    velocitycopy::ConflictPolicy conflict_policy_{velocitycopy::ConflictPolicy::Prompt};
     HWND hwnd_{};
     bool tray_exit_requested_{};
     bool tray_window_hidden_{};

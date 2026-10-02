@@ -104,7 +104,7 @@ void MainWindow::EnqueueAppend(
                     if (auto self = weak.get(); self && self->append_gate_ == target_gate) {
                         self->ShowError();
                         if (self->conflict_session_ && self->resume_requested_)
-                            self->ResumeConflictCopy(self->conflict_replace_file_id_);
+                            self->ResumeConflictCopy(self->conflict_replace_file_id_, self->conflict_policy_);
                         else if (self->stopped_session_ && self->resume_requested_)
                             self->ResumeStoppedCopy();
                         else if (self->conflict_session_)
@@ -149,7 +149,7 @@ void MainWindow::EnqueueAppend(
                         self->QueueButton().IsEnabled(true);
                         self->RefreshQueue();
                         if (self->conflict_session_ && self->resume_requested_)
-                            self->ResumeConflictCopy(self->conflict_replace_file_id_);
+                            self->ResumeConflictCopy(self->conflict_replace_file_id_, self->conflict_policy_);
                         else if (self->stopped_session_ && self->resume_requested_)
                             self->ResumeStoppedCopy();
                         return;
@@ -161,7 +161,7 @@ void MainWindow::EnqueueAppend(
                     case velocitycopy::LivePlanAppendResult::InternalFailure:
                         self->ShowError();
                         if (self->conflict_session_ && self->resume_requested_)
-                            self->ResumeConflictCopy(self->conflict_replace_file_id_);
+                            self->ResumeConflictCopy(self->conflict_replace_file_id_, self->conflict_policy_);
                         else if (self->stopped_session_ && self->resume_requested_)
                             self->ResumeStoppedCopy();
                         else if (self->conflict_session_)
