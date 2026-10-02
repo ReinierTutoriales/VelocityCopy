@@ -12,6 +12,9 @@
   <data name="StatusMoveCompleted" xml:space="preserve"><value>Movimiento completado</value></data>
   <data name="StatusCancelled" xml:space="preserve"><value>Operación cancelada</value></data>
   <data name="StatusFailed" xml:space="preserve"><value>La operación falló</value></data>
+  <data name="StatusCompletedWithIssues" xml:space="preserve"><value>Operación completada con incidencias</value></data>
+  <data name="OutcomeFailed" xml:space="preserve"><value>Fallidos</value></data>
+  <data name="OutcomeSkipped" xml:space="preserve"><value>Omitidos</value></data>
   <data name="QueuePendingFormat" xml:space="preserve"><value>{0} archivos pendientes</value></data>
   <data name="ActionPause" xml:space="preserve"><value>Pausar</value></data>
   <data name="ActionResume" xml:space="preserve"><value>Reanudar</value></data>
