@@ -58,4 +58,8 @@
   <data name="RecoveryDiscard" xml:space="preserve"><value>Discard</value></data>
   <data name="CurrentItemText.Text" xml:space="preserve"><value>Ready</value></data>
   <data name="QueueTitle.Text" xml:space="preserve"><value>Pending files</value></data>
+  <data name="RetryDecisionTitle" xml:space="preserve"><value>Some items need attention</value></data>
+  <data name="RetryDecisionMessage" xml:space="preserve"><value>The remaining failed items can be retried or left as failed.</value></data>
+  <data name="ActionRetryAll" xml:space="preserve"><value>Retry all</value></data>
+  <data name="ActionSkipAll" xml:space="preserve"><value>Skip all</value></data>
 </root>

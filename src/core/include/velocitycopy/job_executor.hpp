@@ -51,6 +51,7 @@ struct JobResult {
     // no session-fatal error; outcomes.failed/skipped distinguish a clean
     // finish from a finish with errors.
     ItemOutcomeCounts outcomes{};
+    std::uint64_t parked_files{};
 };
 
 enum class ConflictPolicy : std::uint8_t {

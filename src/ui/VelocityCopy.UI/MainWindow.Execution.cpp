@@ -273,7 +273,7 @@ void MainWindow::ResumeStoppedCopy() {
             return;
         }
     }
-    if (live_plan_->remaining_files() == 0 && !live_plan_->has_pending_directories()) {
+    if (live_plan_->unresolved_files() == 0 && !live_plan_->has_pending_directories()) {
         pending_resume_ = {};
         FinalizeStoppedSessionIfEmpty();
         return;
@@ -532,6 +532,22 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         return;
     }
 
+    if (result.parked_files != 0 && live_plan_) {
+        stop_requested_ = false;
+        interrupted_session_ = InterruptedSessionState::Decision;
+        pending_resume_ = {};
+        append_gate_ = std::make_shared<AppendGate>();
+        active_destination_ = live_plan_->destination_root();
+        active_operation_ = live_plan_->operation();
+        SetExecutionButtonsConflict();
+        RefreshQueue();
+        QueueButton().IsEnabled(live_plan_->remaining_files() != 0 || live_plan_->has_pending_directories());
+        SpeedText().Text(L"—");
+        EtaText().Text(L"—");
+        ShowRetryDecisionAsync();
+        return;
+    }
+
     ResetInterruptedSessionState();
     if (append_gate_) {
         std::lock_guard gate_lock(append_gate_->mutex);
@@ -681,8 +697,77 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     StartNextQueuedSession();
 }
 
+void MainWindow::ShowRetryDecisionAsync() {
+    auto lifetime = get_strong();
+    if (interrupted_session_ != InterruptedSessionState::Decision || !live_plan_) return;
+    try {
+        Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
+        const auto choice = ShowNativeDecisionDialog(
+            hwnd_,
+            loader.GetString(L"RetryDecisionTitle").c_str(),
+            loader.GetString(L"RetryDecisionMessage").c_str(),
+            loader.GetString(L"ActionRetryAll").c_str(),
+            loader.GetString(L"ActionSkipAll").c_str(),
+            true,
+            loader.GetString(L"ActionCancel").c_str());
+        if (interrupted_session_ != InterruptedSessionState::Decision || !live_plan_) return;
+        if (choice == NativeDialogChoice::Primary) ResumeParkedFailures();
+        else if (choice == NativeDialogChoice::Secondary) ResolveParkedFailures();
+        else CancelCurrentSession();
+    } catch (...) {
+        if (interrupted_session_ == InterruptedSessionState::Decision) CancelCurrentSession();
+    }
+}
+
+void MainWindow::ResumeParkedFailures() {
+    if (interrupted_session_ != InterruptedSessionState::Decision || !live_plan_) return;
+    for (const auto& incident : live_plan_->parked_incidents()) {
+        if (incident.recovery_action == velocitycopy::RecoveryAction::RetryTransfer &&
+            !live_plan_->unpark(incident.file_id)) {
+            ShowError();
+            return;
+        }
+    }
+    interrupted_session_ = InterruptedSessionState::None;
+    cancel_requested_.store(false, std::memory_order_relaxed);
+    presenter_.reset();
+    execution_control_ = std::make_shared<velocitycopy::ExecutionControl>();
+    if (!append_gate_) append_gate_ = std::make_shared<AppendGate>();
+    auto plan = live_plan_;
+    auto control = execution_control_;
+    auto gate = append_gate_;
+    SetExecutionButtonsRunning();
+    auto weak = get_weak();
+    auto dispatcher = dispatcher_;
+    copy_thread_ = std::jthread([this, weak, dispatcher, plan, control, gate](std::stop_token token) {
+        const auto result = RunLivePlanSession(plan, control, gate, token, false, 0);
+        (void)dispatcher.TryEnqueue([weak, result]() {
+            if (auto self = weak.get()) self->FinishCopy(result);
+        });
+    });
+}
+
+void MainWindow::ResolveParkedFailures() {
+    if (interrupted_session_ != InterruptedSessionState::Decision || !live_plan_) return;
+    for (const auto& incident : live_plan_->parked_incidents()) {
+        const auto outcome = incident.recovery_action == velocitycopy::RecoveryAction::RetrySourceRemoval
+            ? velocitycopy::ItemOutcome::CopiedSourceRetained
+            : velocitycopy::ItemOutcome::Failed;
+        if (!live_plan_->resolve_parked(
+                incident.file_id, outcome, incident.hresult, incident.destination_preexisted)) {
+            ShowError();
+            return;
+        }
+    }
+    velocitycopy::JobResult result{true, false, S_OK, false};
+    const auto view = live_plan_->resolution_view();
+    result.outcomes = view.outcomes;
+    result.parked_files = view.parked_files;
+    FinishCopy(result);
+}
+
 void MainWindow::FinalizeStoppedSessionIfEmpty() {
-    if (interrupted_session_ != InterruptedSessionState::Stopped || !live_plan_ || live_plan_->remaining_files() != 0 ||
+    if (interrupted_session_ != InterruptedSessionState::Stopped || !live_plan_ || live_plan_->unresolved_files() != 0 ||
         live_plan_->has_pending_directories()) return;
     if (append_gate_) {
         std::lock_guard gate_lock(append_gate_->mutex);

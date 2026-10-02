@@ -318,9 +318,26 @@ JobResult JobExecutor::execute(
     const JobProgressCallback& progress) const noexcept {
     try {
         auto finish = [&plan](JobResult result) noexcept {
-            result.outcomes = plan.resolution_view().outcomes;
+            const auto view = plan.resolution_view();
+            result.outcomes = view.outcomes;
+            result.parked_files = view.parked_files;
             return result;
         };
+
+        // A RetrySourceRemoval is already copied. It is deliberately never
+        // unparked into transfer work; a resumed decision session retries only
+        // deletion of the original source.
+        for (const auto& incident : plan.parked_incidents()) {
+            if (incident.recovery_action != RecoveryAction::RetrySourceRemoval) continue;
+            const auto remove_source = remove_moved_source_file(incident.source);
+            if (remove_source == S_OK) {
+                if (!plan.resolve_parked(
+                        incident.file_id, ItemOutcome::Succeeded, S_OK,
+                        incident.destination_preexisted)) {
+                    return finish({false, false, static_cast<std::int32_t>(E_FAIL)});
+                }
+            }
+        }
 
         const auto directory_batch = plan.pending_directories();
         for (const auto& directory : directory_batch.directories) {
@@ -605,7 +622,9 @@ JobResult JobExecutor::execute(
                             if (!cancelled && !is_session_fatal(result.native_code) &&
                                 !is_destination_conflict(result.native_code)) {
                                 if (skip_allowed) remove_partial_destination(file->destination);
-                                if (!plan.resolve_active(file_id, ItemOutcome::Failed, result.native_code, !skip_allowed)) {
+                                if (!plan.park_active(
+                                        file_id, result.native_code, !skip_allowed,
+                                        RecoveryAction::RetryTransfer)) {
                                     result_state.record_error(static_cast<std::int32_t>(E_FAIL));
                                     control.request_cancel();
                                     worker_results[worker_index] = {false, false, static_cast<std::int32_t>(E_FAIL), false};
@@ -643,8 +662,9 @@ JobResult JobExecutor::execute(
                         if (plan.operation() == FileOperation::Move) {
                             const auto remove_source = remove_moved_source_file(file->source);
                             if (remove_source != S_OK) {
-                                if (!plan.resolve_active(
-                                        file_id, ItemOutcome::CopiedSourceRetained, remove_source, !skip_allowed)) {
+                                if (!plan.park_active(
+                                        file_id, remove_source, !skip_allowed,
+                                        RecoveryAction::RetrySourceRemoval)) {
                                     result_state.record_error(static_cast<std::int32_t>(E_FAIL));
                                     control.request_cancel();
                                     worker_results[worker_index] = {
@@ -694,7 +714,7 @@ JobResult JobExecutor::execute(
                     const auto native = static_cast<std::int32_t>(
                         HRESULT_FROM_WIN32(code == 0 ? ERROR_INVALID_DATA : code));
                     if (!is_session_fatal(native) && held_file_id != 0 &&
-                        plan.resolve_active(held_file_id, ItemOutcome::Failed, native, false)) {
+                        plan.park_active(held_file_id, native, false, RecoveryAction::RetryTransfer)) {
                         held_file_id = 0;
                         continue;
                     }

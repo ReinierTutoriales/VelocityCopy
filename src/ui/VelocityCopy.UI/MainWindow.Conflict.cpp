@@ -143,7 +143,7 @@ void MainWindow::ResumeConflictCopy(
         }
     }
 
-    if (live_plan_->remaining_files() == 0 && !live_plan_->has_pending_directories()) {
+    if (live_plan_->unresolved_files() == 0 && !live_plan_->has_pending_directories()) {
         pending_resume_ = {};
         FinalizeConflictSessionIfEmpty();
         return;
@@ -181,7 +181,7 @@ void MainWindow::ResumeConflictCopy(
 }
 
 void MainWindow::FinalizeConflictSessionIfEmpty() {
-    if (interrupted_session_ != InterruptedSessionState::Conflict || !live_plan_ || live_plan_->remaining_files() != 0 ||
+    if (interrupted_session_ != InterruptedSessionState::Conflict || !live_plan_ || live_plan_->unresolved_files() != 0 ||
         live_plan_->has_pending_directories()) return;
 
     if (append_gate_) {

@@ -27,7 +27,7 @@ namespace winrt::VelocityCopyUI::implementation {
 // A session interrupted by Stop or by a destination conflict. The two are
 // mutually exclusive; stop_requested_ stays separate because it is a
 // transition in progress, not an interrupted state.
-enum class InterruptedSessionState : std::uint8_t { None, Stopped, Conflict };
+enum class InterruptedSessionState : std::uint8_t { None, Stopped, Conflict, Decision };
 
 struct MainWindow : MainWindowT<MainWindow> {
     MainWindow();
@@ -205,6 +205,9 @@ private:
     void SetExecutionButtonsIdle();
     void SetExecutionButtonsStopped();
     void SetExecutionButtonsConflict();
+    void ShowRetryDecisionAsync();
+    void ResumeParkedFailures();
+    void ResolveParkedFailures();
     void FinalizeStoppedSessionIfEmpty();
     void FinalizeConflictSessionIfEmpty();
     void ApplySnapshot(const velocitycopy::UiSnapshot& snapshot);
