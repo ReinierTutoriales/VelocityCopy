@@ -181,7 +181,8 @@ void MainWindow::RefreshQueueCommandState() {
     }
 
     const bool has_work =
-        (live_plan_ && live_plan_->unresolved_files() != 0) ||
+        (live_plan_ && (live_plan_->unresolved_files() != 0 ||
+                       !live_plan_->parked_source_removals().empty())) ||
         !deferred_same_destination_jobs_.empty() ||
         !deferred_interrupted_jobs_.empty() ||
         !queued_sessions_.empty();
