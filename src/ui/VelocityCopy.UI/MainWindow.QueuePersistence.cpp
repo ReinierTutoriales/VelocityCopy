@@ -361,7 +361,7 @@ void MainWindow::StartCopyPlan(velocitycopy::CopyPlan plan) {
     active_operation_ = plan.operation;
     stopped_session_ = false;
     conflict_session_ = false;
-    conflict_replace_file_id_ = 0;
+    conflict_resume_intent_ = {};
     stop_requested_ = false;
     resume_requested_ = false;
     current_file_id_ = 0;
