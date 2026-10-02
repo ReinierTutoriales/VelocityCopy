@@ -385,7 +385,11 @@ JobResult JobExecutor::execute(
 
         const auto remaining_files = plan.remaining_files();
         if (remaining_files == 0) {
-            if (plan.operation() == FileOperation::Move) {
+            // Parked items are still unresolved work. In particular, a Move
+            // may have copied its destination while source deletion is parked
+            // for an explicit retry decision. Do not touch source directories
+            // until every item has reached a terminal outcome.
+            if (plan.operation() == FileOperation::Move && plan.unresolved_files() == 0) {
                 const auto cleanup = remove_empty_source_directories(plan.source_roots());
                 if (cleanup != S_OK) {
                     return finish({false, false, cleanup});
@@ -797,7 +801,7 @@ JobResult JobExecutor::execute(
                 return finish(worker_result);
             }
         }
-        if (plan.operation() == FileOperation::Move) {
+        if (plan.operation() == FileOperation::Move && plan.unresolved_files() == 0) {
             const auto cleanup = remove_empty_source_directories(plan.source_roots());
             if (cleanup != S_OK) {
                 return finish({false, false, cleanup, false});
