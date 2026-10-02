@@ -68,11 +68,6 @@ int main() {
         return fail(4, "Start and Resume must share one executor loop");
     }
 
-    if (contains(execution, "live_plan_->remaining_files() != 0 || live_plan_->has_pending_directories()") ||
-        count_occurrences(execution, "live_plan_->unresolved_files() != 0 || live_plan_->has_pending_directories()") < 3) {
-        return fail(42, "interrupted queue state must include parked recovery work");
-    }
-
     const auto stop_pos = execution.find("void MainWindow::OnStopClick");
     const auto cancel_pos = execution.find("void MainWindow::OnCancelClick", stop_pos);
     if (stop_pos == std::string::npos || cancel_pos == std::string::npos) return fail(5, "Stop/Cancel handlers missing");

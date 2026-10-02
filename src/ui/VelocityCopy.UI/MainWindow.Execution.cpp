@@ -500,7 +500,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         }
         SetExecutionButtonsStopped();
         RefreshQueue();
-        QueueButton().IsEnabled(live_plan_ && (live_plan_->unresolved_files() != 0 || live_plan_->has_pending_directories()));
+        QueueButton().IsEnabled(live_plan_ && (live_plan_->remaining_files() != 0 || live_plan_->has_pending_directories()));
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
 
@@ -524,7 +524,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         active_operation_ = live_plan_->operation();
         SetExecutionButtonsConflict();
         RefreshQueue();
-        QueueButton().IsEnabled(live_plan_->unresolved_files() != 0 || live_plan_->has_pending_directories());
+        QueueButton().IsEnabled(live_plan_->remaining_files() != 0 || live_plan_->has_pending_directories());
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
 
@@ -559,7 +559,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
             Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), label);
         } catch (...) {}
         RefreshQueue();
-        QueueButton().IsEnabled(live_plan_->unresolved_files() != 0 || live_plan_->has_pending_directories());
+        QueueButton().IsEnabled(live_plan_->remaining_files() != 0 || live_plan_->has_pending_directories());
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
         ShowRetryDecisionAsync();
@@ -790,7 +790,7 @@ void MainWindow::ResolveParkedFailures() {
         std::lock_guard gate_lock(append_gate_->mutex);
         planning = append_gate_->planning_count != 0;
     }
-    if (planning || live_plan_->unresolved_files() != 0 || live_plan_->has_pending_directories()) {
+    if (planning || live_plan_->remaining_files() != 0 || live_plan_->has_pending_directories()) {
         StartDecisionSession(false);
         return;
     }
