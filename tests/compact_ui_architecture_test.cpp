@@ -282,5 +282,17 @@ int main() {
         return fail(39, "terminal issue notices must distinguish skip-only warnings and reserve layout space");
     }
 
+    const auto show_error = body_of(window, "void MainWindow::ShowError(");
+    const auto resize_to_content = body_of(window, "void MainWindow::ResizeWindowToContent()");
+    if (!contains(show_error, "ErrorBar().IsOpen(true)") ||
+        !contains(show_error, "ResizeWindowToContent();") ||
+        !contains(window, "ErrorBar().Closed(") ||
+        !contains(window, "self->ResizeWindowToContent();") ||
+        !contains(resize_to_content, "QueueExpandedMinHeight") ||
+        !contains(resize_to_content, "+ notice_height_epx") ||
+        count_occurrences(execution, "ResizeWindowToContent();") != 0) {
+        return fail(40, "notice row must resize on every show/close and remain additional to queue height limits");
+    }
+
     return 0;
 }

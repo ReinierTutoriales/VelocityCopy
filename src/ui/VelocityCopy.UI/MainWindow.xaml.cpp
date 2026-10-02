@@ -37,6 +37,9 @@ MainWindow::MainWindow() {
     if (auto* app = App::Instance()) window_id_ = app->NextWindowId();
     InitializeComponent();
     dispatcher_ = Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
+    ErrorBar().Closed([weak = get_weak()](InfoBar const&, InfoBarClosedEventArgs const&) {
+        if (auto self = weak.get()) self->ResizeWindowToContent();
+    });
     ConfigureQueuePersistenceMenu();
     try {
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
@@ -212,8 +215,13 @@ void MainWindow::ResizeWindowToContent() {
 
     QueuePanel().Measure({measured_width, std::numeric_limits<float>::infinity()});
     const auto desired_queue_height = static_cast<double>(QueuePanel().DesiredSize().Height);
-    const auto expanded_height = static_cast<int>(std::ceil(velocitycopy::ui::token_double(L"CompactSurfaceHeight", 72.0) + notice_height + desired_queue_height));
-    ResizeWindow((std::clamp)(expanded_height, velocitycopy::ui::token_int(L"QueueExpandedMinHeight", 176), velocitycopy::ui::token_int(L"QueueExpandedMaxHeight", 340)));
+    const auto expanded_height = static_cast<int>(std::ceil(
+        velocitycopy::ui::token_double(L"CompactSurfaceHeight", 72.0) + notice_height + desired_queue_height));
+    const auto notice_height_epx = static_cast<int>(std::ceil(notice_height));
+    ResizeWindow((std::clamp)(
+        expanded_height,
+        velocitycopy::ui::token_int(L"QueueExpandedMinHeight", 176) + notice_height_epx,
+        velocitycopy::ui::token_int(L"QueueExpandedMaxHeight", 340) + notice_height_epx));
     RootGrid().UpdateLayout();
 }
 
@@ -302,6 +310,7 @@ void MainWindow::ResetTransferSurface() {
 void MainWindow::ShowError(hstring const& message) {
     ErrorBar().Message(message);
     ErrorBar().IsOpen(true);
+    ResizeWindowToContent();
 }
 
 hstring MainWindow::FormatFailureReason(const std::int32_t native_code) {
