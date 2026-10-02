@@ -12,7 +12,9 @@ using namespace Microsoft::UI::Xaml::Controls;
 namespace winrt::VelocityCopyUI::implementation {
 
 void MainWindow::ResetCurrentItemState() noexcept {
-    ResetCurrentItemState();
+    current_file_id_ = 0;
+    current_file_skippable_ = false;
+    paused_ = false;
 }
 
 void MainWindow::ResetInterruptedSessionState() noexcept {
