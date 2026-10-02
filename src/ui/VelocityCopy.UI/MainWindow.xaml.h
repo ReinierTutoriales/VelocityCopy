@@ -87,6 +87,11 @@ private:
         velocitycopy::StorageKey source;
     };
 
+    struct ConflictResumeIntent {
+        std::uint64_t replace_file_id{};
+        velocitycopy::ConflictPolicy policy{velocitycopy::ConflictPolicy::Prompt};
+    };
+
     struct AppendGate {
         struct BoundedCondition {
             explicit BoundedCondition(bool* accepting_state) noexcept
@@ -229,8 +234,7 @@ private:
     std::uint64_t next_job_id_{1};
     std::uint64_t last_queue_completed_files_{};
     std::uint64_t current_file_id_{};
-    std::uint64_t conflict_replace_file_id_{};
-    velocitycopy::ConflictPolicy conflict_policy_{velocitycopy::ConflictPolicy::Prompt};
+    ConflictResumeIntent conflict_resume_intent_{};
     HWND hwnd_{};
     bool tray_exit_requested_{};
     bool tray_window_hidden_{};

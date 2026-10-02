@@ -202,8 +202,7 @@ void MainWindow::StartTransfer(velocitycopy::CopyJob job, velocitycopy::StorageK
     active_operation_ = job.operation;
     stopped_session_ = false;
     conflict_session_ = false;
-    conflict_replace_file_id_ = 0;
-    conflict_policy_ = velocitycopy::ConflictPolicy::Prompt;
+    conflict_resume_intent_ = {};
     stop_requested_ = false;
     resume_requested_ = false;
     current_file_id_ = 0;
@@ -402,8 +401,7 @@ void MainWindow::CancelCurrentSession() {
     resume_requested_ = false;
     SpeedText().Text(L"—");
     EtaText().Text(L"—");
-    conflict_replace_file_id_ = 0;
-    conflict_policy_ = velocitycopy::ConflictPolicy::Prompt;
+    conflict_resume_intent_ = {};
     current_file_id_ = 0;
     current_file_skippable_ = false;
     deferred_same_destination_jobs_.clear();
@@ -522,8 +520,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         stopped_session_ = false;
         conflict_session_ = true;
         resume_requested_ = false;
-        conflict_replace_file_id_ = 0;
-    conflict_policy_ = velocitycopy::ConflictPolicy::Prompt;
+        conflict_resume_intent_ = {};
         append_gate_ = std::make_shared<AppendGate>();
         active_destination_ = live_plan_->destination_root();
         active_operation_ = live_plan_->operation();
@@ -548,8 +545,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     }
 
     resume_requested_ = false;
-    conflict_replace_file_id_ = 0;
-    conflict_policy_ = velocitycopy::ConflictPolicy::Prompt;
+    conflict_resume_intent_ = {};
     stop_requested_ = false;
     stopped_session_ = false;
     conflict_session_ = false;
