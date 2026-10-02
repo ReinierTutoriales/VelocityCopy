@@ -223,5 +223,16 @@ int main() {
         return fail(15, "UI specification must lock the compact native-caption composition");
     }
 
+    // Disabled buttons do not participate in pointer hit-testing. Keep the tooltip
+    // on an enabled transparent host so Pause/Cancel remain discoverable while idle.
+    if (!contains(xaml, "x:Name=\"PauseButtonHost\"") ||
+        !contains(xaml, "x:Name=\"CancelButtonHost\"") ||
+        !contains(window, "ToolTipService::SetToolTip(PauseButtonHost()") ||
+        !contains(window, "ToolTipService::SetToolTip(CancelButtonHost()") ||
+        contains(window, "ToolTipService::SetToolTip(PauseButton()") ||
+        contains(window, "ToolTipService::SetToolTip(CancelButton()")) {
+        return fail(31, "disabled primary actions must expose tooltips through enabled hit-test hosts");
+    }
+
     return 0;
 }
