@@ -372,6 +372,18 @@ int main() {
         return fail(40, "Decision alone must expose the resolve-failures affordance");
     }
 
+    // Contract 41: RetrySourceRemoval permission is single-use. A later
+    // executor pass caused by appended work must require a fresh Decision.
+    const auto run_session = body_of(execution, "velocitycopy::JobResult MainWindow::RunLivePlanSession(");
+    const auto execute_call = run_session.find("result = executor_.execute(");
+    const auto consume_retry = run_session.find("retry_source_removals = false;", execute_call);
+    const auto loop_continue = run_session.find("continue;", consume_retry);
+    if (run_session.empty() || execute_call == std::string::npos ||
+        consume_retry == std::string::npos || loop_continue == std::string::npos ||
+        consume_retry > loop_continue) {
+        return fail(41, "source-removal retry authorization must be consumed after one executor pass");
+    }
+
     const auto reset_item = body_of(execution, "void MainWindow::ResetCurrentItemState() noexcept");
     const auto reset_interrupted = body_of(execution, "void MainWindow::ResetInterruptedSessionState() noexcept");
     if (reset_item.empty() || !contains(reset_item, "current_file_id_ = 0") ||

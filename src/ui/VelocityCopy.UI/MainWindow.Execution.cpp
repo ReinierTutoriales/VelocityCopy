@@ -100,7 +100,7 @@ velocitycopy::JobResult MainWindow::RunLivePlanSession(
     const bool publish_plan,
     std::uint64_t replace_file_id,
     const velocitycopy::ConflictPolicy conflict_policy,
-    const bool retry_source_removals) {
+    bool retry_source_removals) {
     auto weak = get_weak();
     auto dispatcher = dispatcher_;
 
@@ -135,6 +135,10 @@ velocitycopy::JobResult MainWindow::RunLivePlanSession(
                 }
                 return velocitycopy::JobDecision::Continue;
             });
+        // RetrySourceRemoval is authorized by one explicit Retry All decision.
+        // Appended work may make this loop execute again, but must not silently
+        // repeat source deletion without another user decision.
+        retry_source_removals = false;
         replace_file_id = 0;
 
         if (result.cancelled || (!result.success && !result.stopped)) break;
