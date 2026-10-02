@@ -84,7 +84,7 @@ void MainWindow::RemoveTrayIntegration() noexcept {
 }
 
 bool MainWindow::HasActiveTransfer() const noexcept {
-    return execution_control_ != nullptr || stopped_session_ || conflict_session_ || stop_requested_;
+    return execution_control_ != nullptr || interrupted_session_ != InterruptedSessionState::None || stop_requested_;
 }
 
 void MainWindow::DestroyCompletedWindow() noexcept {

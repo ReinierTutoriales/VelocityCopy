@@ -59,7 +59,7 @@ int main() {
 
     if (!contains(append, "append_planner_.enqueue") || !contains(append, "planning_count") ||
         !contains(append, "target_plan->append") || !contains(append, "deferred_interrupted_jobs_") ||
-        !contains(append, "stopped_session_") || !contains(append, "conflict_session_")) {
+        !contains(append, "interrupted_session_ != InterruptedSessionState::None")) {
         return fail(3, "same-destination append pipeline missing");
     }
 
@@ -260,6 +260,23 @@ int main() {
         return fail(35, "planner completion must route interrupted-session continuation through one decision point");
     }
 
+    // Contract 36: Stopped and Conflict are one mutually exclusive state. The
+    // retired booleans must never return anywhere under src/ui, and the header
+    // must declare exactly one interrupted-session field of the enum type.
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(root / "src/ui")) {
+        if (!entry.is_regular_file()) continue;
+        const auto ext = entry.path().extension();
+        if (ext != ".cpp" && ext != ".h" && ext != ".xaml" && ext != ".idl") continue;
+        const auto source = read_source(entry.path());
+        if (contains(source, "stopped_session_") || contains(source, "conflict_session_"))
+            return fail(36, "retired stopped_session_/conflict_session_ booleans must not return");
+    }
+    if (!contains(header, "enum class InterruptedSessionState : std::uint8_t { None, Stopped, Conflict };") ||
+        count_occurrences(header, "InterruptedSessionState interrupted_session_{InterruptedSessionState::None};") != 1 ||
+        !contains(header, "bool stop_requested_{};")) {
+        return fail(36, "interrupted session must be one enum field; stop_requested_ stays a separate transition flag");
+    }
+
     const auto reset_item = body_of(execution, "void MainWindow::ResetCurrentItemState() noexcept");
     const auto reset_interrupted = body_of(execution, "void MainWindow::ResetInterruptedSessionState() noexcept");
     if (reset_item.empty() || !contains(reset_item, "current_file_id_ = 0") ||
@@ -268,8 +285,8 @@ int main() {
         contains(reset_item, "ResetCurrentItemState()")) {
         return fail(28, "current-item reset must remain concrete and non-recursive");
     }
-    if (reset_interrupted.empty() || !contains(reset_interrupted, "stopped_session_ = false") ||
-        !contains(reset_interrupted, "conflict_session_ = false") ||
+    if (reset_interrupted.empty() ||
+        !contains(reset_interrupted, "interrupted_session_ = InterruptedSessionState::None") ||
         !contains(reset_interrupted, "stop_requested_ = false") ||
         !contains(reset_interrupted, "resume_requested_ = false") ||
         !contains(reset_interrupted, "conflict_resume_intent_ = {}")) {

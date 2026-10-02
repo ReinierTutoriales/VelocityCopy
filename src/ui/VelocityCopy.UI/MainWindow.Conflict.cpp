@@ -53,7 +53,7 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
     auto lifetime = get_strong();
 
     try {
-        if (!conflict_session_ || !live_plan_ || !conflict.destination_conflict ||
+        if (interrupted_session_ != InterruptedSessionState::Conflict || !live_plan_ || !conflict.destination_conflict ||
             conflict.conflict_file_id == 0) {
             co_return;
         }
@@ -89,7 +89,7 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
             apply_to_all_label,
             &apply_to_all);
 
-        if (!conflict_session_ || !live_plan_) co_return;
+        if (interrupted_session_ != InterruptedSessionState::Conflict || !live_plan_) co_return;
 
         switch (choice) {
         case NativeDialogChoice::Primary:
@@ -116,14 +116,14 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
             co_return;
         }
     } catch (...) {
-        if (conflict_session_) CancelCurrentSession();
+        if (interrupted_session_ == InterruptedSessionState::Conflict) CancelCurrentSession();
     }
 }
 
 void MainWindow::ResumeConflictCopy(
     const std::uint64_t replace_file_id,
     const velocitycopy::ConflictPolicy policy) {
-    if (!conflict_session_ || !live_plan_) return;
+    if (interrupted_session_ != InterruptedSessionState::Conflict || !live_plan_) return;
 
     if (!deferred_interrupted_jobs_.empty() && append_gate_) {
         auto deferred = std::move(deferred_interrupted_jobs_);
@@ -153,8 +153,7 @@ void MainWindow::ResumeConflictCopy(
 
     resume_requested_ = false;
     conflict_resume_intent_ = {};
-    conflict_session_ = false;
-    stopped_session_ = false;
+    interrupted_session_ = InterruptedSessionState::None;
     stop_requested_ = false;
     current_file_id_ = 0;
     current_file_skippable_ = false;
@@ -185,7 +184,7 @@ void MainWindow::ResumeConflictCopy(
 }
 
 void MainWindow::FinalizeConflictSessionIfEmpty() {
-    if (!conflict_session_ || !live_plan_ || live_plan_->remaining_files() != 0 ||
+    if (interrupted_session_ != InterruptedSessionState::Conflict || !live_plan_ || live_plan_->remaining_files() != 0 ||
         live_plan_->has_pending_directories()) return;
 
     if (append_gate_) {
@@ -195,7 +194,7 @@ void MainWindow::FinalizeConflictSessionIfEmpty() {
         append_gate_->condition.notify_all();
     }
 
-    conflict_session_ = false;
+    interrupted_session_ = InterruptedSessionState::None;
     resume_requested_ = false;
     conflict_resume_intent_ = {};
     live_plan_.reset();

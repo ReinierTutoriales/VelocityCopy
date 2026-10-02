@@ -73,7 +73,7 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
     auto lifetime = get_strong();
 
     if (recovery_prompt_checked_ || recovery_prompt_active_) co_return;
-    if (execution_control_ || live_plan_ || stopped_session_ || conflict_session_ ||
+    if (execution_control_ || live_plan_ || interrupted_session_ != InterruptedSessionState::None ||
         stop_requested_ || !queued_sessions_.empty()) {
         co_return;
     }
@@ -146,7 +146,7 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
 
     co_await ui_thread;
 
-    if (execution_control_ || live_plan_ || stopped_session_ || conflict_session_ ||
+    if (execution_control_ || live_plan_ || interrupted_session_ != InterruptedSessionState::None ||
         stop_requested_ || !queued_sessions_.empty()) {
         app->ReturnRecoveryFile(path);
         recovery_prompt_active_ = false;
@@ -191,7 +191,7 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
         co_return;
     }
 
-    if (execution_control_ || live_plan_ || stopped_session_ || conflict_session_ ||
+    if (execution_control_ || live_plan_ || interrupted_session_ != InterruptedSessionState::None ||
         stop_requested_ || !queued_sessions_.empty()) {
         app->ReturnRecoveryFile(path);
         recovery_prompt_active_ = false;

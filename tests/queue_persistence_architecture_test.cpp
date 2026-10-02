@@ -96,7 +96,7 @@ int main() {
     }
 
     if (!contains(persistence, "!execution_control_ && !live_plan_") ||
-        !contains(persistence, "!stopped_session_") || !contains(persistence, "!conflict_session_") ||
+        !contains(persistence, "interrupted_session_ == InterruptedSessionState::None") ||
         !contains(persistence, "queued_sessions_.empty()")) {
         return fail(9, "loading must remain disabled while another session exists");
     }

@@ -16,12 +16,18 @@
 
 #include <chrono>
 #include <condition_variable>
+#include <cstdint>
 #include <deque>
 #include <memory>
 #include <mutex>
 #include <utility>
 
 namespace winrt::VelocityCopyUI::implementation {
+// A session interrupted by Stop or by a destination conflict. The two are
+// mutually exclusive; stop_requested_ stays separate because it is a
+// transition in progress, not an interrupted state.
+enum class InterruptedSessionState : std::uint8_t { None, Stopped, Conflict };
+
 struct MainWindow : MainWindowT<MainWindow> {
     MainWindow();
     ~MainWindow();
@@ -228,8 +234,7 @@ private:
     std::atomic_bool cancel_requested_{false};
     double progress_fraction_{};
     bool paused_{};
-    bool stopped_session_{};
-    bool conflict_session_{};
+    InterruptedSessionState interrupted_session_{InterruptedSessionState::None};
     bool stop_requested_{};
     bool resume_requested_{};
     bool current_file_skippable_{};
