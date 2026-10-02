@@ -155,12 +155,7 @@ void MainWindow::EnqueueAppend(
                     case velocitycopy::LivePlanAppendResult::Appended:
                         self->QueueButton().IsEnabled(true);
                         self->RefreshQueue();
-                        if (self->conflict_session_ && self->resume_requested_)
-                            self->ResumeConflictCopy(
-                                self->conflict_resume_intent_.replace_file_id,
-                                self->conflict_resume_intent_.policy);
-                        else if (self->stopped_session_ && self->resume_requested_)
-                            self->ResumeStoppedCopy();
+                        self->ContinueInterruptedSessionAfterPlanning();
                         return;
                     case velocitycopy::LivePlanAppendResult::Drained:
                     case velocitycopy::LivePlanAppendResult::DifferentDestination:
