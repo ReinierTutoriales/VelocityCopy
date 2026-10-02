@@ -126,27 +126,27 @@ jobs:
         id: cache-nsis
         uses: actions/cache@v4
         with:
-          path: ${{ runner.temp }}/nsis-3.11
+          path: ${{ runner.temp }}/nsis-3.11.zip
           key: nsis-3.11-c7d27f780ddb6cffb4730138cd1591e841f4b7edb155856901cdf5f214394fa1
 
-      - name: Fetch pinned NSIS
+      - name: Fetch and verify pinned NSIS
         shell: pwsh
         run: |
           $version = "3.11"
           $expected = "c7d27f780ddb6cffb4730138cd1591e841f4b7edb155856901cdf5f214394fa1"
-          $tools = Join-Path $env:RUNNER_TEMP "nsis-$version"
-          $makensis = Get-ChildItem $tools -Recurse -File -Filter makensis.exe -ErrorAction SilentlyContinue | Select-Object -First 1
-          if (-not $makensis) {
-            New-Item -ItemType Directory -Force $tools | Out-Null
-            $zip = Join-Path $env:RUNNER_TEMP "nsis-$version.zip"
+          $zip = Join-Path $env:RUNNER_TEMP "nsis-$version.zip"
+          if (-not (Test-Path $zip)) {
             $url = "https://github.com/tauri-apps/binary-releases/releases/download/nsis-$version/nsis-$version.zip"
             & curl.exe -L --fail --retry 4 --retry-all-errors --output $zip $url
             if ($LASTEXITCODE -ne 0 -or -not (Test-Path $zip)) { throw "Pinned NSIS download failed" }
-            $actual = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
-            if ($actual -ne $expected) { throw "NSIS SHA256 mismatch: expected $expected, got $actual" }
-            Expand-Archive -Path $zip -DestinationPath $tools -Force
-            $makensis = Get-ChildItem $tools -Recurse -File -Filter makensis.exe | Select-Object -First 1
           }
+          $actual = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $expected) { throw "NSIS SHA256 mismatch: expected $expected, got $actual" }
+          Write-Host "Verified NSIS $version SHA256: $actual"
+          $tools = Join-Path $env:RUNNER_TEMP "nsis-$version"
+          Remove-Item $tools -Recurse -Force -ErrorAction SilentlyContinue
+          Expand-Archive -Path $zip -DestinationPath $tools -Force
+          $makensis = Get-ChildItem $tools -Recurse -File -Filter makensis.exe | Select-Object -First 1
           if (-not $makensis) { throw "Pinned NSIS $version does not contain makensis.exe" }
           "NSIS_MAKENSIS=$($makensis.FullName)" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
           Write-Host "Using pinned NSIS $version at $($makensis.FullName)"
