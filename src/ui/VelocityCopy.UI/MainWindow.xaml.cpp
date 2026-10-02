@@ -2,6 +2,7 @@
 #include "MainWindow.xaml.h"
 #include "App.xaml.h"
 #include "UiTokens.h"
+#include "Localization.h"
 #if __has_include("MainWindow.g.cpp")
 #include "MainWindow.g.cpp"
 #endif
@@ -42,17 +43,16 @@ MainWindow::MainWindow() {
     });
     ConfigureQueuePersistenceMenu();
     try {
-        Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-        const auto pause = loader.GetString(L"ActionPause");
-        const auto cancel = loader.GetString(L"ActionCancel");
+        const auto pause = velocitycopy::localization::get_string(L"ActionPause");
+        const auto cancel = velocitycopy::localization::get_string(L"ActionCancel");
         ToolTipService::SetToolTip(PauseButtonHost(), box_value(pause));
         ToolTipService::SetToolTip(CancelButtonHost(), box_value(cancel));
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), pause);
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(CancelButton(), cancel);
 
-        const auto move_up = loader.GetString(L"ActionMoveUp");
-        const auto move_down = loader.GetString(L"ActionMoveDown");
-        const auto remove = loader.GetString(L"ActionRemove");
+        const auto move_up = velocitycopy::localization::get_string(L"ActionMoveUp");
+        const auto move_down = velocitycopy::localization::get_string(L"ActionMoveDown");
+        const auto remove = velocitycopy::localization::get_string(L"ActionRemove");
         ToolTipService::SetToolTip(QueueMoveUpButtonHost(), box_value(move_up));
         ToolTipService::SetToolTip(QueueMoveDownButtonHost(), box_value(move_down));
         ToolTipService::SetToolTip(QueueRemoveButtonHost(), box_value(remove));
