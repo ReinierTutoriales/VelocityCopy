@@ -127,7 +127,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/nsis-3.11.zip
-          key: nsis-3.11-c7d27f780ddb6cffb4730138cd1591e841f4b7edb155856901cdf5f214394fa1
+          key: nsis-3.11-${{ matrix.arch }}-c7d27f780ddb6cffb4730138cd1591e841f4b7edb155856901cdf5f214394fa1
 
       - name: Fetch and verify pinned NSIS
         shell: pwsh
