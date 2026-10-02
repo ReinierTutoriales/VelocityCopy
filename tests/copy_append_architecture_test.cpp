@@ -346,16 +346,30 @@ int main() {
         return fail(39, "Decision dismissal must preserve work and source-removal retry must be explicit");
     }
 
-    // Contract 40: dismissing the Decision dialog must leave an in-window
-    // affordance to reopen it; RetrySourceRemoval attempts are advanced only
-    // by the explicit retry execution path.
+    // Contract 40: Decision owns the in-window affordance used to reopen
+    // its dialog. Conflict must keep Pause disabled and must never borrow the
+    // retry/resolve icon or label.
+    const auto finish_copy = body_of(execution, "void MainWindow::FinishCopy(");
+    const auto conflict_entry = finish_copy.find("if (result.destination_conflict");
+    const auto decision_entry = finish_copy.find("if (result.parked_files != 0", conflict_entry);
+    const auto common_teardown = finish_copy.find("ResetInterruptedSessionState();", decision_entry);
+    if (conflict_entry == std::string::npos || decision_entry == std::string::npos ||
+        common_teardown == std::string::npos) {
+        return fail(40, "Conflict/Decision entry blocks missing");
+    }
+    const auto conflict_block = finish_copy.substr(conflict_entry, decision_entry - conflict_entry);
+    const auto decision_block = finish_copy.substr(decision_entry, common_teardown - decision_entry);
     const auto pause_click = body_of(execution, "void MainWindow::OnPauseClick(");
     if (pause_click.empty() ||
         !contains(pause_click, "InterruptedSessionState::Decision") ||
         !contains(pause_click, "ShowRetryDecisionAsync();") ||
-        !contains(execution, "PauseButton().IsEnabled(true);") ||
-        !contains(execution, "ActionRetryAll")) {
-        return fail(40, "Decision dismissal must leave a retry affordance in the transfer window");
+        contains(conflict_block, "PauseButton().IsEnabled(true)") ||
+        contains(conflict_block, "ActionResolveFailures") ||
+        contains(conflict_block, "PauseIcon().Glyph(L\"\\xE72C\")") ||
+        !contains(decision_block, "PauseButton().IsEnabled(true)") ||
+        !contains(decision_block, "ActionResolveFailures") ||
+        !contains(decision_block, "PauseIcon().Glyph(L\"\\xE72C\")")) {
+        return fail(40, "Decision alone must expose the resolve-failures affordance");
     }
 
     const auto reset_item = body_of(execution, "void MainWindow::ResetCurrentItemState() noexcept");

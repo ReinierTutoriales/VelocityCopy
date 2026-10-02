@@ -61,5 +61,6 @@
   <data name="RetryDecisionTitle" xml:space="preserve"><value>Algunos elementos requieren atención</value></data>
   <data name="RetryDecisionMessage" xml:space="preserve"><value>Los elementos fallidos restantes se pueden reintentar o dejar como fallidos.</value></data>
   <data name="ActionRetryAll" xml:space="preserve"><value>Reintentar todos</value></data>
+  <data name="ActionResolveFailures" xml:space="preserve"><value>Resolver errores</value></data>
   <data name="ActionSkipAll" xml:space="preserve"><value>Omitir todos</value></data>
 </root>

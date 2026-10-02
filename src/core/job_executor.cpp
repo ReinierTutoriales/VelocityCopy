@@ -340,6 +340,8 @@ JobResult JobExecutor::execute(
                         incident.destination_preexisted)) {
                     return finish({false, false, static_cast<std::int32_t>(E_FAIL)});
                 }
+            } else if (!plan.record_parked_retry_failure(incident.file_id, remove_source)) {
+                return finish({false, false, static_cast<std::int32_t>(E_FAIL)});
             }
         }
         }
