@@ -79,8 +79,10 @@ SourceRemovalValidation validate_source_removal_recovery(
     if (source.status == FingerprintProbe::Unavailable) {
         return SourceRemovalValidation::TemporarilyUnavailable;
     }
-    if (source.status == FingerprintProbe::Missing ||
-        !same_fingerprint(recovery.source_fingerprint, source.fingerprint)) {
+    if (source.status == FingerprintProbe::Missing) {
+        return SourceRemovalValidation::AlreadyRemoved;
+    }
+    if (!same_fingerprint(recovery.source_fingerprint, source.fingerprint)) {
         return SourceRemovalValidation::ChangedOrMissing;
     }
     return SourceRemovalValidation::Verified;

@@ -132,7 +132,7 @@ int main() {
         !contains(recovery, "revalidate_recovery_plan") ||
         !contains(recovery, "revalidate_recovery_job") ||
         !contains(recovery, "retire_recovery_file(") ||
-        !contains(recovery, "StartCopyPlan(std::move(*archive->current_plan))")) {
+        !contains(recovery, "std::move(*archive->current_plan), std::move(archive->source_removals)")) {
         return fail(12, "shutdown recovery must require an explicit validated native resume/discard decision");
     }
 

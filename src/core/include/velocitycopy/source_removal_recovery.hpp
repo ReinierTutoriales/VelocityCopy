@@ -37,6 +37,7 @@ enum class FingerprintProbe {
 
 enum class SourceRemovalValidation {
     Verified,
+    AlreadyRemoved,
     ChangedOrMissing,
     TemporarilyUnavailable,
 };
