@@ -310,7 +310,8 @@ void MainWindow::ResetTransferSurface() {
     ErrorBar().Message(L"");
 }
 
-void MainWindow::ShowError(hstring const& message) {
+void MainWindow::ShowNotice(InfoBarSeverity const severity, hstring const& message) {
+    ErrorBar().Severity(severity);
     ErrorBar().Message(message);
     ErrorBar().IsOpen(true);
     ResizeWindowToContent();
@@ -321,6 +322,10 @@ void MainWindow::ShowError(hstring const& message) {
             self->ResizeWindowToContent();
         }
     });
+}
+
+void MainWindow::ShowError(hstring const& message) {
+    ShowNotice(InfoBarSeverity::Error, message);
 }
 
 hstring MainWindow::FormatFailureReason(const std::int32_t native_code) {

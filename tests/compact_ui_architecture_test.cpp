@@ -241,7 +241,7 @@ int main() {
     const auto finish_copy = body_of(execution, "void MainWindow::FinishCopy(");
     if (!contains(finish_copy, "result.outcomes.copied_source_retained != 0") ||
         !contains(finish_copy, "StatusCompletedWithIssues") ||
-        !contains(finish_copy, "ShowError(") ||
+        !contains(finish_copy, "ShowNotice(") ||
         !contains(finish_copy, "if (completed_with_issues)") ||
         !contains(finish_copy, "DestroyCompletedWindow()")) {
         return fail(32, "failed, skipped and retained-source outcomes must produce a visible non-clean terminal state");
@@ -275,25 +275,36 @@ int main() {
         !contains(window, "ToolTipService::SetToolTip(QueueRemoveButtonHost()")) {
         return fail(38, "disabled queue commands must expose tooltips through enabled host elements");
     }
+    const auto show_notice = body_of(window, "void MainWindow::ShowNotice(");
     const auto show_error = body_of(window, "void MainWindow::ShowError(");
     if (contains(xaml, "Grid.RowSpan=\"2\"") ||
         !contains(execution, "InfoBarSeverity::Warning") ||
         !contains(window, "notice_height") ||
-        !contains(show_error, "ResizeWindowToContent();")) {
+        !contains(show_notice, "ResizeWindowToContent();")) {
         return fail(39, "terminal issue notices must distinguish skip-only warnings and reserve layout space");
     }
 
     const auto resize_to_content = body_of(window, "void MainWindow::ResizeWindowToContent()");
-    if (!contains(show_error, "ErrorBar().IsOpen(true)") ||
-        count_occurrences(show_error, "ResizeWindowToContent();") != 2 ||
-        !contains(show_error, "dispatcher_.TryEnqueue") ||
-        !contains(show_error, "self->ErrorBar().IsOpen()") ||
+    if (!contains(show_notice, "ErrorBar().Severity(severity)") ||
+        !contains(show_notice, "ErrorBar().IsOpen(true)") ||
+        count_occurrences(show_notice, "ResizeWindowToContent();") != 2 ||
+        !contains(show_notice, "dispatcher_.TryEnqueue") ||
+        !contains(show_notice, "self->ErrorBar().IsOpen()") ||
+        !contains(show_error, "ShowNotice(InfoBarSeverity::Error, message)") ||
         !contains(window, "ErrorBar().Closed(") ||
         !contains(window, "self->ResizeWindowToContent();") ||
         !contains(resize_to_content, "QueueExpandedMinHeight") ||
         !contains(resize_to_content, "+ notice_height_epx") ||
         count_occurrences(execution, "ResizeWindowToContent();") != 0) {
         return fail(40, "notice row must resize on every show/close and remain additional to queue height limits");
+    }
+
+    if (contains(finish_copy, "ErrorBar().Severity(") ||
+        !contains(finish_copy, "ShowNotice(") ||
+        !contains(finish_copy, "? InfoBarSeverity::Warning") ||
+        !contains(show_error, "ShowNotice(InfoBarSeverity::Error, message)") ||
+        count_occurrences(window, "ErrorBar().Severity(") != 1) {
+        return fail(41, "notice severity must be explicit per message and ordinary errors must always use Error severity");
     }
 
     return 0;
