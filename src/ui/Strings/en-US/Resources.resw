@@ -56,6 +56,7 @@
   <data name="RecoveryMessage" xml:space="preserve"><value>VelocityCopy found work saved during Windows shutdown. Nothing will resume until you choose Resume.</value></data>
   <data name="RecoveryResume" xml:space="preserve"><value>Resume</value></data>
   <data name="RecoveryDiscard" xml:space="preserve"><value>Discard</value></data>
+  <data name="RecoveryRestoreError" xml:space="preserve"><value>The saved recovery could not be restored. You can try again or discard it.</value></data>
   <data name="CurrentItemText.Text" xml:space="preserve"><value>Ready</value></data>
   <data name="QueueTitle.Text" xml:space="preserve"><value>Pending files</value></data>
   <data name="RetryDecisionTitle" xml:space="preserve"><value>Some items need attention</value></data>

@@ -221,6 +221,13 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
         app->ReturnRecoveryFile(path);
         recovery_prompt_active_ = false;
         recovery_prompt_checked_ = false;
+        hstring recovery_error = L"The saved recovery could not be restored. You can try again or discard it.";
+        try {
+            Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
+            recovery_error = loader.GetString(L"RecoveryRestoreError");
+        } catch (...) {
+        }
+        ShowError(recovery_error);
         co_return;
     }
 
