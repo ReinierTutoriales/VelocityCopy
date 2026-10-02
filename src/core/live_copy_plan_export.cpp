@@ -35,9 +35,14 @@ CopyPlan LiveCopyPlan::export_remaining_plan() const {
     for (const auto& file : active_files_) {
         append_file(file);
     }
-    // Parked items are unresolved. The archive format is pending-only, so they
-    // are exported as pending work rather than being lost on recovery.
+    // Parked items are unresolved. The archive format is pending-only, so a
+    // RetryTransfer item is exported as pending work rather than being lost on
+    // recovery. A RetrySourceRemoval item is NOT transfer work: its copy already
+    // completed, and re-queuing it as a Move would copy again over its own
+    // destination. The pending-only format cannot express "remove source only",
+    // so it is left out (the source simply remains).
     for (const auto& parked : parked_files_) {
+        if (parked.incident.recovery_action != RecoveryAction::RetryTransfer) continue;
         append_file(parked.file);
     }
     for (const auto& file : pending_files_) {
