@@ -359,11 +359,7 @@ void MainWindow::StartCopyPlan(velocitycopy::CopyPlan plan) {
 
     active_destination_ = plan.destination_root;
     active_operation_ = plan.operation;
-    stopped_session_ = false;
-    conflict_session_ = false;
-    conflict_resume_intent_ = {};
-    stop_requested_ = false;
-    resume_requested_ = false;
+    ResetInterruptedSessionState();
     current_file_id_ = 0;
     current_file_skippable_ = false;
     cancel_requested_.store(false, std::memory_order_relaxed);

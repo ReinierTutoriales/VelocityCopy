@@ -11,6 +11,18 @@ using namespace Microsoft::UI::Xaml::Controls;
 
 namespace winrt::VelocityCopyUI::implementation {
 
+void MainWindow::ResetCurrentItemState() noexcept {
+    ResetCurrentItemState();
+}
+
+void MainWindow::ResetInterruptedSessionState() noexcept {
+    stopped_session_ = false;
+    conflict_session_ = false;
+    stop_requested_ = false;
+    resume_requested_ = false;
+    conflict_resume_intent_ = {};
+}
+
 void MainWindow::SetExecutionButtonsPlanning() {
     RefreshEfficiencyMode();
     SpeedText().Text(L"—");
@@ -18,9 +30,7 @@ void MainWindow::SetExecutionButtonsPlanning() {
     PauseIcon().Glyph(L"\xE769");
     PauseButton().IsEnabled(false);
     CancelButton().IsEnabled(true);
-    current_file_id_ = 0;
-    current_file_skippable_ = false;
-    paused_ = false;
+    ResetCurrentItemState();
     RefreshExecutionMenuState();
 }
 
@@ -28,9 +38,7 @@ void MainWindow::SetExecutionButtonsRunning() {
     RefreshEfficiencyMode();
     PauseButton().IsEnabled(true);
     CancelButton().IsEnabled(true);
-    current_file_id_ = 0;
-    current_file_skippable_ = false;
-    paused_ = false;
+    ResetCurrentItemState();
     PauseIcon().Glyph(L"\xE769");
     try {
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
@@ -45,9 +53,7 @@ void MainWindow::SetExecutionButtonsIdle() {
     PauseButton().IsEnabled(false);
     CancelButton().IsEnabled(false);
     QueueButton().IsEnabled(true);
-    current_file_id_ = 0;
-    current_file_skippable_ = false;
-    paused_ = false;
+    ResetCurrentItemState();
     resume_requested_ = false;
     PauseIcon().Glyph(L"\xE769");
     try {
@@ -63,9 +69,7 @@ void MainWindow::SetExecutionButtonsIdle() {
 void MainWindow::SetExecutionButtonsStopped() {
     PauseButton().IsEnabled(true);
     CancelButton().IsEnabled(true);
-    current_file_id_ = 0;
-    current_file_skippable_ = false;
-    paused_ = false;
+    ResetCurrentItemState();
     PauseIcon().Glyph(L"\xE768");
     try {
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
@@ -83,9 +87,7 @@ void MainWindow::SetExecutionButtonsConflict() {
     PauseIcon().Glyph(L"\xE769");
     PauseButton().IsEnabled(false);
     CancelButton().IsEnabled(true);
-    current_file_id_ = 0;
-    current_file_skippable_ = false;
-    paused_ = false;
+    ResetCurrentItemState();
     RefreshEfficiencyMode();
     RefreshExecutionMenuState();
 }
@@ -200,11 +202,7 @@ void MainWindow::StartTransfer(velocitycopy::CopyJob job, velocitycopy::StorageK
     ResetTransferSurface();
     active_destination_ = job.destination;
     active_operation_ = job.operation;
-    stopped_session_ = false;
-    conflict_session_ = false;
-    conflict_resume_intent_ = {};
-    stop_requested_ = false;
-    resume_requested_ = false;
+    ResetInterruptedSessionState();
     current_file_id_ = 0;
     current_file_skippable_ = false;
     cancel_requested_.store(false, std::memory_order_relaxed);
@@ -281,10 +279,7 @@ void MainWindow::ResumeStoppedCopy() {
         return;
     }
 
-    resume_requested_ = false;
-    stopped_session_ = false;
-    conflict_session_ = false;
-    stop_requested_ = false;
+    ResetInterruptedSessionState();
     current_file_id_ = 0;
     current_file_skippable_ = false;
     cancel_requested_.store(false, std::memory_order_relaxed);
@@ -419,9 +414,7 @@ void MainWindow::CancelCurrentSession() {
         return;
     }
     if (stopped_session_ || conflict_session_) {
-        stopped_session_ = false;
-        conflict_session_ = false;
-        stop_requested_ = false;
+        ResetInterruptedSessionState();
         live_plan_.reset();
         append_gate_.reset();
         active_destination_.clear();
@@ -484,9 +477,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     }
 
     execution_control_.reset();
-    current_file_id_ = 0;
-    current_file_skippable_ = false;
-    paused_ = false;
+    ResetCurrentItemState();
     PauseIcon().Glyph(L"\xE769");
 
     if (result.stopped) {
@@ -544,11 +535,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         return;
     }
 
-    resume_requested_ = false;
-    conflict_resume_intent_ = {};
-    stop_requested_ = false;
-    stopped_session_ = false;
-    conflict_session_ = false;
+    ResetInterruptedSessionState();
     if (append_gate_) {
         std::lock_guard gate_lock(append_gate_->mutex);
         append_gate_->accepting = false;
