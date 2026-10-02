@@ -199,14 +199,8 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
         co_return;
     }
 
-    session_id_ = *recovered_session_id;
-
-    for (auto& job : archive->queued_jobs) {
-        job.id = next_job_id_++;
-        job.state = velocitycopy::JobState::Pending;
-        queued_sessions_.push_back({std::move(job), {}, {}});
-    }
-
+    // Do not mutate window-owned recovery identity or future sessions until
+    // the current live state has been adopted successfully.
     bool adopted = false;
     if (archive->current_plan &&
         (!archive->current_plan->files.empty() || !archive->current_plan->directories.empty())) {
@@ -228,6 +222,13 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
         recovery_prompt_active_ = false;
         recovery_prompt_checked_ = false;
         co_return;
+    }
+
+    session_id_ = *recovered_session_id;
+    for (auto& job : archive->queued_jobs) {
+        job.id = next_job_id_++;
+        job.state = velocitycopy::JobState::Pending;
+        queued_sessions_.push_back({std::move(job), {}, {}});
     }
 
     velocitycopy::retire_recovery_file(path);
