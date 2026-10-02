@@ -580,6 +580,20 @@ bool LiveCopyPlan::begin_parked_retry(
     }
 }
 
+bool LiveCopyPlan::record_parked_retry_failure(
+    const std::uint64_t file_id,
+    const std::int32_t hresult) noexcept {
+    try {
+        std::lock_guard lock(mutex_);
+        auto it = find_parked(file_id);
+        if (it == parked_files_.end()) return false;
+        it->incident.hresult = hresult;
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
 bool LiveCopyPlan::resolve_pending(
     const std::uint64_t file_id,
     const ItemOutcome outcome,

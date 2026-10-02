@@ -177,8 +177,11 @@ void source_removal_retry_attempt_advances_while_parked() {
     auto incidents = plan.parked_incidents();
     CHECK(incidents.size() == 1 && incidents[0].attempt_count == 1);
     CHECK(plan.begin_parked_retry(1, RecoveryAction::RetrySourceRemoval));
+    CHECK(plan.record_parked_retry_failure(1, kSharingViolation));
     incidents = plan.parked_incidents();
     CHECK(incidents.size() == 1 && incidents[0].attempt_count == 2);
+    CHECK(incidents[0].hresult == kSharingViolation);
+    CHECK(incidents[0].recovery_action == RecoveryAction::RetrySourceRemoval);
     CHECK(!plan.begin_parked_retry(1, RecoveryAction::RetryTransfer));
 }
 
