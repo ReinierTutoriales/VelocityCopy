@@ -125,23 +125,30 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
 
         // All modal decisions use a separate native top-level dialog owned by
         // VelocityCopy. Never constrain a modal choice to the compact XAML root.
+        bool apply_to_all = false;
         const auto choice = ShowNativeDecisionDialog(
-            hwnd_, title, message, replace_label, skip_label, true, cancel_label);
+            hwnd_, title, message, replace_label, skip_label, true, cancel_label, &apply_to_all);
 
         if (!conflict_session_ || !live_plan_) co_return;
 
         switch (choice) {
         case NativeDialogChoice::Primary:
-            ResumeConflictCopy(conflict.conflict_file_id);
+            ResumeConflictCopy(
+                apply_to_all ? 0 : conflict.conflict_file_id,
+                apply_to_all ? velocitycopy::ConflictPolicy::ReplaceAll : velocitycopy::ConflictPolicy::Prompt);
             co_return;
         case NativeDialogChoice::Secondary:
+            if (apply_to_all) {
+                ResumeConflictCopy(0, velocitycopy::ConflictPolicy::SkipAll);
+                co_return;
+            }
             if (!live_plan_->remove_pending_file(conflict.conflict_file_id)) {
                 ShowError();
                 CancelCurrentSession();
                 co_return;
             }
             RefreshQueue();
-            ResumeConflictCopy(0);
+            ResumeConflictCopy(0, velocitycopy::ConflictPolicy::Prompt);
             co_return;
         case NativeDialogChoice::Cancel:
         default:
@@ -153,7 +160,9 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
     }
 }
 
-void MainWindow::ResumeConflictCopy(const std::uint64_t replace_file_id) {
+void MainWindow::ResumeConflictCopy(
+    const std::uint64_t replace_file_id,
+    const velocitycopy::ConflictPolicy policy) {
     if (!conflict_session_ || !live_plan_) return;
 
     if (!deferred_interrupted_jobs_.empty() && append_gate_) {
@@ -171,6 +180,7 @@ void MainWindow::ResumeConflictCopy(const std::uint64_t replace_file_id) {
         if (append_gate_->planning_count != 0) {
             resume_requested_ = true;
             conflict_replace_file_id_ = replace_file_id;
+            conflict_policy_ = policy;
             return;
         }
     }
@@ -178,12 +188,15 @@ void MainWindow::ResumeConflictCopy(const std::uint64_t replace_file_id) {
     if (live_plan_->remaining_files() == 0 && !live_plan_->has_pending_directories()) {
         resume_requested_ = false;
         conflict_replace_file_id_ = 0;
+    conflict_policy_ = velocitycopy::ConflictPolicy::Prompt;
         FinalizeConflictSessionIfEmpty();
         return;
     }
 
     resume_requested_ = false;
     conflict_replace_file_id_ = 0;
+    conflict_policy_ = velocitycopy::ConflictPolicy::Prompt;
+    conflict_policy_ = policy;
     conflict_session_ = false;
     stopped_session_ = false;
     stop_requested_ = false;
@@ -207,8 +220,8 @@ void MainWindow::ResumeConflictCopy(const std::uint64_t replace_file_id) {
     auto weak = get_weak();
     auto dispatcher = dispatcher_;
     copy_thread_ = std::jthread(
-        [this, weak, dispatcher, plan, control, gate, replace_file_id](std::stop_token stop_token) {
-            const auto result = RunLivePlanSession(plan, control, gate, stop_token, false, replace_file_id);
+        [this, weak, dispatcher, plan, control, gate, replace_file_id, policy](std::stop_token stop_token) {
+            const auto result = RunLivePlanSession(plan, control, gate, stop_token, false, replace_file_id, policy);
             (void)dispatcher.TryEnqueue([weak, result]() {
                 if (auto self = weak.get()) self->FinishCopy(result);
             });
@@ -229,6 +242,7 @@ void MainWindow::FinalizeConflictSessionIfEmpty() {
     conflict_session_ = false;
     resume_requested_ = false;
     conflict_replace_file_id_ = 0;
+    conflict_policy_ = velocitycopy::ConflictPolicy::Prompt;
     live_plan_.reset();
     append_gate_.reset();
     active_destination_.clear();

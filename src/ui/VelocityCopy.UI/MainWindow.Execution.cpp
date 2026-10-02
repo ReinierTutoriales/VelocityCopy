@@ -96,7 +96,8 @@ velocitycopy::JobResult MainWindow::RunLivePlanSession(
     std::shared_ptr<AppendGate> gate,
     const std::stop_token stop_token,
     const bool publish_plan,
-    std::uint64_t replace_file_id) {
+    std::uint64_t replace_file_id,
+    const velocitycopy::ConflictPolicy conflict_policy) {
     auto weak = get_weak();
     auto dispatcher = dispatcher_;
 
@@ -109,6 +110,7 @@ velocitycopy::JobResult MainWindow::RunLivePlanSession(
     velocitycopy::JobResult result{true, false, S_OK, false};
     for (;;) {
         auto options = executor_.recommend_options(*plan);
+        options.conflict_policy = conflict_policy;
         if (replace_file_id != 0) {
             options.worker_count = 1;
             options.replace_file_id = replace_file_id;
@@ -201,6 +203,7 @@ void MainWindow::StartTransfer(velocitycopy::CopyJob job, velocitycopy::StorageK
     stopped_session_ = false;
     conflict_session_ = false;
     conflict_replace_file_id_ = 0;
+    conflict_policy_ = velocitycopy::ConflictPolicy::Prompt;
     stop_requested_ = false;
     resume_requested_ = false;
     current_file_id_ = 0;
@@ -400,6 +403,7 @@ void MainWindow::CancelCurrentSession() {
     SpeedText().Text(L"—");
     EtaText().Text(L"—");
     conflict_replace_file_id_ = 0;
+    conflict_policy_ = velocitycopy::ConflictPolicy::Prompt;
     current_file_id_ = 0;
     current_file_skippable_ = false;
     deferred_same_destination_jobs_.clear();
@@ -519,6 +523,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         conflict_session_ = true;
         resume_requested_ = false;
         conflict_replace_file_id_ = 0;
+    conflict_policy_ = velocitycopy::ConflictPolicy::Prompt;
         append_gate_ = std::make_shared<AppendGate>();
         active_destination_ = live_plan_->destination_root();
         active_operation_ = live_plan_->operation();
@@ -544,6 +549,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
 
     resume_requested_ = false;
     conflict_replace_file_id_ = 0;
+    conflict_policy_ = velocitycopy::ConflictPolicy::Prompt;
     stop_requested_ = false;
     stopped_session_ = false;
     conflict_session_ = false;
