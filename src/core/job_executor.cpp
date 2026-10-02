@@ -448,11 +448,8 @@ JobResult JobExecutor::execute(
                             }
                         }
 
-                        const bool skip_by_policy =
-                            options.conflict_policy == ConflictPolicy::SkipAll &&
-                            std::filesystem::exists(file->destination);
                         const bool skip_allowed = destination_is_safe_to_discard(file->destination);
-                        if (skip_by_policy || (skip_allowed && control.consume_skip(file_id))) {
+                        if (skip_allowed && control.consume_skip(file_id)) {
                             
                             if (!plan.resolve_active(file_id, ItemOutcome::Skipped, S_OK, false)) {
                                 result_state.record_error(static_cast<std::int32_t>(E_FAIL));
@@ -588,6 +585,23 @@ JobResult JobExecutor::execute(
 
                             
                             const bool cancelled = aborted;
+                            if (!cancelled &&
+                                options.conflict_policy == ConflictPolicy::SkipAll &&
+                                is_destination_conflict(result.native_code)) {
+                                if (!plan.resolve_active(file_id, ItemOutcome::Skipped, S_OK, false)) {
+                                    result_state.record_error(static_cast<std::int32_t>(E_FAIL));
+                                    control.request_cancel();
+                                    worker_results[worker_index] = {
+                                        false,
+                                        false,
+                                        static_cast<std::int32_t>(E_FAIL),
+                                        false,
+                                    };
+                                    return;
+                                }
+                                skipped = true;
+                                break;
+                            }
                             if (!cancelled && !is_session_fatal(result.native_code) &&
                                 !is_destination_conflict(result.native_code)) {
                                 if (skip_allowed) remove_partial_destination(file->destination);
