@@ -32,7 +32,7 @@ void MainWindow::AppendTransfer(velocitycopy::CopyJob job) {
         return;
     }
 
-    if ((stopped_session_ || conflict_session_) && live_plan_ && append_gate_) {
+    if (interrupted_session_ != InterruptedSessionState::None && live_plan_ && append_gate_) {
         EnqueueAppend(std::move(job), live_plan_, nullptr, append_gate_, false);
         return;
     }
@@ -63,15 +63,15 @@ void MainWindow::AppendTransfer(velocitycopy::CopyJob job) {
 }
 
 void MainWindow::ContinueInterruptedSessionAfterPlanning() {
-    if (conflict_session_ && resume_requested_) {
+    if (interrupted_session_ == InterruptedSessionState::Conflict && resume_requested_) {
         ResumeConflictCopy(
             conflict_resume_intent_.replace_file_id,
             conflict_resume_intent_.policy);
-    } else if (stopped_session_ && resume_requested_) {
+    } else if (interrupted_session_ == InterruptedSessionState::Stopped && resume_requested_) {
         ResumeStoppedCopy();
-    } else if (conflict_session_) {
+    } else if (interrupted_session_ == InterruptedSessionState::Conflict) {
         FinalizeConflictSessionIfEmpty();
-    } else if (stopped_session_) {
+    } else if (interrupted_session_ == InterruptedSessionState::Stopped) {
         FinalizeStoppedSessionIfEmpty();
     }
 }
@@ -97,7 +97,7 @@ void MainWindow::EnqueueAppend(
             }
         }
         if (!reserved) {
-            if (stopped_session_ || conflict_session_) deferred_interrupted_jobs_.push_back(std::move(job));
+            if (interrupted_session_ != InterruptedSessionState::None) deferred_interrupted_jobs_.push_back(std::move(job));
             else EnqueueTransfer(std::move(job));
             return;
         }

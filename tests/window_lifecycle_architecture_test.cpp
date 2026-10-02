@@ -55,7 +55,7 @@ int main(){
  if(active_cancel.empty() || active_cancel.find("request_cancel();") == std::string::npos ||
     active_cancel.find("StartNextQueuedSession();") != std::string::npos ||
     active_cancel.find("DestroyCompletedWindow();") != std::string::npos) return 26;
- const auto attention_cancel=block_from(cancel_session,"if (stopped_session_ || conflict_session_)");
+ const auto attention_cancel=block_from(cancel_session,"if (interrupted_session_ != InterruptedSessionState::None)");
  if(attention_cancel.empty() || attention_cancel.find("if (queued_sessions_.empty()) DestroyCompletedWindow();") == std::string::npos ||
     attention_cancel.find("else StartNextQueuedSession();") == std::string::npos) return 27;
  const auto stopped_finalizer=body_of(exec,"void MainWindow::FinalizeStoppedSessionIfEmpty()");

@@ -186,8 +186,8 @@ void MainWindow::RefreshQueueCommandState() {
 
     save_queue_menu_item_.IsEnabled(has_work && !planning);
     load_queue_menu_item_.IsEnabled(
-        !execution_control_ && !live_plan_ && !stopped_session_ &&
-        !conflict_session_ && !stop_requested_ && queued_sessions_.empty());
+        !execution_control_ && !live_plan_ && interrupted_session_ == InterruptedSessionState::None &&
+        !stop_requested_ && queued_sessions_.empty());
 }
 
 void MainWindow::OnMenuSkipClick(IInspectable const& sender, RoutedEventArgs const& args) {
@@ -205,8 +205,8 @@ void MainWindow::RefreshExecutionMenuState() {
     const bool active = execution_control_ != nullptr;
     skip_menu_item_.IsEnabled(velocitycopy::can_skip_current_file(
         active, current_file_id_, current_file_skippable_,
-        paused_, stopped_session_, conflict_session_, stop_requested_));
-    stop_menu_item_.IsEnabled(active && !stopped_session_ && !conflict_session_ && !stop_requested_);
+        paused_, interrupted_session_ == InterruptedSessionState::Stopped, interrupted_session_ == InterruptedSessionState::Conflict, stop_requested_));
+    stop_menu_item_.IsEnabled(active && interrupted_session_ == InterruptedSessionState::None && !stop_requested_);
 }
 
 void MainWindow::OnSaveQueueClick(IInspectable const&, RoutedEventArgs const&) {
@@ -284,7 +284,7 @@ fire_and_forget MainWindow::SaveQueueAsync() {
 fire_and_forget MainWindow::LoadQueueAsync() {
     auto lifetime = get_strong();
 
-    if (execution_control_ || live_plan_ || stopped_session_ || conflict_session_ ||
+    if (execution_control_ || live_plan_ || interrupted_session_ != InterruptedSessionState::None ||
         stop_requested_ || !queued_sessions_.empty()) {
         RefreshQueueCommandState();
         co_return;
@@ -324,8 +324,8 @@ fire_and_forget MainWindow::LoadQueueAsync() {
             self->ShowError();
             return;
         }
-        if (self->execution_control_ || self->live_plan_ || self->stopped_session_ ||
-            self->conflict_session_ || self->stop_requested_ || !self->queued_sessions_.empty()) {
+        if (self->execution_control_ || self->live_plan_ || self->interrupted_session_ != InterruptedSessionState::None ||
+            self->stop_requested_ || !self->queued_sessions_.empty()) {
             self->ShowError();
             return;
         }

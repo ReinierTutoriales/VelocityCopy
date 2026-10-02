@@ -18,8 +18,7 @@ void MainWindow::ResetCurrentItemState() noexcept {
 }
 
 void MainWindow::ResetInterruptedSessionState() noexcept {
-    stopped_session_ = false;
-    conflict_session_ = false;
+    interrupted_session_ = InterruptedSessionState::None;
     stop_requested_ = false;
     resume_requested_ = false;
     conflict_resume_intent_ = {};
@@ -266,7 +265,7 @@ void MainWindow::StartTransfer(velocitycopy::CopyJob job, velocitycopy::StorageK
 }
 
 void MainWindow::ResumeStoppedCopy() {
-    if (!stopped_session_ || !live_plan_) return;
+    if (interrupted_session_ != InterruptedSessionState::Stopped || !live_plan_) return;
     if (append_gate_) {
         std::lock_guard gate_lock(append_gate_->mutex);
         if (append_gate_->planning_count != 0) {
@@ -311,7 +310,7 @@ void MainWindow::ResumeStoppedCopy() {
 }
 
 void MainWindow::StartNextQueuedSession() {
-    if (execution_control_ || stopped_session_ || conflict_session_ || stop_requested_ || queued_sessions_.empty()) return;
+    if (execution_control_ || interrupted_session_ != InterruptedSessionState::None || stop_requested_ || queued_sessions_.empty()) return;
     auto next = std::move(queued_sessions_.front());
     queued_sessions_.pop_front();
     StartTransfer(std::move(next.job), std::move(next.destination), std::move(next.source));
@@ -336,7 +335,7 @@ void MainWindow::PublishLivePlan(std::shared_ptr<velocitycopy::LiveCopyPlan> pla
 }
 
 void MainWindow::OnPauseClick(IInspectable const&, RoutedEventArgs const&) {
-    if (stopped_session_) {
+    if (interrupted_session_ == InterruptedSessionState::Stopped) {
         ResumeStoppedCopy();
         return;
     }
@@ -369,8 +368,8 @@ void MainWindow::OnSkipClick(IInspectable const&, RoutedEventArgs const&) {
             current_file_id_,
             current_file_skippable_,
             paused_,
-            stopped_session_,
-            conflict_session_,
+            interrupted_session_ == InterruptedSessionState::Stopped,
+            interrupted_session_ == InterruptedSessionState::Conflict,
             stop_requested_)) return;
     execution_control_->request_skip(current_file_id_);
     current_file_skippable_ = false;
@@ -378,7 +377,7 @@ void MainWindow::OnSkipClick(IInspectable const&, RoutedEventArgs const&) {
 }
 
 void MainWindow::OnStopClick(IInspectable const&, RoutedEventArgs const&) {
-    if (!execution_control_ || stopped_session_ || conflict_session_ || stop_requested_) return;
+    if (!execution_control_ || interrupted_session_ != InterruptedSessionState::None || stop_requested_) return;
     resume_requested_ = false;
     stop_requested_ = true;
     current_file_skippable_ = false;
@@ -415,7 +414,7 @@ void MainWindow::CancelCurrentSession() {
         execution_control_->request_cancel();
         return;
     }
-    if (stopped_session_ || conflict_session_) {
+    if (interrupted_session_ != InterruptedSessionState::None) {
         ResetInterruptedSessionState();
         live_plan_.reset();
         append_gate_.reset();
@@ -439,7 +438,7 @@ void MainWindow::CancelCurrentSession() {
 void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
     // Progress callbacks are marshalled through DispatcherQueue. A snapshot that was
     // queued before a terminal/control transition must not repaint stale telemetry.
-    if (!execution_control_ || stopped_session_ || conflict_session_ || stop_requested_ ||
+    if (!execution_control_ || interrupted_session_ != InterruptedSessionState::None || stop_requested_ ||
         cancel_requested_.load(std::memory_order_relaxed)) return;
 
     const auto fraction = (std::clamp)(snapshot.fraction, 0.0, 1.0);
@@ -484,8 +483,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
 
     if (result.stopped) {
         stop_requested_ = false;
-        stopped_session_ = true;
-        conflict_session_ = false;
+        interrupted_session_ = InterruptedSessionState::Stopped;
         append_gate_ = std::make_shared<AppendGate>();
         if (live_plan_) {
             active_destination_ = live_plan_->destination_root();
@@ -510,8 +508,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
 
     if (result.destination_conflict && live_plan_ && result.conflict_file_id != 0) {
         stop_requested_ = false;
-        stopped_session_ = false;
-        conflict_session_ = true;
+        interrupted_session_ = InterruptedSessionState::Conflict;
         resume_requested_ = false;
         conflict_resume_intent_ = {};
         append_gate_ = std::make_shared<AppendGate>();
@@ -687,7 +684,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
 }
 
 void MainWindow::FinalizeStoppedSessionIfEmpty() {
-    if (!stopped_session_ || !live_plan_ || live_plan_->remaining_files() != 0 ||
+    if (interrupted_session_ != InterruptedSessionState::Stopped || !live_plan_ || live_plan_->remaining_files() != 0 ||
         live_plan_->has_pending_directories()) return;
     if (append_gate_) {
         std::lock_guard gate_lock(append_gate_->mutex);
@@ -696,8 +693,7 @@ void MainWindow::FinalizeStoppedSessionIfEmpty() {
         append_gate_->condition.notify_all();
     }
     resume_requested_ = false;
-    stopped_session_ = false;
-    conflict_session_ = false;
+    interrupted_session_ = InterruptedSessionState::None;
     stop_requested_ = false;
     current_file_id_ = 0;
     current_file_skippable_ = false;
