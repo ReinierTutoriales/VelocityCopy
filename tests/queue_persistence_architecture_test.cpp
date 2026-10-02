@@ -178,5 +178,15 @@ int main() {
         return fail(17, "StartCopyPlan must validate restored recovery before mutating the active surface");
     }
 
+    const auto recovery_adopt = recovery.find("bool adopted = false;");
+    const auto recovery_failure = recovery.find("if (!adopted)", recovery_adopt);
+    const auto recovery_session = recovery.find("session_id_ = *recovered_session_id", recovery_adopt);
+    const auto recovery_queued = recovery.find("for (auto& job : archive->queued_jobs)", recovery_adopt);
+    if (recovery_adopt == std::string::npos || recovery_failure == std::string::npos ||
+        recovery_session == std::string::npos || recovery_queued == std::string::npos ||
+        recovery_session < recovery_failure || recovery_queued < recovery_failure) {
+        return fail(18, "recovery identity and queued sessions must not publish before current-state adoption succeeds");
+    }
+
     return 0;
 }
