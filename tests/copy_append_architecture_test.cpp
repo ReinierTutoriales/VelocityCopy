@@ -249,6 +249,16 @@ int main() {
         }
     }
 
+    const auto continue_interrupted = body_of(append, "void MainWindow::ContinueInterruptedSessionAfterPlanning()");
+    if (continue_interrupted.empty() ||
+        !contains(continue_interrupted, "ResumeConflictCopy(") ||
+        !contains(continue_interrupted, "ResumeStoppedCopy()") ||
+        !contains(continue_interrupted, "FinalizeConflictSessionIfEmpty()") ||
+        !contains(continue_interrupted, "FinalizeStoppedSessionIfEmpty()") ||
+        count_occurrences(append, "conflict_resume_intent_.replace_file_id") != 1) {
+        return fail(35, "planner completion must route interrupted-session continuation through one decision point");
+    }
+
     const auto reset_item = body_of(execution, "void MainWindow::ResetCurrentItemState() noexcept");
     const auto reset_interrupted = body_of(execution, "void MainWindow::ResetInterruptedSessionState() noexcept");
     if (reset_item.empty() || !contains(reset_item, "current_file_id_ = 0") ||
