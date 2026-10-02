@@ -183,11 +183,11 @@ int main() {
         !contains(conflict, "config.pszContent = display_message.c_str();") ||
         !contains(conflict, "config.pfCallback = &TaskDialogThemeCallback;") ||
         !contains(conflict, "config.pszVerificationText = remember_label.c_str();") ||
-        !contains(conflict, "TDF_POSITION_RELATIVE_TO_WINDOW") ||
+        contains(conflict, "TDF_POSITION_RELATIVE_TO_WINDOW") ||
         !contains(conflict, "config.cxWidth = remember_choice != nullptr ? 240 : 260;") ||
         !contains(conflict, "conflict.conflict_destination.filename()") ||
         contains(conflict, "TDF_SIZE_TO_CONTENT")) {
-        return fail(17, "native decision dialogs must keep owner/theme/verification plumbing while sharing bounded, owner-relative proportions");
+        return fail(17, "native decision dialogs must keep owner/theme/verification plumbing without positioning inside the compact owner surface");
     }
     return 0;
 }
