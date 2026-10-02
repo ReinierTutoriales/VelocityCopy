@@ -188,5 +188,13 @@ int main() {
         return fail(18, "recovery identity and queued sessions must not publish before current-state adoption succeeds");
     }
 
+    const auto queued_only_branch = recovery.find("A queued-only archive has no current state to adopt");
+    const auto publish_queued = recovery.find("for (auto& job : archive->queued_jobs)", queued_only_branch);
+    const auto start_queued = recovery.find("if (queued_only) StartNextQueuedSession();", publish_queued);
+    if (queued_only_branch == std::string::npos || publish_queued == std::string::npos ||
+        start_queued == std::string::npos || start_queued < publish_queued) {
+        return fail(19, "queued-only recovery must publish future sessions before starting the first one");
+    }
+
     return 0;
 }
