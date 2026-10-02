@@ -198,6 +198,24 @@ void parked_items_export_as_pending() {
     CHECK(exported.files[1].source == std::filesystem::path(L"C:/src/a.bin"));
 }
 
+void source_removal_retry_is_never_exported_as_transfer_work() {
+    LiveCopyPlan plan{make_plan()};
+    (void)plan.acquire_next();
+    CHECK(plan.park_active(1, kSharingViolation, false, RecoveryAction::RetrySourceRemoval));
+    (void)plan.acquire_next();
+    CHECK(plan.park_active(2, kSharingViolation, false, RecoveryAction::RetryTransfer));
+    const auto exported = plan.export_remaining_plan();
+    bool has_source_removal = false;
+    bool has_transfer_retry = false;
+    for (const auto& file : exported.files) {
+        if (file.source == std::filesystem::path(L"C:/src/a.bin")) has_source_removal = true;
+        if (file.source == std::filesystem::path(L"C:/src/b.bin")) has_transfer_retry = true;
+    }
+    CHECK(!has_source_removal);  // completed copy must not be re-queued as a Move
+    CHECK(has_transfer_retry);
+    CHECK(exported.files.size() == 3);
+}
+
 void full_resolution_reaches_total() {
     LiveCopyPlan plan{make_plan()};
     (void)plan.acquire_next();
@@ -232,5 +250,6 @@ int main() {
     invalid_transitions_are_rejected();
     parked_items_export_as_pending();
     full_resolution_reaches_total();
+    source_removal_retry_is_never_exported_as_transfer_work();
     return 0;
 }
