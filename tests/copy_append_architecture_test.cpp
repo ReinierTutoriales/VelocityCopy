@@ -233,8 +233,8 @@ int main() {
         show_conflict.empty() || !contains(show_conflict, "ConflictApplyToAll") ||
         !contains(show_conflict, "ConflictPolicy::ReplaceAll") ||
         !contains(show_conflict, "ConflictPolicy::SkipAll") ||
-        resume_conflict.empty() || !contains(resume_conflict, "ConflictResumeIntent") &&
-            !contains(header, "struct ConflictResumeIntent")) {
+        resume_conflict.empty() || !contains(header, "struct ConflictResumeIntent") ||
+        !contains(resume_conflict, "conflict_resume_intent_")) {
         return fail(34, "apply-to-all conflict decisions must flow from the native dialog through the session into JobExecutionOptions");
     }
 
