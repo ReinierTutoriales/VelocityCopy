@@ -17,6 +17,7 @@ These gates define the 1.0 stable release pipeline and must remain aligned with 
 - Each x64/ARM64 payload includes `VelocityCopy.WinUI.exe` and `VelocityCopy.Shell.dll`.
 - Registered installer payloads must be asserted before NSIS runs.
 - The x64 package gate smoke-installs and uninstalls the classic setup.
+- Gate 4 on real Windows must verify unpackaged `x:Uid` resource resolution with Procmon evidence for `.pri` access; CI resource validation does not close this runtime route.
 - Do not add Chocolatey, AppX/MSIX deployment, certificates or unrelated package managers to the required path.
 
 ## Workflow-change safety
