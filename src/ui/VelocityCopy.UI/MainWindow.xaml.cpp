@@ -311,6 +311,13 @@ void MainWindow::ShowError(hstring const& message) {
     ErrorBar().Message(message);
     ErrorBar().IsOpen(true);
     ResizeWindowToContent();
+
+    auto weak = get_weak();
+    (void)dispatcher_.TryEnqueue([weak]() {
+        if (auto self = weak.get(); self && self->ErrorBar().IsOpen()) {
+            self->ResizeWindowToContent();
+        }
+    });
 }
 
 hstring MainWindow::FormatFailureReason(const std::int32_t native_code) {
