@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "MainWindow.xaml.h"
+#include "Localization.h"
 #include "AuxiliarySurface.h"
 #include "UiTokens.h"
 
@@ -58,13 +59,12 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
             co_return;
         }
 
-        Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-        const std::wstring title = loader.GetString(L"ConflictTitle").c_str();
-        const std::wstring replace_label = loader.GetString(L"ActionReplace").c_str();
-        const std::wstring skip_label = loader.GetString(L"ActionSkip").c_str();
-        const std::wstring cancel_label = loader.GetString(L"ActionCancel").c_str();
+        const std::wstring title = velocitycopy::localization::get_string(L"ConflictTitle").c_str();
+        const std::wstring replace_label = velocitycopy::localization::get_string(L"ActionReplace").c_str();
+        const std::wstring skip_label = velocitycopy::localization::get_string(L"ActionSkip").c_str();
+        const std::wstring cancel_label = velocitycopy::localization::get_string(L"ActionCancel").c_str();
 
-        std::wstring message = loader.GetString(L"ConflictMessage").c_str();
+        std::wstring message = velocitycopy::localization::get_string(L"ConflictMessage").c_str();
         if (!conflict.conflict_destination.empty()) {
             message.append(L"\n\n");
             const auto filename = conflict.conflict_destination.filename();
@@ -76,7 +76,7 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
         // All modal decisions use a separate native top-level dialog owned by
         // VelocityCopy. Never constrain a modal choice to the compact XAML root.
         const std::wstring apply_to_all_label =
-            loader.GetString(L"ConflictApplyToAll").c_str();
+            velocitycopy::localization::get_string(L"ConflictApplyToAll").c_str();
         bool apply_to_all = false;
         const auto choice = ShowNativeDecisionDialog(
             hwnd_,

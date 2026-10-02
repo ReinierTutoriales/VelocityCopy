@@ -1,0 +1,5 @@
+void allowed_explicit_loader_fixture() {
+    // ResourceLoader loader; in a comment must not be treated as code.
+    const wchar_t* explanation = L"ResourceLoader{} is forbidden only when it is code";
+    winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceManager manager{L"VelocityCopy.WinUI.pri"};
+}

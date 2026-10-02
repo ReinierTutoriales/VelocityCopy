@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "AppTray.h"
+#include "Localization.h"
 #include "App.xaml.h"
 
 #include <shlobj_core.h>
@@ -131,9 +132,8 @@ void AppTray::ShowMenu(POINT anchor) noexcept {
     if (!menu) return;
     std::wstring open_text = L"Open VelocityCopy", exit_text = L"Exit";
     try {
-        Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-        open_text = loader.GetString(L"TrayOpen").c_str();
-        exit_text = loader.GetString(L"TrayExit").c_str();
+        open_text = velocitycopy::localization::get_string(L"TrayOpen").c_str();
+        exit_text = velocitycopy::localization::get_string(L"TrayExit").c_str();
     } catch (...) {}
     AppendMenuW(menu, MF_STRING, kTrayOpenCommand, open_text.c_str());
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);

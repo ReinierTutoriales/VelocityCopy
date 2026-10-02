@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "MainWindow.xaml.h"
+#include "Localization.h"
 #include "UiTokens.h"
 #include "App.xaml.h"
 
@@ -41,8 +42,7 @@ void MainWindow::SetExecutionButtonsRunning() {
     ResetCurrentItemState();
     PauseIcon().Glyph(L"\xE769");
     try {
-        Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-        const auto label = loader.GetString(L"ActionPause");
+        const auto label = velocitycopy::localization::get_string(L"ActionPause");
         ToolTipService::SetToolTip(PauseButtonHost(), box_value(label));
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), label);
     } catch (...) {}
@@ -57,8 +57,7 @@ void MainWindow::SetExecutionButtonsIdle() {
     pending_resume_ = {};
     PauseIcon().Glyph(L"\xE769");
     try {
-        Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-        const auto label = loader.GetString(L"ActionPause");
+        const auto label = velocitycopy::localization::get_string(L"ActionPause");
         ToolTipService::SetToolTip(PauseButtonHost(), box_value(label));
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), label);
     } catch (...) {}
@@ -72,8 +71,7 @@ void MainWindow::SetExecutionButtonsStopped() {
     ResetCurrentItemState();
     PauseIcon().Glyph(L"\xE768");
     try {
-        Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-        const auto label = loader.GetString(L"ActionResume");
+        const auto label = velocitycopy::localization::get_string(L"ActionResume");
         ToolTipService::SetToolTip(PauseButtonHost(), box_value(label));
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), label);
     } catch (...) {}
@@ -361,8 +359,7 @@ void MainWindow::OnPauseClick(IInspectable const&, RoutedEventArgs const&) {
     }
     PauseIcon().Glyph(paused_ ? L"\xE768" : L"\xE769");
     try {
-        Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-        const auto label = loader.GetString(paused_ ? L"ActionResume" : L"ActionPause");
+        const auto label = velocitycopy::localization::get_string(paused_ ? L"ActionResume" : L"ActionPause");
         ToolTipService::SetToolTip(PauseButtonHost(), box_value(label));
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), label);
     } catch (...) {
@@ -553,8 +550,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         PauseIcon().Glyph(L"\xE72C");
         PauseButton().IsEnabled(true);
         try {
-            Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-            const auto label = loader.GetString(L"ActionResolveFailures");
+            const auto label = velocitycopy::localization::get_string(L"ActionResolveFailures");
             ToolTipService::SetToolTip(PauseButtonHost(), box_value(label));
             Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), label);
         } catch (...) {}
@@ -588,8 +584,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
         try {
-            Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-            CurrentItemText().Text(loader.GetString(L"StatusCancelled"));
+            CurrentItemText().Text(velocitycopy::localization::get_string(L"StatusCancelled"));
         } catch (...) {
         }
         if (queued_sessions_.empty()) DestroyCompletedWindow();
@@ -615,8 +610,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
         try {
-            Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-            CurrentItemText().Text(loader.GetString(L"StatusFailed"));
+            CurrentItemText().Text(velocitycopy::localization::get_string(L"StatusFailed"));
         } catch (...) {
         }
         // result.native_code carries the actual HRESULT/Win32 error the copy
@@ -668,12 +662,11 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     if (queued_sessions_.empty()) {
         SetProgressFraction(1.0);
         try {
-            Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
             if (completed_with_issues) {
-                CurrentItemText().Text(loader.GetString(L"StatusCompletedWithIssues"));
-                const auto failed_label = loader.GetString(L"OutcomeFailed");
-                const auto skipped_label = loader.GetString(L"OutcomeSkipped");
-                const auto retained_label = loader.GetString(L"OutcomeSourceRetained");
+                CurrentItemText().Text(velocitycopy::localization::get_string(L"StatusCompletedWithIssues"));
+                const auto failed_label = velocitycopy::localization::get_string(L"OutcomeFailed");
+                const auto skipped_label = velocitycopy::localization::get_string(L"OutcomeSkipped");
+                const auto retained_label = velocitycopy::localization::get_string(L"OutcomeSourceRetained");
                 ShowNotice(
                     result.outcomes.failed == 0 && result.outcomes.copied_source_retained == 0
                         ? InfoBarSeverity::Warning
@@ -687,7 +680,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
                     retained_label.c_str(),
                     result.outcomes.copied_source_retained)));
             } else {
-                CurrentItemText().Text(loader.GetString(
+                CurrentItemText().Text(velocitycopy::localization::get_string(
                     active_operation_ == velocitycopy::FileOperation::Move
                         ? L"StatusMoveCompleted"
                         : L"StatusCompleted"));
@@ -719,15 +712,14 @@ void MainWindow::ShowRetryDecisionAsync() {
     auto lifetime = get_strong();
     if (interrupted_session_ != InterruptedSessionState::Decision || !live_plan_) return;
     try {
-        Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
         const auto choice = ShowNativeDecisionDialog(
             hwnd_,
-            loader.GetString(L"RetryDecisionTitle").c_str(),
-            loader.GetString(L"RetryDecisionMessage").c_str(),
-            loader.GetString(L"ActionRetryAll").c_str(),
-            loader.GetString(L"ActionSkipAll").c_str(),
+            velocitycopy::localization::get_string(L"RetryDecisionTitle").c_str(),
+            velocitycopy::localization::get_string(L"RetryDecisionMessage").c_str(),
+            velocitycopy::localization::get_string(L"ActionRetryAll").c_str(),
+            velocitycopy::localization::get_string(L"ActionSkipAll").c_str(),
             true,
-            loader.GetString(L"ActionCancel").c_str());
+            velocitycopy::localization::get_string(L"ActionCancel").c_str());
         if (interrupted_session_ != InterruptedSessionState::Decision || !live_plan_) return;
         if (choice == NativeDialogChoice::Primary) ResumeParkedFailures();
         else if (choice == NativeDialogChoice::Secondary) ResolveParkedFailures();

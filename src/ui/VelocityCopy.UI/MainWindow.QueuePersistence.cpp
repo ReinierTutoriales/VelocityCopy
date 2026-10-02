@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "MainWindow.xaml.h"
+#include "Localization.h"
 #include "UiTokens.h"
 #include "velocitycopy/diagnostics.hpp"
 
@@ -117,14 +118,13 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
         MenuFlyoutItem hide_to_tray_menu_item;
 
         try {
-            Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-            const auto options_label = loader.GetString(L"ActionQueueOptions");
-            skip_menu_item_.Text(loader.GetString(L"ActionSkip"));
-            stop_menu_item_.Text(loader.GetString(L"ActionStop"));
-            save_queue_menu_item_.Text(loader.GetString(L"ActionSaveQueue"));
-            load_queue_menu_item_.Text(loader.GetString(L"ActionLoadQueue"));
-            about_menu_item_.Text(loader.GetString(L"ActionAbout"));
-            hide_to_tray_menu_item.Text(loader.GetString(L"ActionHideToTray"));
+            const auto options_label = velocitycopy::localization::get_string(L"ActionQueueOptions");
+            skip_menu_item_.Text(velocitycopy::localization::get_string(L"ActionSkip"));
+            stop_menu_item_.Text(velocitycopy::localization::get_string(L"ActionStop"));
+            save_queue_menu_item_.Text(velocitycopy::localization::get_string(L"ActionSaveQueue"));
+            load_queue_menu_item_.Text(velocitycopy::localization::get_string(L"ActionLoadQueue"));
+            about_menu_item_.Text(velocitycopy::localization::get_string(L"ActionAbout"));
+            hide_to_tray_menu_item.Text(velocitycopy::localization::get_string(L"ActionHideToTray"));
             ToolTipService::SetToolTip(queue_options_button_, box_value(options_label));
             Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(queue_options_button_, options_label);
         } catch (...) {
@@ -158,8 +158,7 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
         queue_options_button_.Flyout(menu);
 
         try {
-            Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-            const auto queue_label = loader.GetString(L"ActionShowQueue");
+            const auto queue_label = velocitycopy::localization::get_string(L"ActionShowQueue");
             ToolTipService::SetToolTip(QueueButton(), box_value(queue_label));
             Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(QueueButton(), queue_label);
         } catch (...) {

@@ -1,0 +1,3 @@
+void forbidden_default_loader_fixture() {
+    winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
+}
