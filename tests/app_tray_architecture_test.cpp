@@ -90,5 +90,9 @@ int main(){
     about.find("presenter.IsResizable(false)") == std::string::npos ||
     about.find("about.Closed([weak]") == std::string::npos ||
     about.find("about_window_ = about") == std::string::npos) return 33;
- return 0;
+ if (contains(tray, "PositionInitialWindow")) {
+        return 26;
+    }
+
+    return 0;
 }
