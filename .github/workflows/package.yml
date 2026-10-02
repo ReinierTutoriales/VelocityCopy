@@ -129,6 +129,34 @@ jobs:
           pwsh -NoProfile -File tools/ci/Assert-PriResource.ps1 -RootPath $payload -EvidencePath "artifacts/pri-evidence-${{ matrix.arch }}/payload" -Key RecoveryRestoreError -LanguagesCsv 'en-US,es-ES'
           if ($LASTEXITCODE -ne 0) { throw "Payload PRI validation failed for ${{ matrix.arch }}" }
 
+      - name: Exercise PRI validator with real fixtures
+        shell: pwsh
+        run: |
+          $makepri = Get-ChildItem "$env:USERPROFILE\.nuget\packages\microsoft.windows.sdk.buildtools" -Recurse -File -Filter makepri.exe |
+            Where-Object { $_.Directory.Name -eq 'x86' } | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $makepri) { throw 'NuGet makepri.exe was not found' }
+          $config = Get-ChildItem src/ui/VelocityCopy.UI -Recurse -File -Filter priconfig.xml | Select-Object -First 1
+          if (-not $config) { throw 'MSBuild-generated priconfig.xml was not found' }
+          $fixtures = "artifacts/pri-fixtures-${{ matrix.arch }}"
+          Remove-Item $fixtures -Recurse -Force -ErrorAction SilentlyContinue
+          foreach ($kind in @('positive','negative')) {
+            $root = Join-Path $fixtures $kind
+            New-Item -ItemType Directory -Force (Join-Path $root 'Strings/en-US') | Out-Null
+            '<?xml version="1.0" encoding="utf-8"?><root><data name="RecoveryRestoreError" xml:space="preserve"><value>English fixture</value></data></root>' | Set-Content -LiteralPath (Join-Path $root 'Strings/en-US/Resources.resw') -Encoding utf8
+            if ($kind -eq 'positive') {
+              New-Item -ItemType Directory -Force (Join-Path $root 'Strings/es-ES') | Out-Null
+              '<?xml version="1.0" encoding="utf-8"?><root><data name="RecoveryRestoreError" xml:space="preserve"><value>Spanish fixture</value></data></root>' | Set-Content -LiteralPath (Join-Path $root 'Strings/es-ES/Resources.resw') -Encoding utf8
+            }
+            $resolved = (Resolve-Path $root).Path
+            & $makepri.FullName New -ProjectRoot $resolved -ConfigXml $config.FullName -OutputFile (Join-Path $resolved 'VelocityCopy.WinUI.pri') -IndexName VelocityCopy.WinUI -Overwrite
+            if ($LASTEXITCODE -ne 0) { throw "makepri fixture generation failed for $kind" }
+          }
+          pwsh -NoProfile -File tools/ci/Assert-PriResource.ps1 -RootPath "$fixtures/positive" -EvidencePath "artifacts/pri-evidence-${{ matrix.arch }}/fixture-positive" -Key RecoveryRestoreError -LanguagesCsv 'en-US,es-ES'
+          if ($LASTEXITCODE -ne 0) { throw 'Positive PRI fixture was rejected' }
+          pwsh -NoProfile -File tools/ci/Assert-PriResource.ps1 -RootPath "$fixtures/negative" -EvidencePath "artifacts/pri-evidence-${{ matrix.arch }}/fixture-negative" -Key RecoveryRestoreError -LanguagesCsv 'en-US,es-ES'
+          if ($LASTEXITCODE -eq 0) { throw 'Negative PRI fixture was incorrectly accepted' }
+          Write-Host 'Negative PRI fixture rejected as expected: missing es-ES candidate'
+
       - name: Cache pinned NSIS
         id: cache-nsis
         uses: actions/cache@v4
