@@ -15,8 +15,9 @@ namespace velocitycopy {
 namespace {
 
 constexpr std::array<char, 8> kMagic{'V','C','Q','U','E','U','E','1'};
-constexpr std::uint32_t kFormatVersion = 2;
+constexpr std::uint32_t kFormatVersion = 3;
 constexpr std::uint32_t kLegacyFormatVersion = 1;
+constexpr std::uint32_t kPreviousFormatVersion = 2;
 constexpr std::uint32_t kMaxStringChars = 32767;
 constexpr std::uint64_t kMaxEntries = 10'000'000;
 
@@ -217,6 +218,84 @@ bool read_jobs(std::ifstream& stream, std::vector<CopyJob>& jobs, const std::uin
     return true;
 }
 
+bool write_fingerprint(std::ofstream& stream, const FileFingerprint& value) {
+    const std::uint8_t has_identity = value.has_identity ? 1 : 0;
+    if (!write_value(stream, value.size) ||
+        !write_value(stream, value.last_write_time) ||
+        !write_value(stream, has_identity)) return false;
+    if (!value.has_identity) return true;
+    if (!write_value(stream, value.identity.volume_serial)) return false;
+    stream.write(
+        reinterpret_cast<const char*>(value.identity.file_id.data()),
+        static_cast<std::streamsize>(value.identity.file_id.size()));
+    return static_cast<bool>(stream);
+}
+
+bool read_fingerprint(std::ifstream& stream, FileFingerprint& value) {
+    std::uint8_t has_identity{};
+    if (!read_value(stream, value.size) ||
+        !read_value(stream, value.last_write_time) ||
+        !read_value(stream, has_identity) || has_identity > 1) return false;
+    value.has_identity = has_identity != 0;
+    if (!value.has_identity) return true;
+    if (!read_value(stream, value.identity.volume_serial)) return false;
+    stream.read(
+        reinterpret_cast<char*>(value.identity.file_id.data()),
+        static_cast<std::streamsize>(value.identity.file_id.size()));
+    return static_cast<bool>(stream);
+}
+
+bool write_source_removals(
+    std::ofstream& stream,
+    const std::vector<SourceRemovalRecovery>& recoveries) {
+    if (recoveries.size() > kMaxEntries) return false;
+    const auto count = static_cast<std::uint64_t>(recoveries.size());
+    if (!write_value(stream, count)) return false;
+    for (const auto& recovery : recoveries) {
+        if (!write_value(stream, recovery.hresult) ||
+            !write_path(stream, recovery.source) ||
+            !write_path(stream, recovery.destination)) return false;
+        const std::uint8_t destination_preexisted = recovery.destination_preexisted ? 1 : 0;
+        if (!write_value(stream, destination_preexisted) ||
+            !write_value(stream, recovery.attempt_count) ||
+            !write_fingerprint(stream, recovery.source_fingerprint) ||
+            !write_fingerprint(stream, recovery.destination_fingerprint)) return false;
+    }
+    return true;
+}
+
+bool read_source_removals(
+    std::ifstream& stream,
+    std::vector<SourceRemovalRecovery>& recoveries) {
+    std::uint64_t count{};
+    if (!read_value(stream, count) || count > kMaxEntries) return false;
+    recoveries.reserve(static_cast<std::size_t>(count));
+    for (std::uint64_t index = 0; index < count; ++index) {
+        SourceRemovalRecovery recovery{};
+        std::uint8_t destination_preexisted{};
+        if (!read_value(stream, recovery.hresult) ||
+            !read_path(stream, recovery.source) ||
+            !read_path(stream, recovery.destination) ||
+            !read_value(stream, destination_preexisted) || destination_preexisted > 1 ||
+            !read_value(stream, recovery.attempt_count) || recovery.attempt_count == 0 ||
+            !read_fingerprint(stream, recovery.source_fingerprint) ||
+            !read_fingerprint(stream, recovery.destination_fingerprint)) return false;
+        recovery.destination_preexisted = destination_preexisted != 0;
+        recoveries.push_back(std::move(recovery));
+    }
+    return true;
+}
+
+bool flush_file_to_disk(const std::filesystem::path& path) noexcept {
+    const HANDLE handle = CreateFileW(
+        path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr,
+        OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (handle == INVALID_HANDLE_VALUE) return false;
+    const bool ok = FlushFileBuffers(handle) != FALSE;
+    CloseHandle(handle);
+    return ok;
+}
+
 std::filesystem::path temp_path_for(const std::filesystem::path& path) {
     auto temp = path;
     temp += L".tmp";
@@ -265,13 +344,15 @@ bool QueueArchiveStore::save(
         }
         if (archive.current_plan && !write_plan(stream, *archive.current_plan)) return false;
         if (!write_jobs(stream, archive.current_append_jobs) ||
-            !write_jobs(stream, archive.queued_jobs)) {
+            !write_jobs(stream, archive.queued_jobs) ||
+            !write_source_removals(stream, archive.source_removals)) {
             return false;
         }
 
         stream.flush();
         if (!stream) return false;
         stream.close();
+        if (!flush_file_to_disk(temp)) return false;
 
         const auto flags = MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH;
         if (!MoveFileExW(temp.c_str(), path.c_str(), flags)) {
@@ -295,7 +376,8 @@ std::optional<QueueArchive> QueueArchiveStore::load(
         std::uint32_t version{};
         std::uint8_t has_current{};
         if (!stream || magic != kMagic || !read_value(stream, version) ||
-            (version != kFormatVersion && version != kLegacyFormatVersion) ||
+            (version != kFormatVersion && version != kPreviousFormatVersion &&
+             version != kLegacyFormatVersion) ||
             !read_value(stream, has_current) || has_current > 1) {
             return std::nullopt;
         }
@@ -309,6 +391,9 @@ std::optional<QueueArchive> QueueArchiveStore::load(
 
         if (!read_jobs(stream, archive.current_append_jobs, version) ||
             !read_jobs(stream, archive.queued_jobs, version)) {
+            return std::nullopt;
+        }
+        if (version >= 3 && !read_source_removals(stream, archive.source_removals)) {
             return std::nullopt;
         }
 

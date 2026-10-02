@@ -40,6 +40,7 @@ add_library(velocitycopy_core STATIC
     src/core/process_activation.cpp
     src/core/queue_archive.cpp
     src/core/shell_session.cpp
+    src/core/source_removal_recovery.cpp
     src/core/storage_profiler.cpp
     src/core/storage_topology.cpp
     src/core/transfer_router.cpp
@@ -105,6 +106,7 @@ add_velocitycopy_test(VelocityCopyExistingDestinationTest tests/existing_destina
 add_velocitycopy_test(VelocityCopyItemResultContractTest tests/item_result_contract_test.cpp velocitycopy_item_result_contract)
 add_velocitycopy_test(VelocityCopyLivePlanResolutionTest tests/live_plan_resolution_test.cpp velocitycopy_live_plan_resolution)
 add_velocitycopy_test(VelocityCopyItemFailureTest tests/job_executor_item_failure_test.cpp velocitycopy_item_failure)
+add_velocitycopy_test(VelocityCopySourceRemovalRecoveryTest tests/source_removal_recovery_test.cpp velocitycopy_source_removal_recovery)
 add_velocitycopy_test(VelocityCopyUiTokenArchitectureTest tests/ui_token_architecture_test.cpp velocitycopy_ui_token_architecture)
 target_compile_definitions(VelocityCopyUiTokenArchitectureTest PRIVATE VELOCITYCOPY_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 add_velocitycopy_test(VelocityCopyQueueArchiveTest tests/queue_archive_test.cpp velocitycopy_queue_archive)

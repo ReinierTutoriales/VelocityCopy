@@ -57,6 +57,7 @@ void MainWindow::PersistRecoveryQueueNoThrow() noexcept {
         velocitycopy::QueueArchive archive{};
 
         if (live_plan_) {
+            archive.source_removals = live_plan_->parked_source_removals();
             archive.current_plan = live_plan_->export_remaining_plan();
             if (archive.current_plan->files.empty() && archive.current_plan->directories.empty()) {
                 archive.current_plan.reset();
@@ -83,7 +84,8 @@ void MainWindow::PersistRecoveryQueueNoThrow() noexcept {
 
         if (!archive.current_plan &&
             archive.current_append_jobs.empty() &&
-            archive.queued_jobs.empty()) {
+            archive.queued_jobs.empty() &&
+            archive.source_removals.empty()) {
             velocitycopy::retire_recovery_file(path);
             return;
         }
@@ -264,6 +266,7 @@ fire_and_forget MainWindow::SaveQueueAsync() {
     try {
         velocitycopy::QueueArchive archive{};
         if (current_plan) {
+            archive.source_removals = current_plan->parked_source_removals();
             archive.current_plan = current_plan->export_remaining_plan();
             if (archive.current_plan->files.empty() && archive.current_plan->directories.empty()) {
                 archive.current_plan.reset();
@@ -338,7 +341,13 @@ fire_and_forget MainWindow::LoadQueueAsync() {
 
         if (archive->current_plan &&
             (!archive->current_plan->files.empty() || !archive->current_plan->directories.empty())) {
-            self->StartCopyPlan(std::move(*archive->current_plan));
+            self->StartCopyPlan(
+                std::move(*archive->current_plan), std::move(archive->source_removals));
+        } else if (!archive->source_removals.empty()) {
+            velocitycopy::CopyPlan empty{};
+            empty.operation = velocitycopy::FileOperation::Move;
+            empty.destination_root = archive->source_removals.front().destination.parent_path();
+            self->StartCopyPlan(std::move(empty), std::move(archive->source_removals));
         } else {
             self->StartNextQueuedSession();
             self->RefreshQueueCommandState();
@@ -346,12 +355,15 @@ fire_and_forget MainWindow::LoadQueueAsync() {
     });
 }
 
-void MainWindow::StartCopyPlan(velocitycopy::CopyPlan plan) {
+void MainWindow::StartCopyPlan(
+    velocitycopy::CopyPlan plan,
+    std::vector<velocitycopy::SourceRemovalRecovery> source_removals) {
     ResetTransferSurface();
     // Loaded/recovered plans bypass routing, so never inherit the previous session's storage identity.
     active_destination_key_ = {};
     active_source_key_ = {};
-    if (plan.destination_root.empty() || (plan.files.empty() && plan.directories.empty())) {
+    if (plan.destination_root.empty() ||
+        (plan.files.empty() && plan.directories.empty() && source_removals.empty())) {
         StartNextQueuedSession();
         RefreshQueueCommandState();
         return;
@@ -375,6 +387,14 @@ void MainWindow::StartCopyPlan(velocitycopy::CopyPlan plan) {
     SetProgressFraction(0.0);
 
     auto live = std::make_shared<velocitycopy::LiveCopyPlan>(std::move(plan));
+    for (const auto& recovery : source_removals) {
+        if (!live->restore_parked_source_removal(recovery)) {
+            ShowError();
+            execution_control_.reset();
+            append_gate_.reset();
+            return;
+        }
+    }
     live_plan_ = live;
     PublishLivePlan(live);
 

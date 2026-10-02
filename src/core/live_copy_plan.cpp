@@ -535,13 +535,95 @@ bool LiveCopyPlan::park_active(
         const auto attempt_count = attempt_it == attempt_counts_.end() ? 1u : attempt_it->second;
         ParkedFile parked{*it, ItemIncident{
             it->id, hresult, it->source, it->destination, destination_preexisted,
-            recovery_action, attempt_count}};
+            recovery_action, attempt_count}, std::nullopt};
         parked_files_.push_back(std::move(parked));
         active_files_.erase(it);
         return true;
     } catch (...) {
         return false;
     }
+}
+
+bool LiveCopyPlan::park_active_source_removal(
+    const std::uint64_t file_id,
+    const std::int32_t hresult,
+    const bool destination_preexisted,
+    FileFingerprint source_fingerprint,
+    FileFingerprint destination_fingerprint) noexcept {
+    try {
+        std::lock_guard lock(mutex_);
+        auto it = find_active(file_id);
+        if (it == active_files_.end()) return false;
+        const auto attempt_it = attempt_counts_.find(file_id);
+        const auto attempt_count = attempt_it == attempt_counts_.end() ? 1u : attempt_it->second;
+        SourceRemovalRecovery recovery{
+            it->id, hresult, it->source, it->destination, destination_preexisted, attempt_count,
+            std::move(source_fingerprint), std::move(destination_fingerprint)};
+        ParkedFile parked{*it, ItemIncident{
+            it->id, hresult, it->source, it->destination, destination_preexisted,
+            RecoveryAction::RetrySourceRemoval, attempt_count}, recovery};
+        parked_files_.push_back(std::move(parked));
+        active_files_.erase(it);
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
+bool LiveCopyPlan::restore_parked_source_removal(const SourceRemovalRecovery& archived) noexcept {
+    try {
+        std::lock_guard lock(mutex_);
+        if (archived.source.empty() || archived.destination.empty() || next_file_id_ == 0) return false;
+        const auto size = archived.source_fingerprint.size;
+        const auto weight = item_resolution_weight(size);
+        if (weight > std::numeric_limits<std::uint64_t>::max() - counters_.resolution_total ||
+            weight > std::numeric_limits<std::uint64_t>::max() - counters_.resolution_weight ||
+            size > std::numeric_limits<std::uint64_t>::max() - total_bytes_ ||
+            total_files_ == std::numeric_limits<std::uint64_t>::max()) {
+            return false;
+        }
+
+        const auto id = next_file_id_;
+        PlannedFile file{id, archived.source, archived.destination, size};
+        auto recovery = archived;
+        recovery.file_id = id;
+        ItemIncident incident{
+            id, archived.hresult, archived.source, archived.destination,
+            archived.destination_preexisted, RecoveryAction::RetrySourceRemoval,
+            archived.attempt_count == 0 ? 1u : archived.attempt_count};
+        recovery.attempt_count = incident.attempt_count;
+
+        const auto destination_key = normalized_path_key(file.destination);
+        if (destination_key.empty() || reserved_destination_keys_.contains(destination_key)) return false;
+
+        parked_files_.push_back({file, incident, recovery});
+        reserved_destination_keys_.insert(destination_key);
+        next_file_id_ = id == std::numeric_limits<std::uint64_t>::max() ? 0 : id + 1;
+        counters_.resolution_total += weight;
+        counters_.resolution_weight += weight;
+        high_water_[id] = weight;
+        attempt_counts_[id] = incident.attempt_count;
+        total_bytes_ += size;
+        ++total_files_;
+        largest_file_bytes_ = std::max(largest_file_bytes_, size);
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
+std::vector<SourceRemovalRecovery> LiveCopyPlan::parked_source_removals() const {
+    std::lock_guard lock(mutex_);
+    std::vector<SourceRemovalRecovery> result;
+    for (const auto& parked : parked_files_) {
+        if (!parked.source_removal_recovery) continue;
+        auto recovery = *parked.source_removal_recovery;
+        recovery.file_id = parked.incident.file_id;
+        recovery.hresult = parked.incident.hresult;
+        recovery.attempt_count = parked.incident.attempt_count;
+        result.push_back(std::move(recovery));
+    }
+    return result;
 }
 
 bool LiveCopyPlan::unpark(const std::uint64_t file_id) noexcept {

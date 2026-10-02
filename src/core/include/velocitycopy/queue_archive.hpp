@@ -2,6 +2,7 @@
 
 #include "velocitycopy/copy_job.hpp"
 #include "velocitycopy/job_planner.hpp"
+#include "velocitycopy/source_removal_recovery.hpp"
 
 #include <filesystem>
 #include <optional>
@@ -13,6 +14,7 @@ struct QueueArchive {
     std::optional<CopyPlan> current_plan;
     std::vector<CopyJob> current_append_jobs;
     std::vector<CopyJob> queued_jobs;
+    std::vector<SourceRemovalRecovery> source_removals;
 };
 
 class QueueArchiveStore final {
