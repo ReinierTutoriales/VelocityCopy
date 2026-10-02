@@ -80,6 +80,24 @@ int wmain() {
         }
     }
 
+
+    {
+        const auto destination = root / L"skip-all-mixed";
+        write_text(destination / L"a.txt", "old");
+        LiveCopyPlan live(plan_for(source, destination));
+        ExecutionControl control;
+        JobExecutionOptions options{1};
+        options.conflict_policy = ConflictPolicy::SkipAll;
+        const auto result = executor.execute(live, control, options, {});
+        if (!result.success || result.cancelled || result.stopped || result.destination_conflict ||
+            result.outcomes.skipped != 1 || result.outcomes.succeeded != 1 ||
+            live.remaining_files() != 0 || read_text(destination / L"a.txt") != "old" ||
+            read_text(destination / L"b.txt") != "new") {
+            fs::remove_all(root, ec);
+            return 3;
+        }
+    }
+
     fs::remove_all(root, ec);
     return 0;
 }
