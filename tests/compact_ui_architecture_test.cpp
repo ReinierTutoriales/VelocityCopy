@@ -285,7 +285,9 @@ int main() {
     const auto show_error = body_of(window, "void MainWindow::ShowError(");
     const auto resize_to_content = body_of(window, "void MainWindow::ResizeWindowToContent()");
     if (!contains(show_error, "ErrorBar().IsOpen(true)") ||
-        !contains(show_error, "ResizeWindowToContent();") ||
+        count_occurrences(show_error, "ResizeWindowToContent();") != 2 ||
+        !contains(show_error, "dispatcher_.TryEnqueue") ||
+        !contains(show_error, "self->ErrorBar().IsOpen()") ||
         !contains(window, "ErrorBar().Closed(") ||
         !contains(window, "self->ResizeWindowToContent();") ||
         !contains(resize_to_content, "QueueExpandedMinHeight") ||
