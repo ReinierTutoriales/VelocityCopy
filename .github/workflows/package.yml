@@ -122,6 +122,13 @@ jobs:
           $size = (Get-ChildItem $payload -Recurse -File | Measure-Object Length -Sum).Sum
           Write-Host ("Self-contained ${{ matrix.arch }} payload: {0:N1} MB" -f ($size / 1MB))
 
+      - name: Validate application PRI in payload
+        shell: pwsh
+        run: |
+          $payload = (Resolve-Path "artifacts/installer-payload-${{ matrix.arch }}").Path
+          pwsh -NoProfile -File tools/ci/Assert-PriResource.ps1 -RootPath $payload -EvidencePath "artifacts/pri-evidence-${{ matrix.arch }}/payload" -Key RecoveryRestoreError -Languages en-US,es-ES
+          if ($LASTEXITCODE -ne 0) { throw "Payload PRI validation failed for ${{ matrix.arch }}" }
+
       - name: Cache pinned NSIS
         id: cache-nsis
         uses: actions/cache@v4
@@ -176,6 +183,11 @@ jobs:
           if (-not (Test-Path $exe)) { throw "Installed executable is missing" }
           if (-not (Test-Path $uninstaller)) { throw "Uninstaller is missing" }
           if (-not (Test-Path $shellDll)) { throw "Installed shell extension is missing" }
+          $installedPri = Join-Path $root "VelocityCopy.WinUI.pri"
+          if (-not (Test-Path $installedPri)) { throw "Installed VelocityCopy.WinUI.pri is missing beside VelocityCopy.WinUI.exe" }
+          if (Test-Path (Join-Path $root "resources.pri")) { throw "Legacy resources.pri must not be installed" }
+          pwsh -NoProfile -File tools/ci/Assert-PriResource.ps1 -RootPath $root -EvidencePath "artifacts/pri-evidence-${{ matrix.arch }}/installed" -Key RecoveryRestoreError -Languages en-US,es-ES
+          if ($LASTEXITCODE -ne 0) { throw "Installed PRI validation failed" }
           & ./tools/Test-ShellRegistration.ps1 -Phase Installed
 
           $app = Start-Process $exe -PassThru
@@ -208,6 +220,15 @@ jobs:
           Start-Sleep -Seconds 2
           if (Test-Path $root) { throw "Installation directory remains after uninstall" }
           & ./tools/Test-ShellRegistration.ps1 -Phase Uninstalled
+
+      - name: Upload PRI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: VelocityCopy-PRI-evidence-${{ matrix.arch }}-${{ github.run_id }}
+          path: artifacts/pri-evidence-${{ matrix.arch }}
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Upload validated installer
         uses: actions/upload-artifact@v4
