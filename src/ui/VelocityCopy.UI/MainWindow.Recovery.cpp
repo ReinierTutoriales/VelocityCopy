@@ -207,23 +207,32 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
         queued_sessions_.push_back({std::move(job), {}, {}});
     }
 
-    velocitycopy::retire_recovery_file(path);
-    recovery_prompt_active_ = false;
-    recovery_prompt_checked_ = true;
-
+    bool adopted = false;
     if (archive->current_plan &&
         (!archive->current_plan->files.empty() || !archive->current_plan->directories.empty())) {
-        StartCopyPlan(
+        adopted = StartCopyPlan(
             std::move(*archive->current_plan), std::move(archive->source_removals));
     } else if (!archive->source_removals.empty()) {
         velocitycopy::CopyPlan empty{};
         empty.operation = velocitycopy::FileOperation::Move;
         empty.destination_root = archive->source_removals.front().destination.parent_path();
-        StartCopyPlan(std::move(empty), std::move(archive->source_removals));
+        adopted = StartCopyPlan(std::move(empty), std::move(archive->source_removals));
     } else {
         StartNextQueuedSession();
         RefreshQueueCommandState();
+        adopted = true;
     }
+
+    if (!adopted) {
+        app->ReturnRecoveryFile(path);
+        recovery_prompt_active_ = false;
+        recovery_prompt_checked_ = false;
+        co_return;
+    }
+
+    velocitycopy::retire_recovery_file(path);
+    recovery_prompt_active_ = false;
+    recovery_prompt_checked_ = true;
 }
 
 } // namespace winrt::VelocityCopyUI::implementation

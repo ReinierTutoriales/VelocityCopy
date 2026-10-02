@@ -157,5 +157,14 @@ int main() {
         return fail(15, "save queue must remain enabled for source-removal-only recovery work");
     }
 
+    if (!contains(window_h, "[[nodiscard]] bool StartCopyPlan(") ||
+        !contains(persistence, "bool MainWindow::StartCopyPlan(") ||
+        !contains(recovery, "adopted = StartCopyPlan(") ||
+        !contains(recovery, "if (!adopted)") ||
+        !contains(recovery, "app->ReturnRecoveryFile(path)") ||
+        recovery.find("if (!adopted)") > recovery.rfind("retire_recovery_file(path)")) {
+        return fail(16, "recovery checkpoint must survive until live state adoption succeeds");
+    }
+
     return 0;
 }

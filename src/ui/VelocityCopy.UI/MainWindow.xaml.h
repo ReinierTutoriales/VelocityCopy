@@ -175,7 +175,7 @@ private:
         std::shared_ptr<velocitycopy::ExecutionControl> target_control,
         std::shared_ptr<AppendGate> target_gate,
         bool reservation_already_held);
-    void StartCopyPlan(
+    [[nodiscard]] bool StartCopyPlan(
         velocitycopy::CopyPlan plan,
         std::vector<velocitycopy::SourceRemovalRecovery> source_removals = {});
     void ResumeStoppedCopy();
