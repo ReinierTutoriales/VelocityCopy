@@ -117,6 +117,31 @@ int wmain() {
             fs::remove_all(root, ec);
             return 4;
         }
+
+        // A parked source-removal decision is unresolved work. The executor
+        // must not run Move directory cleanup until that decision is terminal.
+        // Keeping an unreadable sibling directory here makes premature cleanup
+        // observable as a session failure.
+        const auto protected_dir = source / L"protected";
+        fs::create_directories(protected_dir, ec);
+        if (ec) { fs::remove_all(root, ec); return 5; }
+        Handle protected_handle;
+        protected_handle.value = CreateFileW(
+            protected_dir.c_str(), FILE_LIST_DIRECTORY,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
+            OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+        if (protected_handle.value == INVALID_HANDLE_VALUE) {
+            fs::remove_all(root, ec);
+            return 6;
+        }
+
+        JobExecutionOptions retry_options{1};
+        const auto parked_result = executor.execute(plan, control, retry_options, {});
+        if (!parked_result.success || parked_result.parked_files != 1 ||
+            plan.unresolved_files() != 1) {
+            fs::remove_all(root, ec);
+            return 7;
+        }
     }
 
     {
@@ -146,7 +171,7 @@ int wmain() {
             results.size() != 1 || results[0].file_id != 2 ||
             !fs::exists(destination / L"ok.txt") || !fs::is_regular_file(destination / L"blocked")) {
             fs::remove_all(root, ec);
-            return 5;
+            return 8;
         }
     }
 
