@@ -232,17 +232,19 @@ int main() {
         !contains(window, "ToolTipService::SetToolTip(PauseButtonHost()") ||
         !contains(window, "ToolTipService::SetToolTip(CancelButtonHost()") ||
         contains(window, "ToolTipService::SetToolTip(PauseButton()") ||
-        contains(window, "ToolTipService::SetToolTip(CancelButton()")) {
+        contains(window, "ToolTipService::SetToolTip(CancelButton()") ||
+        contains(execution, "ToolTipService::SetToolTip(PauseButton()") ||
+        !contains(execution, "ToolTipService::SetToolTip(PauseButtonHost()")) {
         return fail(31, "disabled primary actions must expose tooltips through enabled hit-test hosts");
     }
 
     const auto finish_copy = body_of(execution, "void MainWindow::FinishCopy(");
-    if (!contains(finish_copy, "result.outcomes.failed != 0 || result.outcomes.skipped != 0") ||
+    if (!contains(finish_copy, "result.outcomes.copied_source_retained != 0") ||
         !contains(finish_copy, "StatusCompletedWithIssues") ||
         !contains(finish_copy, "ShowError(") ||
         !contains(finish_copy, "if (completed_with_issues)") ||
         !contains(finish_copy, "DestroyCompletedWindow()")) {
-        return fail(32, "per-item failed/skipped outcomes must produce a visible non-clean terminal state");
+        return fail(32, "failed, skipped and retained-source outcomes must produce a visible non-clean terminal state");
     }
 
     // Auxiliary decision/about surfaces must remain real top-level windows. They

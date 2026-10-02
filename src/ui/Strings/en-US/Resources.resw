@@ -15,6 +15,7 @@
   <data name="StatusCompletedWithIssues" xml:space="preserve"><value>Transfer completed with issues</value></data>
   <data name="OutcomeFailed" xml:space="preserve"><value>Failed</value></data>
   <data name="OutcomeSkipped" xml:space="preserve"><value>Skipped</value></data>
+  <data name="OutcomeSourceRetained" xml:space="preserve"><value>Source not removed</value></data>
   <data name="QueuePendingFormat" xml:space="preserve"><value>{0} files pending</value></data>
   <data name="ActionPause" xml:space="preserve"><value>Pause</value></data>
   <data name="ActionResume" xml:space="preserve"><value>Resume</value></data>
