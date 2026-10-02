@@ -2,10 +2,12 @@ param(
     [Parameter(Mandatory = $true)][string]$RootPath,
     [Parameter(Mandatory = $true)][string]$EvidencePath,
     [Parameter(Mandatory = $true)][string]$Key,
-    [Parameter(Mandatory = $true)][string[]]$Languages
+    [Parameter(Mandatory = $true)][string]$LanguagesCsv
 )
 
 $ErrorActionPreference = "Stop"
+$Languages = @($LanguagesCsv.Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+if ($Languages.Count -eq 0) { throw "At least one language is required" }
 $root = (Resolve-Path -LiteralPath $RootPath).Path
 New-Item -ItemType Directory -Force $EvidencePath | Out-Null
 $evidence = (Resolve-Path -LiteralPath $EvidencePath).Path

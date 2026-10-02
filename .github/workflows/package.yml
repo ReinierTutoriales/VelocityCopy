@@ -126,7 +126,7 @@ jobs:
         shell: pwsh
         run: |
           $payload = (Resolve-Path "artifacts/installer-payload-${{ matrix.arch }}").Path
-          pwsh -NoProfile -File tools/ci/Assert-PriResource.ps1 -RootPath $payload -EvidencePath "artifacts/pri-evidence-${{ matrix.arch }}/payload" -Key RecoveryRestoreError -Languages @('en-US','es-ES')
+          pwsh -NoProfile -File tools/ci/Assert-PriResource.ps1 -RootPath $payload -EvidencePath "artifacts/pri-evidence-${{ matrix.arch }}/payload" -Key RecoveryRestoreError -LanguagesCsv 'en-US,es-ES'
           if ($LASTEXITCODE -ne 0) { throw "Payload PRI validation failed for ${{ matrix.arch }}" }
 
       - name: Cache pinned NSIS
@@ -186,7 +186,7 @@ jobs:
           $installedPri = Join-Path $root "VelocityCopy.WinUI.pri"
           if (-not (Test-Path $installedPri)) { throw "Installed VelocityCopy.WinUI.pri is missing beside VelocityCopy.WinUI.exe" }
           if (Test-Path (Join-Path $root "resources.pri")) { throw "Legacy resources.pri must not be installed" }
-          pwsh -NoProfile -File tools/ci/Assert-PriResource.ps1 -RootPath $root -EvidencePath "artifacts/pri-evidence-${{ matrix.arch }}/installed" -Key RecoveryRestoreError -Languages @('en-US','es-ES')
+          pwsh -NoProfile -File tools/ci/Assert-PriResource.ps1 -RootPath $root -EvidencePath "artifacts/pri-evidence-${{ matrix.arch }}/installed" -Key RecoveryRestoreError -LanguagesCsv 'en-US,es-ES'
           if ($LASTEXITCODE -ne 0) { throw "Installed PRI validation failed" }
           & ./tools/Test-ShellRegistration.ps1 -Phase Installed
 
