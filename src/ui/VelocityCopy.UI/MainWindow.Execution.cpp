@@ -643,21 +643,45 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     SetExecutionButtonsIdle();
     SpeedText().Text(L"—");
     EtaText().Text(L"—");
+    const bool completed_with_issues = result.outcomes.failed != 0 || result.outcomes.skipped != 0;
     if (queued_sessions_.empty()) {
         SetProgressFraction(1.0);
         try {
             Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-            CurrentItemText().Text(loader.GetString(
-                active_operation_ == velocitycopy::FileOperation::Move
-                    ? L"StatusMoveCompleted"
-                    : L"StatusCompleted"));
+            if (completed_with_issues) {
+                CurrentItemText().Text(loader.GetString(L"StatusCompletedWithIssues"));
+                const auto failed_label = loader.GetString(L"OutcomeFailed");
+                const auto skipped_label = loader.GetString(L"OutcomeSkipped");
+                ShowError(hstring(std::format(
+                    L"{}: {}, {}: {}",
+                    failed_label.c_str(),
+                    result.outcomes.failed,
+                    skipped_label.c_str(),
+                    result.outcomes.skipped)));
+            } else {
+                CurrentItemText().Text(loader.GetString(
+                    active_operation_ == velocitycopy::FileOperation::Move
+                        ? L"StatusMoveCompleted"
+                        : L"StatusCompleted"));
+            }
         } catch (...) {
         }
-        // Completed transfer windows are session surfaces, not recovery owners.
+        if (completed_with_issues) {
+            // Keep the terminal surface visible so per-item failures/skips cannot
+            // masquerade as a clean transfer that immediately disappears.
+            return;
+        }
+        // Clean completed transfer windows are session surfaces, not recovery owners.
         // Recovery remains available through ShowFromTray() when the app is opened
-        // explicitly; a successful transfer must always release its own window.
+        // explicitly; a successful clean transfer releases its own window.
         DestroyCompletedWindow();
         return;
+    }
+    if (completed_with_issues) {
+        velocitycopy::log_diagnostic(std::format(
+            L"transfer: completed with issues (failed={}, skipped={})",
+            result.outcomes.failed,
+            result.outcomes.skipped));
     }
     StartNextQueuedSession();
 }
