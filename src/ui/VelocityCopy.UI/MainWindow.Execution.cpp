@@ -35,7 +35,7 @@ void MainWindow::SetExecutionButtonsRunning() {
     try {
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
         const auto label = loader.GetString(L"ActionPause");
-        ToolTipService::SetToolTip(PauseButton(), box_value(label));
+        ToolTipService::SetToolTip(PauseButtonHost(), box_value(label));
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), label);
     } catch (...) {}
     RefreshExecutionMenuState();
@@ -53,7 +53,7 @@ void MainWindow::SetExecutionButtonsIdle() {
     try {
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
         const auto label = loader.GetString(L"ActionPause");
-        ToolTipService::SetToolTip(PauseButton(), box_value(label));
+        ToolTipService::SetToolTip(PauseButtonHost(), box_value(label));
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), label);
     } catch (...) {}
     RefreshEfficiencyMode();
@@ -70,7 +70,7 @@ void MainWindow::SetExecutionButtonsStopped() {
     try {
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
         const auto label = loader.GetString(L"ActionResume");
-        ToolTipService::SetToolTip(PauseButton(), box_value(label));
+        ToolTipService::SetToolTip(PauseButtonHost(), box_value(label));
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), label);
     } catch (...) {}
     RefreshEfficiencyMode();
@@ -356,7 +356,7 @@ void MainWindow::OnPauseClick(IInspectable const&, RoutedEventArgs const&) {
     try {
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
         const auto label = loader.GetString(paused_ ? L"ActionResume" : L"ActionPause");
-        ToolTipService::SetToolTip(PauseButton(), box_value(label));
+        ToolTipService::SetToolTip(PauseButtonHost(), box_value(label));
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), label);
     } catch (...) {
         // Localization failure must never mutate the execution state.
@@ -643,7 +643,8 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     SetExecutionButtonsIdle();
     SpeedText().Text(L"—");
     EtaText().Text(L"—");
-    const bool completed_with_issues = result.outcomes.failed != 0 || result.outcomes.skipped != 0;
+    const bool completed_with_issues = result.outcomes.failed != 0 ||
+        result.outcomes.skipped != 0 || result.outcomes.copied_source_retained != 0;
     if (queued_sessions_.empty()) {
         SetProgressFraction(1.0);
         try {
@@ -652,12 +653,15 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
                 CurrentItemText().Text(loader.GetString(L"StatusCompletedWithIssues"));
                 const auto failed_label = loader.GetString(L"OutcomeFailed");
                 const auto skipped_label = loader.GetString(L"OutcomeSkipped");
+                const auto retained_label = loader.GetString(L"OutcomeSourceRetained");
                 ShowError(hstring(std::format(
-                    L"{}: {}, {}: {}",
+                    L"{}: {}, {}: {}, {}: {}",
                     failed_label.c_str(),
                     result.outcomes.failed,
                     skipped_label.c_str(),
-                    result.outcomes.skipped)));
+                    result.outcomes.skipped,
+                    retained_label.c_str(),
+                    result.outcomes.copied_source_retained)));
             } else {
                 CurrentItemText().Text(loader.GetString(
                     active_operation_ == velocitycopy::FileOperation::Move
@@ -679,9 +683,10 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     }
     if (completed_with_issues) {
         velocitycopy::log_diagnostic(std::format(
-            L"transfer: completed with issues (failed={}, skipped={})",
+            L"transfer: completed with issues (failed={}, skipped={}, source_retained={})",
             result.outcomes.failed,
-            result.outcomes.skipped));
+            result.outcomes.skipped,
+            result.outcomes.copied_source_retained));
     }
     StartNextQueuedSession();
 }

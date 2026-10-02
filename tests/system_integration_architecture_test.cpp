@@ -35,6 +35,7 @@ int main() {
     const auto persistence = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.QueuePersistence.cpp");
     const auto recovery = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Recovery.cpp");
     const auto conflict = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Conflict.cpp");
+    const auto auxiliary = read_all(root / "src/ui/VelocityCopy.UI/AuxiliarySurface.cpp");
     const auto ci_workflow = read_all(root / ".github/workflows/ci.yml");
     const auto package_workflow = read_all(root / ".github/workflows/package.yml");
     const auto installer_exe = read_all(root / "tools/VelocityCopy-Test-Installer.nsi");
@@ -42,7 +43,7 @@ int main() {
     const auto docs = read_all(root / "docs/SYSTEM_INTEGRATION.md");
 
     if (app.empty() || shell.empty() || ipc.empty() ||
-        window.empty() || tray.empty() || app_tray.empty() || persistence.empty() || recovery.empty() || conflict.empty() ||
+        window.empty() || tray.empty() || app_tray.empty() || persistence.empty() || recovery.empty() || conflict.empty() || auxiliary.empty() ||
         ci_workflow.empty() || package_workflow.empty() || installer_exe.empty() || installer_smoke.empty() || docs.empty()) {
         return fail(1, "required integration source missing");
     }
