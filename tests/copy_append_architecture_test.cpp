@@ -209,7 +209,7 @@ int main() {
     if (deliver_job.empty() || !contains(deliver_job, "velocitycopy::route_transfer(") || contains(deliver_job, "same_destination("))
         return fail(29, "App must route resolved Explorer work without the provisional destination decision");
 
-    const auto start_copy_plan = body_of(persistence, "void MainWindow::StartCopyPlan(");
+    const auto start_copy_plan = body_of(persistence, "bool MainWindow::StartCopyPlan(");
     if (start_copy_plan.empty() || !contains(start_copy_plan, "active_destination_key_ = {}") ||
         !contains(start_copy_plan, "active_source_key_ = {}"))
         return fail(30, "loaded/recovered plans must clear storage keys inherited from the previous session");
