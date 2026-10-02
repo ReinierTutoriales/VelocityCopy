@@ -299,18 +299,49 @@ void App::DeliverConvertedJob(velocitycopy::CopyJob job, velocitycopy::StorageKe
             const bool same_destination_prompt =
                 route.offered[0] == velocitycopy::RouteChoice::Append &&
                 route.offered[1] == velocitycopy::RouteChoice::Wait;
-            const std::wstring title = same_destination_prompt
-                ? L"Destination already in use"
-                : L"Storage device already in use";
-            const std::wstring message = same_destination_prompt
-                ? L"A transfer to this destination is already running. Add these files to it or wait?"
-                : L"Another transfer is using the same storage device. Wait or run this transfer in parallel?";
-            const std::wstring primary = same_destination_prompt ? L"Add" : L"Wait";
-            const std::wstring secondary = same_destination_prompt ? L"Wait" : L"Parallel";
+            std::wstring title;
+            std::wstring message;
+            std::wstring primary;
+            std::wstring secondary;
+            std::wstring remember_label;
+            try {
+                Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
+                title = loader.GetString(
+                    same_destination_prompt
+                        ? L"RoutingDestinationInUseTitle"
+                        : L"RoutingStorageInUseTitle").c_str();
+                message = loader.GetString(
+                    same_destination_prompt
+                        ? L"RoutingDestinationInUseMessage"
+                        : L"RoutingStorageInUseMessage").c_str();
+                primary = loader.GetString(
+                    same_destination_prompt ? L"RoutingActionAdd" : L"RoutingActionWait").c_str();
+                secondary = loader.GetString(
+                    same_destination_prompt ? L"RoutingActionWait" : L"RoutingActionParallel").c_str();
+                remember_label = loader.GetString(L"DialogRememberChoice").c_str();
+            } catch (...) {
+                title = same_destination_prompt
+                    ? L"Destination already in use"
+                    : L"Storage device already in use";
+                message = same_destination_prompt
+                    ? L"A transfer to this destination is already running. Add these files to it or wait?"
+                    : L"Another transfer is using the same storage device. Wait or run this transfer in parallel?";
+                primary = same_destination_prompt ? L"Add" : L"Wait";
+                secondary = same_destination_prompt ? L"Wait" : L"Parallel";
+                remember_label = L"Remember my choice";
+            }
 
             bool remember = false;
             const auto choice = MainWindow::ShowNativeDecisionDialog(
-                dialog_owner->NativeOwner(), title, message, primary, secondary, false, {}, &remember);
+                dialog_owner->NativeOwner(),
+                title,
+                message,
+                primary,
+                secondary,
+                false,
+                {},
+                remember_label,
+                &remember);
             if (choice == MainWindow::NativeDialogChoice::Cancel) {
                 velocitycopy::log_diagnostic(L"shell: routing decision cancelled");
                 return;
