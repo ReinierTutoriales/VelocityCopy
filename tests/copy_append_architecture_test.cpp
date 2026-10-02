@@ -235,5 +235,21 @@ int main() {
         }
     }
 
+    const auto reset_item = body_of(execution, "void MainWindow::ResetCurrentItemState() noexcept");
+    const auto reset_interrupted = body_of(execution, "void MainWindow::ResetInterruptedSessionState() noexcept");
+    if (reset_item.empty() || !contains(reset_item, "current_file_id_ = 0") ||
+        !contains(reset_item, "current_file_skippable_ = false") ||
+        !contains(reset_item, "paused_ = false") ||
+        contains(reset_item, "ResetCurrentItemState()")) {
+        return fail(28, "current-item reset must remain concrete and non-recursive");
+    }
+    if (reset_interrupted.empty() || !contains(reset_interrupted, "stopped_session_ = false") ||
+        !contains(reset_interrupted, "conflict_session_ = false") ||
+        !contains(reset_interrupted, "stop_requested_ = false") ||
+        !contains(reset_interrupted, "resume_requested_ = false") ||
+        !contains(reset_interrupted, "conflict_resume_intent_ = {}")) {
+        return fail(29, "interrupted-session reset must clear its state as one unit");
+    }
+
     return 0;
 }
