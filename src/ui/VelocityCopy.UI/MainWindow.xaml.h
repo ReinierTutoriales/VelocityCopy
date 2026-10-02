@@ -141,6 +141,7 @@ private:
     [[nodiscard]] bool HasActiveWorkForEfficiencyMode() noexcept;
     void PersistRecoveryQueueNoThrow() noexcept;
     void ApplyTitleBarInset() noexcept;
+    void PositionInitialWindow() noexcept;
     void OnAppWindowChanged(
         Microsoft::UI::Windowing::AppWindow const&,
         Microsoft::UI::Windowing::AppWindowChangedEventArgs const& args);

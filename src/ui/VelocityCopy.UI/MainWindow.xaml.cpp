@@ -103,6 +103,30 @@ MainWindow::MainWindow() {
     InitializeTrayIntegration();
     ApplyTitleBarInset();
     ResizeWindow(velocitycopy::ui::token_int(L"CompactSurfaceHeight", 72));
+    PositionInitialWindow();
+}
+
+void MainWindow::PositionInitialWindow() noexcept {
+    try {
+        if (hwnd_ == nullptr) return;
+
+        RECT window_rect{};
+        MONITORINFO monitor_info{sizeof(monitor_info)};
+        const HMONITOR monitor = MonitorFromWindow(hwnd_, MONITOR_DEFAULTTONEAREST);
+        if (monitor == nullptr || !GetMonitorInfoW(monitor, &monitor_info) ||
+            !GetWindowRect(hwnd_, &window_rect)) {
+            return;
+        }
+
+        const int width = window_rect.right - window_rect.left;
+        const int height = window_rect.bottom - window_rect.top;
+        const int work_width = monitor_info.rcWork.right - monitor_info.rcWork.left;
+        const int work_height = monitor_info.rcWork.bottom - monitor_info.rcWork.top;
+        const int x = monitor_info.rcWork.left + (work_width - width) / 2;
+        const int y = monitor_info.rcWork.top + (work_height - height) * 2 / 5;
+        AppWindow().Move(Windows::Graphics::PointInt32{x, y});
+    } catch (...) {
+    }
 }
 
 void MainWindow::MoveNativeWindow(const int x, const int y) noexcept {
