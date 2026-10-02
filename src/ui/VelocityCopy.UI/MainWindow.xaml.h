@@ -208,6 +208,7 @@ private:
     void ShowRetryDecisionAsync();
     void ResumeParkedFailures();
     void ResolveParkedFailures();
+    void StartDecisionSession();
     void FinalizeStoppedSessionIfEmpty();
     void FinalizeConflictSessionIfEmpty();
     void ApplySnapshot(const velocitycopy::UiSnapshot& snapshot);

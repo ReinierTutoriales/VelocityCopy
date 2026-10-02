@@ -728,6 +728,11 @@ void MainWindow::ResumeParkedFailures() {
             return;
         }
     }
+    StartDecisionSession();
+}
+
+void MainWindow::StartDecisionSession() {
+    if (interrupted_session_ != InterruptedSessionState::Decision || !live_plan_) return;
     interrupted_session_ = InterruptedSessionState::None;
     cancel_requested_.store(false, std::memory_order_relaxed);
     presenter_.reset();
@@ -758,6 +763,20 @@ void MainWindow::ResolveParkedFailures() {
             ShowError();
             return;
         }
+    }
+    bool planning = false;
+    if (append_gate_) {
+        std::lock_guard gate_lock(append_gate_->mutex);
+        planning = append_gate_->planning_count != 0;
+    }
+    if (planning || live_plan_->remaining_files() != 0 || live_plan_->has_pending_directories()) {
+        StartDecisionSession();
+        return;
+    }
+    if (append_gate_) {
+        std::lock_guard gate_lock(append_gate_->mutex);
+        append_gate_->accepting = false;
+        append_gate_->condition.notify_all();
     }
     velocitycopy::JobResult result{true, false, S_OK, false};
     const auto view = live_plan_->resolution_view();
