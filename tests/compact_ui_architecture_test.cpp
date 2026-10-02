@@ -257,5 +257,16 @@ int main() {
         return fail(33, "auxiliary dialogs/windows must not be embedded or positioned relative to the compact surface");
     }
 
+    const auto initial_position = body_of(window, "void MainWindow::PositionInitialWindow() noexcept");
+    if (initial_position.empty() ||
+        !contains(initial_position, "MonitorFromWindow(hwnd_, MONITOR_DEFAULTTONEAREST)") ||
+        !contains(initial_position, "GetMonitorInfoW") ||
+        !contains(initial_position, "monitor_info.rcWork") ||
+        !contains(initial_position, "GetWindowRect(hwnd_") ||
+        !contains(initial_position, "AppWindow().Move(") ||
+        count_occurrences(window, "PositionInitialWindow();") != 1) {
+        return fail(36, "initial compact-window placement must derive from the monitor work area exactly once");
+    }
+
     return 0;
 }
