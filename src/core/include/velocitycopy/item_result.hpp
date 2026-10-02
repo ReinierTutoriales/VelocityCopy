@@ -99,8 +99,8 @@ inline constexpr std::uint64_t kMinimumResolutionWeight = 1;
 // Cancellation is not a terminal item transition. Pending/Parked items remain
 // unprocessed and must be reported separately by the session summary.
 //
-// Queue archive persistence intentionally remains at its current pending-only
-// format in this cut. Persisting Parked/Terminal state requires a future archive
-// format version.
+// Queue archive v3 persists RetrySourceRemoval separately from CopyPlan.
+// RetryTransfer remains restartable transfer work; terminal results are not
+// persisted as unresolved work.
 
 } // namespace velocitycopy

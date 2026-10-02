@@ -1,5 +1,6 @@
 #include "velocitycopy/job_executor.hpp"
 #include "velocitycopy/storage_topology.hpp"
+#include "velocitycopy/source_removal_recovery.hpp"
 
 #include <windows.h>
 
@@ -328,22 +329,34 @@ JobResult JobExecutor::execute(
         // unparked into transfer work; a resumed decision session retries only
         // deletion of the original source.
         if (options.retry_source_removals) {
-        for (const auto& incident : plan.parked_incidents()) {
-            if (incident.recovery_action != RecoveryAction::RetrySourceRemoval) continue;
-            if (!plan.begin_parked_retry(incident.file_id, RecoveryAction::RetrySourceRemoval)) {
-                return finish({false, false, static_cast<std::int32_t>(E_FAIL)});
-            }
-            const auto remove_source = remove_moved_source_file(incident.source);
-            if (remove_source == S_OK) {
-                if (!plan.resolve_parked(
-                        incident.file_id, ItemOutcome::Succeeded, S_OK,
-                        incident.destination_preexisted)) {
+            for (const auto& recovery : plan.parked_source_removals()) {
+                const auto validation = validate_source_removal_recovery(recovery);
+                if (validation == SourceRemovalValidation::TemporarilyUnavailable) {
+                    continue;
+                }
+                if (validation == SourceRemovalValidation::ChangedOrMissing) {
+                    if (!plan.resolve_parked(
+                            recovery.file_id, ItemOutcome::CopiedSourceRetained,
+                            recovery.hresult, recovery.destination_preexisted)) {
+                        return finish({false, false, static_cast<std::int32_t>(E_FAIL)});
+                    }
+                    continue;
+                }
+                if (!plan.begin_parked_retry(
+                        recovery.file_id, RecoveryAction::RetrySourceRemoval)) {
                     return finish({false, false, static_cast<std::int32_t>(E_FAIL)});
                 }
-            } else if (!plan.record_parked_retry_failure(incident.file_id, remove_source)) {
-                return finish({false, false, static_cast<std::int32_t>(E_FAIL)});
+                const auto remove_source = remove_moved_source_file(recovery.source);
+                if (remove_source == S_OK) {
+                    if (!plan.resolve_parked(
+                            recovery.file_id, ItemOutcome::Succeeded, S_OK,
+                            recovery.destination_preexisted)) {
+                        return finish({false, false, static_cast<std::int32_t>(E_FAIL)});
+                    }
+                } else if (!plan.record_parked_retry_failure(recovery.file_id, remove_source)) {
+                    return finish({false, false, static_cast<std::int32_t>(E_FAIL)});
+                }
             }
-        }
         }
 
         const auto directory_batch = plan.pending_directories();
@@ -669,9 +682,26 @@ JobResult JobExecutor::execute(
                         if (plan.operation() == FileOperation::Move) {
                             const auto remove_source = remove_moved_source_file(file->source);
                             if (remove_source != S_OK) {
-                                if (!plan.park_active(
+                                const auto source_fingerprint = probe_file_fingerprint(file->source);
+                                const auto destination_fingerprint = probe_file_fingerprint(file->destination);
+                                if (source_fingerprint.status != FingerprintProbe::Present ||
+                                    destination_fingerprint.status != FingerprintProbe::Present) {
+                                    if (!plan.resolve_active(
+                                            file_id, ItemOutcome::CopiedSourceRetained,
+                                            remove_source, !skip_allowed)) {
+                                        result_state.record_error(static_cast<std::int32_t>(E_FAIL));
+                                        control.request_cancel();
+                                        worker_results[worker_index] = {
+                                            false, false, static_cast<std::int32_t>(E_FAIL), false,
+                                        };
+                                        return;
+                                    }
+                                    continue;
+                                }
+                                if (!plan.park_active_source_removal(
                                         file_id, remove_source, !skip_allowed,
-                                        RecoveryAction::RetrySourceRemoval)) {
+                                        source_fingerprint.fingerprint,
+                                        destination_fingerprint.fingerprint)) {
                                     result_state.record_error(static_cast<std::int32_t>(E_FAIL));
                                     control.request_cancel();
                                     worker_results[worker_index] = {

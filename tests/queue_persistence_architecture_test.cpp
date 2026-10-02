@@ -51,11 +51,15 @@ int main() {
     }
 
     if (!contains(archive_cpp, "kMagic{'V','C','Q','U','E','U','E','1'}") ||
-        !contains(archive_cpp, "kFormatVersion = 2") ||
+        !contains(archive_cpp, "kFormatVersion = 3") ||
+        !contains(archive_cpp, "kPreviousFormatVersion = 2") ||
         !contains(archive_cpp, "kLegacyFormatVersion = 1") ||
         !contains(archive_cpp, "kMaxEntries") || !contains(archive_cpp, "TempFileGuard") ||
         !contains(archive_cpp, "MOVEFILE_REPLACE_EXISTING") ||
-        !contains(archive_cpp, "MOVEFILE_WRITE_THROUGH") || !contains(archive_cpp, "stream.peek()")) {
+        !contains(archive_cpp, "MOVEFILE_WRITE_THROUGH") ||
+        !contains(archive_cpp, "FlushFileBuffers") ||
+        !contains(archive_cpp, "source_removals") ||
+        !contains(archive_cpp, "stream.peek()")) {
         return fail(3, "archive format must be versioned, bounded and atomically replaced");
     }
 
@@ -139,6 +143,13 @@ int main() {
         !contains(window_h, "recovery_prompt_active_") ||
         !contains(app_cpp, "implementation->OfferRecoveryIfIdle()")) {
         return fail(13, "recovery prompt must be owned by explicit app activation and guarded against duplicates");
+    }
+
+    if (!contains(archive_h, "source_removals") ||
+        !contains(persistence, "parked_source_removals()") ||
+        !contains(persistence, "restore_parked_source_removal") ||
+        !contains(recovery, "!archive->source_removals.empty()")) {
+        return fail(14, "v3 must persist and restore source-removal decisions independently of CopyPlan");
     }
 
     return 0;

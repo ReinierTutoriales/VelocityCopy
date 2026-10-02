@@ -2,6 +2,7 @@
 
 #include "velocitycopy/item_result.hpp"
 #include "velocitycopy/job_planner.hpp"
+#include "velocitycopy/source_removal_recovery.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -135,6 +136,11 @@ public:
     [[nodiscard]] bool unpark(std::uint64_t file_id) noexcept;
     [[nodiscard]] bool begin_parked_retry(std::uint64_t file_id, RecoveryAction action) noexcept;
     [[nodiscard]] bool record_parked_retry_failure(std::uint64_t file_id, std::int32_t hresult) noexcept;
+    [[nodiscard]] bool park_active_source_removal(
+        std::uint64_t file_id, std::int32_t hresult, bool destination_preexisted,
+        FileFingerprint source_fingerprint, FileFingerprint destination_fingerprint) noexcept;
+    [[nodiscard]] bool restore_parked_source_removal(const SourceRemovalRecovery& recovery) noexcept;
+    [[nodiscard]] std::vector<SourceRemovalRecovery> parked_source_removals() const;
     [[nodiscard]] bool resolve_pending(
         std::uint64_t file_id, ItemOutcome outcome, std::int32_t hresult,
         bool destination_preexisted) noexcept;
@@ -174,6 +180,7 @@ private:
     struct ParkedFile {
         PlannedFile file;
         ItemIncident incident;
+        std::optional<SourceRemovalRecovery> source_removal_recovery;
     };
 
     [[nodiscard]] std::vector<ParkedFile>::iterator find_parked(std::uint64_t file_id) noexcept;

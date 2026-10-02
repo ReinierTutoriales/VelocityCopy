@@ -133,8 +133,9 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
         co_return;
     }
 
-    const bool has_current = archive->current_plan &&
-        (!archive->current_plan->files.empty() || !archive->current_plan->directories.empty());
+    const bool has_current = (archive->current_plan &&
+        (!archive->current_plan->files.empty() || !archive->current_plan->directories.empty())) ||
+        !archive->source_removals.empty();
     if (!has_current && archive->queued_jobs.empty()) {
         velocitycopy::retire_recovery_file(path);
         co_await ui_thread;
@@ -212,7 +213,13 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
 
     if (archive->current_plan &&
         (!archive->current_plan->files.empty() || !archive->current_plan->directories.empty())) {
-        StartCopyPlan(std::move(*archive->current_plan));
+        StartCopyPlan(
+            std::move(*archive->current_plan), std::move(archive->source_removals));
+    } else if (!archive->source_removals.empty()) {
+        velocitycopy::CopyPlan empty{};
+        empty.operation = velocitycopy::FileOperation::Move;
+        empty.destination_root = archive->source_removals.front().destination.parent_path();
+        StartCopyPlan(std::move(empty), std::move(archive->source_removals));
     } else {
         StartNextQueuedSession();
         RefreshQueueCommandState();
