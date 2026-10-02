@@ -179,6 +179,8 @@ private:
     void ResizeWindow(int height_epx);
     void ResizeWindowToContent();
     void SetProgressFraction(double fraction);
+    void ResetCurrentItemState() noexcept;
+    void ResetInterruptedSessionState() noexcept;
     void SetExecutionButtonsPlanning();
     void SetExecutionButtonsRunning();
     void SetExecutionButtonsIdle();
