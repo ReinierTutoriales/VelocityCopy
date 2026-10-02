@@ -640,11 +640,11 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
                 const auto failed_label = loader.GetString(L"OutcomeFailed");
                 const auto skipped_label = loader.GetString(L"OutcomeSkipped");
                 const auto retained_label = loader.GetString(L"OutcomeSourceRetained");
-                ErrorBar().Severity(
+                ShowNotice(
                     result.outcomes.failed == 0 && result.outcomes.copied_source_retained == 0
                         ? InfoBarSeverity::Warning
-                        : InfoBarSeverity::Error);
-                ShowError(hstring(std::format(
+                        : InfoBarSeverity::Error,
+                    hstring(std::format(
                     L"{}: {}, {}: {}, {}: {}",
                     failed_label.c_str(),
                     result.outcomes.failed,
