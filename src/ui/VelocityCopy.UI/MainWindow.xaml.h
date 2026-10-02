@@ -21,6 +21,7 @@
 #include <memory>
 #include <mutex>
 #include <utility>
+#include <variant>
 
 namespace winrt::VelocityCopyUI::implementation {
 // A session interrupted by Stop or by a destination conflict. The two are
@@ -97,6 +98,16 @@ private:
         std::uint64_t replace_file_id{};
         velocitycopy::ConflictPolicy policy{velocitycopy::ConflictPolicy::Prompt};
     };
+
+    // A Resume requested while append planning was still running, executed
+    // once planning completes. monostate: none pending. StoppedResume carries
+    // no data; ConflictResume always carries its intent, so a conflict intent
+    // can never exist without a pending request.
+    struct StoppedResume {};
+    struct ConflictResume {
+        ConflictResumeIntent intent;
+    };
+    using PendingResume = std::variant<std::monostate, StoppedResume, ConflictResume>;
 
     struct AppendGate {
         struct BoundedCondition {
@@ -236,14 +247,13 @@ private:
     bool paused_{};
     InterruptedSessionState interrupted_session_{InterruptedSessionState::None};
     bool stop_requested_{};
-    bool resume_requested_{};
     bool current_file_skippable_{};
     bool recovery_prompt_checked_{};
     bool recovery_prompt_active_{};
     std::uint64_t next_job_id_{1};
     std::uint64_t last_queue_completed_files_{};
     std::uint64_t current_file_id_{};
-    ConflictResumeIntent conflict_resume_intent_{};
+    PendingResume pending_resume_{};
     HWND hwnd_{};
     bool tray_exit_requested_{};
     bool tray_window_hidden_{};

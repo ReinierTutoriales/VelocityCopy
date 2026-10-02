@@ -138,21 +138,18 @@ void MainWindow::ResumeConflictCopy(
     if (append_gate_) {
         std::lock_guard gate_lock(append_gate_->mutex);
         if (append_gate_->planning_count != 0) {
-            resume_requested_ = true;
-            conflict_resume_intent_ = {replace_file_id, policy};
+            pending_resume_ = ConflictResume{{replace_file_id, policy}};
             return;
         }
     }
 
     if (live_plan_->remaining_files() == 0 && !live_plan_->has_pending_directories()) {
-        resume_requested_ = false;
-        conflict_resume_intent_ = {};
+        pending_resume_ = {};
         FinalizeConflictSessionIfEmpty();
         return;
     }
 
-    resume_requested_ = false;
-    conflict_resume_intent_ = {};
+    pending_resume_ = {};
     interrupted_session_ = InterruptedSessionState::None;
     stop_requested_ = false;
     current_file_id_ = 0;
@@ -195,8 +192,7 @@ void MainWindow::FinalizeConflictSessionIfEmpty() {
     }
 
     interrupted_session_ = InterruptedSessionState::None;
-    resume_requested_ = false;
-    conflict_resume_intent_ = {};
+    pending_resume_ = {};
     live_plan_.reset();
     append_gate_.reset();
     active_destination_.clear();
