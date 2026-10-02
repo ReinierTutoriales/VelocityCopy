@@ -56,6 +56,7 @@
   <data name="RecoveryMessage" xml:space="preserve"><value>VelocityCopy encontró trabajo guardado durante el apagado de Windows. No se reanudará nada hasta que elijas Reanudar.</value></data>
   <data name="RecoveryResume" xml:space="preserve"><value>Reanudar</value></data>
   <data name="RecoveryDiscard" xml:space="preserve"><value>Descartar</value></data>
+  <data name="RecoveryRestoreError" xml:space="preserve"><value>No se pudo restaurar la recuperación guardada. Puedes volver a intentarlo o descartarla.</value></data>
   <data name="CurrentItemText.Text" xml:space="preserve"><value>Listo</value></data>
   <data name="QueueTitle.Text" xml:space="preserve"><value>Archivos pendientes</value></data>
   <data name="RetryDecisionTitle" xml:space="preserve"><value>Algunos elementos requieren atención</value></data>

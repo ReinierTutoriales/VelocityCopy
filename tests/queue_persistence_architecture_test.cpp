@@ -196,5 +196,10 @@ int main() {
         return fail(19, "queued-only recovery must publish future sessions before starting the first one");
     }
 
+    if (!contains(recovery, "loader.GetString(L\"RecoveryRestoreError\")") ||
+        !contains(recovery, "ShowError(recovery_error);")) {
+        return fail(20, "failed recovery adoption must explain that the saved recovery could not be restored");
+    }
+
     return 0;
 }
