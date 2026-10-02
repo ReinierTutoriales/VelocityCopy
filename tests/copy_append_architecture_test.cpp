@@ -319,13 +319,13 @@ int main() {
     // finalizing, and close the gate only after the session is truly drained.
     const auto resume_parked = body_of(execution, "void MainWindow::ResumeParkedFailures()");
     const auto resolve_parked = body_of(execution, "void MainWindow::ResolveParkedFailures()");
-    const auto start_decision = body_of(execution, "void MainWindow::StartDecisionSession()");
+    const auto start_decision = body_of(execution, "void MainWindow::StartDecisionSession(");
     if (resume_parked.empty() || resolve_parked.empty() || start_decision.empty() ||
-        !contains(resume_parked, "StartDecisionSession();") ||
+        !contains(resume_parked, "StartDecisionSession(true);") ||
         !contains(resolve_parked, "planning_count != 0") ||
         !contains(resolve_parked, "remaining_files() != 0") ||
         !contains(resolve_parked, "has_pending_directories()") ||
-        !contains(resolve_parked, "StartDecisionSession();") ||
+        !contains(resolve_parked, "StartDecisionSession(false);") ||
         !contains(resolve_parked, "append_gate_->accepting = false") ||
         count_occurrences(start_decision, "RunLivePlanSession(") != 1 ||
         contains(resume_parked, "RunLivePlanSession(") ||

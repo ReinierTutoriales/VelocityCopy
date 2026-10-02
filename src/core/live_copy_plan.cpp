@@ -370,7 +370,8 @@ std::optional<PlannedFile> LiveCopyPlan::acquire_next() noexcept {
     pending_files_.pop_front();
     active_files_.push_back(file);
     attempt_bytes_.erase(file.id);
-    attempt_counts_.erase(file.id);
+    // Keep the attempt number while this item is active. If this retry parks
+    // again, park_active() must report the incremented attempt.
     return file;
 }
 
@@ -472,6 +473,7 @@ void LiveCopyPlan::drop_in_flight_locked(const std::uint64_t file_id) noexcept {
         high_water_.erase(hw);
     }
     attempt_bytes_.erase(file_id);
+    attempt_counts_.erase(file_id);
 }
 
 // Preconditions: mutex_ held; `file` is still in its source container. May
@@ -499,6 +501,7 @@ bool LiveCopyPlan::resolve_locked(
     }
     counters_.resolution_weight += weight - std::min(weight, high_water);
     attempt_bytes_.erase(file.id);
+    attempt_counts_.erase(file.id);
     if (is_successful_transfer(outcome)) counters_.bytes_succeeded += file.size;
     if (releases_destination) reserved_destination_keys_.erase(destination_key);
 
