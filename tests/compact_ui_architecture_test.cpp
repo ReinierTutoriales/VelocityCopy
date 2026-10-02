@@ -275,6 +275,7 @@ int main() {
         !contains(window, "ToolTipService::SetToolTip(QueueRemoveButtonHost()")) {
         return fail(38, "disabled queue commands must expose tooltips through enabled host elements");
     }
+    const auto show_error = body_of(window, "void MainWindow::ShowError(");
     if (contains(xaml, "Grid.RowSpan=\"2\"") ||
         !contains(execution, "InfoBarSeverity::Warning") ||
         !contains(window, "notice_height") ||
@@ -282,7 +283,6 @@ int main() {
         return fail(39, "terminal issue notices must distinguish skip-only warnings and reserve layout space");
     }
 
-    const auto show_error = body_of(window, "void MainWindow::ShowError(");
     const auto resize_to_content = body_of(window, "void MainWindow::ResizeWindowToContent()");
     if (!contains(show_error, "ErrorBar().IsOpen(true)") ||
         count_occurrences(show_error, "ResizeWindowToContent();") != 2 ||
