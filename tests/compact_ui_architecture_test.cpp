@@ -278,7 +278,7 @@ int main() {
     if (contains(xaml, "Grid.RowSpan=\"2\"") ||
         !contains(execution, "InfoBarSeverity::Warning") ||
         !contains(window, "notice_height") ||
-        !contains(execution, "ResizeWindowToContent();")) {
+        !contains(show_error, "ResizeWindowToContent();")) {
         return fail(39, "terminal issue notices must distinguish skip-only warnings and reserve layout space");
     }
 
