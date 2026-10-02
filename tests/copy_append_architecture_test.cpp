@@ -81,12 +81,12 @@ int main() {
         return fail(7, "Cancel must have precedence over Stop");
     }
 
-    if (!contains(execution, "ResumeStoppedCopy") || !contains(execution, "resume_requested_") ||
-        !contains(execution, "SetExecutionButtonsStopped") || !contains(header, "bool resume_requested_{}")) {
+    if (!contains(execution, "ResumeStoppedCopy") || !contains(execution, "pending_resume_ = StoppedResume{};") ||
+        !contains(execution, "SetExecutionButtonsStopped") || !contains(header, "PendingResume pending_resume_{};")) {
         return fail(8, "stopped-session Resume state missing");
     }
 
-    if (!contains(append, "resume_requested_") || !contains(append, "ResumeStoppedCopy") ||
+    if (!contains(append, "std::holds_alternative<StoppedResume>(pending_resume_)") || !contains(append, "ResumeStoppedCopy") ||
         !contains(append, "release_reservation")) {
         return fail(9, "append planner must consume remembered Resume intent");
     }
@@ -234,7 +234,7 @@ int main() {
         !contains(show_conflict, "ConflictPolicy::ReplaceAll") ||
         !contains(show_conflict, "ConflictPolicy::SkipAll") ||
         resume_conflict.empty() || !contains(header, "struct ConflictResumeIntent") ||
-        !contains(resume_conflict, "conflict_resume_intent_")) {
+        !contains(resume_conflict, "pending_resume_ = ConflictResume{{replace_file_id, policy}};")) {
         return fail(34, "apply-to-all conflict decisions must flow from the native dialog through the session into JobExecutionOptions");
     }
 
@@ -255,7 +255,7 @@ int main() {
         !contains(continue_interrupted, "ResumeStoppedCopy()") ||
         !contains(continue_interrupted, "FinalizeConflictSessionIfEmpty()") ||
         !contains(continue_interrupted, "FinalizeStoppedSessionIfEmpty()") ||
-        count_occurrences(append, "conflict_resume_intent_.replace_file_id") != 1 ||
+        count_occurrences(append, "std::get_if<ConflictResume>(&pending_resume_)") != 1 ||
         count_occurrences(append, "ContinueInterruptedSessionAfterPlanning();") != 3) {
         return fail(35, "planner completion must route interrupted-session continuation through one decision point");
     }
@@ -270,12 +270,49 @@ int main() {
         const auto source = read_source(entry.path());
         if (contains(source, "stopped_session_") || contains(source, "conflict_session_"))
             return fail(36, "retired stopped_session_/conflict_session_ booleans must not return");
+        if (contains(source, "resume_requested_") || contains(source, "conflict_resume_intent_"))
+            return fail(37, "retired resume_requested_/conflict_resume_intent_ fields must not return");
     }
     if (!contains(header, "enum class InterruptedSessionState : std::uint8_t { None, Stopped, Conflict };") ||
         count_occurrences(header, "InterruptedSessionState interrupted_session_{InterruptedSessionState::None};") != 1 ||
         !contains(header, "bool stop_requested_{};")) {
         return fail(36, "interrupted session must be one enum field; stop_requested_ stays a separate transition flag");
     }
+
+    // Contract 37: a deferred Resume is one variant. The conflict intent exists
+    // only inside ConflictResume; each alternative is created only by its own
+    // resume function, and only while append planning is still running.
+    if (!contains(header, "#include <variant>") ||
+        !contains(header, "using PendingResume = std::variant<std::monostate, StoppedResume, ConflictResume>;") ||
+        count_occurrences(header, "PendingResume pending_resume_{};") != 1) {
+        return fail(37, "pending resume must be declared as the three-alternative variant");
+    }
+    const auto resume_stopped = body_of(execution, "void MainWindow::ResumeStoppedCopy(");
+    std::size_t stopped_builders = 0, conflict_builders = 0;
+    for (const auto* file : {&append, &execution, &conflict}) {
+        stopped_builders += count_occurrences(*file, "StoppedResume{}");
+        conflict_builders += count_occurrences(*file, "ConflictResume{");
+    }
+    const auto deferred_branch = [](const std::string& body) {
+        const auto at = body.find("planning_count != 0");
+        return at == std::string::npos ? std::string{} : body.substr(at, 160);
+    };
+    if (stopped_builders != 1 || conflict_builders != 1 ||
+        !contains(deferred_branch(resume_stopped), "pending_resume_ = StoppedResume{};") ||
+        !contains(deferred_branch(resume_conflict), "pending_resume_ = ConflictResume{{replace_file_id, policy}};")) {
+        return fail(37, "StoppedResume/ConflictResume must be built only in their resume function's deferred branch");
+    }
+    const auto continue_dispatch = body_of(append, "void MainWindow::ContinueInterruptedSessionAfterPlanning()");
+    if (!contains(continue_dispatch, "interrupted_session_ == InterruptedSessionState::Conflict") ||
+        !contains(continue_dispatch, "std::get_if<ConflictResume>(&pending_resume_)") ||
+        !contains(continue_dispatch, "interrupted_session_ == InterruptedSessionState::Stopped") ||
+        !contains(continue_dispatch, "std::holds_alternative<StoppedResume>(pending_resume_)")) {
+        return fail(37, "deferred resume must dispatch on interrupted state and matching variant alternative");
+    }
+    // Entering either interrupted state starts with no pending resume.
+    for (const char* entry : {"interrupted_session_ = InterruptedSessionState::Stopped;\n        pending_resume_ = {};",
+                              "interrupted_session_ = InterruptedSessionState::Conflict;\n        pending_resume_ = {};"})
+        if (!contains(execution, entry)) return fail(37, "entering an interrupted state must clear pending resume");
 
     const auto reset_item = body_of(execution, "void MainWindow::ResetCurrentItemState() noexcept");
     const auto reset_interrupted = body_of(execution, "void MainWindow::ResetInterruptedSessionState() noexcept");
@@ -288,8 +325,7 @@ int main() {
     if (reset_interrupted.empty() ||
         !contains(reset_interrupted, "interrupted_session_ = InterruptedSessionState::None") ||
         !contains(reset_interrupted, "stop_requested_ = false") ||
-        !contains(reset_interrupted, "resume_requested_ = false") ||
-        !contains(reset_interrupted, "conflict_resume_intent_ = {}")) {
+        !contains(reset_interrupted, "pending_resume_ = {}")) {
         return fail(29, "interrupted-session reset must clear its state as one unit");
     }
 

@@ -63,16 +63,23 @@ void MainWindow::AppendTransfer(velocitycopy::CopyJob job) {
 }
 
 void MainWindow::ContinueInterruptedSessionAfterPlanning() {
-    if (interrupted_session_ == InterruptedSessionState::Conflict && resume_requested_) {
-        ResumeConflictCopy(
-            conflict_resume_intent_.replace_file_id,
-            conflict_resume_intent_.policy);
-    } else if (interrupted_session_ == InterruptedSessionState::Stopped && resume_requested_) {
-        ResumeStoppedCopy();
-    } else if (interrupted_session_ == InterruptedSessionState::Conflict) {
-        FinalizeConflictSessionIfEmpty();
+    // Dispatch on interrupted state AND pending-resume alternative. A pending
+    // alternative that does not match the state never resumes; it falls back
+    // to the state's finalize-if-empty path. The resume paths clear
+    // pending_resume_ (or re-defer it) themselves.
+    if (interrupted_session_ == InterruptedSessionState::Conflict) {
+        if (const auto* resume = std::get_if<ConflictResume>(&pending_resume_)) {
+            const auto intent = resume->intent;  // copy: ResumeConflictCopy resets pending_resume_
+            ResumeConflictCopy(intent.replace_file_id, intent.policy);
+        } else {
+            FinalizeConflictSessionIfEmpty();
+        }
     } else if (interrupted_session_ == InterruptedSessionState::Stopped) {
-        FinalizeStoppedSessionIfEmpty();
+        if (std::holds_alternative<StoppedResume>(pending_resume_)) {
+            ResumeStoppedCopy();
+        } else {
+            FinalizeStoppedSessionIfEmpty();
+        }
     }
 }
 

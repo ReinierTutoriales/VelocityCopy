@@ -20,8 +20,7 @@ void MainWindow::ResetCurrentItemState() noexcept {
 void MainWindow::ResetInterruptedSessionState() noexcept {
     interrupted_session_ = InterruptedSessionState::None;
     stop_requested_ = false;
-    resume_requested_ = false;
-    conflict_resume_intent_ = {};
+    pending_resume_ = {};
 }
 
 void MainWindow::SetExecutionButtonsPlanning() {
@@ -55,7 +54,7 @@ void MainWindow::SetExecutionButtonsIdle() {
     CancelButton().IsEnabled(false);
     QueueButton().IsEnabled(true);
     ResetCurrentItemState();
-    resume_requested_ = false;
+    pending_resume_ = {};
     PauseIcon().Glyph(L"\xE769");
     try {
         Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
@@ -269,13 +268,13 @@ void MainWindow::ResumeStoppedCopy() {
     if (append_gate_) {
         std::lock_guard gate_lock(append_gate_->mutex);
         if (append_gate_->planning_count != 0) {
-            resume_requested_ = true;
+            pending_resume_ = StoppedResume{};
             PauseButton().IsEnabled(false);
             return;
         }
     }
     if (live_plan_->remaining_files() == 0 && !live_plan_->has_pending_directories()) {
-        resume_requested_ = false;
+        pending_resume_ = {};
         FinalizeStoppedSessionIfEmpty();
         return;
     }
@@ -378,7 +377,7 @@ void MainWindow::OnSkipClick(IInspectable const&, RoutedEventArgs const&) {
 
 void MainWindow::OnStopClick(IInspectable const&, RoutedEventArgs const&) {
     if (!execution_control_ || interrupted_session_ != InterruptedSessionState::None || stop_requested_) return;
-    resume_requested_ = false;
+    pending_resume_ = {};
     stop_requested_ = true;
     current_file_skippable_ = false;
     execution_control_->request_stop();
@@ -394,10 +393,9 @@ void MainWindow::OnCancelClick(IInspectable const&, RoutedEventArgs const&) {
 
 void MainWindow::CancelCurrentSession() {
     cancel_requested_.store(true, std::memory_order_relaxed);
-    resume_requested_ = false;
+    pending_resume_ = {};
     SpeedText().Text(L"—");
     EtaText().Text(L"—");
-    conflict_resume_intent_ = {};
     current_file_id_ = 0;
     current_file_skippable_ = false;
     deferred_same_destination_jobs_.clear();
@@ -484,6 +482,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     if (result.stopped) {
         stop_requested_ = false;
         interrupted_session_ = InterruptedSessionState::Stopped;
+        pending_resume_ = {};
         append_gate_ = std::make_shared<AppendGate>();
         if (live_plan_) {
             active_destination_ = live_plan_->destination_root();
@@ -509,8 +508,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     if (result.destination_conflict && live_plan_ && result.conflict_file_id != 0) {
         stop_requested_ = false;
         interrupted_session_ = InterruptedSessionState::Conflict;
-        resume_requested_ = false;
-        conflict_resume_intent_ = {};
+        pending_resume_ = {};
         append_gate_ = std::make_shared<AppendGate>();
         active_destination_ = live_plan_->destination_root();
         active_operation_ = live_plan_->operation();
@@ -692,7 +690,7 @@ void MainWindow::FinalizeStoppedSessionIfEmpty() {
         append_gate_->accepting = false;
         append_gate_->condition.notify_all();
     }
-    resume_requested_ = false;
+    pending_resume_ = {};
     interrupted_session_ = InterruptedSessionState::None;
     stop_requested_ = false;
     current_file_id_ = 0;
