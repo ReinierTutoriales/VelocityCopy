@@ -342,6 +342,14 @@ JobResult JobExecutor::execute(
                     }
                     continue;
                 }
+                if (validation == SourceRemovalValidation::AlreadyRemoved) {
+                    if (!plan.resolve_parked(
+                            recovery.file_id, ItemOutcome::Succeeded, S_OK,
+                            recovery.destination_preexisted)) {
+                        return finish({false, false, static_cast<std::int32_t>(E_FAIL)});
+                    }
+                    continue;
+                }
                 if (!plan.begin_parked_retry(
                         recovery.file_id, RecoveryAction::RetrySourceRemoval)) {
                     return finish({false, false, static_cast<std::int32_t>(E_FAIL)});

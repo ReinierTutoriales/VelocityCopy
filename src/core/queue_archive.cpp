@@ -269,7 +269,7 @@ bool read_source_removals(
     std::vector<SourceRemovalRecovery>& recoveries) {
     std::uint64_t count{};
     if (!read_value(stream, count) || count > kMaxEntries) return false;
-    recoveries.reserve(static_cast<std::size_t>(count));
+    recoveries.reserve(static_cast<std::size_t>((std::min<std::uint64_t>)(count, 4096)));
     for (std::uint64_t index = 0; index < count; ++index) {
         SourceRemovalRecovery recovery{};
         std::uint8_t destination_preexisted{};

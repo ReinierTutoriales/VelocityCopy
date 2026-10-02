@@ -116,6 +116,22 @@ int wmain() {
             result.outcomes.succeeded != 1 || result.parked_files != 0) return 8;
     }
 
+    // Destination verified but source already absent: the move is already complete.
+    {
+        const auto source = root / L"removed" / L"source.txt";
+        const auto destination = root / L"removed" / L"destination.txt";
+        write_text(source, "same");
+        write_text(destination, "same");
+        auto recovery = make_recovery(source, destination, 3);
+        LiveCopyPlan plan(empty_move_plan(destination.parent_path()));
+        if (!plan.restore_parked_source_removal(recovery)) return 9;
+        fs::remove(source, ec);
+        const auto result = retry_recovery(plan);
+        if (!result.success || fs::exists(source) || !fs::exists(destination) ||
+            result.outcomes.succeeded != 1 ||
+            result.outcomes.copied_source_retained != 0 || result.parked_files != 0) return 10;
+    }
+
     // Unavailable destination volume: remain parked and do not consume an attempt.
     {
         const auto missing_root = unavailable_root();
@@ -127,11 +143,11 @@ int wmain() {
             auto recovery = make_recovery(source, original_destination, 4);
             recovery.destination = missing_root / L"VelocityCopy" / L"destination.txt";
             LiveCopyPlan plan(empty_move_plan(missing_root));
-            if (!plan.restore_parked_source_removal(recovery)) return 9;
+            if (!plan.restore_parked_source_removal(recovery)) return 11;
             const auto result = retry_recovery(plan);
             const auto incidents = plan.parked_incidents();
             if (!result.success || !fs::exists(source) || result.parked_files != 1 ||
-                incidents.size() != 1 || incidents[0].attempt_count != 4) return 10;
+                incidents.size() != 1 || incidents[0].attempt_count != 4) return 12;
         }
     }
 
