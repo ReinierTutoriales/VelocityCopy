@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "MainWindow.xaml.h"
+#include "Localization.h"
 #include "UiTokens.h"
 
 using namespace winrt;
@@ -236,8 +237,7 @@ void MainWindow::OnQueueClick(IInspectable const&, RoutedEventArgs const&) {
     QueueChevron().Glyph(expanding ? L"\xE70E" : L"\xE70D");
 
     try {
-        Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-        const auto label = loader.GetString(expanding ? L"ActionHideQueue" : L"ActionShowQueue");
+        const auto label = velocitycopy::localization::get_string(expanding ? L"ActionHideQueue" : L"ActionShowQueue");
         ToolTipService::SetToolTip(QueueButton(), box_value(label));
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(QueueButton(), label);
     } catch (...) {

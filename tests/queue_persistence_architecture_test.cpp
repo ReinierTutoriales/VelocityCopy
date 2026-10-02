@@ -196,8 +196,10 @@ int main() {
         return fail(19, "queued-only recovery must publish future sessions before starting the first one");
     }
 
-    if (!contains(recovery, "loader.GetString(L\"RecoveryRestoreError\")") ||
-        !contains(recovery, "ShowError(recovery_error);")) {
+    const auto recovery_error_key = recovery.find("RecoveryRestoreError", recovery_failure);
+    const auto recovery_show_error = recovery.find("ShowError(recovery_error);", recovery_failure);
+    if (recovery_error_key == std::string::npos || recovery_show_error == std::string::npos ||
+        recovery_error_key > recovery_show_error) {
         return fail(20, "failed recovery adoption must explain that the saved recovery could not be restored");
     }
 

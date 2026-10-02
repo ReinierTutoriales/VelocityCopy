@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "MainWindow.xaml.h"
+#include "Localization.h"
 #include "UiTokens.h"
 #include "Version.h"
 
@@ -86,11 +87,10 @@ std::wstring replace_version_token(std::wstring format, const std::wstring& vers
 }
 
 hstring resource_or(
-    Microsoft::Windows::ApplicationModel::Resources::ResourceLoader const& loader,
     wchar_t const* key,
     wchar_t const* fallback) {
     try {
-        const auto value = loader.GetString(key);
+        const auto value = velocitycopy::localization::get_string(key);
         return value.empty() ? hstring(fallback) : value;
     } catch (...) {
         return hstring(fallback);
@@ -115,16 +115,13 @@ void MainWindow::ShowAboutDialog() noexcept {
             return;
         }
 
-        Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-        const auto title = resource_or(loader, L"AboutTitle", L"VelocityCopy");
-        const auto tagline = resource_or(
-            loader,
-            L"AboutTagline",
+        const auto title = resource_or(L"AboutTitle", L"VelocityCopy");
+        const auto tagline = resource_or(L"AboutTagline",
             L"Fast, focused file transfers for Windows 11.");
-        const auto version_format = resource_or(loader, L"AboutVersionFormat", L"Version {0}");
-        const auto publisher = resource_or(loader, L"AboutPublisher", L"ReinierTutoriales");
-        const auto license = resource_or(loader, L"AboutLicense", L"MIT License");
-        const auto repository_label = resource_or(loader, L"AboutRepositoryLabel", L"View project on GitHub");
+        const auto version_format = resource_or(L"AboutVersionFormat", L"Version {0}");
+        const auto publisher = resource_or(L"AboutPublisher", L"ReinierTutoriales");
+        const auto license = resource_or(L"AboutLicense", L"MIT License");
+        const auto repository_label = resource_or(L"AboutRepositoryLabel", L"View project on GitHub");
         const auto version = executable_version();
 
         Window about;

@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "MainWindow.xaml.h"
 #include "App.xaml.h"
+#include "Localization.h"
 
 using namespace winrt;
 using namespace Microsoft::UI::Xaml;
@@ -159,11 +160,10 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
     hstring resume = L"Resume";
     hstring discard = L"Discard";
     try {
-        Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-        title = loader.GetString(L"RecoveryTitle");
-        message = loader.GetString(L"RecoveryMessage");
-        resume = loader.GetString(L"RecoveryResume");
-        discard = loader.GetString(L"RecoveryDiscard");
+        title = velocitycopy::localization::get_string(L"RecoveryTitle");
+        message = velocitycopy::localization::get_string(L"RecoveryMessage");
+        resume = velocitycopy::localization::get_string(L"RecoveryResume");
+        discard = velocitycopy::localization::get_string(L"RecoveryDiscard");
     } catch (...) {
     }
 
@@ -223,8 +223,7 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
         recovery_prompt_checked_ = false;
         hstring recovery_error = L"The saved recovery could not be restored. You can try again or discard it.";
         try {
-            Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-            recovery_error = loader.GetString(L"RecoveryRestoreError");
+            recovery_error = velocitycopy::localization::get_string(L"RecoveryRestoreError");
         } catch (...) {
         }
         ShowError(recovery_error);

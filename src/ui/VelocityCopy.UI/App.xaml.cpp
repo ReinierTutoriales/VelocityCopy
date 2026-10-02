@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "App.xaml.h"
 #include "MainWindow.xaml.h"
+#include "Localization.h"
 
 #include "velocitycopy/process_activation.hpp"
 #include "velocitycopy/app_storage.hpp"
@@ -99,6 +100,10 @@ void show_activation_error(const wchar_t* message) noexcept {
 
 App::App() {
     s_instance = this;
+    if (!velocitycopy::localization::initialize()) {
+        show_activation_error(L"VelocityCopy resources could not be loaded. Reinstall the application.");
+        throw winrt::hresult_error(HRESULT_FROM_WIN32(ERROR_RESOURCE_DATA_NOT_FOUND));
+    }
     InitializeComponent();
     DispatcherShutdownMode(Microsoft::UI::Xaml::DispatcherShutdownMode::OnExplicitShutdown);
 }
@@ -305,20 +310,19 @@ void App::DeliverConvertedJob(velocitycopy::CopyJob job, velocitycopy::StorageKe
             std::wstring secondary;
             std::wstring remember_label;
             try {
-                Microsoft::Windows::ApplicationModel::Resources::ResourceLoader loader;
-                title = loader.GetString(
+                title = velocitycopy::localization::get_string(
                     same_destination_prompt
                         ? L"RoutingDestinationInUseTitle"
                         : L"RoutingStorageInUseTitle").c_str();
-                message = loader.GetString(
+                message = velocitycopy::localization::get_string(
                     same_destination_prompt
                         ? L"RoutingDestinationInUseMessage"
                         : L"RoutingStorageInUseMessage").c_str();
-                primary = loader.GetString(
+                primary = velocitycopy::localization::get_string(
                     same_destination_prompt ? L"RoutingActionAdd" : L"RoutingActionWait").c_str();
-                secondary = loader.GetString(
+                secondary = velocitycopy::localization::get_string(
                     same_destination_prompt ? L"RoutingActionWait" : L"RoutingActionParallel").c_str();
-                remember_label = loader.GetString(L"DialogRememberChoice").c_str();
+                remember_label = velocitycopy::localization::get_string(L"DialogRememberChoice").c_str();
             } catch (...) {
                 title = same_destination_prompt
                     ? L"Destination already in use"
