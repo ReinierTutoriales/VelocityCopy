@@ -356,7 +356,7 @@ fire_and_forget MainWindow::LoadQueueAsync() {
     });
 }
 
-void MainWindow::StartCopyPlan(
+bool MainWindow::StartCopyPlan(
     velocitycopy::CopyPlan plan,
     std::vector<velocitycopy::SourceRemovalRecovery> source_removals) {
     ResetTransferSurface();
@@ -367,11 +367,21 @@ void MainWindow::StartCopyPlan(
         (plan.files.empty() && plan.directories.empty() && source_removals.empty())) {
         StartNextQueuedSession();
         RefreshQueueCommandState();
-        return;
+        return false;
     }
 
-    active_destination_ = plan.destination_root;
-    active_operation_ = plan.operation;
+    // Build and validate the entire live state before publishing any ownership
+    // to this window. Recovery checkpoints are retired only after this succeeds.
+    auto live = std::make_shared<velocitycopy::LiveCopyPlan>(std::move(plan));
+    for (const auto& recovery : source_removals) {
+        if (!live->restore_parked_source_removal(recovery)) {
+            ShowError();
+            return false;
+        }
+    }
+
+    active_destination_ = live->destination_root();
+    active_operation_ = live->operation();
     ResetInterruptedSessionState();
     current_file_id_ = 0;
     current_file_skippable_ = false;
@@ -387,15 +397,6 @@ void MainWindow::StartCopyPlan(
     ResizeWindow(velocitycopy::ui::token_int(L"CompactSurfaceHeight", 72));
     SetProgressFraction(0.0);
 
-    auto live = std::make_shared<velocitycopy::LiveCopyPlan>(std::move(plan));
-    for (const auto& recovery : source_removals) {
-        if (!live->restore_parked_source_removal(recovery)) {
-            ShowError();
-            execution_control_.reset();
-            append_gate_.reset();
-            return;
-        }
-    }
     live_plan_ = live;
     PublishLivePlan(live);
 
@@ -410,6 +411,7 @@ void MainWindow::StartCopyPlan(
         });
     });
     RefreshQueueCommandState();
+    return true;
 }
 
 } // namespace winrt::VelocityCopyUI::implementation
