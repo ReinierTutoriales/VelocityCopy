@@ -53,18 +53,18 @@ Function .onInit
   System::Call "kernel32::IsWow64Process2(pr0,*i.r1,*i.r2)i.r3"
 !if "${PAYLOAD_ARCH}" == "x64"
   ${IfNot} ${RunningX64}
-    MessageBox MB_ICONSTOP "VelocityCopy requires 64-bit Windows."
+    MessageBox MB_ICONSTOP "RepartoCopier requires 64-bit Windows."
     Abort
   ${EndIf}
   ${If} $3 <> 0
   ${AndIf} $2 = 43620
-    MessageBox MB_ICONSTOP "This installer is for x64 Windows. Use VelocityCopy-Setup-ARM64.exe."
+    MessageBox MB_ICONSTOP "This installer is for x64 Windows. Use RepartoCopier-Setup-ARM64.exe."
     Abort
   ${EndIf}
 !else if "${PAYLOAD_ARCH}" == "ARM64"
   ${If} $3 = 0
   ${OrIf} $2 <> 43620
-    MessageBox MB_ICONSTOP "This installer is for Windows on ARM. Use VelocityCopy-Setup-x64.exe."
+    MessageBox MB_ICONSTOP "This installer is for Windows on ARM. Use RepartoCopier-Setup-x64.exe."
     Abort
   ${EndIf}
 !else
@@ -74,7 +74,7 @@ FunctionEnd
 
 ; The installer runs elevated. Exec/ExecShell would inherit that token, so ask
 ; explorer.exe to launch the app: it hands the request to the existing
-; unelevated shell, which starts VelocityCopy with the user's normal token.
+; unelevated shell, which starts RepartoCopier with the user's normal token.
 Function LaunchVelocityCopyAsUser
   Exec '"$WINDIR\explorer.exe" "$INSTDIR\VelocityCopy.WinUI.exe"'
 FunctionEnd
@@ -110,8 +110,14 @@ Section "Install RepartoCopier" SEC_INSTALL
   SetOutPath "$INSTDIR"
   File /r "${PAYLOAD_DIR}\*.*"
 
-  CreateDirectory "$SMPROGRAMS\VelocityCopy"
-  CreateShortcut "$SMPROGRAMS\VelocityCopy\VelocityCopy.lnk" "$INSTDIR\VelocityCopy.WinUI.exe" "" "$INSTDIR\VelocityCopy.WinUI.exe" 0
+  ; Keep the technical install path/executable stable for upgrades, but expose
+  ; the public product name in the Start menu. Remove the legacy shortcut first.
+  Delete "$SMPROGRAMS\RepartoCopier\RepartoCopier.lnk"
+  RMDir "$SMPROGRAMS\RepartoCopier"
+  Delete "$SMPROGRAMS\VelocityCopy\VelocityCopy.lnk"
+  RMDir "$SMPROGRAMS\VelocityCopy"
+  CreateDirectory "$SMPROGRAMS\RepartoCopier"
+  CreateShortcut "$SMPROGRAMS\RepartoCopier\RepartoCopier.lnk" "$INSTDIR\VelocityCopy.WinUI.exe" "" "$INSTDIR\VelocityCopy.WinUI.exe" 0
 
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "DisplayName" "RepartoCopier"
@@ -130,7 +136,7 @@ Section "Install RepartoCopier" SEC_INSTALL
   WriteRegStr HKLM "Software\Classes\Directory\shellex\DragDropHandlers\VelocityCopy" "" "{6BD80C35-7CE8-4A63-92D4-51AF4DACB821}"
   WriteRegStr HKLM "Software\Classes\Drive\shellex\DragDropHandlers\VelocityCopy" "" "{6BD80C35-7CE8-4A63-92D4-51AF4DACB821}"
   WriteRegStr HKLM "Software\Classes\Folder\shellex\DragDropHandlers\VelocityCopy" "" "{6BD80C35-7CE8-4A63-92D4-51AF4DACB821}"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved" "{6BD80C35-7CE8-4A63-92D4-51AF4DACB821}" "VelocityCopy transfer handler"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved" "{6BD80C35-7CE8-4A63-92D4-51AF4DACB821}" "RepartoCopier transfer handler"
   ; Notify associations. A loaded old COM DLL may still require sign-out before upgrade.
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
   WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "NoModify" 1
