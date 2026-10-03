@@ -275,7 +275,11 @@ jobs:
             '$member = ''[DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] public static extern IntPtr LoadLibraryW(string path);'''
             'Add-Type -Namespace VelocityCopyNative -Name ShellHolder -MemberDefinition $member'
             '$handle = [VelocityCopyNative.ShellHolder]::LoadLibraryW($args[0])'
-            'if ($handle -eq [IntPtr]::Zero) { exit 41 }'
+            'if ($handle -eq [IntPtr]::Zero) {'
+            '  $error = [Runtime.InteropServices.Marshal]::GetLastWin32Error()'
+            '  Write-Error "LoadLibraryW failed for $($args[0]) with Win32 error $error"'
+            '  exit 41'
+            '}'
             'Start-Sleep -Seconds 180'
           ) | Set-Content -LiteralPath $holderScript -Encoding UTF8
 
