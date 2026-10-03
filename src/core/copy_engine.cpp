@@ -1,4 +1,5 @@
 #include "velocitycopy/copy_engine.hpp"
+#include "destination_path_guard.hpp"
 
 #include <windows.h>
 
@@ -113,15 +114,6 @@ COPYFILE2_MESSAGE_ACTION CALLBACK copy_progress_routine(
     }
 }
 
-bool source_is_unsafe_reparse_point(const std::filesystem::path& source) noexcept {
-    const DWORD attrs = GetFileAttributesW(source.c_str());
-    if (attrs == INVALID_FILE_ATTRIBUTES) {
-        // Let CopyFile2 report missing/inaccessible sources with its native error.
-        return false;
-    }
-    return (attrs & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
-}
-
 std::uint64_t source_size_no_throw(const std::filesystem::path& source) noexcept {
     std::error_code ec;
     const auto size = std::filesystem::file_size(source, ec);
@@ -189,26 +181,28 @@ CopyResult CopyEngine::copy_file(
     const std::filesystem::path& destination,
     const CopyOptions& options,
     const ProgressCallback& progress) const noexcept {
-    std::error_code directory_error;
+    // Hold every destination directory component open without FILE_SHARE_DELETE
+    // while CopyFile2 runs. This prevents a validated parent from being swapped
+    // for a junction/symlink between validation and the write, and creates any
+    // missing components only after the existing chain has been validated.
+    detail::DestinationDirectoryGuard destination_guard;
     const auto parent = destination.parent_path();
-
-    if (!parent.empty()) {
-        std::filesystem::create_directories(parent, directory_error);
-        if (directory_error) {
-            return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(directory_error.value()))};
-        }
+    const auto parent_result = destination_guard.prepare(parent);
+    if (parent_result != S_OK) {
+        return {false, parent_result};
     }
 
-    // Revalidate immediately before CopyFile2 so a source that was safe at
-    // planning time cannot be silently followed after being swapped for a
-    // symlink/junction. This narrows the remaining TOCTOU window.
-    DestinationPathGuard destination_guard;
-    if (source_is_unsafe_reparse_point(source) ||
-        destination_chain_contains_reparse_point(destination, destination_guard)) {
-        return {
-            false,
-            static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_CANT_ACCESS_FILE)),
-        };
+    // Revalidate both endpoints immediately before CopyFile2. Name-surrogate
+    // reparse points (symlink/junction/mount point) are rejected; non-surrogate
+    // tags such as Cloud Files placeholders are allowed to follow their normal
+    // filesystem semantics.
+    const auto source_result = detail::source_is_safe_to_follow(source);
+    if (source_result != S_OK) {
+        return {false, source_result};
+    }
+    const auto destination_result = detail::destination_leaf_is_safe(destination);
+    if (destination_result != S_OK) {
+        return {false, destination_result};
     }
 
     const auto source_size = source_size_no_throw(source);
