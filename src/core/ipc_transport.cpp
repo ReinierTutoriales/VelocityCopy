@@ -9,6 +9,7 @@
 #include <chrono>
 #include <cstdint>
 #include <limits>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -159,59 +160,6 @@ DWORD remaining_timeout_ms(const SteadyClock::time_point deadline) noexcept {
     if (count <= 0) return 1;
     return static_cast<DWORD>((std::min<std::int64_t>)(
         count, static_cast<std::int64_t>(std::numeric_limits<DWORD>::max())));
-}
-
-bool write_all_until(
-    HANDLE handle,
-    const void* data,
-    std::uint32_t bytes,
-    const SteadyClock::time_point deadline) noexcept {
-    UniqueHandle event{CreateEventW(nullptr, TRUE, FALSE, nullptr)};
-    if (!event.valid()) return false;
-
-    const auto* cursor = static_cast<const std::uint8_t*>(data);
-    std::uint32_t written_total = 0;
-    while (written_total < bytes) {
-        const auto timeout = remaining_timeout_ms(deadline);
-        if (timeout == 0) return false;
-
-        if (!ResetEvent(event.get())) return false;
-        OVERLAPPED overlapped{};
-        overlapped.hEvent = event.get();
-
-        const auto requested = bytes - written_total;
-        const BOOL immediate = WriteFile(
-            handle,
-            cursor + written_total,
-            requested,
-            nullptr,
-            &overlapped);
-        if (immediate) {
-            // The pipe remains in PIPE_WAIT (blocking-wait) mode. A successful
-            // immediate WriteFile therefore completed the requested write; only
-            // ERROR_IO_PENDING requires GetOverlappedResult.
-            written_total += requested;
-            continue;
-        }
-
-        const auto error = GetLastError();
-        if (error != ERROR_IO_PENDING) return false;
-
-        const DWORD wait = WaitForSingleObject(event.get(), timeout);
-        if (wait != WAIT_OBJECT_0) {
-            (void)CancelIoEx(handle, &overlapped);
-            DWORD ignored = 0;
-            (void)GetOverlappedResult(handle, &overlapped, &ignored, TRUE);
-            return false;
-        }
-
-        DWORD written = 0;
-        if (!GetOverlappedResult(handle, &overlapped, &written, FALSE) || written == 0) {
-            return false;
-        }
-        written_total += written;
-    }
-    return true;
 }
 
 bool read_all(HANDLE handle, void* data, std::uint32_t bytes) noexcept {
@@ -381,7 +329,10 @@ std::optional<ShellRequest> ShellIpcServer::receive() noexcept {
 bool send_shell_request(const ShellRequest& request, const std::uint32_t timeout_ms) noexcept {
     try {
         const auto payload = serialize_shell_request(request);
-        if (!payload || timeout_ms == 0) return false;
+        if (!payload || timeout_ms == 0 ||
+            payload->size() > std::numeric_limits<std::uint32_t>::max()) {
+            return false;
+        }
 
         const auto deadline = SteadyClock::now() + std::chrono::milliseconds(timeout_ms);
         const auto name = shell_pipe_name();
@@ -393,12 +344,45 @@ bool send_shell_request(const ShellRequest& request, const std::uint32_t timeout
 
         UniqueHandle pipe{CreateFileW(
             name.c_str(), GENERIC_WRITE, 0, nullptr, OPEN_EXISTING,
-            FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, nullptr)};
+            FILE_ATTRIBUTE_NORMAL, nullptr)};
         if (!pipe.valid()) return false;
 
-        const auto size = static_cast<std::uint32_t>(payload->size());
-        return write_all_until(pipe.get(), &size, sizeof(size), deadline) &&
-            write_all_until(pipe.get(), payload->data(), size, deadline);
+        // Send one byte-stream frame so timeout cancellation cannot land between
+        // separate header/payload writes. The server still reads the first four
+        // bytes as the size and then consumes the remaining payload normally.
+        const auto payload_size = static_cast<std::uint32_t>(payload->size());
+        std::vector<std::uint8_t> frame(sizeof(payload_size) + payload->size());
+        std::memcpy(frame.data(), &payload_size, sizeof(payload_size));
+        std::memcpy(frame.data() + sizeof(payload_size), payload->data(), payload->size());
+
+        bool write_succeeded = false;
+        std::jthread writer([&] {
+            DWORD written = 0;
+            write_succeeded =
+                WriteFile(
+                    pipe.get(),
+                    frame.data(),
+                    static_cast<DWORD>(frame.size()),
+                    &written,
+                    nullptr) != FALSE &&
+                written == frame.size();
+        });
+
+        const auto write_timeout = remaining_timeout_ms(deadline);
+        if (write_timeout == 0 ||
+            WaitForSingleObject(
+                static_cast<HANDLE>(writer.native_handle()),
+                write_timeout) != WAIT_OBJECT_0) {
+            // Cancel only the synchronous I/O owned by this dedicated writer.
+            // The worker performs no other blocking operation, avoiding the
+            // wrong-call race described by CancelSynchronousIo.
+            (void)CancelSynchronousIo(static_cast<HANDLE>(writer.native_handle()));
+            writer.join();
+            return false;
+        }
+
+        writer.join();
+        return write_succeeded;
     } catch (...) {
         return false;
     }
