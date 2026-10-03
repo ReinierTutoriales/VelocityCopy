@@ -80,7 +80,7 @@ if ($SkipTimestamp) {
         throw "Unexpected Authenticode signer for $Path"
     }
     if ($signature.Status -notin @('Valid','UnknownError')) {
-        throw "Unexpected Authenticode status for untrusted ephemeral signer on $Path: $($signature.Status)"
+        throw "Unexpected Authenticode status for untrusted ephemeral signer on ${Path}: $($signature.Status)"
     }
     Write-Host "Verified ephemeral Authenticode signature: $Path"
     return
@@ -90,6 +90,6 @@ $verifyExit = Invoke-BoundedSignTool @('verify','/pa','/all',$Path)
 if ($verifyExit -ne 0) { throw "signtool verification failed for $Path with code $verifyExit" }
 
 $signature = Get-AuthenticodeSignature -FilePath $Path
-if ($signature.Status -ne 'Valid') { throw "Invalid Authenticode signature for $Path: $($signature.Status)" }
+if ($signature.Status -ne 'Valid') { throw "Invalid Authenticode signature for ${Path}: $($signature.Status)" }
 if ($null -eq $signature.TimeStamperCertificate) { throw "Authenticode signature has no RFC3161 timestamp certificate: $Path" }
 Write-Host "Verified Authenticode signature and RFC3161 timestamp: $Path"
