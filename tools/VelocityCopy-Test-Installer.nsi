@@ -146,6 +146,8 @@ SectionEnd
 Section "Uninstall"
   SetRegView 64
   !insertmacro CloseRunningApp
+  Delete "$SMPROGRAMS\RepartoCopier\RepartoCopier.lnk"
+  RMDir "$SMPROGRAMS\RepartoCopier"
   Delete "$SMPROGRAMS\VelocityCopy\VelocityCopy.lnk"
   RMDir "$SMPROGRAMS\VelocityCopy"
   DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "VelocityCopy"
