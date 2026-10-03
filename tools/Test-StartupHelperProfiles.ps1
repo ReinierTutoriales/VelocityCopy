@@ -42,7 +42,7 @@ function Invoke-AsLocalUser([string]$User, [string]$Secret, [string]$Application
         $User, '.', $Secret, 1, $Application, $CommandLine, 0,
         [IntPtr]::Zero, $env:SystemRoot, [ref]$si, [ref]$pi)
     if (-not $ok) {
-        throw "CreateProcessWithLogonW failed for $User: $([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
+        throw "CreateProcessWithLogonW failed for ${User}: $([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
     }
     try {
         if ([VCLogon]::WaitForSingleObject($pi.process, 30000) -ne 0) {
@@ -75,9 +75,9 @@ $cmd = $env:ComSpec
 & net.exe user $userB /delete 2>$null | Out-Null
 
 try {
-    & net.exe user $userA $secret /add /y | Out-Null
+    & net.exe user $userA $secret /add | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "Unable to create profile A account" }
-    & net.exe user $userB $secret /add /y | Out-Null
+    & net.exe user $userB $secret /add | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "Unable to create profile B account" }
 
     if ((Invoke-AsLocalUser $userA $secret $cmd "$cmd /d /c exit 0") -ne 0) { throw "Profile A init failed" }
