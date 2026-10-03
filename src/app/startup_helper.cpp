@@ -1,9 +1,7 @@
 #include <windows.h>
-#include <sddl.h>
 
 #include <string>
 #include <string_view>
-#include <vector>
 
 namespace {
 
@@ -23,10 +21,10 @@ std::wstring quote(const std::wstring& value) {
     return result;
 }
 
-DWORD write_current_user_startup(const std::wstring& executable) noexcept {
+DWORD write_startup(HKEY current_user, const std::wstring& executable) noexcept {
     HKEY key{};
     const auto open = RegCreateKeyExW(
-        HKEY_CURRENT_USER,
+        current_user,
         kRunSubkey,
         0,
         nullptr,
@@ -50,10 +48,10 @@ DWORD write_current_user_startup(const std::wstring& executable) noexcept {
     return static_cast<DWORD>(set);
 }
 
-DWORD remove_current_user_startup(const std::wstring& executable) noexcept {
+DWORD remove_startup(HKEY current_user, const std::wstring& executable) noexcept {
     HKEY key{};
     const auto open = RegOpenKeyExW(
-        HKEY_CURRENT_USER,
+        current_user,
         kRunSubkey,
         0,
         KEY_SET_VALUE | KEY_QUERY_VALUE,
@@ -91,6 +89,22 @@ DWORD remove_current_user_startup(const std::wstring& executable) noexcept {
     return ERROR_SUCCESS;
 }
 
+DWORD apply_for_current_token(
+    const bool install,
+    const std::wstring& executable) noexcept {
+    HKEY current_user{};
+    const LSTATUS opened = RegOpenCurrentUser(
+        KEY_SET_VALUE | KEY_QUERY_VALUE,
+        &current_user);
+    if (opened != ERROR_SUCCESS) return static_cast<DWORD>(opened);
+
+    const DWORD result = install
+        ? write_startup(current_user, executable)
+        : remove_startup(current_user, executable);
+    RegCloseKey(current_user);
+    return result;
+}
+
 DWORD same_session_shell_pid() noexcept {
     const HWND shell = GetShellWindow();
     if (shell == nullptr) return 0;
@@ -109,40 +123,8 @@ DWORD same_session_shell_pid() noexcept {
     return shell_pid;
 }
 
-bool token_profile_is_loaded(HANDLE token) noexcept {
-    DWORD bytes = 0;
-    GetTokenInformation(token, TokenUser, nullptr, 0, &bytes);
-    if (bytes == 0) return false;
-
-    std::vector<unsigned char> storage(bytes);
-    if (!GetTokenInformation(token, TokenUser, storage.data(), bytes, &bytes)) {
-        return false;
-    }
-
-    const auto* token_user = reinterpret_cast<const TOKEN_USER*>(storage.data());
-    LPWSTR sid_text = nullptr;
-    if (!ConvertSidToStringSidW(token_user->User.Sid, &sid_text)) {
-        return false;
-    }
-
-    HKEY profile_key{};
-    const LSTATUS opened = RegOpenKeyExW(
-        HKEY_USERS,
-        sid_text,
-        0,
-        KEY_QUERY_VALUE,
-        &profile_key);
-    LocalFree(sid_text);
-    if (opened != ERROR_SUCCESS) {
-        return false;
-    }
-    RegCloseKey(profile_key);
-    return true;
-}
-
-DWORD run_with_shell_token(
-    const wchar_t* /*self*/,
-    const std::wstring_view apply_mode,
+DWORD apply_with_shell_token(
+    const bool install,
     const std::wstring& executable) noexcept {
     const DWORD shell_pid = same_session_shell_pid();
     if (shell_pid == 0) return kNoInteractiveShell;
@@ -153,7 +135,7 @@ DWORD run_with_shell_token(
     HANDLE shell_token{};
     if (!OpenProcessToken(
             shell_process,
-            TOKEN_QUERY | TOKEN_DUPLICATE | TOKEN_ASSIGN_PRIMARY,
+            TOKEN_QUERY | TOKEN_DUPLICATE | TOKEN_IMPERSONATE,
             &shell_token)) {
         const DWORD error = GetLastError();
         CloseHandle(shell_process);
@@ -161,71 +143,31 @@ DWORD run_with_shell_token(
     }
     CloseHandle(shell_process);
 
-    if (!token_profile_is_loaded(shell_token)) {
-        CloseHandle(shell_token);
-        return kNoInteractiveShell;
-    }
-
-    HANDLE primary_token{};
-    if (!DuplicateTokenEx(
-            shell_token,
-            TOKEN_QUERY | TOKEN_DUPLICATE | TOKEN_ASSIGN_PRIMARY,
-            nullptr,
-            SecurityImpersonation,
-            TokenPrimary,
-            &primary_token)) {
+    if (!ImpersonateLoggedOnUser(shell_token)) {
         const DWORD error = GetLastError();
         CloseHandle(shell_token);
         return error;
     }
     CloseHandle(shell_token);
 
-    wchar_t module_path[32768]{};
-    const DWORD module_length = GetModuleFileNameW(nullptr, module_path, static_cast<DWORD>(_countof(module_path)));
-    if (module_length == 0 || module_length >= _countof(module_path)) {
-        return GetLastError() == ERROR_SUCCESS ? ERROR_FILE_NOT_FOUND : GetLastError();
-    }
-    const std::wstring canonical_self{module_path, module_length};
-
-    std::wstring command = quote(canonical_self);
-    command += L" ";
-    command += apply_mode;
-    command += L" ";
-    command += quote(executable);
-
-    STARTUPINFOW startup{};
-    startup.cb = sizeof(startup);
-    PROCESS_INFORMATION process{};
-    if (!CreateProcessWithTokenW(
-            primary_token,
-            LOGON_WITH_PROFILE,
-            canonical_self.c_str(),
-            command.data(),
-            0,
-            nullptr,
-            nullptr,
-            &startup,
-            &process)) {
-        const DWORD error = GetLastError();
-        CloseHandle(primary_token);
-        return error;
-    }
-    CloseHandle(primary_token);
-    CloseHandle(process.hThread);
-
-    const DWORD wait = WaitForSingleObject(process.hProcess, 15000);
-    if (wait != WAIT_OBJECT_0) {
-        TerminateProcess(process.hProcess, ERROR_TIMEOUT);
-        CloseHandle(process.hProcess);
-        return wait == WAIT_TIMEOUT ? ERROR_TIMEOUT : GetLastError();
+    HKEY current_user{};
+    const LSTATUS opened = RegOpenCurrentUser(
+        KEY_SET_VALUE | KEY_QUERY_VALUE,
+        &current_user);
+    if (opened != ERROR_SUCCESS) {
+        RevertToSelf();
+        if (opened == ERROR_FILE_NOT_FOUND || opened == ERROR_PATH_NOT_FOUND) {
+            return kNoInteractiveShell;
+        }
+        return static_cast<DWORD>(opened);
     }
 
-    DWORD exit_code = ERROR_GEN_FAILURE;
-    if (!GetExitCodeProcess(process.hProcess, &exit_code)) {
-        exit_code = GetLastError();
-    }
-    CloseHandle(process.hProcess);
-    return exit_code;
+    const DWORD result = install
+        ? write_startup(current_user, executable)
+        : remove_startup(current_user, executable);
+    RegCloseKey(current_user);
+    RevertToSelf();
+    return result;
 }
 
 } // namespace
@@ -237,18 +179,16 @@ int wmain(int argc, wchar_t** argv) {
     const std::wstring executable{argv[2]};
 
     if (mode == L"--apply-install") {
-        return static_cast<int>(write_current_user_startup(executable));
+        return static_cast<int>(apply_for_current_token(true, executable));
     }
     if (mode == L"--apply-remove") {
-        return static_cast<int>(remove_current_user_startup(executable));
+        return static_cast<int>(apply_for_current_token(false, executable));
     }
     if (mode == L"--install") {
-        return static_cast<int>(run_with_shell_token(
-            argv[0], L"--apply-install", executable));
+        return static_cast<int>(apply_with_shell_token(true, executable));
     }
     if (mode == L"--remove") {
-        return static_cast<int>(run_with_shell_token(
-            argv[0], L"--apply-remove", executable));
+        return static_cast<int>(apply_with_shell_token(false, executable));
     }
     return ERROR_INVALID_PARAMETER;
 }
