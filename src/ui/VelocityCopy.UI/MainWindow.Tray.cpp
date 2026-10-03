@@ -32,6 +32,7 @@ void sync_native_window_theme(
 } // namespace
 
 MainWindow::~MainWindow() {
+    CancelDecisionQueue();
     try {
         if (about_window_) {
             auto about = about_window_;
@@ -52,9 +53,7 @@ void MainWindow::InitializeTrayIntegration() {
         if (!SetWindowSubclass(hwnd_, &MainWindow::TraySubclassProc, kTraySubclassId,
                                reinterpret_cast<DWORD_PTR>(this))) { hwnd_ = nullptr; return; }
 
-        // Keep the native HWND theme synchronized with WinUI ActualTheme. Native-owned
-        // surfaces (TaskDialog, system menu, caption/Snap chrome) can then query the
-        // window's real DWM dark-mode state instead of guessing from an unset attribute.
+        // Keep native caption/Snap chrome synchronized with WinUI ActualTheme.
         sync_native_window_theme(hwnd_, RootGrid().ActualTheme());
         auto weak = get_weak();
         RootGrid().ActualThemeChanged(
@@ -116,6 +115,7 @@ void MainWindow::CancelAndCloseWindow() noexcept {
     // window. Unlike the Cancel button, which preserves jobs explicitly placed in Wait,
     // the window-close affordance means this transfer surface itself is being retired.
     tray_exit_requested_ = true;
+    CancelDecisionQueue();
     queued_sessions_.clear();
 
     try {
@@ -159,6 +159,7 @@ void MainWindow::ShowRequestError() {
 
 void MainWindow::RequestAppExit() noexcept {
     tray_exit_requested_ = true;
+    CancelDecisionQueue();
     RefreshEfficiencyMode();
     if (hwnd_ != nullptr) PostMessageW(hwnd_, WM_CLOSE, 0, 0);
 }
@@ -229,6 +230,7 @@ LRESULT CALLBACK MainWindow::TraySubclassProc(
     case WM_ENDSESSION:
         if (wparam != FALSE) {
             self->session_ending_ = true;
+            self->CancelDecisionQueue();
             if (auto* app = App::Instance()) app->SetShuttingDown(true);
             self->RefreshEfficiencyMode();
             self->PersistRecoveryQueueNoThrow();

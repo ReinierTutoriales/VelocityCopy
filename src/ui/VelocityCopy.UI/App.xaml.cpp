@@ -2,6 +2,7 @@
 #include "App.xaml.h"
 #include "MainWindow.xaml.h"
 #include "Localization.h"
+#include "DecisionSurface.h"
 
 #include "velocitycopy/process_activation.hpp"
 #include "velocitycopy/app_storage.hpp"
@@ -255,7 +256,7 @@ winrt::fire_and_forget App::ResolveStorageKeysAsync(velocitycopy::CopyJob job) {
     }
     try {
         if (failed) ShowPrimaryWindowError();
-        else DeliverConvertedJob(std::move(job), std::move(destination_key), std::move(source_key));
+        else co_await DeliverConvertedJob(std::move(job), std::move(destination_key), std::move(source_key));
     } catch (...) {
         velocitycopy::log_diagnostic(L"shell: transfer request failed after storage-key resolution");
         ShowPrimaryWindowError();
@@ -264,7 +265,8 @@ winrt::fire_and_forget App::ResolveStorageKeysAsync(velocitycopy::CopyJob job) {
     StartNextPendingRequest();
 }
 
-void App::DeliverConvertedJob(velocitycopy::CopyJob job, velocitycopy::StorageKey destination_key, velocitycopy::StorageKey source_key) {
+winrt::Windows::Foundation::IAsyncAction App::DeliverConvertedJob(velocitycopy::CopyJob job, velocitycopy::StorageKey destination_key, velocitycopy::StorageKey source_key) {
+    auto lifetime = get_strong();
     const velocitycopy::TransferRequest request{job.destination, job.operation, destination_key, source_key};
     auto snapshot = [this] {
         std::vector<velocitycopy::ActiveSession> sessions;
@@ -294,7 +296,7 @@ void App::DeliverConvertedJob(velocitycopy::CopyJob job, velocitycopy::StorageKe
             auto* dialog_owner = find_window(route.window_id);
             if (dialog_owner == nullptr || route.offered.size() != 2) {
                 velocitycopy::log_diagnostic(L"shell: routing decision dialog has no valid owner/options");
-                return;
+                co_return;
             }
 
             // Ensure the modal routing decision has a visible owner. Explorer IPC can
@@ -335,26 +337,26 @@ void App::DeliverConvertedJob(velocitycopy::CopyJob job, velocitycopy::StorageKe
                 remember_label = L"Remember my choice";
             }
 
-            bool remember = false;
-            const auto choice = MainWindow::ShowNativeDecisionDialog(
+            const auto decision = velocitycopy::ui::decode_decision(co_await dialog_owner->RequestDecisionAsync({
                 dialog_owner->NativeOwner(),
                 title,
                 message,
+                {},
                 primary,
                 secondary,
-                false,
                 {},
                 remember_label,
-                &remember);
-            if (choice == MainWindow::NativeDialogChoice::Cancel) {
+                false,
+            }));
+            if (decision.choice == velocitycopy::ui::DecisionChoice::Cancel) {
                 velocitycopy::log_diagnostic(L"shell: routing decision cancelled");
-                return;
+                co_return;
             }
 
-            const auto selected = choice == MainWindow::NativeDialogChoice::Primary
+            const auto selected = decision.choice == velocitycopy::ui::DecisionChoice::Primary
                 ? route.offered[0]
                 : route.offered[1];
-            if (remember) {
+            if (decision.verification_checked) {
                 if (same_destination_prompt) route_preferences_.same_destination = selected;
                 else route_preferences_.same_device = selected;
             }
@@ -374,14 +376,14 @@ void App::DeliverConvertedJob(velocitycopy::CopyJob job, velocitycopy::StorageKe
             } else {
                 target->ShowFromTray();
                 target->AppendTransfer(std::move(job));
-                return;
+                co_return;
             }
         }
         if (route.decision == velocitycopy::RouteDecision::WaitFor) {
             if (auto* target = find_window(route.window_id)) {
                 target->ShowFromTray();
                 target->EnqueueTransfer(std::move(job), std::move(destination_key), std::move(source_key));
-                return;
+                co_return;
             }
             if (attempt == 0) continue;
             route.decision = velocitycopy::RouteDecision::StartNew;
