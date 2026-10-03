@@ -179,27 +179,36 @@ bool write_all_until(
         OVERLAPPED overlapped{};
         overlapped.hEvent = event.get();
 
-        DWORD written = 0;
+        const auto requested = bytes - written_total;
         const BOOL immediate = WriteFile(
             handle,
             cursor + written_total,
-            bytes - written_total,
+            requested,
             nullptr,
             &overlapped);
-        if (!immediate) {
-            const auto error = GetLastError();
-            if (error != ERROR_IO_PENDING) return false;
-
-            const DWORD wait = WaitForSingleObject(event.get(), timeout);
-            if (wait != WAIT_OBJECT_0) {
-                (void)CancelIoEx(handle, &overlapped);
-                DWORD ignored = 0;
-                (void)GetOverlappedResult(handle, &overlapped, &ignored, TRUE);
-                return false;
-            }
+        if (immediate) {
+            // The pipe remains in PIPE_WAIT (blocking-wait) mode. A successful
+            // immediate WriteFile therefore completed the requested write; only
+            // ERROR_IO_PENDING requires GetOverlappedResult.
+            written_total += requested;
+            continue;
         }
-        if (!GetOverlappedResult(handle, &overlapped, &written, FALSE)) return false;
-        if (written == 0) return false;
+
+        const auto error = GetLastError();
+        if (error != ERROR_IO_PENDING) return false;
+
+        const DWORD wait = WaitForSingleObject(event.get(), timeout);
+        if (wait != WAIT_OBJECT_0) {
+            (void)CancelIoEx(handle, &overlapped);
+            DWORD ignored = 0;
+            (void)GetOverlappedResult(handle, &overlapped, &ignored, TRUE);
+            return false;
+        }
+
+        DWORD written = 0;
+        if (!GetOverlappedResult(handle, &overlapped, &written, FALSE) || written == 0) {
+            return false;
+        }
         written_total += written;
     }
     return true;
