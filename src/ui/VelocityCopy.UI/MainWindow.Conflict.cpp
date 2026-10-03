@@ -11,14 +11,40 @@ using namespace Microsoft::UI::Xaml::Controls;
 namespace winrt::VelocityCopyUI::implementation {
 Windows::Foundation::IAsyncOperation<std::uint32_t> MainWindow::RequestDecisionAsync(
     velocitycopy::ui::DecisionOptions options) {
-    if (decision_operation_) {
+    auto lifetime = get_strong();
+    auto ui_thread = apartment_context{};
+    auto request = std::make_shared<PendingDecision>();
+    if (!request->turn) co_return velocitycopy::ui::encode_decision({velocitycopy::ui::DecisionChoice::Cancel, false});
+
+    decision_queue_.push_back(request);
+    if (decision_queue_.size() == 1) SetEvent(request->turn);
+
+    co_await resume_on_signal(request->turn);
+    co_await ui_thread;
+    if (request->cancelled.load(std::memory_order_relaxed) || tray_exit_requested_ || session_ending_) {
         co_return velocitycopy::ui::encode_decision({velocitycopy::ui::DecisionChoice::Cancel, false});
     }
+
     options.owner = hwnd_;
     decision_operation_ = velocitycopy::ui::show_decision_async(std::move(options));
     const auto result = co_await velocitycopy::ui::await_decision(decision_operation_);
     decision_operation_ = nullptr;
+
+    if (!decision_queue_.empty() && decision_queue_.front() == request) decision_queue_.pop_front();
+    if (!decision_queue_.empty()) SetEvent(decision_queue_.front()->turn);
     co_return result;
+}
+
+void MainWindow::CancelDecisionQueue() noexcept {
+    try {
+        if (decision_operation_) decision_operation_.Cancel();
+        decision_operation_ = nullptr;
+        for (auto& request : decision_queue_) {
+            request->cancelled.store(true, std::memory_order_relaxed);
+            if (request->turn) SetEvent(request->turn);
+        }
+        decision_queue_.clear();
+    } catch (...) {}
 }
 
 fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conflict) {
@@ -42,26 +68,12 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
             detail = filename.empty() ? conflict.conflict_destination.wstring() : filename.wstring();
         }
 
-        if (decision_operation_) {
-            pending_conflict_ = std::move(conflict);
-            co_return;
-        }
         const std::wstring apply_to_all_label =
             velocitycopy::localization::get_string(L"ConflictApplyToAll").c_str();
-        decision_operation_ = velocitycopy::ui::show_decision_async({
-            hwnd_,
-            title,
-            message,
-            detail,
-            replace_label,
-            skip_label,
-            cancel_label,
-            apply_to_all_label,
-            true,
-        });
-        const auto decision = velocitycopy::ui::decode_decision(
-            co_await velocitycopy::ui::await_decision(decision_operation_));
-        decision_operation_ = nullptr;
+        const auto decision = velocitycopy::ui::decode_decision(co_await RequestDecisionAsync({
+            hwnd_, title, message, detail, replace_label, skip_label, cancel_label,
+            apply_to_all_label, true,
+        }));
 
         if (tray_exit_requested_ || session_ending_) co_return;
         if (interrupted_session_ != InterruptedSessionState::Conflict || !live_plan_) co_return;
@@ -92,18 +104,8 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
             co_return;
         }
     } catch (...) {
-        decision_operation_ = nullptr;
         if (!tray_exit_requested_ && !session_ending_ && interrupted_session_ == InterruptedSessionState::Conflict) CancelCurrentSession();
     }
-    ShowPendingConflictDecision();
-}
-
-void MainWindow::ShowPendingConflictDecision() {
-    if (decision_operation_ || tray_exit_requested_ || session_ending_ ||
-        interrupted_session_ != InterruptedSessionState::Conflict || !pending_conflict_) return;
-    auto conflict = std::move(*pending_conflict_);
-    pending_conflict_.reset();
-    ShowConflictDialogAsync(std::move(conflict));
 }
 
 void MainWindow::ResumeConflictCopy(
