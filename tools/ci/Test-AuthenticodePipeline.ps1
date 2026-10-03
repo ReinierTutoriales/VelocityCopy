@@ -26,7 +26,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Unable to trust ephemeral CI certificate: certutil exit $LASTEXITCODE" }
     $rootInstalled = $true
 
-    & "$PSScriptRoot\Sign-VelocityCopyBinary.ps1" -Path $Path -PfxPath $pfx -PfxPassword $plain
+    & "$PSScriptRoot\Sign-VelocityCopyBinary.ps1" -Path $Path -PfxPath $pfx -PfxPassword $plain -SkipTimestamp
     if ($LASTEXITCODE -ne 0) {
         throw "Ephemeral Authenticode pipeline failed for $Path"
     }
