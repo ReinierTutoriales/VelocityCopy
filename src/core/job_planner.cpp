@@ -1,5 +1,6 @@
 #include "velocitycopy/job_planner.hpp"
 #include "velocitycopy/destination_catalog.hpp"
+#include "destination_path_guard.hpp"
 
 #include <windows.h>
 
@@ -299,6 +300,16 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
         if (std::filesystem::is_symlink(status)) {
             throw_unsupported(source);
         }
+        const auto source_safety = detail::source_is_safe_to_follow(source);
+        if (source_safety != S_OK) {
+            const auto code = HRESULT_CODE(static_cast<HRESULT>(source_safety));
+            throw std::filesystem::filesystem_error(
+                "Unsafe or inaccessible source reparse point",
+                source,
+                std::error_code(
+                    static_cast<int>(code == 0 ? ERROR_CANT_ACCESS_FILE : code),
+                    std::system_category()));
+        }
 
         const auto root = destination_root_for(source, job.destination, job.layout, status, disambiguate_by_parent);
         if (job.layout == DestinationLayout::PreserveSourceFolder) {
@@ -358,6 +369,16 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
 
             if (std::filesystem::is_symlink(entry_status)) {
                 throw_unsupported(entry.path());
+            }
+            const auto entry_safety = detail::source_is_safe_to_follow(entry.path());
+            if (entry_safety != S_OK) {
+                const auto code = HRESULT_CODE(static_cast<HRESULT>(entry_safety));
+                throw std::filesystem::filesystem_error(
+                    "Unsafe or inaccessible source reparse point",
+                    entry.path(),
+                    std::error_code(
+                        static_cast<int>(code == 0 ? ERROR_CANT_ACCESS_FILE : code),
+                        std::system_category()));
             }
 
             if (std::filesystem::is_directory(entry_status)) {
