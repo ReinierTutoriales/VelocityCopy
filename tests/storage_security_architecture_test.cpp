@@ -29,9 +29,10 @@ int main() {
     const auto engine = read_all(root / "src/core/copy_engine.cpp");
     const auto planner = read_all(root / "src/core/job_planner.cpp");
     const auto archive = read_all(root / "src/core/queue_archive.cpp");
+    const auto executor = read_all(root / "src/core/job_executor.cpp");
     const auto ipc = read_all(root / "src/core/ipc_protocol.cpp");
 
-    if (engine.empty() || planner.empty() || archive.empty() || ipc.empty()) {
+    if (engine.empty() || planner.empty() || archive.empty() || executor.empty() || ipc.empty()) {
         return fail(1, "required core source missing");
     }
 
@@ -96,6 +97,12 @@ int main() {
         !contains(ipc, "source_count > kMaxShellSources") ||
         !contains(ipc, "bytes.size() > kMaxShellMessageBytes")) {
         return fail(5, "IPC parser must bound declared counts without preallocating from them");
+    }
+
+    if (contains(executor, "E_FAIL") ||
+        !contains(executor, "ERROR_INVALID_STATE") ||
+        !contains(executor, "ERROR_UNHANDLED_EXCEPTION")) {
+        return fail(10, "executor must expose explicit HRESULTs for invalid plan state and unknown exceptions instead of generic E_FAIL");
     }
 
     return 0;
