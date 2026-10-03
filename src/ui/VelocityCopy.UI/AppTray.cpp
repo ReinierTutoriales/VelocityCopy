@@ -10,6 +10,8 @@ namespace {
 constexpr wchar_t kTrayWindowClass[] = L"VelocityCopy.AppTrayWindow";
 constexpr UINT kTrayCallbackMessage = WM_APP + 0x51;
 constexpr UINT kTrayIconId = 1;
+constexpr UINT kOpenCommandId = 1;
+constexpr UINT kExitCommandId = 2;
 }
 
 AppTray::~AppTray() { Remove(); }
@@ -71,8 +73,6 @@ void AppTray::Remove() noexcept {
     if (icon_) DestroyIcon(icon_);
     icon_ = nullptr;
     data_ = {};
-    HideMenuSurface();
-    menu_window_ = nullptr;
     owner_ = nullptr;
     open_dispatch_active_ = false;
 }
@@ -127,145 +127,57 @@ LRESULT AppTray::HandleMessage(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
     return DefWindowProcW(hwnd, message, wparam, lparam);
 }
 
-bool AppTray::EnsureMenuSurface() noexcept {
-    if (menu_window_) return true;
-    try {
-        using namespace Microsoft::UI::Xaml;
-        using namespace Microsoft::UI::Xaml::Controls;
+void AppTray::ShowMenu(POINT anchor) noexcept {
+    if (!hwnd_) return;
 
-        Window window;
-        StackPanel panel;
-        panel.Padding(Thickness{4.0, 4.0, 4.0, 4.0});
-        panel.Spacing(2.0);
-
-        Button open_button;
-        open_button.HorizontalAlignment(HorizontalAlignment::Stretch);
-        open_button.HorizontalContentAlignment(HorizontalAlignment::Left);
-        open_button.Click([this](auto const&, auto const&) {
-            HideMenuSurface();
-            OpenPrimaryWindow();
-        });
-
-        Button exit_button;
-        exit_button.HorizontalAlignment(HorizontalAlignment::Stretch);
-        exit_button.HorizontalContentAlignment(HorizontalAlignment::Left);
-        exit_button.Click([this](auto const&, auto const&) {
-            HideMenuSurface();
-            if (owner_) owner_->ExitFromTray();
-        });
-
-        panel.Children().Append(open_button);
-        panel.Children().Append(exit_button);
-        window.Content(panel);
-
-        auto app_window = window.AppWindow();
-        app_window.IsShownInSwitchers(false);
-        auto presenter = Microsoft::UI::Windowing::OverlappedPresenter::CreateForContextMenu();
-        presenter.SetBorderAndTitleBar(false, false);
-        app_window.SetPresenter(presenter);
-
-        window.Activated([this](auto const&, WindowActivatedEventArgs const& args) {
-            if (args.WindowActivationState() == WindowActivationState::Deactivated && menu_open_) {
-                HideMenuSurface();
-            }
-        });
-        window.Closed([this](auto const&, auto const&) {
-            menu_open_ = false;
-            menu_window_ = nullptr;
-        });
-
-        panel.KeyDown([this](auto const&, Input::KeyRoutedEventArgs const& args) {
-            if (args.Key() == Windows::System::VirtualKey::Escape) {
-                args.Handled(true);
-                HideMenuSurface();
-            }
-        });
-
-        menu_window_ = window;
-        return true;
-    } catch (...) {
-        menu_window_ = nullptr;
-        return false;
+    RECT icon_rect{};
+    NOTIFYICONIDENTIFIER identifier{sizeof(identifier)};
+    identifier.hWnd = hwnd_;
+    identifier.uID = kTrayIconId;
+    if (FAILED(Shell_NotifyIconGetRect(&identifier, &icon_rect))) {
+        if (anchor.x == -1 && anchor.y == -1 && !GetCursorPos(&anchor)) return;
+        icon_rect = RECT{anchor.x, anchor.y, anchor.x + 1, anchor.y + 1};
+    } else {
+        anchor.x = icon_rect.left + (icon_rect.right - icon_rect.left) / 2;
+        anchor.y = icon_rect.top + (icon_rect.bottom - icon_rect.top) / 2;
     }
-}
 
-void AppTray::HideMenuSurface() noexcept {
-    menu_open_ = false;
+    std::wstring open_text = L"Open VelocityCopy", exit_text = L"Exit";
     try {
-        if (menu_window_) {
-            HWND menu_hwnd{};
-            auto native = menu_window_.as<::IWindowNative>();
-            if (SUCCEEDED(native->get_WindowHandle(&menu_hwnd)) && menu_hwnd) {
-                ShowWindow(menu_hwnd, SW_HIDE);
-            }
-        }
+        open_text = velocitycopy::localization::get_string(L"TrayOpen").c_str();
+        exit_text = velocitycopy::localization::get_string(L"TrayExit").c_str();
     } catch (...) {}
-}
 
-void AppTray::ShowMenu(POINT fallback_anchor) noexcept {
-    if (!hwnd_ || menu_open_ || !EnsureMenuSurface()) return;
-    try {
-        using namespace Microsoft::UI::Xaml;
-        using namespace Microsoft::UI::Xaml::Controls;
-
-        RECT icon_rect{};
-        NOTIFYICONIDENTIFIER identifier{sizeof(identifier)};
-        identifier.hWnd = hwnd_;
-        identifier.uID = kTrayIconId;
-        if (FAILED(Shell_NotifyIconGetRect(&identifier, &icon_rect))) {
-            if (fallback_anchor.x == -1 && fallback_anchor.y == -1 &&
-                !GetCursorPos(&fallback_anchor)) return;
-            icon_rect = RECT{fallback_anchor.x, fallback_anchor.y,
-                             fallback_anchor.x + 1, fallback_anchor.y + 1};
-        }
-
-        const POINT icon_center{
-            icon_rect.left + (icon_rect.right - icon_rect.left) / 2,
-            icon_rect.top + (icon_rect.bottom - icon_rect.top) / 2};
-        const HMONITOR monitor = MonitorFromPoint(icon_center, MONITOR_DEFAULTTONEAREST);
-        MONITORINFO monitor_info{sizeof(monitor_info)};
-        if (!GetMonitorInfoW(monitor, &monitor_info)) return;
-
-        auto panel = menu_window_.Content().as<StackPanel>();
-        auto open_button = panel.Children().GetAt(0).as<Button>();
-        auto exit_button = panel.Children().GetAt(1).as<Button>();
-        std::wstring open_text = L"Open VelocityCopy", exit_text = L"Exit";
-        try {
-            open_text = velocitycopy::localization::get_string(L"TrayOpen").c_str();
-            exit_text = velocitycopy::localization::get_string(L"TrayExit").c_str();
-        } catch (...) {}
-        open_button.Content(box_value(open_text));
-        exit_button.Content(box_value(exit_text));
-
-        constexpr int kMenuWidth = 176;
-        constexpr int kMenuHeight = 88;
-        constexpr int kGap = 4;
-        const RECT& work = monitor_info.rcWork;
-        const RECT& screen = monitor_info.rcMonitor;
-        int x = icon_center.x - kMenuWidth / 2;
-        int y = icon_rect.top - kMenuHeight - kGap;
-
-        if (work.left > screen.left) {
-            x = icon_rect.right + kGap;
-            y = icon_center.y - kMenuHeight / 2;
-        } else if (work.right < screen.right) {
-            x = icon_rect.left - kMenuWidth - kGap;
-            y = icon_center.y - kMenuHeight / 2;
-        } else if (work.top > screen.top) {
-            x = icon_center.x - kMenuWidth / 2;
-            y = icon_rect.bottom + kGap;
-        }
-
-        x = std::clamp(x, work.left, std::max(work.left, work.right - kMenuWidth));
-        y = std::clamp(y, work.top, std::max(work.top, work.bottom - kMenuHeight));
-
-        auto app_window = menu_window_.AppWindow();
-        app_window.MoveAndResize(Windows::Graphics::RectInt32{x, y, kMenuWidth, kMenuHeight});
-        menu_open_ = true;
-        menu_window_.Activate();
-        open_button.Focus(FocusState::Programmatic);
-    } catch (...) {
-        HideMenuSurface();
+    HMENU menu = CreatePopupMenu();
+    if (!menu) return;
+    if (!AppendMenuW(menu, MF_STRING, kOpenCommandId, open_text.c_str()) ||
+        !AppendMenuW(menu, MF_SEPARATOR, 0, nullptr) ||
+        !AppendMenuW(menu, MF_STRING, kExitCommandId, exit_text.c_str())) {
+        DestroyMenu(menu);
+        return;
     }
+    SetMenuDefaultItem(menu, kOpenCommandId, FALSE);
+
+    // Required notification-area shortcut-menu pattern: foreground ownership gives
+    // correct click-away dismissal; WM_NULL prevents the next invocation from
+    // immediately dismissing itself.
+    if (!SetForegroundWindow(hwnd_)) {
+        DestroyMenu(menu);
+        return;
+    }
+    const UINT alignment = GetSystemMetrics(SM_MENUDROPALIGNMENT) ? TPM_RIGHTALIGN : TPM_LEFTALIGN;
+    TPMPARAMS params{sizeof(params)};
+    params.rcExclude = icon_rect;
+    const UINT command = TrackPopupMenuEx(
+        menu, TPM_RETURNCMD | TPM_RIGHTBUTTON | alignment,
+        anchor.x, anchor.y, hwnd_, &params);
+    PostMessageW(hwnd_, WM_NULL, 0, 0);
+    DestroyMenu(menu);
+
+    if (command == kOpenCommandId) OpenPrimaryWindow();
+    else if (command == kExitCommandId && owner_) owner_->ExitFromTray();
+
+    Shell_NotifyIconW(NIM_SETFOCUS, &data_);
 }
+
 } // namespace winrt::VelocityCopyUI::implementation

@@ -2,8 +2,6 @@
 
 #include <windows.h>
 #include <shellapi.h>
-#include <winrt/Microsoft.UI.Xaml.h>
-#include <winrt/Microsoft.UI.Xaml.Controls.h>
 
 namespace winrt::VelocityCopyUI::implementation {
 struct App;
@@ -24,8 +22,6 @@ private:
     LRESULT HandleMessage(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) noexcept;
     void OpenPrimaryWindow() noexcept;
     void ShowMenu(POINT anchor) noexcept;
-    bool EnsureMenuSurface() noexcept;
-    void HideMenuSurface() noexcept;
     void RestoreIcon() noexcept;
 
     App* owner_{};
@@ -36,7 +32,5 @@ private:
     bool added_{};
     bool v4_{};
     bool open_dispatch_active_{};
-    bool menu_open_{};
-    winrt::Microsoft::UI::Xaml::Window menu_window_{nullptr};
 };
 }
