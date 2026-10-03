@@ -254,9 +254,8 @@ jobs:
             'Start-Sleep -Seconds 180'
           ) | Set-Content -LiteralPath $holderScript -Encoding UTF8
 
-          $holder = Start-Process powershell.exe -ArgumentList @(
-            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $holderScript, $shellDll
-          ) -PassThru
+          $holderArgs = "-NoProfile -ExecutionPolicy Bypass -File `"$holderScript`" `"$shellDll`""
+          $holder = Start-Process powershell.exe -ArgumentList $holderArgs -PassThru
           Start-Sleep -Seconds 3
           $holder.Refresh()
           if ($holder.HasExited) { throw "Unable to keep the v1.0.0 shell DLL loaded; holder exit $($holder.ExitCode)" }
