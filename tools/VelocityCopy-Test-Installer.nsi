@@ -104,11 +104,32 @@ FunctionEnd
   Sleep 500
 !macroend
 
+; A loaded in-process shell DLL cannot be overwritten in place. Windows still
+; allows renaming the mapped image, which frees the installed name for the new
+; file. The old image stays mapped until the locker exits; Delete /REBOOTOK
+; removes that renamed file at reboot if it is still locked. Do not report
+; success if the installed name still cannot be replaced.
+Function ReleaseLoadedShellDll
+  StrCpy $0 "$INSTDIR\VelocityCopy.Shell.dll"
+  IfFileExists $0 0 shell_release_done
+  StrCpy $1 "$INSTDIR\VelocityCopy.Shell.dll.old"
+  ClearErrors
+  Delete $1
+  ClearErrors
+  Rename $0 $1
+  IfErrors 0 shell_release_done
+  DetailPrint "VelocityCopy.Shell.dll is locked and could not be renamed."
+  Abort "VelocityCopy.Shell.dll is in use and was not replaced."
+shell_release_done:
+FunctionEnd
+
 Section "Install VelocityCopy" SEC_INSTALL
   SetRegView 64
   !insertmacro CloseRunningApp
+  Call ReleaseLoadedShellDll
   SetOutPath "$INSTDIR"
   File /r "${PAYLOAD_DIR}\*.*"
+  Delete /REBOOTOK "$INSTDIR\VelocityCopy.Shell.dll.old"
 
   Delete "$SMPROGRAMS\VelocityCopy\VelocityCopy.lnk"
   RMDir "$SMPROGRAMS\VelocityCopy"
@@ -155,5 +176,6 @@ Section "Uninstall"
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
 
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy"
+  Delete /REBOOTOK "$INSTDIR\VelocityCopy.Shell.dll.old"
   RMDir /r "$INSTDIR"
 SectionEnd
