@@ -52,7 +52,7 @@ bool send_times_out_when_server_stops_reading() {
     }
 
     const auto start = std::chrono::steady_clock::now();
-    const bool sent = velocitycopy::send_shell_request(large, 100);
+    const auto sent = velocitycopy::send_shell_request(large, 100);
     const auto elapsed = std::chrono::steady_clock::now() - start;
 
     release.store(true, std::memory_order_release);
@@ -62,6 +62,7 @@ bool send_times_out_when_server_stops_reading() {
     CloseHandle(pipe);
 
     return !sent &&
+        sent.native_code == static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_SEM_TIMEOUT)) &&
         connected.load(std::memory_order_acquire) &&
         elapsed < 2s;
 }
