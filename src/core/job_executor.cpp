@@ -1,6 +1,7 @@
 #include "velocitycopy/job_executor.hpp"
 #include "velocitycopy/storage_topology.hpp"
 #include "velocitycopy/source_removal_recovery.hpp"
+#include "destination_path_guard.hpp"
 
 #include <windows.h>
 
@@ -378,15 +379,15 @@ JobResult JobExecutor::execute(
 
         const auto directory_batch = plan.pending_directories();
         for (const auto& directory : directory_batch.directories) {
-            std::error_code ec;
-            std::filesystem::create_directories(directory.destination, ec);
-            if (ec) {
-                const auto code = static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
+            detail::DestinationDirectoryGuard directory_guard;
+            const auto code = directory_guard.prepare(directory.destination);
+            if (code != S_OK) {
                 if (is_session_fatal(code)) {
                     return finish({false, false, code});
                 }
-                // A directory that cannot be created fails only the items that
-                // depend on it; the rest of the plan continues.
+                // Materialize directories only through a validated chain. A
+                // junction/symlink in any parent fails the dependent items
+                // without creating content through the redirected path.
                 (void)plan.fail_pending_under(directory.destination, code);
             }
         }
