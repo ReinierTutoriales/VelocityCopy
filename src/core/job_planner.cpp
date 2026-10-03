@@ -93,6 +93,43 @@ void throw_if_cancelled(const std::stop_token stop_token) {
     }
 }
 
+void validate_source_reparse_semantics(const std::filesystem::path& path) {
+    const HANDLE handle = CreateFileW(
+        path.c_str(),
+        FILE_READ_ATTRIBUTES,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        nullptr,
+        OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT,
+        nullptr);
+    if (handle == INVALID_HANDLE_VALUE) {
+        const DWORD error = GetLastError();
+        throw std::filesystem::filesystem_error(
+            "Unable to inspect source reparse metadata",
+            path,
+            std::error_code(static_cast<int>(error), std::system_category()));
+    }
+
+    FILE_ATTRIBUTE_TAG_INFO info{};
+    if (GetFileInformationByHandleEx(handle, FileAttributeTagInfo, &info, sizeof(info)) == 0) {
+        const DWORD error = GetLastError();
+        CloseHandle(handle);
+        throw std::filesystem::filesystem_error(
+            "Unable to inspect source reparse metadata",
+            path,
+            std::error_code(static_cast<int>(error), std::system_category()));
+    }
+    CloseHandle(handle);
+
+    if ((info.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0 &&
+        IsReparseTagNameSurrogate(info.ReparseTag) != FALSE) {
+        throw std::filesystem::filesystem_error(
+            "Name-surrogate source reparse points are not supported",
+            path,
+            std::error_code(ERROR_CANT_ACCESS_FILE, std::system_category()));
+    }
+}
+
 class OutputRegistry final {
 public:
     void add_directory(const std::filesystem::path& path) {
@@ -296,9 +333,7 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
         if (ec || !std::filesystem::exists(status)) {
             throw std::filesystem::filesystem_error("Source does not exist", source, ec);
         }
-        if (std::filesystem::is_symlink(status)) {
-            throw_unsupported(source);
-        }
+        validate_source_reparse_semantics(source);
 
         const auto root = destination_root_for(source, job.destination, job.layout, status, disambiguate_by_parent);
         if (job.layout == DestinationLayout::PreserveSourceFolder) {
@@ -356,9 +391,7 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
                 throw std::filesystem::filesystem_error("Unable to inspect source", entry.path(), ec);
             }
 
-            if (std::filesystem::is_symlink(entry_status)) {
-                throw_unsupported(entry.path());
-            }
+            validate_source_reparse_semantics(entry.path());
 
             if (std::filesystem::is_directory(entry_status)) {
                 outputs.add_directory(target);
