@@ -15,21 +15,24 @@ $cer = Join-Path $env:RUNNER_TEMP ("velocitycopy-ci-" + [guid]::NewGuid().ToStri
 $plain = 'VcCi-' + [guid]::NewGuid().ToString('N') + '!9aA'
 $secure = ConvertTo-SecureString $plain -AsPlainText -Force
 $cert = $null
-$trusted = $null
+$rootInstalled = $false
 
 try {
     $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject $subject -CertStoreLocation 'Cert:\CurrentUser\My' -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -KeyExportPolicy Exportable -NotAfter (Get-Date).AddDays(1)
     Export-PfxCertificate -Cert $cert -FilePath $pfx -Password $secure | Out-Null
     Export-Certificate -Cert $cert -FilePath $cer | Out-Null
-    $trusted = Import-Certificate -FilePath $cer -CertStoreLocation 'Cert:\CurrentUser\Root'
+
+    & certutil.exe -user -f -addstore Root $cer | Out-Host
+    if ($LASTEXITCODE -ne 0) { throw "Unable to trust ephemeral CI certificate: certutil exit $LASTEXITCODE" }
+    $rootInstalled = $true
 
     & "$PSScriptRoot\Sign-VelocityCopyBinary.ps1" -Path $Path -PfxPath $pfx -PfxPassword $plain
     if ($LASTEXITCODE -ne 0) {
         throw "Ephemeral Authenticode pipeline failed for $Path"
     }
 } finally {
-    if ($trusted) {
-        Remove-Item -LiteralPath ("Cert:\CurrentUser\Root\" + $trusted.Thumbprint) -Force -ErrorAction SilentlyContinue
+    if ($rootInstalled -and $cert) {
+        & certutil.exe -user -delstore Root $cert.Thumbprint | Out-Null
     }
     if ($cert) {
         Remove-Item -LiteralPath ("Cert:\CurrentUser\My\" + $cert.Thumbprint) -Force -ErrorAction SilentlyContinue
