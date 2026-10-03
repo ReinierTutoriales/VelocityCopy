@@ -122,6 +122,46 @@ jobs:
           $size = (Get-ChildItem $payload -Recurse -File | Measure-Object Length -Sum).Sum
           Write-Host ("Self-contained ${{ matrix.arch }} payload: {0:N1} MB" -f ($size / 1MB))
 
+      - name: Validate application PRI in payload
+        shell: pwsh
+        run: |
+          $payload = (Resolve-Path "artifacts/installer-payload-${{ matrix.arch }}").Path
+          pwsh -NoProfile -File tools/ci/Assert-PriResource.ps1 -RootPath $payload -EvidencePath "artifacts/pri-evidence-${{ matrix.arch }}/payload" -Key RecoveryRestoreError -LanguagesCsv 'en-US,es-ES'
+          if ($LASTEXITCODE -ne 0) { throw "Payload PRI validation failed for ${{ matrix.arch }}" }
+
+      - name: Exercise PRI validator with real fixtures
+        shell: pwsh
+        run: |
+          $sourcePri = (Resolve-Path "artifacts/installer-payload-${{ matrix.arch }}/VelocityCopy.WinUI.pri").Path
+          $fixtures = "artifacts/pri-fixtures-${{ matrix.arch }}"
+          Remove-Item $fixtures -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force "$fixtures/positive" | Out-Null
+          Copy-Item $sourcePri "$fixtures/positive/VelocityCopy.WinUI.pri"
+          pwsh -NoProfile -File tools/ci/Assert-PriResource.ps1 -RootPath "$fixtures/positive" -EvidencePath "artifacts/pri-evidence-${{ matrix.arch }}/fixture-positive" -Key RecoveryRestoreError -LanguagesCsv 'en-US,es-ES'
+          if ($LASTEXITCODE -ne 0) { throw 'Positive PRI fixture was rejected' }
+
+          New-Item -ItemType Directory -Force "$fixtures/negative" | Out-Null
+          Copy-Item $sourcePri "$fixtures/negative/VelocityCopy.WinUI.pri"
+          # Each negative case must fail for ITS reason. A non-zero exit alone is
+          # not proof: a missing makepri or a broken dump also exits non-zero.
+          $negatives = @(
+            @{ Name = 'missing-key';      Key = '__VelocityCopyMissingFixtureKey__'; Languages = 'en-US,es-ES';
+               Reason = 'PRI dump does not contain resource key __VelocityCopyMissingFixtureKey__' },
+            @{ Name = 'missing-language'; Key = 'RecoveryRestoreError';              Languages = 'en-US,es-ES,fr-FR';
+               Reason = 'PRI resource RecoveryRestoreError has no candidate qualified for fr-FR' }
+          )
+          foreach ($case in $negatives) {
+            $output = pwsh -NoProfile -File tools/ci/Assert-PriResource.ps1 -RootPath "$fixtures/negative" -EvidencePath "artifacts/pri-evidence-${{ matrix.arch }}/fixture-negative-$($case.Name)" -Key $case.Key -LanguagesCsv $case.Languages 2>&1 | Out-String
+            $exitCode = $LASTEXITCODE
+            if ($exitCode -eq 0) { throw "Negative PRI case '$($case.Name)' was incorrectly accepted" }
+            if (-not $output.Contains($case.Reason)) {
+              Write-Host $output
+              throw "Negative PRI case '$($case.Name)' failed for an unexpected reason"
+            }
+            Write-Host "Negative PRI case '$($case.Name)' rejected as expected: $($case.Reason)"
+          }
+          $global:LASTEXITCODE = 0
+
       - name: Cache pinned NSIS
         id: cache-nsis
         uses: actions/cache@v4
@@ -176,6 +216,11 @@ jobs:
           if (-not (Test-Path $exe)) { throw "Installed executable is missing" }
           if (-not (Test-Path $uninstaller)) { throw "Uninstaller is missing" }
           if (-not (Test-Path $shellDll)) { throw "Installed shell extension is missing" }
+          $installedPri = Join-Path $root "VelocityCopy.WinUI.pri"
+          if (-not (Test-Path $installedPri)) { throw "Installed VelocityCopy.WinUI.pri is missing beside VelocityCopy.WinUI.exe" }
+          if (Test-Path (Join-Path $root "resources.pri")) { throw "Legacy resources.pri must not be installed" }
+          pwsh -NoProfile -File tools/ci/Assert-PriResource.ps1 -RootPath $root -EvidencePath "artifacts/pri-evidence-${{ matrix.arch }}/installed" -Key RecoveryRestoreError -LanguagesCsv 'en-US,es-ES'
+          if ($LASTEXITCODE -ne 0) { throw "Installed PRI validation failed" }
           & ./tools/Test-ShellRegistration.ps1 -Phase Installed
 
           $app = Start-Process $exe -PassThru
@@ -208,6 +253,15 @@ jobs:
           Start-Sleep -Seconds 2
           if (Test-Path $root) { throw "Installation directory remains after uninstall" }
           & ./tools/Test-ShellRegistration.ps1 -Phase Uninstalled
+
+      - name: Upload PRI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: VelocityCopy-PRI-evidence-${{ matrix.arch }}-${{ github.run_id }}
+          path: artifacts/pri-evidence-${{ matrix.arch }}
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Upload validated installer
         uses: actions/upload-artifact@v4
