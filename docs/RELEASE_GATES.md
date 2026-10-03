@@ -11,6 +11,16 @@ These gates define the 1.1.0 stable release pipeline and must remain aligned wit
 - Package CI exercises the Authenticode implementation on disposable copies with an ephemeral trusted code-signing certificate; the test certificate is removed afterward and is never packaged.
 - Stable `v*` tag packaging requires valid Authenticode signatures and RFC3161 timestamps on `VelocityCopy.WinUI.exe`, `VelocityCopy.Shell.dll`, `VelocityCopy.StartupHelper.exe` and both installers. Tag jobs fail closed when signing secrets are absent or verification fails.
 
+## Required real-Windows sign-off
+
+CI and Package are necessary but do not authorize a stable tag by themselves.
+
+- Before `v1.1.0`, an x64 Windows 11 machine must pass Explorer end-to-end checks with the shell extension loaded: Ctrl+C/V, Ctrl+X/V, drag/drop, Explorer restart, upgrade from 1.0.0, resident uninstall, OneDrive/cloud-file hydration and junction rejection.
+- The x64 sign-off must include destructive/fault cases for Move: destination full or unavailable and removal/disconnect of a USB destination during transfer. The source must never be deleted before the copied destination has passed the engine's completion validation.
+- ARM64 may be published as a 1.1.0 release asset only after a real Windows ARM64 install/launch/shell-integration smoke. Cross-compilation and PE validation alone do not satisfy this gate.
+- Record the exact `main` SHA used for the real-Windows sign-off. The stable tag must point to that exact SHA after its CI and Package runs are green.
+- No release manager should infer Explorer runtime safety from the write-locked DLL fixture: that fixture proves file-replacement mechanics, not that an already-loaded Explorer process switched to the new COM image.
+
 ## Packaging rules
 
 - Distribution is classic self-contained NSIS, not MSIX.
