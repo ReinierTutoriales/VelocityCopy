@@ -81,9 +81,9 @@ int main(){
     tray.find("dpi_x = GetDpiForWindow(menu_hwnd)") == std::string::npos ||
     tray.find("MulDiv(kAnchorDip") == std::string::npos ||
     tray.find("monitor_info.rcMonitor") == std::string::npos ||
-    tray.find("FlyoutPlacementMode::Right") == std::string::npos ||
-    tray.find("FlyoutPlacementMode::Left") == std::string::npos ||
-    tray.find("FlyoutPlacementMode::Bottom") == std::string::npos ||
+    tray.find("Primitives::FlyoutPlacementMode::Right") == std::string::npos ||
+    tray.find("Primitives::FlyoutPlacementMode::Left") == std::string::npos ||
+    tray.find("Primitives::FlyoutPlacementMode::Bottom") == std::string::npos ||
     tray.find("SetForegroundWindow(hwnd_)") != std::string::npos) return 36;
  if(tray.find("(v4_ && notification == WM_CONTEXTMENU)") == std::string::npos ||
     tray.find("(!v4_ && notification == WM_RBUTTONUP)") == std::string::npos) return 37;

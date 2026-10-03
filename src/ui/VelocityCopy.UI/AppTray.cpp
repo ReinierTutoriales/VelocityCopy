@@ -242,12 +242,12 @@ void AppTray::ShowMenu(POINT anchor) noexcept {
             } catch (...) {}
         });
 
-        FlyoutShowOptions show_options;
+        Microsoft::UI::Xaml::Controls::Primitives::FlyoutShowOptions show_options;
         show_options.ShouldConstrainToRootBounds(false);
-        FlyoutPlacementMode placement = FlyoutPlacementMode::Top;
-        if (monitor_info.rcWork.left > monitor_info.rcMonitor.left) placement = FlyoutPlacementMode::Right;
-        else if (monitor_info.rcWork.right < monitor_info.rcMonitor.right) placement = FlyoutPlacementMode::Left;
-        else if (monitor_info.rcWork.top > monitor_info.rcMonitor.top) placement = FlyoutPlacementMode::Bottom;
+        FlyoutPlacementMode placement = Microsoft::UI::Xaml::Controls::Primitives::FlyoutPlacementMode::Top;
+        if (monitor_info.rcWork.left > monitor_info.rcMonitor.left) placement = Microsoft::UI::Xaml::Controls::Primitives::FlyoutPlacementMode::Right;
+        else if (monitor_info.rcWork.right < monitor_info.rcMonitor.right) placement = Microsoft::UI::Xaml::Controls::Primitives::FlyoutPlacementMode::Left;
+        else if (monitor_info.rcWork.top > monitor_info.rcMonitor.top) placement = Microsoft::UI::Xaml::Controls::Primitives::FlyoutPlacementMode::Bottom;
         show_options.Placement(placement);
         show_options.Position(Windows::Foundation::Point{16.0f, 16.0f});
 
