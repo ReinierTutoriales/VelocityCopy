@@ -3,12 +3,12 @@
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 STRINGTABLE
 BEGIN
-    IDS_SHELL_COPY_HERE "Copy here with RepartoCopier"
-    IDS_SHELL_MOVE_HERE "Move here with RepartoCopier"
+    IDS_SHELL_COPY_HERE "Copy here with VelocityCopy"
+    IDS_SHELL_MOVE_HERE "Move here with VelocityCopy"
 END
 LANGUAGE LANG_SPANISH, SUBLANG_SPANISH_MODERN
 STRINGTABLE
 BEGIN
-    IDS_SHELL_COPY_HERE "Copiar aqui con RepartoCopier"
-    IDS_SHELL_MOVE_HERE "Mover aqui con RepartoCopier"
+    IDS_SHELL_COPY_HERE "Copiar aqui con VelocityCopy"
+    IDS_SHELL_MOVE_HERE "Mover aqui con VelocityCopy"
 END
