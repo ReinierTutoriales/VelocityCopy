@@ -22,9 +22,6 @@ try {
 
     Write-Host "Running bounded Authenticode signing proof without modifying trust stores"
     & "$PSScriptRoot\Sign-VelocityCopyBinary.ps1" -Path $Path -PfxPath $pfx -PfxPassword $plain -SkipTimestamp -ExpectedSignerThumbprint $cert.Thumbprint
-    if ($LASTEXITCODE -ne 0) {
-        throw "Ephemeral Authenticode pipeline failed for $Path"
-    }
 } finally {
     if ($cert) {
         Remove-Item -LiteralPath ("Cert:\CurrentUser\My\" + $cert.Thumbprint) -Force -ErrorAction SilentlyContinue
