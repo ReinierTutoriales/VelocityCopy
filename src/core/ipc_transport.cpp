@@ -5,6 +5,7 @@
 #include <windows.h>
 #include <sddl.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <limits>
