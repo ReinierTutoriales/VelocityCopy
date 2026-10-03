@@ -24,7 +24,7 @@ int main() {
     const auto window = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
     const auto append = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.CopyAppend.cpp");
     const auto conflict = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Conflict.cpp");
-    const auto auxiliary = read_source(root / "src/ui/VelocityCopy.UI/AuxiliarySurface.cpp");
+    const auto decision_surface = read_source(root / "src/ui/VelocityCopy.UI/DecisionSurface.cpp");
     const auto execution = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Execution.cpp");
     const auto queue = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Queue.cpp");
     const auto persistence = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.QueuePersistence.cpp");
@@ -40,7 +40,7 @@ int main() {
     const auto executor_cpp = read_source(root / "src/core/job_executor.cpp");
 
     if (app.empty() || xaml.empty() || header.empty() || window.empty() ||
-        append.empty() || conflict.empty() || auxiliary.empty() || execution.empty() || queue.empty() || persistence.empty() || project.empty() ||
+        append.empty() || conflict.empty() || decision_surface.empty() || execution.empty() || queue.empty() || persistence.empty() || project.empty() ||
         manifest.empty() || explorer.empty() || cli.empty() || cmake.empty() ||
         engine_h.empty() || engine_cpp.empty() || live_h.empty() || executor_h.empty() || executor_cpp.empty()) {
         return fail(1, "required production source missing");
@@ -203,7 +203,7 @@ int main() {
     }
 
     const auto start_next = body_of(execution, "void MainWindow::StartNextQueuedSession(");
-    const auto deliver_job = body_of(app, "void App::DeliverConvertedJob(");
+    const auto deliver_job = body_of(app, "winrt::Windows::Foundation::IAsyncAction App::DeliverConvertedJob(");
     if (!contains(header, "struct QueuedTransfer") || !contains(header, "StorageKey destination") ||
         !contains(header, "StorageKey source") || !contains(start_next, "StartTransfer(std::move(next.job), std::move(next.destination), std::move(next.source))"))
         return fail(28, "queued routed transfers must preserve resolved storage keys until they start");
@@ -216,14 +216,15 @@ int main() {
         return fail(30, "loaded/recovered plans must clear storage keys inherited from the previous session");
 
     const auto ask_pos = deliver_job.find("RouteDecision::Ask");
-    if (ask_pos == std::string::npos || !contains(deliver_job, "ShowNativeDecisionDialog(") ||
+    if (ask_pos == std::string::npos || !contains(deliver_job, "RequestDecisionAsync(") ||
         !contains(deliver_job, "route_preferences_") || !contains(deliver_job, "routing decision cancelled") ||
         contains(deliver_job, "route.recommended =="))
-        return fail(32, "Ask routing must use the native decision dialog and process-local preferences instead of the provisional recommendation");
-    if (!contains(auxiliary, "pszVerificationText") || !contains(auxiliary, "verification_checked") ||
-        !contains(auxiliary, "verification_checked != nullptr ? &checked : nullptr") ||
-        !contains(auxiliary, "MessageBoxW("))
-        return fail(33, "native routing decisions must support TaskDialog verification while MessageBox fallback cannot remember choices");
+        return fail(32, "Ask routing must use the per-window WinUI decision queue and process-local preferences instead of the provisional recommendation");
+    if (!contains(decision_surface, "CheckBox verification") ||
+        !contains(read_source(root / "src/ui/VelocityCopy.UI/DecisionSurface.h"), "verification_checked ? 0x100u") ||
+        std::filesystem::exists(root / "src/ui/VelocityCopy.UI/AuxiliarySurface.cpp") ||
+        contains(decision_surface, "MessageBoxW("))
+        return fail(33, "routing decisions must carry verification in the WinUI decision result; the native surface is retired");
 
     const auto run_live = body_of(execution, "velocitycopy::JobResult MainWindow::RunLivePlanSession(");
     const auto resume_conflict = body_of(conflict, "void MainWindow::ResumeConflictCopy(");
