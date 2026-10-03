@@ -162,9 +162,15 @@ jobs:
         run: |
           $payload = (Resolve-Path "artifacts/installer-payload-x64").Path
           $helper = Join-Path $payload "VelocityCopy.StartupHelper.exe"
+          $publicHelper = Join-Path $env:PUBLIC "VelocityCopy.StartupHelper.ProfileTest.exe"
+          Copy-Item -LiteralPath $helper -Destination $publicHelper -Force
           $app = Join-Path $payload "VelocityCopy.WinUI.exe"
-          pwsh -NoProfile -File tools/Test-StartupHelperProfiles.ps1 -HelperPath $helper -ApplicationPath $app
-          if ($LASTEXITCODE -ne 0) { throw "Two-profile startup registration test failed" }
+          try {
+            pwsh -NoProfile -File tools/Test-StartupHelperProfiles.ps1 -HelperPath $publicHelper -ApplicationPath $app
+            if ($LASTEXITCODE -ne 0) { throw "Two-profile startup registration test failed" }
+          } finally {
+            Remove-Item $publicHelper -Force -ErrorAction SilentlyContinue
+          }
 
       - name: Validate application PRI in payload
         shell: pwsh
