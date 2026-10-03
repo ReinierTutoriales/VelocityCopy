@@ -1,6 +1,7 @@
 #include "velocitycopy/job_executor.hpp"
 #include "velocitycopy/storage_topology.hpp"
 #include "velocitycopy/source_removal_recovery.hpp"
+#include "destination_path_guard.hpp"
 
 #include <windows.h>
 
@@ -398,15 +399,16 @@ JobResult JobExecutor::execute(
 
         const auto directory_batch = plan.pending_directories();
         for (const auto& directory : directory_batch.directories) {
+            detail::DestinationPathGuard directory_guard;
             std::error_code ec;
-            std::filesystem::create_directories(directory.destination, ec);
-            if (ec) {
-                const auto code = static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
+            if (!directory_guard.prepare_directory(directory.destination, ec)) {
+                const auto code = native_hresult(ec, ERROR_CANT_ACCESS_FILE);
                 if (is_session_fatal(code)) {
                     return finish({false, false, code});
                 }
-                // A directory that cannot be created fails only the items that
-                // depend on it; the rest of the plan continues.
+                // Planned directories use the same locked, non-reparse chain
+                // as file parents. Empty directories therefore cannot be
+                // materialized through a junction/symlink outside the target.
                 (void)plan.fail_pending_under(directory.destination, code);
             }
         }
