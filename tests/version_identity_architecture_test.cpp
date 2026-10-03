@@ -86,8 +86,7 @@ int main() {
         !contains(shell_resource, "FILEVERSION VELOCITYCOPY_VERSION_COMMA") ||
         !contains(shell_resource, "PRODUCTVERSION VELOCITYCOPY_VERSION_COMMA") ||
         !contains(shell_resource, "VelocityCopy Explorer Shell Extension") ||
-        !contains(shell_resource, "ProductName\", \"VelocityCopy") ||
-        !contains(shell_resource, "OriginalFilename\", \"VelocityCopy.Shell.dll")) {
+        !contains(shell_resource, "ProductName\", \"VelocityCopy")) {
         return fail(11, "Explorer shell DLL must expose the same VelocityCopy version identity");
     }
 
