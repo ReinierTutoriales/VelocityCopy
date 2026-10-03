@@ -172,6 +172,48 @@ jobs:
             Remove-Item $publicHelper -Force -ErrorAction SilentlyContinue
           }
 
+      - name: Exercise Authenticode pipeline with ephemeral certificate
+        if: ${{ matrix.smoke }}
+        timeout-minutes: 5
+        shell: pwsh
+        run: |
+          $payload = (Resolve-Path "artifacts/installer-payload-x64").Path
+          $fixture = Join-Path $env:RUNNER_TEMP "velocitycopy-signing-payload-fixture"
+          Remove-Item $fixture -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force $fixture | Out-Null
+          try {
+            foreach ($name in @("VelocityCopy.WinUI.exe", "VelocityCopy.Shell.dll", "VelocityCopy.StartupHelper.exe")) {
+              $copy = Join-Path $fixture $name
+              Copy-Item -LiteralPath (Join-Path $payload $name) -Destination $copy
+              pwsh -NoProfile -File tools/ci/Test-AuthenticodePipeline.ps1 -Path $copy
+            }
+          } finally {
+            Remove-Item $fixture -Recurse -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: Sign stable-tag payload
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        shell: pwsh
+        env:
+          SIGNING_PFX_BASE64: ${{ secrets.VELOCITYCOPY_SIGNING_PFX_BASE64 }}
+          SIGNING_PFX_PASSWORD: ${{ secrets.VELOCITYCOPY_SIGNING_PFX_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:SIGNING_PFX_BASE64) -or
+              [string]::IsNullOrWhiteSpace($env:SIGNING_PFX_PASSWORD)) {
+            throw "Stable tags require VELOCITYCOPY_SIGNING_PFX_BASE64 and VELOCITYCOPY_SIGNING_PFX_PASSWORD"
+          }
+          $pfx = Join-Path $env:RUNNER_TEMP "velocitycopy-stable-signing.pfx"
+          try {
+            [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:SIGNING_PFX_BASE64))
+            $payload = (Resolve-Path "artifacts/installer-payload-${{ matrix.arch }}").Path
+            foreach ($name in @("VelocityCopy.WinUI.exe", "VelocityCopy.Shell.dll", "VelocityCopy.StartupHelper.exe")) {
+              $binary = Join-Path $payload $name
+              pwsh -NoProfile -File tools/ci/Sign-VelocityCopyBinary.ps1 -Path $binary -PfxPath $pfx -PfxPassword $env:SIGNING_PFX_PASSWORD
+            }
+          } finally {
+            Remove-Item $pfx -Force -ErrorAction SilentlyContinue
+          }
+
       - name: Validate application PRI in payload
         shell: pwsh
         run: |
@@ -250,6 +292,40 @@ jobs:
           $output = Join-Path (Resolve-Path artifacts/installer).Path "${{ matrix.setup_name }}"
           & $env:NSIS_MAKENSIS "/DPAYLOAD_DIR=$payload" "/DOUTPUT_FILE=$output" "/DDISPLAY_VERSION=$env:VELOCITYCOPY_VERSION" "/DPAYLOAD_ARCH=${{ matrix.platform }}" tools/VelocityCopy-Test-Installer.nsi
           if ($LASTEXITCODE -ne 0 -or -not (Test-Path $output)) { throw "Classic ${{ matrix.arch }} installer build failed" }
+
+      - name: Exercise installer Authenticode with ephemeral certificate
+        if: ${{ matrix.smoke }}
+        timeout-minutes: 3
+        shell: pwsh
+        run: |
+          $setup = (Resolve-Path "artifacts/installer/${{ matrix.setup_name }}").Path
+          $fixture = Join-Path $env:RUNNER_TEMP "VelocityCopy-Setup-SigningFixture.exe"
+          Copy-Item -LiteralPath $setup -Destination $fixture -Force
+          try {
+            pwsh -NoProfile -File tools/ci/Test-AuthenticodePipeline.ps1 -Path $fixture
+          } finally {
+            Remove-Item $fixture -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: Sign stable-tag installer
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        shell: pwsh
+        env:
+          SIGNING_PFX_BASE64: ${{ secrets.VELOCITYCOPY_SIGNING_PFX_BASE64 }}
+          SIGNING_PFX_PASSWORD: ${{ secrets.VELOCITYCOPY_SIGNING_PFX_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:SIGNING_PFX_BASE64) -or
+              [string]::IsNullOrWhiteSpace($env:SIGNING_PFX_PASSWORD)) {
+            throw "Stable tags require Authenticode signing secrets"
+          }
+          $pfx = Join-Path $env:RUNNER_TEMP "velocitycopy-stable-signing.pfx"
+          $setup = (Resolve-Path "artifacts/installer/${{ matrix.setup_name }}").Path
+          try {
+            [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:SIGNING_PFX_BASE64))
+            pwsh -NoProfile -File tools/ci/Sign-VelocityCopyBinary.ps1 -Path $setup -PfxPath $pfx -PfxPassword $env:SIGNING_PFX_PASSWORD
+          } finally {
+            Remove-Item $pfx -Force -ErrorAction SilentlyContinue
+          }
 
       - name: Smoke upgrade from v1.0.0 with write-locked shell DLL
         if: ${{ matrix.smoke }}
