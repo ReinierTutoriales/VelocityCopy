@@ -7,7 +7,7 @@
 std::string read(const std::filesystem::path& p){std::ifstream in(p,std::ios::binary);return {std::istreambuf_iterator<char>(in),{}};}
 int main(){
  const auto ui=std::filesystem::path{VELOCITYCOPY_SOURCE_DIR}/"src/ui/VelocityCopy.UI";
- const auto tray=read(ui/"AppTray.cpp"), tray_h=read(ui/"AppTray.h"), main=read(ui/"MainWindow.Tray.cpp"), app=read(ui/"App.xaml.h"), app_cpp=read(ui/"App.xaml.cpp"), window_cpp=read(ui/"MainWindow.xaml.cpp"), conflict=read(ui/"MainWindow.Conflict.cpp"), append=read(ui/"MainWindow.CopyAppend.cpp"), about=read(ui/"MainWindow.About.cpp"), window_h=read(ui/"MainWindow.xaml.h");
+ const auto tray=read(ui/"AppTray.cpp"), tray_h=read(ui/"AppTray.h"), main=read(ui/"MainWindow.Tray.cpp"), app=read(ui/"App.xaml.h"), app_cpp=read(ui/"App.xaml.cpp"), window_cpp=read(ui/"MainWindow.xaml.cpp"), conflict=read(ui/"MainWindow.Conflict.cpp"), append=read(ui/"MainWindow.CopyAppend.cpp"), about=read(ui/"MainWindow.About.cpp"), window_h=read(ui/"MainWindow.xaml.h"), activation=read(std::filesystem::path{VELOCITYCOPY_SOURCE_DIR}/"src/core/process_activation.cpp");
  if(tray.find("Shell_NotifyIconW")==std::string::npos || tray.find("WS_EX_TOOLWINDOW")==std::string::npos) return 1;
  if(tray.find("HWND_MESSAGE")!=std::string::npos) return 4;
  if(tray.find("CreatePopupMenu") == std::string::npos ||
@@ -46,6 +46,12 @@ int main(){
  // explicit tray operation, not a constructor side effect.
  if(window_cpp.find("app_window.IsShownInSwitchers(false)") != std::string::npos) return 16;
  if(main.find("AppWindow().IsShownInSwitchers(true)") == std::string::npos) return 17;
+
+ // Explorer starts a new transfer window as a normal visible window. The shell
+ // activation launcher must explicitly reject inherited/minimized presentation state.
+ if(activation.find("startup.StartupInfo.dwFlags = STARTF_USESHOWWINDOW") == std::string::npos ||
+    activation.find("startup.StartupInfo.wShowWindow = SW_SHOWNORMAL") == std::string::npos) return 38;
+
 
  // Tray activation can be re-entrant while WinUI constructs/registers the first window.
  // A physical click may yield multiple notification codes, so every tray/menu open must

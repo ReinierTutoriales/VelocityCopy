@@ -25,8 +25,8 @@ function Test-IsAdministrator {
 function Get-NativeSetupName {
     $osArchitecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
     switch ($osArchitecture) {
-        "X64" { return "VelocityCopy-Setup-x64.exe" }
-        "Arm64" { return "VelocityCopy-Setup-ARM64.exe" }
+        "X64" { return "RepartoCopier-Setup-x64.exe" }
+        "Arm64" { return "RepartoCopier-Setup-ARM64.exe" }
         default { throw "Unsupported Windows architecture: $osArchitecture" }
     }
 }

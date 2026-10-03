@@ -156,7 +156,7 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
     }
 
     hstring title = L"Resume interrupted transfer?";
-    hstring message = L"VelocityCopy found work saved during Windows shutdown. Nothing will resume until you choose Resume.";
+    hstring message = L"RepartoCopier found work saved during Windows shutdown. Nothing will resume until you choose Resume.";
     hstring resume = L"Resume";
     hstring discard = L"Discard";
     try {

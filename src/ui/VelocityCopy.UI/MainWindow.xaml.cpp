@@ -37,6 +37,22 @@ bool accepts_active_transfer_drop(
 MainWindow::MainWindow() {
     if (auto* app = App::Instance()) window_id_ = app->NextWindowId();
     InitializeComponent();
+    // External Explorer drops must reach the window even when a child control
+    // (notably ListView during its own reorder gesture) class-handles the
+    // routed drag event. QueueList keeps AllowDrop/CanReorderItems for its
+    // independent internal reorder path.
+    RootGrid().AddHandler(
+        UIElement::DragEnterEvent(),
+        box_value(DragEventHandler{this, &MainWindow::OnDragEnter}),
+        true);
+    RootGrid().AddHandler(
+        UIElement::DragOverEvent(),
+        box_value(DragEventHandler{this, &MainWindow::OnDragOver}),
+        true);
+    RootGrid().AddHandler(
+        UIElement::DropEvent(),
+        box_value(DragEventHandler{this, &MainWindow::OnDrop}),
+        true);
     dispatcher_ = Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
     ErrorBar().Closed([weak = get_weak()](InfoBar const&, InfoBarClosedEventArgs const&) {
         if (auto self = weak.get()) self->ResizeWindowToContent();
@@ -266,6 +282,7 @@ void MainWindow::OnDrop(IInspectable const&, DragEventArgs const& args) {
     }
 
     args.AcceptedOperation(DataPackageOperation::Copy);
+    args.Handled(true);
     HandleDropAsync(args);
 }
 

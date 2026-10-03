@@ -19,13 +19,13 @@ SetCompressor /SOLID lzma
   !error "PAYLOAD_ARCH is required"
 !endif
 
-Name "VelocityCopy"
+Name "RepartoCopier"
 OutFile "${OUTPUT_FILE}"
 InstallDir "$PROGRAMFILES64\VelocityCopy"
-BrandingText "VelocityCopy"
+BrandingText "RepartoCopier"
 VIProductVersion "${DISPLAY_VERSION}"
-VIAddVersionKey "ProductName" "VelocityCopy"
-VIAddVersionKey "FileDescription" "VelocityCopy Installer"
+VIAddVersionKey "ProductName" "RepartoCopier"
+VIAddVersionKey "FileDescription" "RepartoCopier Installer"
 VIAddVersionKey "CompanyName" "ReinierTutoriales"
 VIAddVersionKey "FileVersion" "${DISPLAY_VERSION}"
 VIAddVersionKey "ProductVersion" "${DISPLAY_VERSION}"
@@ -53,18 +53,18 @@ Function .onInit
   System::Call "kernel32::IsWow64Process2(pr0,*i.r1,*i.r2)i.r3"
 !if "${PAYLOAD_ARCH}" == "x64"
   ${IfNot} ${RunningX64}
-    MessageBox MB_ICONSTOP "VelocityCopy requires 64-bit Windows."
+    MessageBox MB_ICONSTOP "RepartoCopier requires 64-bit Windows."
     Abort
   ${EndIf}
   ${If} $3 <> 0
   ${AndIf} $2 = 43620
-    MessageBox MB_ICONSTOP "This installer is for x64 Windows. Use VelocityCopy-Setup-ARM64.exe."
+    MessageBox MB_ICONSTOP "This installer is for x64 Windows. Use RepartoCopier-Setup-ARM64.exe."
     Abort
   ${EndIf}
 !else if "${PAYLOAD_ARCH}" == "ARM64"
   ${If} $3 = 0
   ${OrIf} $2 <> 43620
-    MessageBox MB_ICONSTOP "This installer is for Windows on ARM. Use VelocityCopy-Setup-x64.exe."
+    MessageBox MB_ICONSTOP "This installer is for Windows on ARM. Use RepartoCopier-Setup-x64.exe."
     Abort
   ${EndIf}
 !else
@@ -74,7 +74,7 @@ FunctionEnd
 
 ; The installer runs elevated. Exec/ExecShell would inherit that token, so ask
 ; explorer.exe to launch the app: it hands the request to the existing
-; unelevated shell, which starts VelocityCopy with the user's normal token.
+; unelevated shell, which starts RepartoCopier with the user's normal token.
 Function LaunchVelocityCopyAsUser
   Exec '"$WINDIR\explorer.exe" "$INSTDIR\VelocityCopy.WinUI.exe"'
 FunctionEnd
@@ -93,27 +93,34 @@ FunctionEnd
   DeleteRegKey HKLM "Software\Classes\CLSID\{A6209C12-10B0-4D25-8BF3-2D3C3E6A7B11}"
 !macroend
 
-; VelocityCopy deliberately treats WM_CLOSE as hide-to-tray, so an upgrade or
-; uninstall cannot rely on a polite window close. Stop the resident process
+; Active transfer windows treat WM_CLOSE as cancel-and-retire, while idle windows
+; can close independently of the resident tray process. An upgrade or uninstall therefore
+; cannot rely on a polite window close to terminate the process. Stop the resident process
 ; before touching installed binaries. taskkill is part of Windows and nsExec is
 ; bundled with NSIS; a non-zero result is harmless when no process is running.
 !macro CloseRunningApp
-  DetailPrint "Closing VelocityCopy if it is running..."
+  DetailPrint "Closing RepartoCopier if it is running..."
   nsExec::ExecToLog '"$SYSDIR\taskkill.exe" /IM VelocityCopy.WinUI.exe /F'
   Sleep 500
 !macroend
 
-Section "Install VelocityCopy" SEC_INSTALL
+Section "Install RepartoCopier" SEC_INSTALL
   SetRegView 64
   !insertmacro CloseRunningApp
   SetOutPath "$INSTDIR"
   File /r "${PAYLOAD_DIR}\*.*"
 
-  CreateDirectory "$SMPROGRAMS\VelocityCopy"
-  CreateShortcut "$SMPROGRAMS\VelocityCopy\VelocityCopy.lnk" "$INSTDIR\VelocityCopy.WinUI.exe" "" "$INSTDIR\VelocityCopy.WinUI.exe" 0
+  ; Keep the technical install path/executable stable for upgrades, but expose
+  ; the public product name in the Start menu. Remove the legacy shortcut first.
+  Delete "$SMPROGRAMS\RepartoCopier\RepartoCopier.lnk"
+  RMDir "$SMPROGRAMS\RepartoCopier"
+  Delete "$SMPROGRAMS\VelocityCopy\VelocityCopy.lnk"
+  RMDir "$SMPROGRAMS\VelocityCopy"
+  CreateDirectory "$SMPROGRAMS\RepartoCopier"
+  CreateShortcut "$SMPROGRAMS\RepartoCopier\RepartoCopier.lnk" "$INSTDIR\VelocityCopy.WinUI.exe" "" "$INSTDIR\VelocityCopy.WinUI.exe" 0
 
   WriteUninstaller "$INSTDIR\Uninstall.exe"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "DisplayName" "VelocityCopy"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "DisplayName" "RepartoCopier"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "Publisher" "ReinierTutoriales"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "UninstallString" '"$INSTDIR\Uninstall.exe"'
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "DisplayVersion" "${DISPLAY_VERSION}"
@@ -129,7 +136,7 @@ Section "Install VelocityCopy" SEC_INSTALL
   WriteRegStr HKLM "Software\Classes\Directory\shellex\DragDropHandlers\VelocityCopy" "" "{6BD80C35-7CE8-4A63-92D4-51AF4DACB821}"
   WriteRegStr HKLM "Software\Classes\Drive\shellex\DragDropHandlers\VelocityCopy" "" "{6BD80C35-7CE8-4A63-92D4-51AF4DACB821}"
   WriteRegStr HKLM "Software\Classes\Folder\shellex\DragDropHandlers\VelocityCopy" "" "{6BD80C35-7CE8-4A63-92D4-51AF4DACB821}"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved" "{6BD80C35-7CE8-4A63-92D4-51AF4DACB821}" "VelocityCopy transfer handler"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved" "{6BD80C35-7CE8-4A63-92D4-51AF4DACB821}" "RepartoCopier transfer handler"
   ; Notify associations. A loaded old COM DLL may still require sign-out before upgrade.
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
   WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "NoModify" 1
@@ -139,6 +146,8 @@ SectionEnd
 Section "Uninstall"
   SetRegView 64
   !insertmacro CloseRunningApp
+  Delete "$SMPROGRAMS\RepartoCopier\RepartoCopier.lnk"
+  RMDir "$SMPROGRAMS\RepartoCopier"
   Delete "$SMPROGRAMS\VelocityCopy\VelocityCopy.lnk"
   RMDir "$SMPROGRAMS\VelocityCopy"
   DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "VelocityCopy"

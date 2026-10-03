@@ -13,6 +13,59 @@
 using namespace std::chrono_literals;
 
 namespace {
+bool send_times_out_when_server_stops_reading() {
+    const auto name = velocitycopy::shell_pipe_name();
+    if (name.empty()) return false;
+
+    HANDLE pipe = CreateNamedPipeW(
+        name.c_str(),
+        PIPE_ACCESS_INBOUND,
+        PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS,
+        1,
+        1024,
+        1024,
+        0,
+        nullptr);
+    if (pipe == INVALID_HANDLE_VALUE) return false;
+
+    std::atomic_bool release{false};
+    std::atomic_bool connected{false};
+    std::jthread server([&] {
+        const BOOL ok = ConnectNamedPipe(pipe, nullptr)
+            ? TRUE
+            : (GetLastError() == ERROR_PIPE_CONNECTED);
+        connected.store(ok != FALSE, std::memory_order_release);
+        while (!release.load(std::memory_order_acquire)) {
+            std::this_thread::sleep_for(1ms);
+        }
+    });
+
+    velocitycopy::ShellRequest large{};
+    large.action = velocitycopy::ShellAction::Transfer;
+    large.operation = velocitycopy::FileOperation::Copy;
+    large.layout = velocitycopy::DestinationLayout::PreserveSourceFolder;
+    large.destination = L"C:\\Destination";
+    const std::wstring padding(30000, L'x');
+    for (int index = 0; index < 200; ++index) {
+        large.sources.emplace_back(
+            L"C:\\" + padding + L"\\file-" + std::to_wstring(index));
+    }
+
+    const auto start = std::chrono::steady_clock::now();
+    const bool sent = velocitycopy::send_shell_request(large, 100);
+    const auto elapsed = std::chrono::steady_clock::now() - start;
+
+    release.store(true, std::memory_order_release);
+    CancelSynchronousIo(static_cast<HANDLE>(server.native_handle()));
+    server.join();
+    DisconnectNamedPipe(pipe);
+    CloseHandle(pipe);
+
+    return !sent &&
+        connected.load(std::memory_order_acquire) &&
+        elapsed < 2s;
+}
+
 bool send_malformed_message() {
     const auto name = velocitycopy::shell_pipe_name();
     if (name.empty() || !WaitNamedPipeW(name.c_str(), 2000)) return false;
@@ -56,6 +109,7 @@ int wmain() {
     SingleInstance second;
     if (!first.valid() || !first.primary() || !second.valid() || second.primary()) return 4;
 
+    {
     ShellIpcServer server;
     if (!server.valid()) return 5;
 
@@ -98,6 +152,12 @@ int wmain() {
     server.stop();
     stop_receiver.join();
     if (!server.stopping() || !stop_receiver_returned.load(std::memory_order_acquire) || stop_result) return 13;
+    }
+
+    // A shell extension runs in Explorer's process. A resident VelocityCopy
+    // instance that accepts the pipe connection but stops reading must not be
+    // able to block Explorer indefinitely.
+    if (!send_times_out_when_server_stops_reading()) return 14;
 
     std::wcout << L"VelocityCopy IPC test passed.\n";
     return 0;

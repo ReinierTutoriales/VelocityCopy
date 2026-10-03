@@ -74,8 +74,11 @@ int main() {
         !contains(resource, "FILEVERSION VELOCITYCOPY_VERSION_COMMA") ||
         !contains(resource, "PRODUCTVERSION VELOCITYCOPY_VERSION_COMMA") ||
         !contains(resource, "CompanyName") || !contains(resource, "FileDescription") ||
-        !contains(resource, "FileVersion") || !contains(resource, "ProductVersion")) {
-        return fail(4, "WinUI executable must embed a complete VERSIONINFO resource");
+        !contains(resource, "FileVersion") || !contains(resource, "ProductVersion") ||
+        !contains(resource, "ProductName\", \"RepartoCopier") ||
+        !contains(en, "name=\"AppDisplayName\"") || !contains(en, "<value>RepartoCopier</value>") ||
+        !contains(es, "name=\"AppDisplayName\"") || !contains(es, "<value>RepartoCopier</value>")) {
+        return fail(4, "WinUI executable and localized UI must expose the RepartoCopier product identity");
     }
 
     if (!contains(project, "ClInclude Include=\"Version.h\"") ||

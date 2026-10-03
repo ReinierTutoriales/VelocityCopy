@@ -115,7 +115,7 @@ void MainWindow::ShowAboutDialog() noexcept {
             return;
         }
 
-        const auto title = resource_or(L"AboutTitle", L"VelocityCopy");
+        const auto title = resource_or(L"AboutTitle", L"RepartoCopier");
         const auto tagline = resource_or(L"AboutTagline",
             L"Fast, focused file transfers for Windows 11.");
         const auto version_format = resource_or(L"AboutVersionFormat", L"Version {0}");
@@ -150,7 +150,7 @@ void MainWindow::ShowAboutDialog() noexcept {
         title_identity.Children().Append(title_logo);
 
         TextBlock title_text;
-        title_text.Text(L"VelocityCopy");
+        title_text.Text(L"RepartoCopier");
         title_text.FontSize(velocitycopy::ui::token_double(L"CaptionFontSize", 12));
         title_text.FontWeight(Windows::UI::Text::FontWeights::SemiBold());
         title_text.VerticalAlignment(VerticalAlignment::Center);
@@ -293,10 +293,10 @@ void MainWindow::ShowAboutDialog() noexcept {
     try {
         const auto version = executable_version();
         const auto message = std::format(
-            L"VelocityCopy {}\nReinierTutoriales · MIT License\n{}",
+            L"RepartoCopier {}\nReinierTutoriales · MIT License\n{}",
             version,
             kRepositoryUrl);
-        MessageBoxW(nullptr, message.c_str(), L"VelocityCopy", MB_OK | MB_ICONINFORMATION);
+        MessageBoxW(nullptr, message.c_str(), L"RepartoCopier", MB_OK | MB_ICONINFORMATION);
     } catch (...) {
     }
 }

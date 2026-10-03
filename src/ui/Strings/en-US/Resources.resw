@@ -4,7 +4,7 @@
   <resheader name="version"><value>2.0</value></resheader>
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
-  <data name="AppDisplayName" xml:space="preserve"><value>VelocityCopy</value></data>
+  <data name="AppDisplayName" xml:space="preserve"><value>RepartoCopier</value></data>
   <data name="StatusPreparing" xml:space="preserve"><value>Preparing copy…</value></data>
   <data name="StatusCopying" xml:space="preserve"><value>Copying</value></data>
   <data name="StatusPaused" xml:space="preserve"><value>Paused</value></data>
@@ -41,8 +41,8 @@
   <data name="ActionLoadQueue" xml:space="preserve"><value>Load queue</value></data>
   <data name="ActionQueueOptions" xml:space="preserve"><value>Options</value></data>
   <data name="ActionHideToTray" xml:space="preserve"><value>Hide to tray</value></data>
-  <data name="ActionAbout" xml:space="preserve"><value>About VelocityCopy</value></data>
-  <data name="AboutTitle" xml:space="preserve"><value>About VelocityCopy</value></data>
+  <data name="ActionAbout" xml:space="preserve"><value>About RepartoCopier</value></data>
+  <data name="AboutTitle" xml:space="preserve"><value>About RepartoCopier</value></data>
   <data name="AboutTagline" xml:space="preserve"><value>Fast, focused file transfers for Windows 11.</value></data>
   <data name="AboutVersionFormat" xml:space="preserve"><value>Version {0}</value></data>
   <data name="AboutPublisher" xml:space="preserve"><value>ReinierTutoriales</value></data>
@@ -50,10 +50,10 @@
   <data name="AboutRepositoryLabel" xml:space="preserve"><value>View project on GitHub</value></data>
   <data name="ActionShowQueue" xml:space="preserve"><value>Show queue</value></data>
   <data name="ActionHideQueue" xml:space="preserve"><value>Hide queue</value></data>
-  <data name="TrayOpen" xml:space="preserve"><value>Open VelocityCopy</value></data>
+  <data name="TrayOpen" xml:space="preserve"><value>Open RepartoCopier</value></data>
   <data name="TrayExit" xml:space="preserve"><value>Exit</value></data>
   <data name="RecoveryTitle" xml:space="preserve"><value>Resume interrupted transfer?</value></data>
-  <data name="RecoveryMessage" xml:space="preserve"><value>VelocityCopy found work saved during Windows shutdown. Nothing will resume until you choose Resume.</value></data>
+  <data name="RecoveryMessage" xml:space="preserve"><value>RepartoCopier found work saved during Windows shutdown. Nothing will resume until you choose Resume.</value></data>
   <data name="RecoveryResume" xml:space="preserve"><value>Resume</value></data>
   <data name="RecoveryDiscard" xml:space="preserve"><value>Discard</value></data>
   <data name="RecoveryRestoreError" xml:space="preserve"><value>The saved recovery could not be restored. You can try again or discard it.</value></data>
