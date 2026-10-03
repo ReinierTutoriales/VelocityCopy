@@ -14,6 +14,17 @@
 namespace velocitycopy {
 namespace {
 
+constexpr std::size_t kMaxPlannedEntries = 250'000;
+
+void ensure_plan_capacity(const CopyPlan& plan, const std::filesystem::path& path) {
+    if (plan.directories.size() + plan.files.size() >= kMaxPlannedEntries) {
+        throw std::filesystem::filesystem_error(
+            "Copy plan exceeds the supported entry limit",
+            path,
+            std::make_error_code(std::errc::value_too_large));
+    }
+}
+
 std::filesystem::path destination_root_for(
     const std::filesystem::path& source,
     const std::filesystem::path& destination,
@@ -349,6 +360,7 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
             if (ec) {
                 throw std::filesystem::filesystem_error("Unable to read file size", source, ec);
             }
+            ensure_plan_capacity(plan, source);
             outputs.add_file(root);
             PlannedFile file{next_file_id++, source, root, size};
             account_file(plan, file);
@@ -360,6 +372,7 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
             throw_unsupported(source);
         }
 
+        ensure_plan_capacity(plan, source);
         outputs.add_directory(root);
         plan.directories.push_back({root});
 
@@ -394,6 +407,7 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
             validate_source_reparse_semantics(entry.path());
 
             if (std::filesystem::is_directory(entry_status)) {
+                ensure_plan_capacity(plan, entry.path());
                 outputs.add_directory(target);
                 plan.directories.push_back({target});
                 continue;
@@ -405,6 +419,7 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
                 if (ec) {
                     throw std::filesystem::filesystem_error("Unable to read file size", entry.path(), ec);
                 }
+                ensure_plan_capacity(plan, entry.path());
                 outputs.add_file(target);
                 PlannedFile file{next_file_id++, entry.path(), target, size};
                 account_file(plan, file);
