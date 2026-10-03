@@ -635,6 +635,13 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
                 : reason + L" — " + hstring(result.conflict_source.wstring());
         }
         ShowError(reason);
+        try {
+            velocitycopy::log_diagnostic(std::format(
+                L"transfer: session failed native=0x{:08X} operation={} destination=\"{}\" unresolved={}",
+                static_cast<std::uint32_t>(result.native_code),
+                active_operation_ == velocitycopy::FileOperation::Move ? L"move" : L"copy",
+                active_destination_.wstring(), live_plan_ ? live_plan_->unresolved_files() : 0));
+        } catch (...) {}
         if (!queued_sessions_.empty()) {
             std::wstring diagnostic = L"transfer: failed session yielded to queued session";
             if (!reason.empty()) {

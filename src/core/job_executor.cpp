@@ -1,10 +1,13 @@
 #include "velocitycopy/job_executor.hpp"
+#include "velocitycopy/diagnostics.hpp"
 #include "velocitycopy/storage_topology.hpp"
 #include "velocitycopy/source_removal_recovery.hpp"
 
 #include <windows.h>
 
 #include <algorithm>
+#include <format>
+#include <source_location>
 #include <limits>
 #include <iterator>
 #include <mutex>
@@ -318,10 +321,21 @@ JobResult JobExecutor::execute(
     const JobExecutionOptions& options,
     const JobProgressCallback& progress) const noexcept {
     try {
-        auto finish = [&plan](JobResult result) noexcept {
+        auto finish = [&plan](JobResult result,
+                              const std::source_location site = std::source_location::current()) noexcept {
             const auto view = plan.resolution_view();
             result.outcomes = view.outcomes;
             result.parked_files = view.parked_files;
+            // Every session-level failure leaves one log line naming the exact
+            // return site, so a path-less error in the UI is still traceable.
+            if (!result.success && !result.cancelled && !result.stopped) {
+                try {
+                    log_diagnostic(std::format(
+                        L"executor: session failure native=0x{:08X} at job_executor.cpp:{} file_id={} source=\"{}\"",
+                        static_cast<std::uint32_t>(result.native_code),
+                        site.line(), result.conflict_file_id, result.conflict_source.wstring()));
+                } catch (...) {}
+            }
             return result;
         };
 
