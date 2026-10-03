@@ -26,7 +26,7 @@ Manual testing starts with the classic x64 installer `RepartoCopier-Setup-x64.ex
 
 The setup requests elevation through UAC and copies the self-contained WinUI payload, including `VelocityCopy.WinUI.exe` and `VelocityCopy.Shell.dll`, into Program Files. Testers do not run PowerShell, certificates, MSIX files or framework packages manually.
 
-The installer and uninstaller must force-close the resident `VelocityCopy.WinUI.exe` before replacing or removing installed files. A normal `WM_CLOSE` is insufficient because VelocityCopy intentionally hides to tray. The package smoke gate must launch the app in `--startup` mode before uninstall and must fail if the process remains alive or `$ProgramFiles\VelocityCopy` still exists afterward.
+The installer and uninstaller must force-close the resident `VelocityCopy.WinUI.exe` before replacing or removing installed files. A normal `WM_CLOSE` is insufficient to guarantee process termination because the resident tray process may outlive individual windows. The package smoke gate must launch the app in `--startup` mode before uninstall and must fail if the process remains alive or `$ProgramFiles\VelocityCopy` still exists afterward.
 
 ### Shutdown recovery prompt
 
@@ -36,13 +36,13 @@ VelocityCopy discovers `VelocityCopy.Recovery.vcq`, validates the saved work, an
 
 ### Installation and shell registration
 
-- Double-click `VelocityCopy-Setup-x64.exe` and accept the UAC prompt.
+- Double-click `RepartoCopier-Setup-x64.exe` and accept the UAC prompt.
 - Confirm RepartoCopier 2.1.2 appears in installed apps.
 - Launch once and confirm the tray icon appears.
 - Confirm Explorer transfer handling is registered for Directory/Drive/Folder drag-drop targets.
 - Restart Explorer and confirm the tray icon re-registers.
 - Re-run the installer while VelocityCopy is resident and confirm the installed files are replaced cleanly.
-- Uninstall VelocityCopy from Windows Installed apps while it is resident in the tray.
+- Uninstall RepartoCopier from Windows Installed apps while it is resident in the tray.
 - Confirm the VelocityCopy process is gone, shell registration is removed, and `C:\Program Files\VelocityCopy` no longer exists.
 
 ### Resident startup and tray
