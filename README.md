@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="Logo/VelocityCopy.png" alt="VelocityCopy" width="170" />
+<img src="src/ui/VelocityCopy.UI/Assets/VelocityCopy.ico" alt="VelocityCopy" width="170" />
 
 # VelocityCopy
 
