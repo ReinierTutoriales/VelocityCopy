@@ -247,12 +247,12 @@ jobs:
 
           $holderScript = Join-Path $env:RUNNER_TEMP "hold-velocitycopy-shell.ps1"
           @(
-            '$member = ''[DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] public static extern IntPtr LoadLibraryW(string path);'''
+            '$member = ''[DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] public static extern IntPtr LoadLibraryExW(string path, IntPtr file, uint flags);'''
             'Add-Type -Namespace VelocityCopyNative -Name ShellHolder -MemberDefinition $member'
-            '$handle = [VelocityCopyNative.ShellHolder]::LoadLibraryW($args[0])'
+            '$handle = [VelocityCopyNative.ShellHolder]::LoadLibraryExW($args[0], [IntPtr]::Zero, 0x00000008)'
             'if ($handle -eq [IntPtr]::Zero) {'
             '  $error = [Runtime.InteropServices.Marshal]::GetLastWin32Error()'
-            '  Write-Error "LoadLibraryW failed for $($args[0]) with Win32 error $error"'
+            '  Write-Error "LoadLibraryExW failed for $($args[0]) with Win32 error $error"'
             '  exit 41'
             '}'
             'Start-Sleep -Seconds 180'
