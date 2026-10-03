@@ -8,7 +8,7 @@ These gates define the 1.1.0 stable release pipeline and must remain aligned wit
 - Windows Package runs on pull requests, every main commit, `v*` tags and `workflow_dispatch`; commit CI stays free of packaging while package validation remains a separate workflow.
 - x64 and ARM64 classic installers are built with payload verification, including PE-machine checks for both `VelocityCopy.WinUI.exe` and `VelocityCopy.Shell.dll`; smoke install/uninstall runs on x64.
 - A stable tag is cut only from a main commit whose CI and Package runs are green.
-- Package CI exercises the Authenticode implementation on disposable copies with an ephemeral trusted code-signing certificate; the test certificate is removed afterward and is never packaged.
+- Package CI exercises deterministic Authenticode signing and verification on disposable copies with an ephemeral trusted code-signing certificate; this PR gate does not depend on external timestamp services. The test certificate is removed afterward and is never packaged.
 - Stable `v*` tag packaging requires valid Authenticode signatures and RFC3161 timestamps on `VelocityCopy.WinUI.exe`, `VelocityCopy.Shell.dll`, `VelocityCopy.StartupHelper.exe` and both installers. Tag jobs fail closed when signing secrets are absent or verification fails.
 
 ## Required real-Windows sign-off
