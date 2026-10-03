@@ -39,11 +39,13 @@ int main() {
     const auto package_workflow = read_all(root / ".github/workflows/package.yml");
     const auto installer_exe = read_all(root / "tools/VelocityCopy-Test-Installer.nsi");
     const auto installer_smoke = read_all(root / "tools/Install-VelocityCopy-Test.ps1");
+    const auto startup_helper = read_all(root / "tools/Set-InteractiveUserStartup.ps1");
     const auto docs = read_all(root / "docs/SYSTEM_INTEGRATION.md");
 
     if (app.empty() || shell.empty() || ipc.empty() ||
         window.empty() || tray.empty() || app_tray.empty() || persistence.empty() || recovery.empty() || conflict.empty() ||
-        ci_workflow.empty() || package_workflow.empty() || installer_exe.empty() || installer_smoke.empty() || docs.empty()) {
+        ci_workflow.empty() || package_workflow.empty() || installer_exe.empty() || installer_smoke.empty() ||
+        startup_helper.empty() || docs.empty()) {
         return fail(1, "required integration source missing");
     }
 
@@ -132,8 +134,12 @@ int main() {
         !contains(installer_exe, "/IM VelocityCopy.WinUI.exe /F") ||
         !contains(installer_smoke, "Launching VelocityCopy in startup/tray mode before uninstall smoke test") ||
         !contains(installer_smoke, "the install directory still exists") ||
+        !contains(installer_exe, "ConfigureInteractiveStartup") ||
+        contains(installer_exe, "WriteRegStr HKCU \"Software\\Microsoft\\Windows\\CurrentVersion\\Run\"") ||
+        !contains(startup_helper, "Get-InteractiveUserSid") ||
+        !contains(startup_helper, "RegistryHive]::Users") ||
         contains(installer_exe, "Add-AppxPackage")) {
-        return fail(10, "classic install/uninstall must stop the resident app and prove Program Files cleanup");
+        return fail(10, "classic install/uninstall must stop the resident app, target startup to the interactive user, and prove cleanup");
     }
 
     if (contains(app, "\\nbool is_startup_activation")) {
