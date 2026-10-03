@@ -21,8 +21,7 @@ inline std::int32_t inspect_path_without_following(
     const std::filesystem::path& path,
     const bool require_directory,
     HANDLE* retained_handle = nullptr) noexcept {
-    const DWORD flags = FILE_FLAG_OPEN_REPARSE_POINT |
-        (require_directory ? FILE_FLAG_BACKUP_SEMANTICS : 0);
+    const DWORD flags = FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS;
     const HANDLE handle = CreateFileW(
         path.c_str(),
         FILE_READ_ATTRIBUTES,
@@ -65,17 +64,12 @@ inline std::int32_t source_is_safe_to_follow(
 
 inline std::int32_t destination_leaf_is_safe(
     const std::filesystem::path& destination) noexcept {
-    const DWORD attributes = GetFileAttributesW(destination.c_str());
-    if (attributes == INVALID_FILE_ATTRIBUTES) {
-        const auto error = GetLastError();
-        if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND) {
-            return S_OK;
-        }
-        return win32_hr(error);
+    const auto result = inspect_path_without_following(destination, false);
+    if (result == win32_hr(ERROR_FILE_NOT_FOUND) ||
+        result == win32_hr(ERROR_PATH_NOT_FOUND)) {
+        return S_OK;
     }
-    return inspect_path_without_following(
-        destination,
-        (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0);
+    return result;
 }
 
 class DestinationDirectoryGuard final {
