@@ -59,7 +59,7 @@ Explorer/Shell integration delivers a resolved `CopyJob` to the UI process. The 
 
 - No `ShellFlowFlyout`, destination browser, preserve/direct layout choice, or Start button is part of the runtime transfer path.
 - No dormant destination/layout chooser should remain in `MainWindow.xaml` waiting for a future trigger.
-- Shell integration and drag/drop converge at `QueueOrStartCopy`, not at a chooser flow.
+- Shell integration and drag/drop converge on the direct transfer-routing path (`DeliverConvertedJob` / `StartTransfer` / `AppendTransfer`), not at a chooser flow.
 - An accepted transfer must become visible immediately in the compact UI even while planning/enumeration is still running.
 
 ## Queue panel
