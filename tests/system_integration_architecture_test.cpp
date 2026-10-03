@@ -104,8 +104,8 @@ int main() {
     if (!contains(package_workflow, "workflow_dispatch:") ||
         !contains(package_workflow, "branches: [main]") ||
         !contains(package_workflow, "WindowsAppSDKSelfContained=true") ||
-        !contains(package_workflow, "RepartoCopier-Setup-x64.exe") ||
-        !contains(package_workflow, "RepartoCopier-Setup-ARM64.exe") ||
+        !contains(package_workflow, "VelocityCopy-Setup-x64.exe") ||
+        !contains(package_workflow, "VelocityCopy-Setup-ARM64.exe") ||
         !contains(package_workflow, "PAYLOAD_ARCH") ||
         !contains(package_workflow, "nsis-3.11.zip") ||
         !contains(package_workflow, "Smoke install classic x64 installer") ||
