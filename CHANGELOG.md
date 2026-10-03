@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1.0 — 2026-10-03
+## 1.1.0 — Unreleased
 
 VelocityCopy stabilization release.
 

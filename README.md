@@ -12,7 +12,7 @@
 
 ## Status
 
-VelocityCopy 1.1 is the current stable Windows 11 release line. The copy engine, compact WinUI shell, Explorer integration and classic installers are built and verified by the repository release pipeline.
+VelocityCopy 1.0.0 is the current stable release. VelocityCopy 1.1.0 is the current release candidate; its copy engine, compact WinUI shell, Explorer integration and classic installers are being validated by the repository release pipeline before tagging.
 
 Current automated baseline (`main`):
 
