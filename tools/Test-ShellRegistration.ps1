@@ -52,7 +52,7 @@ try {
   $runValue = if ($runKey) { [string]$runKey.GetValue('VelocityCopy', $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames) } else { $null }
   if ($Phase -eq 'Installed') {
     if ($runValue -ne $expectedRun) { throw "Invalid current-user startup registration: '$runValue'" }
-  } elseif ($Phase -eq 'Uninstalled' -and $null -ne $runValue) {
+  } elseif ($Phase -eq 'Uninstalled' -and -not [string]::IsNullOrEmpty($runValue)) {
     throw "VelocityCopy startup registration remains after uninstall: '$runValue'"
   }
 } finally {
