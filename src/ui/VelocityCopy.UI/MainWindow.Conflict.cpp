@@ -9,6 +9,18 @@ using namespace Microsoft::UI::Xaml;
 using namespace Microsoft::UI::Xaml::Controls;
 
 namespace winrt::VelocityCopyUI::implementation {
+Windows::Foundation::IAsyncOperation<std::uint32_t> MainWindow::RequestDecisionAsync(
+    velocitycopy::ui::DecisionOptions options) {
+    if (decision_operation_) {
+        co_return velocitycopy::ui::encode_decision({velocitycopy::ui::DecisionChoice::Cancel, false});
+    }
+    options.owner = hwnd_;
+    decision_operation_ = velocitycopy::ui::show_decision_async(std::move(options));
+    const auto result = co_await velocitycopy::ui::await_decision(decision_operation_);
+    decision_operation_ = nullptr;
+    co_return result;
+}
+
 fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conflict) {
     auto lifetime = get_strong();
 
