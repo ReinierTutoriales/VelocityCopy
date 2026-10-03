@@ -267,9 +267,21 @@ jobs:
             if ($upgrade.ExitCode -ne 0) { throw "Upgrade over loaded v1.0.0 shell DLL failed: $($upgrade.ExitCode)" }
             if (-not (Test-Path $shellDll)) { throw "Shell DLL disappeared after upgrade" }
 
-            $version = (Get-Item (Join-Path $root "VelocityCopy.WinUI.exe")).VersionInfo.ProductVersion
-            if ($version -ne $env:VELOCITYCOPY_VERSION) {
-              throw "Upgrade left wrong product version: expected $env:VELOCITYCOPY_VERSION, got $version"
+            $payloadRoot = (Resolve-Path "artifacts/installer-payload-x64").Path
+            $installedExe = Join-Path $root "VelocityCopy.WinUI.exe"
+            $payloadExe = Join-Path $payloadRoot "VelocityCopy.WinUI.exe"
+            $payloadShell = Join-Path $payloadRoot "VelocityCopy.Shell.dll"
+
+            $expectedExeHash = (Get-FileHash -LiteralPath $payloadExe -Algorithm SHA256).Hash
+            $actualExeHash = (Get-FileHash -LiteralPath $installedExe -Algorithm SHA256).Hash
+            if ($actualExeHash -ne $expectedExeHash) {
+              throw "Upgrade did not replace VelocityCopy.WinUI.exe with the current payload"
+            }
+
+            $expectedShellHash = (Get-FileHash -LiteralPath $payloadShell -Algorithm SHA256).Hash
+            $actualShellHash = (Get-FileHash -LiteralPath $shellDll -Algorithm SHA256).Hash
+            if ($actualShellHash -ne $expectedShellHash) {
+              throw "Upgrade did not replace the loaded VelocityCopy.Shell.dll with the current payload"
             }
             & ./tools/Test-ShellRegistration.ps1 -Phase Installed
           } finally {
