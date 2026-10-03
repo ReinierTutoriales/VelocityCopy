@@ -79,6 +79,15 @@ Function LaunchVelocityCopyAsUser
   Exec '"$WINDIR\explorer.exe" "$INSTDIR\VelocityCopy.WinUI.exe"'
 FunctionEnd
 
+!macro ConfigureInteractiveStartup ACTION
+  nsExec::ExecToLog '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$INSTDIR\VelocityCopy.Startup.ps1" -Action ${ACTION} -ExecutablePath "$INSTDIR\VelocityCopy.WinUI.exe"'
+  Pop $0
+  ${If} $0 != 0
+    DetailPrint "VelocityCopy startup registration helper failed with exit code $0"
+    Abort
+  ${EndIf}
+!macroend
+
 !macro RemoveLegacyShell
   DeleteRegKey HKLM "Software\Classes\*\shell\VelocityCopy.Copy"
   DeleteRegKey HKLM "Software\Classes\*\shell\VelocityCopy.CopyTo"
@@ -109,6 +118,7 @@ Section "Install VelocityCopy" SEC_INSTALL
   !insertmacro CloseRunningApp
   SetOutPath "$INSTDIR"
   File /r "${PAYLOAD_DIR}\*.*"
+  File /oname=VelocityCopy.Startup.ps1 "tools\Set-InteractiveUserStartup.ps1"
 
   Delete "$SMPROGRAMS\VelocityCopy\VelocityCopy.lnk"
   RMDir "$SMPROGRAMS\VelocityCopy"
@@ -122,8 +132,10 @@ Section "Install VelocityCopy" SEC_INSTALL
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "DisplayVersion" "${DISPLAY_VERSION}"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "DisplayIcon" "$INSTDIR\VelocityCopy.WinUI.exe,0"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "InstallLocation" "$INSTDIR"
-  ; Installer owns startup registration. Runtime must never create/repair this value.
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "VelocityCopy" '"$INSTDIR\VelocityCopy.WinUI.exe" --startup'
+  ; Installer owns startup registration. Resolve the actual interactive desktop
+  ; user's SID instead of writing blindly to the elevated administrator's HKCU.
+  DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "VelocityCopy"
+  !insertmacro ConfigureInteractiveStartup Install
 
   ; Retire old registrations during upgrades as well as uninstall.
   !insertmacro RemoveLegacyShell
@@ -144,7 +156,12 @@ Section "Uninstall"
   !insertmacro CloseRunningApp
   Delete "$SMPROGRAMS\VelocityCopy\VelocityCopy.lnk"
   RMDir "$SMPROGRAMS\VelocityCopy"
-  DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "VelocityCopy"
+  ${If} ${FileExists} "$INSTDIR\VelocityCopy.Startup.ps1"
+    !insertmacro ConfigureInteractiveStartup Remove
+  ${Else}
+    ; Compatibility with older installs that had no helper.
+    DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "VelocityCopy"
+  ${EndIf}
 
   !insertmacro RemoveLegacyShell
   DeleteRegKey HKLM "Software\Classes\Directory\shellex\DragDropHandlers\VelocityCopy"
