@@ -118,7 +118,7 @@ Section "Install VelocityCopy" SEC_INSTALL
   !insertmacro CloseRunningApp
   SetOutPath "$INSTDIR"
   File /r "${PAYLOAD_DIR}\*.*"
-  File /oname=VelocityCopy.Startup.ps1 "tools\Set-InteractiveUserStartup.ps1"
+  File /oname=VelocityCopy.Startup.ps1 "Set-InteractiveUserStartup.ps1"
 
   Delete "$SMPROGRAMS\VelocityCopy\VelocityCopy.lnk"
   RMDir "$SMPROGRAMS\VelocityCopy"
