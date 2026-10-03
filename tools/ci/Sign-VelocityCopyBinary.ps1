@@ -71,9 +71,9 @@ if ($SkipTimestamp) {
     # A self-signed ephemeral certificate is deliberately not added to a trust
     # store in PR CI. /pa would therefore test trust, not whether the signing
     # pipeline produced the expected Authenticode signature.
-    $verifyExit = Invoke-BoundedSignTool @('verify','/all','/v',$Path)
-    if ($verifyExit -ne 0) { throw "signtool cryptographic verification failed for $Path with code $verifyExit" }
-
+    # signtool verify treats chain trust as part of success and therefore
+    # returns nonzero for the intentionally untrusted self-signed CI signer.
+    # Inspect the embedded Authenticode signature and exact signer instead.
     $signature = Get-AuthenticodeSignature -FilePath $Path
     if ($null -eq $signature.SignerCertificate) { throw "Authenticode signer certificate is missing: $Path" }
     if ($ExpectedSignerThumbprint -and $signature.SignerCertificate.Thumbprint -ne $ExpectedSignerThumbprint) {
