@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "MainWindow.xaml.h"
+#include "AuxiliarySurface.h"
 #include "App.xaml.h"
 #include "Localization.h"
 
@@ -7,6 +8,20 @@ using namespace winrt;
 using namespace Microsoft::UI::Xaml;
 
 namespace winrt::VelocityCopyUI::implementation {
+// Transitional native decision path: Recovery and App routing only.
+MainWindow::NativeDialogChoice MainWindow::ShowNativeDecisionDialog(
+    HWND owner, const std::wstring& title, const std::wstring& message,
+    const std::wstring& primary_label, const std::wstring& secondary_label,
+    const bool include_cancel, const std::wstring& cancel_label,
+    const std::wstring& verification_label, bool* remember_choice) noexcept {
+    const auto decision = velocitycopy::ui::show_native_decision(
+        {owner, title, message, primary_label, secondary_label, cancel_label,
+         verification_label, include_cancel}, remember_choice);
+    if (decision == velocitycopy::ui::NativeDecision::Primary) return NativeDialogChoice::Primary;
+    if (decision == velocitycopy::ui::NativeDecision::Secondary) return NativeDialogChoice::Secondary;
+    return NativeDialogChoice::Cancel;
+}
+
 namespace {
 
 bool revalidate_recovery_plan(velocitycopy::CopyPlan& plan) noexcept {
