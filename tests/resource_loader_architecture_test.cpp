@@ -90,5 +90,15 @@ int main() {
         return 3;
     }
     if (!production_sources_are_clean(root)) return 4;
+
+    const auto app = read_all(root / "src/ui/VelocityCopy.UI/App.xaml.cpp");
+    if (app.empty()) return 5;
+    if (app.find("Destination already in use") != std::string::npos ||
+        app.find("Storage device already in use") != std::string::npos ||
+        app.find("RoutingDestinationInUseTitle") == std::string::npos ||
+        app.find("RoutingStorageInUseTitle") == std::string::npos) {
+        std::cerr << "routing UI must use localized resources without English fallbacks in App.xaml.cpp\n";
+        return 6;
+    }
     return 0;
 }
