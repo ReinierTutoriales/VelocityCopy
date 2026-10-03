@@ -7,7 +7,6 @@ Status: pre-release manual test gate
 The Windows CI and Package gates must be green before using an artifact for manual testing:
 
 - x64 Release configure/build and core `ctest`
-- x64 Release configure/build and core `ctest`
 - self-contained WinUI 3 Release build for x64 when packaging is requested
 - classic NSIS x64 installer generation
 - x64 smoke install/uninstall, including uninstall while the resident tray process is running and verification that the install directory is gone
@@ -53,7 +52,8 @@ VelocityCopy discovers `VelocityCopy.Recovery.vcq`, validates the saved work, an
 - Confirm exactly one resident VelocityCopy process.
 - Confirm tray icon is present.
 - Confirm click restores the compact window.
-- Confirm minimize and close return the window to tray without stopping work.
+- Confirm Minimize performs a native taskbar minimize without stopping work.
+- Confirm Close on an active transfer cancels and retires that transfer window, while the resident tray process remains available.
 - Confirm tray Exit terminates the resident process.
 - Confirm idle CPU remains effectively zero and Efficiency Mode appears when hidden and idle.
 
@@ -112,7 +112,7 @@ VelocityCopy discovers `VelocityCopy.Recovery.vcq`, validates the saved work, an
 
 ### UI
 
-- single-surface compact window around the 460x72 target; the window itself is the copier, with no nested decorative capsule
+- single-surface compact window around the 380x72 target; the window itself is the copier, with no nested decorative capsule
 - logo at far left
 - queue disclosure at far right
 - whole-body progress fill
