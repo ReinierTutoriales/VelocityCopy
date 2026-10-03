@@ -27,10 +27,11 @@ int fail(int code, const char* message) {
 int main() {
     const std::filesystem::path root{VELOCITYCOPY_SOURCE_DIR};
     const auto engine = read_all(root / "src/core/copy_engine.cpp");
+    const auto planner = read_all(root / "src/core/job_planner.cpp");
     const auto archive = read_all(root / "src/core/queue_archive.cpp");
     const auto ipc = read_all(root / "src/core/ipc_protocol.cpp");
 
-    if (engine.empty() || archive.empty() || ipc.empty()) {
+    if (engine.empty() || planner.empty() || archive.empty() || ipc.empty()) {
         return fail(1, "required core source missing");
     }
 
@@ -62,6 +63,17 @@ int main() {
         !contains(engine, "parameters.ioDesiredSize") ||
         !contains(engine, "COPYFILE2_CALLBACK_POLL_CONTINUE")) {
         return fail(7, "interactive CopyFile2 path must keep bounded I/O cycles and heartbeat callbacks");
+    }
+
+    if (!contains(planner, "IsReparseTagNameSurrogate") ||
+        contains(planner, "std::filesystem::is_symlink")) {
+        return fail(8, "planner must reject only name-surrogate reparse points and leave cloud placeholders eligible");
+    }
+
+    if (!contains(planner, "kMaxPlannedEntries = 250'000") ||
+        !contains(archive, "kMaxEntries = 250'000") ||
+        !contains(archive, "kMaxArchiveBytes")) {
+        return fail(9, "materialized plans and queue archives must have explicit memory bounds");
     }
 
     if (contains(archive, "source_roots.reserve(static_cast<std::size_t>(roots))") ||

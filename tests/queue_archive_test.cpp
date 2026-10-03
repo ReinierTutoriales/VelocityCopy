@@ -88,6 +88,21 @@ bool write_legacy_v2_archive(
     return static_cast<bool>(stream);
 }
 
+bool write_count_bomb_archive(
+    const std::filesystem::path& path,
+    const std::uint64_t append_count) {
+    std::ofstream stream(path, std::ios::binary | std::ios::trunc);
+    if (!stream) return false;
+    constexpr std::array<char, 8> magic{'V','C','Q','U','E','U','E','1'};
+    constexpr std::uint32_t version = 3;
+    constexpr std::uint8_t no_current_plan = 0;
+    stream.write(magic.data(), static_cast<std::streamsize>(magic.size()));
+    write_legacy_value(stream, version);
+    write_legacy_value(stream, no_current_plan);
+    write_legacy_value(stream, append_count);
+    return static_cast<bool>(stream);
+}
+
 velocitycopy::CopyPlan make_plan(const std::filesystem::path& root) {
     velocitycopy::CopyPlan plan{};
     plan.destination_root = root / L"destino";
@@ -270,12 +285,17 @@ int wmain() {
     fs::resize_file(archive_path, length - 3, ec);
     if (ec || store.load(archive_path)) return 19;
 
+    // A hostile declared count must be rejected before it can drive large
+    // allocations or long parse loops from a tiny file.
+    if (!write_count_bomb_archive(archive_path, 250001)) return 20;
+    if (store.load(archive_path)) return 21;
+
     // Corrupt or unknown formats must be rejected without partial recovery.
     {
         std::ofstream corrupt(archive_path, std::ios::binary | std::ios::trunc);
         corrupt << "not-a-velocitycopy-queue";
     }
-    if (store.load(archive_path)) return 20;
+    if (store.load(archive_path)) return 22;
 
     fs::remove_all(root, ec);
     return 0;
