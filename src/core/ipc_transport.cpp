@@ -184,7 +184,7 @@ bool write_all_until(
             handle,
             cursor + written_total,
             bytes - written_total,
-            &written,
+            nullptr,
             &overlapped);
         if (!immediate) {
             const auto error = GetLastError();
@@ -197,9 +197,8 @@ bool write_all_until(
                 (void)GetOverlappedResult(handle, &overlapped, &ignored, TRUE);
                 return false;
             }
-            if (!GetOverlappedResult(handle, &overlapped, &written, FALSE)) return false;
         }
-
+        if (!GetOverlappedResult(handle, &overlapped, &written, FALSE)) return false;
         if (written == 0) return false;
         written_total += written;
     }
