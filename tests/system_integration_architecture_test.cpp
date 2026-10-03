@@ -110,10 +110,14 @@ int main() {
         !contains(package_workflow, "nsis-3.11.zip") ||
         !contains(package_workflow, "Smoke install classic x64 installer") ||
         !contains(package_workflow, "Smoke uninstall classic x64 installer") ||
+        !contains(package_workflow, "Sign stable-tag payload") ||
+        !contains(package_workflow, "Sign stable-tag installer") ||
+        !contains(package_workflow, "VELOCITYCOPY_SIGNING_PFX_BASE64") ||
+        !contains(package_workflow, "Get-AuthenticodeSignature") ||
         contains(package_workflow, "choco ") ||
         contains(package_workflow, "Add-AppxPackage") ||
         contains(package_workflow, "VelocityCopy.msixbundle")) {
-        return fail(9, "packaging must run on main without Chocolatey and stay classic for x64 and ARM64");
+        return fail(9, "packaging must stay classic for x64/ARM64 and stable tags must fail closed without valid Authenticode");
     }
 
     if (!contains(installer_exe, "RequestExecutionLevel admin") ||
