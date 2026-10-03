@@ -243,8 +243,7 @@ void AppTray::ShowMenu(POINT anchor) noexcept {
         });
 
         Microsoft::UI::Xaml::Controls::Primitives::FlyoutShowOptions show_options;
-        show_options.ShouldConstrainToRootBounds(false);
-        FlyoutPlacementMode placement = Microsoft::UI::Xaml::Controls::Primitives::FlyoutPlacementMode::Top;
+        auto placement = Microsoft::UI::Xaml::Controls::Primitives::FlyoutPlacementMode::Top;
         if (monitor_info.rcWork.left > monitor_info.rcMonitor.left) placement = Microsoft::UI::Xaml::Controls::Primitives::FlyoutPlacementMode::Right;
         else if (monitor_info.rcWork.right < monitor_info.rcMonitor.right) placement = Microsoft::UI::Xaml::Controls::Primitives::FlyoutPlacementMode::Left;
         else if (monitor_info.rcWork.top > monitor_info.rcMonitor.top) placement = Microsoft::UI::Xaml::Controls::Primitives::FlyoutPlacementMode::Bottom;
