@@ -113,13 +113,31 @@ COPYFILE2_MESSAGE_ACTION CALLBACK copy_progress_routine(
     }
 }
 
+bool name_surrogate_reparse(const HANDLE handle) noexcept {
+    FILE_ATTRIBUTE_TAG_INFO info{};
+    if (GetFileInformationByHandleEx(handle, FileAttributeTagInfo, &info, sizeof(info)) == 0) {
+        return true;
+    }
+    if ((info.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0) {
+        return false;
+    }
+    // Name surrogates redirect the path (symlink, junction). Cloud/dedup tags do not.
+    return IsReparseTagNameSurrogate(info.ReparseTag) != FALSE;
+}
+
 bool source_is_unsafe_reparse_point(const std::filesystem::path& source) noexcept {
-    const DWORD attrs = GetFileAttributesW(source.c_str());
-    if (attrs == INVALID_FILE_ATTRIBUTES) {
+    const HANDLE handle = CreateFileW(
+        source.c_str(), FILE_READ_ATTRIBUTES,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        nullptr, OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
+    if (handle == INVALID_HANDLE_VALUE) {
         // Let CopyFile2 report missing/inaccessible sources with its native error.
         return false;
     }
-    return (attrs & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
+    const bool unsafe = name_surrogate_reparse(handle);
+    CloseHandle(handle);
+    return unsafe;
 }
 
 std::uint64_t source_size_no_throw(const std::filesystem::path& source) noexcept {
@@ -144,6 +162,47 @@ struct DestinationPathGuard {
         for (const HANDLE handle : parents) CloseHandle(handle);
     }
 
+    std::vector<std::filesystem::path> missing;
+    std::vector<std::filesystem::path> created;
+
+    void rollback_created() noexcept {
+        for (auto it = created.rbegin(); it != created.rend(); ++it) {
+            std::error_code ec;
+            std::filesystem::remove(*it, ec);
+        }
+        created.clear();
+    }
+
+    bool create_missing_parents(std::error_code& error) noexcept {
+        for (auto it = missing.rbegin(); it != missing.rend(); ++it) {
+            const BOOL created_now = CreateDirectoryW(it->c_str(), nullptr);
+            if (created_now == 0) {
+                const DWORD create_error = GetLastError();
+                if (create_error != ERROR_ALREADY_EXISTS) {
+                    error = std::error_code(create_error, std::system_category());
+                    rollback_created();
+                    return false;
+                }
+            } else {
+                created.push_back(*it);
+            }
+            const HANDLE handle = CreateFileW(
+                it->c_str(), FILE_READ_ATTRIBUTES,
+                FILE_SHARE_READ | FILE_SHARE_WRITE,
+                nullptr, OPEN_EXISTING,
+                FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
+            if (handle == INVALID_HANDLE_VALUE || name_surrogate_reparse(handle)) {
+                if (handle != INVALID_HANDLE_VALUE) CloseHandle(handle);
+                error = std::error_code(ERROR_CANT_ACCESS_FILE, std::system_category());
+                rollback_created();
+                return false;
+            }
+            parents.push_back(handle);
+        }
+        missing.clear();
+        return true;
+    }
+
     bool lock_non_reparse_parents(const std::filesystem::path& destination) noexcept {
         std::error_code ec;
         auto probe = std::filesystem::absolute(destination.parent_path(), ec);
@@ -151,14 +210,17 @@ struct DestinationPathGuard {
         const auto root = probe.root_path();
         while (!probe.empty() && probe != root) {
             const HANDLE handle = CreateFileW(
-                probe.c_str(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                probe.c_str(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE,
                 nullptr, OPEN_EXISTING,
                 FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
-            if (handle == INVALID_HANDLE_VALUE) return false;
-
-            FILE_ATTRIBUTE_TAG_INFO info{};
-            if (GetFileInformationByHandleEx(handle, FileAttributeTagInfo, &info, sizeof(info)) == 0 ||
-                (info.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0) {
+            if (handle == INVALID_HANDLE_VALUE) {
+                const DWORD error = GetLastError();
+                if (error != ERROR_FILE_NOT_FOUND && error != ERROR_PATH_NOT_FOUND) return false;
+                missing.push_back(probe);
+                probe = probe.parent_path();
+                continue;
+            }
+            if (name_surrogate_reparse(handle)) {
                 CloseHandle(handle);
                 return false;
             }
@@ -189,19 +251,9 @@ CopyResult CopyEngine::copy_file(
     const std::filesystem::path& destination,
     const CopyOptions& options,
     const ProgressCallback& progress) const noexcept {
-    std::error_code directory_error;
-    const auto parent = destination.parent_path();
-
-    if (!parent.empty()) {
-        std::filesystem::create_directories(parent, directory_error);
-        if (directory_error) {
-            return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(directory_error.value()))};
-        }
-    }
-
-    // Revalidate immediately before CopyFile2 so a source that was safe at
-    // planning time cannot be silently followed after being swapped for a
-    // symlink/junction. This narrows the remaining TOCTOU window.
+    // Lock the existing parent chain before creating anything. Directory creation
+    // must not follow a junction, so a name-surrogate parent fails before any
+    // directory is created through it.
     DestinationPathGuard destination_guard;
     if (source_is_unsafe_reparse_point(source) ||
         destination_chain_contains_reparse_point(destination, destination_guard)) {
@@ -209,6 +261,12 @@ CopyResult CopyEngine::copy_file(
             false,
             static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_CANT_ACCESS_FILE)),
         };
+    }
+
+    std::error_code directory_error;
+    const auto parent = destination.parent_path();
+    if (!parent.empty() && !destination_guard.create_missing_parents(directory_error)) {
+        return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(directory_error.value()))};
     }
 
     const auto source_size = source_size_no_throw(source);
