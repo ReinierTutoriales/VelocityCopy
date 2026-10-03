@@ -132,7 +132,7 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
             stop_menu_item_.Text(L"Stop");
             save_queue_menu_item_.Text(L"Save queue");
             load_queue_menu_item_.Text(L"Load queue");
-            about_menu_item_.Text(L"About RepartoCopier");
+            about_menu_item_.Text(L"About VelocityCopy");
             hide_to_tray_menu_item.Text(L"Hide to tray");
             ToolTipService::SetToolTip(queue_options_button_, box_value(L"Options"));
             Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(queue_options_button_, L"Options");
@@ -225,7 +225,7 @@ fire_and_forget MainWindow::SaveQueueAsync() {
     std::optional<std::filesystem::path> selected_path;
     try {
         Microsoft::Windows::Storage::Pickers::FileSavePicker picker(AppWindow().Id());
-        picker.SuggestedFileName(L"RepartoCopier Queue.vcq");
+        picker.SuggestedFileName(L"VelocityCopy Queue.vcq");
         auto result = co_await picker.PickSaveFileAsync();
         if (result) selected_path = std::filesystem::path(result.Path().c_str());
     } catch (...) {
