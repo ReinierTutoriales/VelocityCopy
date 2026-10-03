@@ -142,11 +142,17 @@ void MainWindow::ShowFromTray() {
     } catch (...) {
     }
 
-    if (hwnd_ != nullptr) {
-        ShowWindow(hwnd_, SW_SHOW);
-        ShowWindow(hwnd_, SW_RESTORE);
-        SetForegroundWindow(hwnd_);
+    try {
+        if (auto presenter = AppWindow().Presenter().try_as<Microsoft::UI::Windowing::OverlappedPresenter>();
+            presenter && presenter.State() == Microsoft::UI::Windowing::OverlappedPresenterState::Minimized) {
+            presenter.Restore();
+        }
+    } catch (...) {
     }
+
+    // Window::Activate is the Windows App SDK show/activate path. It also makes a
+    // previously hidden WinUI window visible without mixing SW_SHOW/SW_RESTORE with
+    // AppWindow presenter state.
     Activate();
     tray_window_hidden_ = false;
     RefreshEfficiencyMode();

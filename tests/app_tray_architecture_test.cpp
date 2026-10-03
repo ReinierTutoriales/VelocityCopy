@@ -10,11 +10,12 @@ int main(){
  const auto tray=read(ui/"AppTray.cpp"), tray_h=read(ui/"AppTray.h"), main=read(ui/"MainWindow.Tray.cpp"), app=read(ui/"App.xaml.h"), app_cpp=read(ui/"App.xaml.cpp"), window_cpp=read(ui/"MainWindow.xaml.cpp"), conflict=read(ui/"MainWindow.Conflict.cpp"), append=read(ui/"MainWindow.CopyAppend.cpp"), about=read(ui/"MainWindow.About.cpp"), window_h=read(ui/"MainWindow.xaml.h");
  if(tray.find("Shell_NotifyIconW")==std::string::npos || tray.find("WS_EX_TOOLWINDOW")==std::string::npos) return 1;
  if(tray.find("HWND_MESSAGE")!=std::string::npos) return 4;
- if(tray.find("MenuFlyout flyout") == std::string::npos ||
-    tray.find("flyout.ShowAt(menu_anchor_, show_options)") == std::string::npos ||
-    tray.find("CreatePopupMenu") != std::string::npos ||
-    tray.find("TrackPopupMenuEx") != std::string::npos ||
-    tray.find("AppendMenuW") != std::string::npos) return 5;
+ if(tray.find("CreatePopupMenu") == std::string::npos ||
+    tray.find("TrackPopupMenuEx") == std::string::npos ||
+    tray.find("SetForegroundWindow(hwnd_)") == std::string::npos ||
+    tray.find("PostMessageW(hwnd_, WM_NULL") == std::string::npos ||
+    tray.find("Shell_NotifyIconW(NIM_SETFOCUS") == std::string::npos ||
+    tray.find("MenuFlyout") != std::string::npos) return 5;
  if(main.find("Shell_NotifyIconW")!=std::string::npos || main.find("NOTIFYICONDATA")!=std::string::npos) return 2;
  if(app.find("AppTray tray_")==std::string::npos) return 3;
  if(tray.find("DefWindowProcW(hwnd_")!=std::string::npos || tray.find("HandleMessage(HWND hwnd") == std::string::npos) return 6;
@@ -63,29 +64,17 @@ int main(){
  const auto direct_open = tray.find("owner_->ShowPrimaryWindow()");
  if(direct_open == std::string::npos || tray.find("owner_->ShowPrimaryWindow()", direct_open + 1) != std::string::npos) return 23;
  if(tray.find("OpenPrimaryWindow(); return 0;") == std::string::npos ||
-    tray.find("open_item.Click([this]") == std::string::npos ||
-    tray.find("OpenPrimaryWindow(); });") == std::string::npos) return 24;
+    tray.find("if (command == kOpenCommandId) OpenPrimaryWindow();") == std::string::npos) return 24;
 
- // The notification icon remains native for Explorer restart/broadcast semantics, but
- // its context menu is a WinUI MenuFlyout hosted by a non-switcher anchor window.
- if(tray_h.find("Window menu_window_{nullptr}") == std::string::npos ||
-    tray_h.find("MenuFlyout menu_flyout_{nullptr}") == std::string::npos ||
-    tray.find("app_window.IsShownInSwitchers(false)") == std::string::npos ||
-    tray.find("presenter.SetBorderAndTitleBar(false, false)") == std::string::npos ||
-    tray.find("MenuFlyoutSeparator") == std::string::npos ||
-    tray.find("flyout.Closed([this]") == std::string::npos) return 35;
- if(tray.find("MonitorFromPoint(anchor, MONITOR_DEFAULTTONEAREST)") == std::string::npos ||
-    tray.find("monitor_info.rcWork") == std::string::npos ||
-    tray.find("show_options.Placement(placement)") == std::string::npos ||
-    tray.find("show_options.Position(") == std::string::npos ||
-    tray.find("GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI") == std::string::npos ||
-    tray.find("dpi_x = GetDpiForWindow(menu_hwnd)") == std::string::npos ||
-    tray.find("MulDiv(kAnchorDip") == std::string::npos ||
-    tray.find("monitor_info.rcMonitor") == std::string::npos ||
-    tray.find("Primitives::FlyoutPlacementMode::Right") == std::string::npos ||
-    tray.find("Primitives::FlyoutPlacementMode::Left") == std::string::npos ||
-    tray.find("Primitives::FlyoutPlacementMode::Bottom") == std::string::npos ||
-    tray.find("SetForegroundWindow(hwnd_)") != std::string::npos) return 36;
+ // Native Shell shortcut-menu contract: no auxiliary XAML host.
+ if(tray_h.find("menu_window_") != std::string::npos ||
+    tray_h.find("menu_anchor_") != std::string::npos ||
+    tray_h.find("menu_flyout_") != std::string::npos ||
+    tray.find("GetSystemMetrics(SM_MENUDROPALIGNMENT)") == std::string::npos ||
+    tray.find("TPM_RETURNCMD | TPM_RIGHTBUTTON | alignment") == std::string::npos ||
+    tray.find("Shell_NotifyIconGetRect(&identifier, &icon_rect)") == std::string::npos ||
+    tray.find("params.rcExclude = icon_rect") == std::string::npos ||
+    tray.find("SetMenuDefaultItem(menu, kOpenCommandId, FALSE)") == std::string::npos) return 35;
  if(tray.find("(v4_ && notification == WM_CONTEXTMENU)") == std::string::npos ||
     tray.find("(!v4_ && notification == WM_RBUTTONUP)") == std::string::npos) return 37;
 

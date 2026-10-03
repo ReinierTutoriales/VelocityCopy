@@ -138,7 +138,7 @@ int main() {
     }
 
     if (contains(tray, "MaybeOfferRecoveryAsync()") ||
-        !contains(tray, "ShowWindow(hwnd_, SW_SHOW)") ||
+        !contains(tray, "Activate();") ||
         !contains(window_h, "void OfferRecoveryIfIdle()") ||
         !contains(window_h, "recovery_prompt_checked_") ||
         !contains(window_h, "recovery_prompt_active_") ||
