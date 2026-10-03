@@ -114,7 +114,7 @@ bool token_profile_is_loaded(HANDLE token) noexcept {
     GetTokenInformation(token, TokenUser, nullptr, 0, &bytes);
     if (bytes == 0) return false;
 
-    std::vector<std::byte> storage(bytes);
+    std::vector<unsigned char> storage(bytes);
     if (!GetTokenInformation(token, TokenUser, storage.data(), bytes, &bytes)) {
         return false;
     }
