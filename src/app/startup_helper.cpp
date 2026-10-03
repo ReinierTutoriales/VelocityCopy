@@ -144,8 +144,8 @@ DWORD run_with_shell_token(
     CloseHandle(shell_token);
 
     wchar_t module_path[32768]{};
-    const DWORD module_length = GetModuleFileNameW(nullptr, module_path, static_cast<DWORD>(std::size(module_path)));
-    if (module_length == 0 || module_length >= std::size(module_path)) {
+    const DWORD module_length = GetModuleFileNameW(nullptr, module_path, static_cast<DWORD>(_countof(module_path)));
+    if (module_length == 0 || module_length >= _countof(module_path)) {
         return GetLastError() == ERROR_SUCCESS ? ERROR_FILE_NOT_FOUND : GetLastError();
     }
     const std::wstring canonical_self{module_path, module_length};
