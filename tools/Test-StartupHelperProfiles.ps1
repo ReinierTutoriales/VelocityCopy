@@ -71,14 +71,13 @@ $outputAfter = Join-Path $env:PUBLIC 'vc-startup-after.txt'
 $expected = '"' + $ApplicationPath + '" --startup'
 $cmd = $env:ComSpec
 
-& net.exe user $userA /delete 2>$null | Out-Null
-& net.exe user $userB /delete 2>$null | Out-Null
+Get-LocalUser -Name $userA -ErrorAction SilentlyContinue | Remove-LocalUser -ErrorAction SilentlyContinue
+Get-LocalUser -Name $userB -ErrorAction SilentlyContinue | Remove-LocalUser -ErrorAction SilentlyContinue
 
 try {
-    & net.exe user $userA $secret /add | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "Unable to create profile A account" }
-    & net.exe user $userB $secret /add | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "Unable to create profile B account" }
+    $secureSecret = ConvertTo-SecureString $secret -AsPlainText -Force
+    New-LocalUser -Name $userA -Password $secureSecret -AccountNeverExpires -PasswordNeverExpires -UserMayNotChangePassword | Out-Null
+    New-LocalUser -Name $userB -Password $secureSecret -AccountNeverExpires -PasswordNeverExpires -UserMayNotChangePassword | Out-Null
 
     if ((Invoke-AsLocalUser $userA $secret $cmd "$cmd /d /c exit 0") -ne 0) { throw "Profile A init failed" }
     if ((Invoke-AsLocalUser $userB $secret $cmd "$cmd /d /c exit 0") -ne 0) { throw "Profile B init failed" }
@@ -111,6 +110,6 @@ try {
     Write-Host "Two-profile startup registration test passed."
 } finally {
     Remove-Item $outputA,$outputB,$outputAfter -Force -ErrorAction SilentlyContinue
-    & net.exe user $userA /delete 2>$null | Out-Null
-    & net.exe user $userB /delete 2>$null | Out-Null
+    Get-LocalUser -Name $userA -ErrorAction SilentlyContinue | Remove-LocalUser -ErrorAction SilentlyContinue
+    Get-LocalUser -Name $userB -ErrorAction SilentlyContinue | Remove-LocalUser -ErrorAction SilentlyContinue
 }
