@@ -72,8 +72,6 @@ void AppTray::Remove() noexcept {
     icon_ = nullptr;
     data_ = {};
     HideMenuSurface();
-    menu_flyout_ = nullptr;
-    menu_anchor_ = nullptr;
     menu_window_ = nullptr;
     owner_ = nullptr;
     open_dispatch_active_ = false;
@@ -136,37 +134,57 @@ bool AppTray::EnsureMenuSurface() noexcept {
         using namespace Microsoft::UI::Xaml::Controls;
 
         Window window;
-        Grid anchor;
-        anchor.Width(1);
-        anchor.Height(1);
-        window.Content(anchor);
+        StackPanel panel;
+        panel.Padding(Thickness{4.0, 4.0, 4.0, 4.0});
+        panel.Spacing(2.0);
+
+        Button open_button;
+        open_button.HorizontalAlignment(HorizontalAlignment::Stretch);
+        open_button.HorizontalContentAlignment(HorizontalAlignment::Left);
+        open_button.Click([this](auto const&, auto const&) {
+            HideMenuSurface();
+            OpenPrimaryWindow();
+        });
+
+        Button exit_button;
+        exit_button.HorizontalAlignment(HorizontalAlignment::Stretch);
+        exit_button.HorizontalContentAlignment(HorizontalAlignment::Left);
+        exit_button.Click([this](auto const&, auto const&) {
+            HideMenuSurface();
+            if (owner_) owner_->ExitFromTray();
+        });
+
+        panel.Children().Append(open_button);
+        panel.Children().Append(exit_button);
+        window.Content(panel);
 
         auto app_window = window.AppWindow();
         app_window.IsShownInSwitchers(false);
         auto presenter = Microsoft::UI::Windowing::OverlappedPresenter::CreateForContextMenu();
         presenter.SetBorderAndTitleBar(false, false);
         app_window.SetPresenter(presenter);
-        app_window.Resize(Windows::Graphics::SizeInt32{1, 1});
 
-        window.Activated([this](auto const&, Microsoft::UI::Xaml::WindowActivatedEventArgs const& args) {
-            if (args.WindowActivationState() == Microsoft::UI::Xaml::WindowActivationState::Deactivated &&
-                menu_open_) {
+        window.Activated([this](auto const&, WindowActivatedEventArgs const& args) {
+            if (args.WindowActivationState() == WindowActivationState::Deactivated && menu_open_) {
+                HideMenuSurface();
+            }
+        });
+        window.Closed([this](auto const&, auto const&) {
+            menu_open_ = false;
+            menu_window_ = nullptr;
+        });
+
+        panel.KeyDown([this](auto const&, Input::KeyRoutedEventArgs const& args) {
+            if (args.Key() == Windows::System::VirtualKey::Escape) {
+                args.Handled(true);
                 HideMenuSurface();
             }
         });
 
-        window.Closed([this](auto const&, auto const&) {
-            menu_open_ = false;
-            menu_flyout_ = nullptr;
-            menu_anchor_ = nullptr;
-            menu_window_ = nullptr;
-        });
         menu_window_ = window;
-        menu_anchor_ = anchor;
         return true;
     } catch (...) {
         menu_window_ = nullptr;
-        menu_anchor_ = nullptr;
         return false;
     }
 }
@@ -174,11 +192,12 @@ bool AppTray::EnsureMenuSurface() noexcept {
 void AppTray::HideMenuSurface() noexcept {
     menu_open_ = false;
     try {
-        if (menu_flyout_) menu_flyout_.Hide();
         if (menu_window_) {
             HWND menu_hwnd{};
             auto native = menu_window_.as<::IWindowNative>();
-            if (SUCCEEDED(native->get_WindowHandle(&menu_hwnd)) && menu_hwnd) ShowWindow(menu_hwnd, SW_HIDE);
+            if (SUCCEEDED(native->get_WindowHandle(&menu_hwnd)) && menu_hwnd) {
+                ShowWindow(menu_hwnd, SW_HIDE);
+            }
         }
     } catch (...) {}
 }
@@ -195,9 +214,7 @@ void AppTray::ShowMenu(POINT fallback_anchor) noexcept {
         identifier.uID = kTrayIconId;
         if (FAILED(Shell_NotifyIconGetRect(&identifier, &icon_rect))) {
             if (fallback_anchor.x == -1 && fallback_anchor.y == -1 &&
-                !GetCursorPos(&fallback_anchor)) {
-                return;
-            }
+                !GetCursorPos(&fallback_anchor)) return;
             icon_rect = RECT{fallback_anchor.x, fallback_anchor.y,
                              fallback_anchor.x + 1, fallback_anchor.y + 1};
         }
@@ -209,62 +226,46 @@ void AppTray::ShowMenu(POINT fallback_anchor) noexcept {
         MONITORINFO monitor_info{sizeof(monitor_info)};
         if (!GetMonitorInfoW(monitor, &monitor_info)) return;
 
-        auto app_window = menu_window_.AppWindow();
-        app_window.Move(Windows::Graphics::PointInt32{icon_center.x, icon_center.y});
-        app_window.Resize(Windows::Graphics::SizeInt32{1, 1});
-        menu_window_.Activate();
-
+        auto panel = menu_window_.Content().as<StackPanel>();
+        auto open_button = panel.Children().GetAt(0).as<Button>();
+        auto exit_button = panel.Children().GetAt(1).as<Button>();
         std::wstring open_text = L"Open VelocityCopy", exit_text = L"Exit";
         try {
             open_text = velocitycopy::localization::get_string(L"TrayOpen").c_str();
             exit_text = velocitycopy::localization::get_string(L"TrayExit").c_str();
         } catch (...) {}
+        open_button.Content(box_value(open_text));
+        exit_button.Content(box_value(exit_text));
 
-        MenuFlyout flyout;
-        MenuFlyoutItem open_item;
-        open_item.Text(open_text);
-        open_item.Click([this](auto const&, auto const&) { OpenPrimaryWindow(); });
-        flyout.Items().Append(open_item);
-        flyout.Items().Append(MenuFlyoutSeparator{});
-        MenuFlyoutItem exit_item;
-        exit_item.Text(exit_text);
-        exit_item.Click([this](auto const&, auto const&) {
-            if (owner_) owner_->ExitFromTray();
-        });
-        flyout.Items().Append(exit_item);
+        constexpr int kMenuWidth = 176;
+        constexpr int kMenuHeight = 88;
+        constexpr int kGap = 4;
+        const RECT& work = monitor_info.rcWork;
+        const RECT& screen = monitor_info.rcMonitor;
+        int x = icon_center.x - kMenuWidth / 2;
+        int y = icon_rect.top - kMenuHeight - kGap;
 
-        flyout.Closed([this](auto const&, auto const&) {
-            menu_open_ = false;
-            menu_flyout_ = nullptr;
-            try {
-                if (menu_window_) {
-                    HWND menu_hwnd{};
-                    auto native = menu_window_.as<::IWindowNative>();
-                    if (SUCCEEDED(native->get_WindowHandle(&menu_hwnd)) && menu_hwnd) {
-                        ShowWindow(menu_hwnd, SW_HIDE);
-                    }
-                }
-            } catch (...) {}
-        });
-
-        Microsoft::UI::Xaml::Controls::Primitives::FlyoutShowOptions show_options;
-        auto placement = Microsoft::UI::Xaml::Controls::Primitives::FlyoutPlacementMode::Top;
-        if (monitor_info.rcWork.left > monitor_info.rcMonitor.left) {
-            placement = Microsoft::UI::Xaml::Controls::Primitives::FlyoutPlacementMode::Right;
-        } else if (monitor_info.rcWork.right < monitor_info.rcMonitor.right) {
-            placement = Microsoft::UI::Xaml::Controls::Primitives::FlyoutPlacementMode::Left;
-        } else if (monitor_info.rcWork.top > monitor_info.rcMonitor.top) {
-            placement = Microsoft::UI::Xaml::Controls::Primitives::FlyoutPlacementMode::Bottom;
+        if (work.left > screen.left) {
+            x = icon_rect.right + kGap;
+            y = icon_center.y - kMenuHeight / 2;
+        } else if (work.right < screen.right) {
+            x = icon_rect.left - kMenuWidth - kGap;
+            y = icon_center.y - kMenuHeight / 2;
+        } else if (work.top > screen.top) {
+            x = icon_center.x - kMenuWidth / 2;
+            y = icon_rect.bottom + kGap;
         }
-        show_options.Placement(placement);
-        show_options.Position(Windows::Foundation::Point{0.0f, 0.0f});
 
+        x = std::clamp(x, work.left, std::max(work.left, work.right - kMenuWidth));
+        y = std::clamp(y, work.top, std::max(work.top, work.bottom - kMenuHeight));
+
+        auto app_window = menu_window_.AppWindow();
+        app_window.MoveAndResize(Windows::Graphics::RectInt32{x, y, kMenuWidth, kMenuHeight});
         menu_open_ = true;
-        menu_flyout_ = flyout;
-        flyout.ShowAt(menu_anchor_, show_options);
+        menu_window_.Activate();
+        open_button.Focus(FocusState::Programmatic);
     } catch (...) {
         HideMenuSurface();
     }
 }
-
 } // namespace winrt::VelocityCopyUI::implementation

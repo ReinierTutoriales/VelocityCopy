@@ -69,21 +69,20 @@ int main(){
  // The notification icon remains native for Explorer restart/broadcast semantics, but
  // its context menu is a WinUI MenuFlyout hosted by a non-switcher anchor window.
  if(tray_h.find("Window menu_window_{nullptr}") == std::string::npos ||
-    tray_h.find("MenuFlyout menu_flyout_{nullptr}") == std::string::npos ||
+    tray_h.find("MenuFlyout menu_flyout_{nullptr}") != std::string::npos ||
+    tray_h.find("Grid menu_anchor_{nullptr}") != std::string::npos ||
     tray.find("app_window.IsShownInSwitchers(false)") == std::string::npos ||
     tray.find("OverlappedPresenter::CreateForContextMenu()") == std::string::npos ||
     tray.find("presenter.SetBorderAndTitleBar(false, false)") == std::string::npos ||
     tray.find("app_window.SetPresenter(presenter)") == std::string::npos ||
     tray.find("WindowActivationState::Deactivated") == std::string::npos ||
-    tray.find("MenuFlyoutSeparator") == std::string::npos ||
-    tray.find("flyout.Closed([this]") == std::string::npos) return 35;
+    tray.find("VirtualKey::Escape") == std::string::npos ||
+    tray.find("open_button.Focus(FocusState::Programmatic)") == std::string::npos) return 35;
  if(tray.find("Shell_NotifyIconGetRect(&identifier, &icon_rect)") == std::string::npos ||
-    tray.find("NOTIFYICONIDENTIFIER identifier") == std::string::npos ||
-    tray.find("MonitorFromPoint(icon_center, MONITOR_DEFAULTTONEAREST)") == std::string::npos ||
-    tray.find("monitor_info.rcWork") == std::string::npos ||
-    tray.find("show_options.Placement(placement)") == std::string::npos ||
+    tray.find("app_window.MoveAndResize") == std::string::npos ||
+    tray.find("std::clamp") == std::string::npos ||
+    tray.find("MenuFlyout") != std::string::npos ||
     tray.find("GetDpiForMonitor") != std::string::npos ||
-    tray.find("kAnchorDip") != std::string::npos ||
     tray.find("anchor.Width(32)") != std::string::npos ||
     tray.find("SetForegroundWindow(hwnd_)") != std::string::npos) return 36;
  if(tray.find("(v4_ && notification == WM_CONTEXTMENU)") == std::string::npos ||

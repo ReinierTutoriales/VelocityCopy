@@ -38,7 +38,5 @@ private:
     bool open_dispatch_active_{};
     bool menu_open_{};
     winrt::Microsoft::UI::Xaml::Window menu_window_{nullptr};
-    winrt::Microsoft::UI::Xaml::Controls::Grid menu_anchor_{nullptr};
-    winrt::Microsoft::UI::Xaml::Controls::MenuFlyout menu_flyout_{nullptr};
 };
 }
