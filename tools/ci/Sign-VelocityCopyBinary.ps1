@@ -8,7 +8,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$PfxPassword,
 
-    [int]$ToolTimeoutSeconds = 75
+    [int]$ToolTimeoutSeconds = 20
 )
 
 $ErrorActionPreference = 'Stop'
@@ -48,7 +48,7 @@ function Invoke-BoundedSignTool {
 }
 
 $timestampUrls = @(
-    'https://timestamp.digicert.com',
+    'http://timestamp.digicert.com',
     'http://timestamp.sectigo.com'
 )
 
