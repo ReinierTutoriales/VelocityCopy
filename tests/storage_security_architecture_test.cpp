@@ -27,20 +27,20 @@ int fail(int code, const char* message) {
 int main() {
     const std::filesystem::path root{VELOCITYCOPY_SOURCE_DIR};
     const auto engine = read_all(root / "src/core/copy_engine.cpp");
+    const auto path_guard = read_all(root / "src/core/destination_path_guard.hpp");
     const auto planner = read_all(root / "src/core/job_planner.cpp");
     const auto archive = read_all(root / "src/core/queue_archive.cpp");
     const auto executor = read_all(root / "src/core/job_executor.cpp");
     const auto ipc = read_all(root / "src/core/ipc_protocol.cpp");
 
-    if (engine.empty() || planner.empty() || archive.empty() || executor.empty() || ipc.empty()) {
+    if (engine.empty() || path_guard.empty() || planner.empty() || archive.empty() || executor.empty() || ipc.empty()) {
         return fail(1, "required core source missing");
     }
 
     const auto reparse_check = engine.find("source_is_unsafe_reparse_point(source)");
-    const auto destination_check = engine.find("destination_chain_contains_reparse_point(destination, destination_guard)");
+    const auto destination_check = engine.find("destination_guard.prepare_directory(parent");
     const auto copy_call = engine.find("CopyFile2(");
     if (reparse_check == std::string::npos ||
-        !contains(engine, "FILE_ATTRIBUTE_REPARSE_POINT") ||
         !contains(engine, "ERROR_CANT_ACCESS_FILE") ||
         copy_call == std::string::npos ||
         reparse_check > copy_call) {
@@ -48,16 +48,19 @@ int main() {
     }
 
     if (destination_check == std::string::npos ||
-        !contains(engine, "FILE_FLAG_OPEN_REPARSE_POINT") ||
-        !contains(engine, "FileAttributeTagInfo") ||
-        !contains(engine, "FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE") ||
-        !contains(engine, "probe.c_str(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE,") ||
-        !contains(engine, "created_now = CreateDirectoryW") ||
+        !contains(path_guard, "FILE_FLAG_OPEN_REPARSE_POINT") ||
+        !contains(path_guard, "FileAttributeTagInfo") ||
+        !contains(path_guard, "FILE_SHARE_READ | FILE_SHARE_WRITE") ||
+        contains(path_guard, "FILE_SHARE_DELETE") ||
+        !contains(path_guard, "CreateDirectoryW") ||
+        !contains(path_guard, "IsReparseTagNameSurrogate") ||
         contains(engine, "COPY_FILE_COPY_SYMLINK") ||
         contains(engine, "create_directories") ||
-        !contains(engine, "IsReparseTagNameSurrogate") ||
+        contains(executor, "create_directories") ||
+        !contains(executor, "DestinationPathGuard") ||
+        !contains(executor, "prepare_directory(directory.destination") ||
         destination_check > copy_call) {
-        return fail(6, "destination reparse defenses must precede CopyFile2, retain parents without delete sharing, and roll back only owned directories");
+        return fail(6, "all destination directory creation must use the shared non-reparse locked path guard before CopyFile2 or plan materialization");
     }
 
     if (!contains(engine, "COPYFILE2_EXTENDED_PARAMETERS_V2") ||
