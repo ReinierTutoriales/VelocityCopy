@@ -93,7 +93,7 @@ bool deliver_to_primary(const velocitycopy::ShellRequest& request) noexcept {
 }
 
 void show_activation_error(const wchar_t* message) noexcept {
-    MessageBoxW(nullptr, message, L"VelocityCopy",
+    MessageBoxW(nullptr, message, L"RepartoCopier",
                 MB_OK | MB_ICONWARNING | MB_SETFOREGROUND);
 }
 
@@ -102,7 +102,7 @@ void show_activation_error(const wchar_t* message) noexcept {
 App::App() {
     s_instance = this;
     if (!velocitycopy::localization::initialize()) {
-        show_activation_error(L"VelocityCopy resources could not be loaded. Reinstall the application.");
+        show_activation_error(L"RepartoCopier resources could not be loaded. Reinstall the application.");
         throw winrt::hresult_error(HRESULT_FROM_WIN32(ERROR_RESOURCE_DATA_NOT_FOUND));
     }
     InitializeComponent();
@@ -516,7 +516,7 @@ void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
     if (!instance_->valid()) {
         if (!startup_activation) {
             show_activation_error(
-                L"VelocityCopy is already running with different permissions. "
+                L"RepartoCopier is already running with different permissions. "
                 L"Close it from the notification area and try again.");
         }
         Microsoft::UI::Xaml::Application::Current().Exit();
@@ -535,8 +535,8 @@ void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
         if (!delivered && !startup_activation) {
             show_activation_error(
                 initial_request
-                    ? L"VelocityCopy is running but did not respond. The transfer was not started."
-                    : L"VelocityCopy is running but did not respond.");
+                    ? L"RepartoCopier is running but did not respond. The transfer was not started."
+                    : L"RepartoCopier is running but did not respond.");
         }
         Microsoft::UI::Xaml::Application::Current().Exit();
         return;
