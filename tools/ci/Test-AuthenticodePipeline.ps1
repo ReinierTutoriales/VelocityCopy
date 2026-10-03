@@ -25,8 +25,33 @@ try {
 
     Write-Host "Proving Authenticode detects post-signing content modification"
     $bytes = [IO.File]::ReadAllBytes($Path)
-    if ($bytes.Length -lt 1) { throw "Signed Authenticode fixture is empty: $Path" }
-    $bytes[0] = $bytes[0] -bxor 0x01
+    if ($bytes.Length -lt 0x100) { throw "Signed Authenticode fixture is too small to be a PE image: $Path" }
+
+    $pe = [BitConverter]::ToInt32($bytes, 0x3C)
+    if ($pe -lt 0 -or $pe + 24 -gt $bytes.Length) { throw "Invalid PE header offset in signed fixture: $Path" }
+    if ($bytes[$pe] -ne 0x50 -or $bytes[$pe + 1] -ne 0x45 -or $bytes[$pe + 2] -ne 0 -or $bytes[$pe + 3] -ne 0) {
+        throw "Signed fixture has no valid PE signature: $Path"
+    }
+
+    $magic = [BitConverter]::ToUInt16($bytes, $pe + 24)
+    if ($magic -eq 0x20B) {
+        $dirs = $pe + 24 + 112
+    } elseif ($magic -eq 0x10B) {
+        $dirs = $pe + 24 + 96
+    } else {
+        throw "Unsupported PE optional-header magic in signed fixture: 0x$($magic.ToString('X'))"
+    }
+
+    $securityDirectory = $dirs + (4 * 8)
+    if ($securityDirectory + 8 -gt $bytes.Length) { throw "PE security directory is outside signed fixture: $Path" }
+    $certOffset = [BitConverter]::ToInt32($bytes, $securityDirectory)
+    $certSize = [BitConverter]::ToInt32($bytes, $securityDirectory + 4)
+    if ($certOffset -le 0x400 -or $certSize -le 0 -or $certOffset + $certSize -gt $bytes.Length) {
+        throw "Signed fixture has no valid Authenticode certificate table: $Path"
+    }
+
+    $target = [int]($certOffset / 2)
+    $bytes[$target] = $bytes[$target] -bxor 0x01
     [IO.File]::WriteAllBytes($Path, $bytes)
     $tampered = Get-AuthenticodeSignature -FilePath $Path
     if ($tampered.Status -ne 'HashMismatch') {
