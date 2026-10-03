@@ -59,6 +59,11 @@ endif()
 add_executable(VelocityCopyCli src/app/main.cpp)
 target_link_libraries(VelocityCopyCli PRIVATE velocitycopy_core)
 
+add_executable(VelocityCopyStartupHelper src/app/startup_helper.cpp)
+target_compile_definitions(VelocityCopyStartupHelper PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
+target_link_libraries(VelocityCopyStartupHelper PRIVATE advapi32 user32)
+set_target_properties(VelocityCopyStartupHelper PROPERTIES OUTPUT_NAME "VelocityCopy.StartupHelper")
+
 add_executable(VelocityCopyBenchmark tools/benchmark.cpp)
 target_link_libraries(VelocityCopyBenchmark PRIVATE velocitycopy_core psapi)
 
@@ -72,6 +77,7 @@ set_target_properties(VelocityCopyShell PROPERTIES OUTPUT_NAME "VelocityCopy.She
 
 if(MSVC)
     target_compile_options(VelocityCopyCli PRIVATE /W4 /permissive- /EHsc /utf-8)
+    target_compile_options(VelocityCopyStartupHelper PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyBenchmark PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyAppendBenchmark PRIVATE /W4 /permissive- /EHsc /utf-8)
     target_compile_options(VelocityCopyShell PRIVATE /W4 /permissive- /EHsc /utf-8)
