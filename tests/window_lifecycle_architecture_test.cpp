@@ -65,6 +65,12 @@ int main(){
 
  const auto show_from_tray=body_of(tray,"void MainWindow::ShowFromTray(");
  if(show_from_tray.empty() || show_from_tray.find("MaybeOfferRecoveryAsync()") != std::string::npos) return 19;
+ if(show_from_tray.find("OverlappedPresenterState::Minimized") == std::string::npos ||
+    show_from_tray.find("presenter.Restore();") == std::string::npos ||
+    show_from_tray.find("Activate();") == std::string::npos ||
+    show_from_tray.find("ShowWindow(hwnd_, SW_SHOW)") != std::string::npos ||
+    show_from_tray.find("ShowWindow(hwnd_, SW_RESTORE)") != std::string::npos ||
+    show_from_tray.find("SetForegroundWindow(hwnd_)") != std::string::npos) return 29;
  const auto primary=body_of(app,"void App::ShowPrimaryWindow(");
  if(primary.empty() || primary.find("implementation->ShowFromTray();") == std::string::npos ||
     primary.find("implementation->OfferRecoveryIfIdle();") == std::string::npos) return 20;
