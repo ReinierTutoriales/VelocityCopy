@@ -19,27 +19,42 @@ inline bool name_surrogate_reparse(const HANDLE handle) noexcept {
     return IsReparseTagNameSurrogate(info.ReparseTag) != FALSE;
 }
 
+struct DestinationPathHandle final {
+    HANDLE handle{INVALID_HANDLE_VALUE};
+    bool created{};
+};
+
 struct DestinationPathGuard final {
-    std::vector<HANDLE> handles;
+    std::vector<DestinationPathHandle> handles;
     std::vector<std::filesystem::path> missing;
-    std::vector<std::filesystem::path> created;
 
     DestinationPathGuard() = default;
     DestinationPathGuard(const DestinationPathGuard&) = delete;
     DestinationPathGuard& operator=(const DestinationPathGuard&) = delete;
 
     ~DestinationPathGuard() noexcept {
-        for (const HANDLE handle : handles) {
-            CloseHandle(handle);
+        for (auto& entry : handles) {
+            if (entry.handle != INVALID_HANDLE_VALUE) {
+                CloseHandle(entry.handle);
+            }
         }
     }
 
     void rollback_created() noexcept {
-        for (auto it = created.rbegin(); it != created.rend(); ++it) {
-            std::error_code ec;
-            std::filesystem::remove(*it, ec);
+        FILE_DISPOSITION_INFO disposition{};
+        disposition.DeleteFile = TRUE;
+        for (auto it = handles.rbegin(); it != handles.rend(); ++it) {
+            if (!it->created || it->handle == INVALID_HANDLE_VALUE) {
+                continue;
+            }
+            (void)SetFileInformationByHandle(
+                it->handle,
+                FileDispositionInfo,
+                &disposition,
+                sizeof(disposition));
+            CloseHandle(it->handle);
+            it->handle = INVALID_HANDLE_VALUE;
         }
-        created.clear();
     }
 
     bool lock_existing_chain(const std::filesystem::path& path, std::error_code& error) noexcept {
@@ -78,7 +93,7 @@ struct DestinationPathGuard final {
                 return false;
             }
 
-            handles.push_back(handle);
+            handles.push_back({handle, false});
             probe = probe.parent_path();
         }
         return true;
@@ -94,13 +109,11 @@ struct DestinationPathGuard final {
                     rollback_created();
                     return false;
                 }
-            } else {
-                created.push_back(*it);
             }
 
             const HANDLE handle = CreateFileW(
                 it->c_str(),
-                FILE_READ_ATTRIBUTES,
+                FILE_READ_ATTRIBUTES | (created_now != 0 ? DELETE : 0),
                 FILE_SHARE_READ | FILE_SHARE_WRITE,
                 nullptr,
                 OPEN_EXISTING,
@@ -115,7 +128,7 @@ struct DestinationPathGuard final {
                 return false;
             }
 
-            handles.push_back(handle);
+            handles.push_back({handle, created_now != 0});
         }
         missing.clear();
         return true;
