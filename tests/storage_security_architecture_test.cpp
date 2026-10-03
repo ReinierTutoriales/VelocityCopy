@@ -50,6 +50,8 @@ int main() {
         !contains(engine, "FileAttributeTagInfo") ||
         !contains(engine, "FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE") ||
         contains(engine, "COPY_FILE_COPY_SYMLINK") ||
+        contains(engine, "create_directories") ||
+        !contains(engine, "IsReparseTagNameSurrogate") ||
         destination_check > copy_call) {
         return fail(6, "destination reparse defenses must precede CopyFile2 without re-enabling symlink traversal");
     }
