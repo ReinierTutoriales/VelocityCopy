@@ -19,7 +19,8 @@ constexpr std::uint32_t kFormatVersion = 3;
 constexpr std::uint32_t kLegacyFormatVersion = 1;
 constexpr std::uint32_t kPreviousFormatVersion = 2;
 constexpr std::uint32_t kMaxStringChars = 32767;
-constexpr std::uint64_t kMaxEntries = 10'000'000;
+constexpr std::uint64_t kMaxEntries = 250'000;
+constexpr std::uintmax_t kMaxArchiveBytes = 256ull * 1024ull * 1024ull;
 
 template <typename T>
 requires std::is_trivially_copyable_v<T>
@@ -368,6 +369,12 @@ bool QueueArchiveStore::save(
 std::optional<QueueArchive> QueueArchiveStore::load(
     const std::filesystem::path& path) const noexcept {
     try {
+        std::error_code size_error;
+        const auto archive_size = std::filesystem::file_size(path, size_error);
+        if (size_error || archive_size > kMaxArchiveBytes) {
+            return std::nullopt;
+        }
+
         std::ifstream stream(path, std::ios::binary);
         if (!stream) return std::nullopt;
 
