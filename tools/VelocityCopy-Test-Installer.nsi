@@ -110,10 +110,6 @@ Section "Install VelocityCopy" SEC_INSTALL
   SetOutPath "$INSTDIR"
   File /r "${PAYLOAD_DIR}\*.*"
 
-  ; Keep the technical install path/executable stable for upgrades, but expose
-  ; the public product name in the Start menu. Remove the legacy shortcut first.
-  Delete "$SMPROGRAMS\VelocityCopy\VelocityCopy.lnk"
-  RMDir "$SMPROGRAMS\VelocityCopy"
   Delete "$SMPROGRAMS\VelocityCopy\VelocityCopy.lnk"
   RMDir "$SMPROGRAMS\VelocityCopy"
   CreateDirectory "$SMPROGRAMS\VelocityCopy"
@@ -146,8 +142,6 @@ SectionEnd
 Section "Uninstall"
   SetRegView 64
   !insertmacro CloseRunningApp
-  Delete "$SMPROGRAMS\VelocityCopy\VelocityCopy.lnk"
-  RMDir "$SMPROGRAMS\VelocityCopy"
   Delete "$SMPROGRAMS\VelocityCopy\VelocityCopy.lnk"
   RMDir "$SMPROGRAMS\VelocityCopy"
   DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "VelocityCopy"
