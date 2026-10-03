@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <sddl.h>
 
 #include <string>
 #include <string_view>
@@ -108,8 +109,39 @@ DWORD same_session_shell_pid() noexcept {
     return shell_pid;
 }
 
+bool token_profile_is_loaded(HANDLE token) noexcept {
+    DWORD bytes = 0;
+    GetTokenInformation(token, TokenUser, nullptr, 0, &bytes);
+    if (bytes == 0) return false;
+
+    std::vector<std::byte> storage(bytes);
+    if (!GetTokenInformation(token, TokenUser, storage.data(), bytes, &bytes)) {
+        return false;
+    }
+
+    const auto* token_user = reinterpret_cast<const TOKEN_USER*>(storage.data());
+    LPWSTR sid_text = nullptr;
+    if (!ConvertSidToStringSidW(token_user->User.Sid, &sid_text)) {
+        return false;
+    }
+
+    HKEY profile_key{};
+    const LSTATUS opened = RegOpenKeyExW(
+        HKEY_USERS,
+        sid_text,
+        0,
+        KEY_QUERY_VALUE,
+        &profile_key);
+    LocalFree(sid_text);
+    if (opened != ERROR_SUCCESS) {
+        return false;
+    }
+    RegCloseKey(profile_key);
+    return true;
+}
+
 DWORD run_with_shell_token(
-    const wchar_t* self,
+    const wchar_t* /*self*/,
     const std::wstring_view apply_mode,
     const std::wstring& executable) noexcept {
     const DWORD shell_pid = same_session_shell_pid();
@@ -128,6 +160,11 @@ DWORD run_with_shell_token(
         return error;
     }
     CloseHandle(shell_process);
+
+    if (!token_profile_is_loaded(shell_token)) {
+        CloseHandle(shell_token);
+        return kNoInteractiveShell;
+    }
 
     HANDLE primary_token{};
     if (!DuplicateTokenEx(
