@@ -143,14 +143,22 @@ Windows::Foundation::IAsyncOperation<std::uint32_t> show_decision_async(Decision
 
     // Loaded is the first point where WinUI templates/theme resources have been applied.
     // Resize again there so Button/CheckBox desired sizes cannot be clipped.
-    root.Loaded([primary, root, owner = options.owner](auto const&, auto const&) {
+    root.Loaded([primary, root, dialog, owner = options.owner](auto const&, auto const&) {
         try {
             const int width_epx = token_int(L"DecisionWindowWidth", 440);
-            root.Measure(Windows::Foundation::Size{static_cast<float>(width_epx), std::numeric_limits<float>::infinity()});
-            if (auto xaml_root = root.XamlRoot()) {
-                if (auto content = xaml_root.Content()) {
-                    (void)content;
-                }
+            root.Measure(Windows::Foundation::Size{
+                static_cast<float>(width_epx),
+                std::numeric_limits<float>::infinity()});
+            const int height_epx = static_cast<int>(std::ceil(root.DesiredSize().Height));
+            const UINT dpi = owner ? GetDpiForWindow(owner) : USER_DEFAULT_SCREEN_DPI;
+            const int effective_dpi = dpi ? static_cast<int>(dpi) : USER_DEFAULT_SCREEN_DPI;
+            dialog.AppWindow().Resize(Windows::Graphics::SizeInt32{
+                MulDiv(width_epx, effective_dpi, USER_DEFAULT_SCREEN_DPI),
+                MulDiv(height_epx, effective_dpi, USER_DEFAULT_SCREEN_DPI)});
+            HWND loaded_hwnd{};
+            auto native = dialog.as<::IWindowNative>();
+            if (SUCCEEDED(native->get_WindowHandle(&loaded_hwnd))) {
+                center_owned_window(owner, loaded_hwnd);
             }
         } catch (...) {}
         (void)primary.Focus(FocusState::Programmatic);
