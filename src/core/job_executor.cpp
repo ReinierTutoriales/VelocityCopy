@@ -1,6 +1,7 @@
 #include "velocitycopy/job_executor.hpp"
 #include "velocitycopy/storage_topology.hpp"
 #include "velocitycopy/source_removal_recovery.hpp"
+#include "destination_path_guard.hpp"
 
 #include <windows.h>
 
@@ -19,6 +20,10 @@ namespace velocitycopy {
 namespace {
 
 constexpr std::uint32_t kMaxCopyWorkers = 4;
+constexpr std::int32_t kInvalidPlanState =
+    static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_INVALID_STATE));
+constexpr std::int32_t kUnhandledExecutorError =
+    static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION));
 
 std::int32_t native_hresult(const std::error_code& code, const DWORD fallback = ERROR_INVALID_DATA) noexcept {
     const auto value = code.value();
@@ -141,7 +146,7 @@ std::int32_t remove_empty_source_directories(
     } catch (const std::system_error& error) {
         return native_hresult(error.code());
     } catch (...) {
-        return static_cast<std::int32_t>(E_FAIL);
+        return kUnhandledExecutorError;
     }
 }
 
@@ -278,7 +283,7 @@ JobResult JobExecutor::execute(
     } catch (const std::system_error& error) {
         return {false, false, native_hresult(error.code())};
     } catch (...) {
-        return {false, false, static_cast<std::int32_t>(E_FAIL)};
+        return {false, false, kUnhandledExecutorError};
     }
 }
 
@@ -299,7 +304,7 @@ JobResult JobExecutor::execute(
     } catch (const std::system_error& error) {
         return {false, false, native_hresult(error.code())};
     } catch (...) {
-        return {false, false, static_cast<std::int32_t>(E_FAIL)};
+        return {false, false, kUnhandledExecutorError};
     }
 }
 
@@ -363,7 +368,7 @@ JobResult JobExecutor::execute(
                     if (!plan.resolve_parked(
                             recovery.file_id, ItemOutcome::CopiedSourceRetained,
                             recovery.hresult, recovery.destination_preexisted)) {
-                        return finish({false, false, static_cast<std::int32_t>(E_FAIL)});
+                        return finish({false, false, kInvalidPlanState});
                     }
                     continue;
                 }
@@ -371,38 +376,39 @@ JobResult JobExecutor::execute(
                     if (!plan.resolve_parked(
                             recovery.file_id, ItemOutcome::Succeeded, S_OK,
                             recovery.destination_preexisted)) {
-                        return finish({false, false, static_cast<std::int32_t>(E_FAIL)});
+                        return finish({false, false, kInvalidPlanState});
                     }
                     continue;
                 }
                 if (!plan.begin_parked_retry(
                         recovery.file_id, RecoveryAction::RetrySourceRemoval)) {
-                    return finish({false, false, static_cast<std::int32_t>(E_FAIL)});
+                    return finish({false, false, kInvalidPlanState});
                 }
                 const auto remove_source = remove_moved_source_file(recovery.source);
                 if (remove_source == S_OK) {
                     if (!plan.resolve_parked(
                             recovery.file_id, ItemOutcome::Succeeded, S_OK,
                             recovery.destination_preexisted)) {
-                        return finish({false, false, static_cast<std::int32_t>(E_FAIL)});
+                        return finish({false, false, kInvalidPlanState});
                     }
                 } else if (!plan.record_parked_retry_failure(recovery.file_id, remove_source)) {
-                    return finish({false, false, static_cast<std::int32_t>(E_FAIL)});
+                    return finish({false, false, kInvalidPlanState});
                 }
             }
         }
 
         const auto directory_batch = plan.pending_directories();
         for (const auto& directory : directory_batch.directories) {
+            detail::DestinationPathGuard directory_guard;
             std::error_code ec;
-            std::filesystem::create_directories(directory.destination, ec);
-            if (ec) {
-                const auto code = static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
+            if (!directory_guard.prepare_directory(directory.destination, ec)) {
+                const auto code = native_hresult(ec, ERROR_CANT_ACCESS_FILE);
                 if (is_session_fatal(code)) {
                     return finish({false, false, code});
                 }
-                // A directory that cannot be created fails only the items that
-                // depend on it; the rest of the plan continues.
+                // Planned directories use the same locked, non-reparse chain
+                // as file parents. Empty directories therefore cannot be
+                // materialized through a junction/symlink outside the target.
                 (void)plan.fail_pending_under(directory.destination, code);
             }
         }
@@ -526,12 +532,12 @@ JobResult JobExecutor::execute(
                         if (skip_allowed && control.consume_skip(file_id)) {
 
                             if (!plan.resolve_active(file_id, ItemOutcome::Skipped, S_OK, false)) {
-                                result_state.record_error(static_cast<std::int32_t>(E_FAIL));
+                                result_state.record_error(kInvalidPlanState);
                                 control.request_cancel();
                                 worker_results[worker_index] = {
                                     false,
                                     false,
-                                    static_cast<std::int32_t>(E_FAIL),
+                                    kInvalidPlanState,
                                     false,
                                 };
                                 return;
@@ -601,12 +607,12 @@ JobResult JobExecutor::execute(
 
                                 remove_partial_destination(file->destination);
                                 if (!plan.resolve_active(file_id, ItemOutcome::Skipped, S_OK, false)) {
-                                    result_state.record_error(static_cast<std::int32_t>(E_FAIL));
+                                    result_state.record_error(kInvalidPlanState);
                                     control.request_cancel();
                                     worker_results[worker_index] = {
                                         false,
                                         false,
-                                        static_cast<std::int32_t>(E_FAIL),
+                                        kInvalidPlanState,
                                         false,
                                     };
                                     return;
@@ -663,12 +669,12 @@ JobResult JobExecutor::execute(
                                 options.conflict_policy == ConflictPolicy::SkipAll &&
                                 is_destination_conflict(result.native_code)) {
                                 if (!plan.resolve_active(file_id, ItemOutcome::Skipped, S_OK, true)) {
-                                    result_state.record_error(static_cast<std::int32_t>(E_FAIL));
+                                    result_state.record_error(kInvalidPlanState);
                                     control.request_cancel();
                                     worker_results[worker_index] = {
                                         false,
                                         false,
-                                        static_cast<std::int32_t>(E_FAIL),
+                                        kInvalidPlanState,
                                         false,
                                     };
                                     return;
@@ -682,9 +688,9 @@ JobResult JobExecutor::execute(
                                 if (!plan.park_active(
                                         file_id, result.native_code, !skip_allowed,
                                         RecoveryAction::RetryTransfer)) {
-                                    result_state.record_error(static_cast<std::int32_t>(E_FAIL));
+                                    result_state.record_error(kInvalidPlanState);
                                     control.request_cancel();
-                                    worker_results[worker_index] = {false, false, static_cast<std::int32_t>(E_FAIL), false};
+                                    worker_results[worker_index] = {false, false, kInvalidPlanState, false};
                                     return;
                                 }
                                 failed = true;
@@ -726,10 +732,10 @@ JobResult JobExecutor::execute(
                                     if (!plan.resolve_active(
                                             file_id, ItemOutcome::CopiedSourceRetained,
                                             remove_source, !skip_allowed)) {
-                                        result_state.record_error(static_cast<std::int32_t>(E_FAIL));
+                                        result_state.record_error(kInvalidPlanState);
                                         control.request_cancel();
                                         worker_results[worker_index] = {
-                                            false, false, static_cast<std::int32_t>(E_FAIL), false,
+                                            false, false, kInvalidPlanState, false,
                                         };
                                         return;
                                     }
@@ -739,10 +745,10 @@ JobResult JobExecutor::execute(
                                         file_id, remove_source, !skip_allowed,
                                         source_fingerprint.fingerprint,
                                         destination_fingerprint.fingerprint)) {
-                                    result_state.record_error(static_cast<std::int32_t>(E_FAIL));
+                                    result_state.record_error(kInvalidPlanState);
                                     control.request_cancel();
                                     worker_results[worker_index] = {
-                                        false, false, static_cast<std::int32_t>(E_FAIL), false,
+                                        false, false, kInvalidPlanState, false,
                                     };
                                     return;
                                 }
@@ -758,9 +764,9 @@ JobResult JobExecutor::execute(
                         }
 
                         if (!plan.resolve_active(file_id, ItemOutcome::Succeeded, S_OK, !skip_allowed)) {
-                            result_state.record_error(static_cast<std::int32_t>(E_FAIL));
+                            result_state.record_error(kInvalidPlanState);
                             control.request_cancel();
-                            worker_results[worker_index] = {false, false, static_cast<std::int32_t>(E_FAIL), false};
+                            worker_results[worker_index] = {false, false, kInvalidPlanState, false};
                             return;
                         }
                         if (!emit_progress(*file, false, false)) {
@@ -812,12 +818,12 @@ JobResult JobExecutor::execute(
                     worker_results[worker_index] = {false, false, native, false};
                     return;
                 } catch (...) {
-                    result_state.record_error(static_cast<std::int32_t>(E_FAIL));
+                    result_state.record_error(kUnhandledExecutorError);
                     control.request_cancel();
                     worker_results[worker_index] = {
                         false,
                         false,
-                        static_cast<std::int32_t>(E_FAIL),
+                        kUnhandledExecutorError,
                         false,
                     };
                     return;
@@ -859,7 +865,7 @@ JobResult JobExecutor::execute(
     } catch (const std::system_error& error) {
         return {false, false, native_hresult(error.code())};
     } catch (...) {
-        return {false, false, static_cast<std::int32_t>(E_FAIL)};
+        return {false, false, kUnhandledExecutorError};
     }
 }
 
