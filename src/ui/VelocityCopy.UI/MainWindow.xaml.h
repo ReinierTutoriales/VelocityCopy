@@ -30,6 +30,13 @@ namespace winrt::VelocityCopyUI::implementation {
 enum class InterruptedSessionState : std::uint8_t { None, Stopped, Conflict, Decision };
 
 struct MainWindow : MainWindowT<MainWindow> {
+    enum class NativeDialogChoice : std::uint8_t { Cancel, Primary, Secondary };
+    // Transitional: Recovery and App routing are the only native-dialog callers.
+    static NativeDialogChoice ShowNativeDecisionDialog(
+        HWND owner, const std::wstring& title, const std::wstring& message,
+        const std::wstring& primary_label, const std::wstring& secondary_label,
+        bool include_cancel, const std::wstring& cancel_label = {},
+        const std::wstring& verification_label = {}, bool* remember_choice = nullptr) noexcept;
     MainWindow();
     ~MainWindow();
 
