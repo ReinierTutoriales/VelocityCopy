@@ -147,6 +147,461 @@ jobs:
           $size = (Get-ChildItem $payload -Recurse -File | Measure-Object Length -Sum).Sum
           Write-Host ("Self-contained ${{ matrix.arch }} payload: {0:N1} MB" -f ($size / 1MB))
 
+      - name: Sign stable-tag payload
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        shell: pwsh
+        env:
+          SIGNING_PFX_BASE64: ${{ secrets.VELOCITYCOPY_SIGNING_PFX_BASE64 }}
+          SIGNING_PFX_PASSWORD: ${{ secrets.VELOCITYCOPY_SIGNING_PFX_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:SIGNING_PFX_BASE64) -or
+              [string]::IsNullOrWhiteSpace($env:SIGNING_PFX_PASSWORD)) {
+            throw "Stable tags require VELOCITYCOPY_SIGNING_PFX_BASE64 and VELOCITYCOPY_SIGNING_PFX_PASSWORD"
+          }
+
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -File -Filter signtool.exe |
+            Where-Object { $_.FullName -match '[\\/]x64[\\/]signtool\.exe          $payload = (Resolve-Path "artifacts/installer-payload-${{ matrix.arch }}").Path
+          pwsh -NoProfile -File tools/ci/Assert-PriResource.ps1 -RootPath $payload -EvidencePath "artifacts/pri-evidence-${{ matrix.arch }}/payload" -Key RecoveryRestoreError -LanguagesCsv 'en-US,es-ES'
+          if ($LASTEXITCODE -ne 0) { throw "Payload PRI validation failed for ${{ matrix.arch }}" }
+
+      - name: Exercise PRI validator with real fixtures
+        shell: pwsh
+        run: |
+          $sourcePri = (Resolve-Path "artifacts/installer-payload-${{ matrix.arch }}/VelocityCopy.WinUI.pri").Path
+          $fixtures = "artifacts/pri-fixtures-${{ matrix.arch }}"
+          Remove-Item $fixtures -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force "$fixtures/positive" | Out-Null
+          Copy-Item $sourcePri "$fixtures/positive/VelocityCopy.WinUI.pri"
+          pwsh -NoProfile -File tools/ci/Assert-PriResource.ps1 -RootPath "$fixtures/positive" -EvidencePath "artifacts/pri-evidence-${{ matrix.arch }}/fixture-positive" -Key RecoveryRestoreError -LanguagesCsv 'en-US,es-ES'
+          if ($LASTEXITCODE -ne 0) { throw 'Positive PRI fixture was rejected' }
+
+          New-Item -ItemType Directory -Force "$fixtures/negative" | Out-Null
+          Copy-Item $sourcePri "$fixtures/negative/VelocityCopy.WinUI.pri"
+          # Each negative case must fail for ITS reason. A non-zero exit alone is
+          # not proof: a missing makepri or a broken dump also exits non-zero.
+          $negatives = @(
+            @{ Name = 'missing-key';      Key = '__VelocityCopyMissingFixtureKey__'; Languages = 'en-US,es-ES';
+               Reason = 'PRI dump does not contain resource key __VelocityCopyMissingFixtureKey__' },
+            @{ Name = 'missing-language'; Key = 'RecoveryRestoreError';              Languages = 'en-US,es-ES,fr-FR';
+               Reason = 'PRI resource RecoveryRestoreError has no candidate qualified for fr-FR' }
+          )
+          foreach ($case in $negatives) {
+            $output = pwsh -NoProfile -File tools/ci/Assert-PriResource.ps1 -RootPath "$fixtures/negative" -EvidencePath "artifacts/pri-evidence-${{ matrix.arch }}/fixture-negative-$($case.Name)" -Key $case.Key -LanguagesCsv $case.Languages 2>&1 | Out-String
+            $exitCode = $LASTEXITCODE
+            if ($exitCode -eq 0) { throw "Negative PRI case '$($case.Name)' was incorrectly accepted" }
+            if (-not $output.Contains($case.Reason)) {
+              Write-Host $output
+              throw "Negative PRI case '$($case.Name)' failed for an unexpected reason"
+            }
+            Write-Host "Negative PRI case '$($case.Name)' rejected as expected: $($case.Reason)"
+          }
+          $global:LASTEXITCODE = 0
+
+      - name: Cache pinned NSIS
+        id: cache-nsis
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/nsis-3.11.zip
+          key: nsis-3.11-${{ matrix.arch }}-c7d27f780ddb6cffb4730138cd1591e841f4b7edb155856901cdf5f214394fa1
+
+      - name: Fetch and verify pinned NSIS
+        shell: pwsh
+        run: |
+          $version = "3.11"
+          $expected = "c7d27f780ddb6cffb4730138cd1591e841f4b7edb155856901cdf5f214394fa1"
+          $zip = Join-Path $env:RUNNER_TEMP "nsis-$version.zip"
+          if (-not (Test-Path $zip)) {
+            $url = "https://github.com/tauri-apps/binary-releases/releases/download/nsis-$version/nsis-$version.zip"
+            & curl.exe -L --fail --retry 4 --retry-all-errors --output $zip $url
+            if ($LASTEXITCODE -ne 0 -or -not (Test-Path $zip)) { throw "Pinned NSIS download failed" }
+          }
+          $actual = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $expected) { throw "NSIS SHA256 mismatch: expected $expected, got $actual" }
+          Write-Host "Verified NSIS $version SHA256: $actual"
+          $tools = Join-Path $env:RUNNER_TEMP "nsis-$version"
+          Remove-Item $tools -Recurse -Force -ErrorAction SilentlyContinue
+          Expand-Archive -Path $zip -DestinationPath $tools -Force
+          $makensis = Get-ChildItem $tools -Recurse -File -Filter makensis.exe | Select-Object -First 1
+          if (-not $makensis) { throw "Pinned NSIS $version does not contain makensis.exe" }
+          "NSIS_MAKENSIS=$($makensis.FullName)" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "Using pinned NSIS $version at $($makensis.FullName)"
+
+      - name: Build classic installer
+        shell: pwsh
+        run: |
+          if (-not $env:NSIS_MAKENSIS -or -not (Test-Path $env:NSIS_MAKENSIS)) { throw "Portable NSIS is unavailable" }
+          New-Item -ItemType Directory -Force artifacts/installer | Out-Null
+          $payload = (Resolve-Path artifacts/installer-payload-${{ matrix.arch }}).Path
+          $output = Join-Path (Resolve-Path artifacts/installer).Path "${{ matrix.setup_name }}"
+          & $env:NSIS_MAKENSIS "/DPAYLOAD_DIR=$payload" "/DOUTPUT_FILE=$output" "/DDISPLAY_VERSION=$env:VELOCITYCOPY_VERSION" "/DPAYLOAD_ARCH=${{ matrix.platform }}" tools/VelocityCopy-Test-Installer.nsi
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $output)) { throw "Classic ${{ matrix.arch }} installer build failed" }
+
+      - name: Sign stable-tag installer
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        shell: pwsh
+        env:
+          SIGNING_PFX_BASE64: ${{ secrets.VELOCITYCOPY_SIGNING_PFX_BASE64 }}
+          SIGNING_PFX_PASSWORD: ${{ secrets.VELOCITYCOPY_SIGNING_PFX_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:SIGNING_PFX_BASE64) -or
+              [string]::IsNullOrWhiteSpace($env:SIGNING_PFX_PASSWORD)) {
+            throw "Stable tags require Authenticode signing secrets"
+          }
+
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -File -Filter signtool.exe |
+            Where-Object { $_.FullName -match '[\\/]x64[\\/]signtool\.exe      - name: Smoke install classic x64 installer
+        if: ${{ matrix.smoke }}
+        shell: pwsh
+        run: |
+          $setup = (Resolve-Path artifacts/installer/${{ matrix.setup_name }}).Path
+          & ./tools/Test-ShellRegistration.ps1 -Phase SeedLegacy
+          $install = Start-Process $setup -ArgumentList "/S" -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Installer failed: $($install.ExitCode)" }
+          $root = Join-Path $env:ProgramFiles "VelocityCopy"
+          $exe = Join-Path $root "VelocityCopy.WinUI.exe"
+          $uninstaller = Join-Path $root "Uninstall.exe"
+          $shellDll = Join-Path $root "VelocityCopy.Shell.dll"
+          if (-not (Test-Path $exe)) { throw "Installed executable is missing" }
+          if (-not (Test-Path $uninstaller)) { throw "Uninstaller is missing" }
+          if (-not (Test-Path $shellDll)) { throw "Installed shell extension is missing" }
+          $installedPri = Join-Path $root "VelocityCopy.WinUI.pri"
+          if (-not (Test-Path $installedPri)) { throw "Installed VelocityCopy.WinUI.pri is missing beside VelocityCopy.WinUI.exe" }
+          if (Test-Path (Join-Path $root "resources.pri")) { throw "Legacy resources.pri must not be installed" }
+          pwsh -NoProfile -File tools/ci/Assert-PriResource.ps1 -RootPath $root -EvidencePath "artifacts/pri-evidence-${{ matrix.arch }}/installed" -Key RecoveryRestoreError -LanguagesCsv 'en-US,es-ES'
+          if ($LASTEXITCODE -ne 0) { throw "Installed PRI validation failed" }
+          & ./tools/Test-ShellRegistration.ps1 -Phase Installed
+
+          $app = Start-Process $exe -PassThru
+          Start-Sleep -Seconds 5
+          $app.Refresh()
+          if ($app.HasExited) {
+            $exitCode = $app.ExitCode
+            $hexCode = ('0x{0:X8}' -f ([BitConverter]::ToUInt32([BitConverter]::GetBytes([int32]$exitCode), 0)))
+            Write-Host "VelocityCopy exited with $exitCode ($hexCode)"
+            Write-Host "Installed payload files:"
+            Get-ChildItem $root -Recurse -File | Sort-Object FullName | ForEach-Object { Write-Host $_.FullName }
+            Write-Host "Recent Application event log entries for VelocityCopy / XAML / Windows App Runtime:"
+            Get-WinEvent -FilterHashtable @{ LogName='Application'; StartTime=(Get-Date).AddMinutes(-5) } -ErrorAction SilentlyContinue |
+              Where-Object { $_.Message -match 'VelocityCopy|Microsoft.UI.Xaml|WindowsAppRuntime|CoreMessaging|0xc000027b' } |
+              Select-Object -First 20 TimeCreated, Id, ProviderName, LevelDisplayName, Message |
+              Format-List | Out-String -Width 4096 | Write-Host
+            throw "Installed VelocityCopy exited during launch smoke test with code $exitCode ($hexCode)"
+          }
+          Stop-Process -Id $app.Id -Force
+          Write-Host "Installed payload launched successfully at $root"
+
+      - name: Smoke uninstall classic x64 installer
+        if: ${{ matrix.smoke }}
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:ProgramFiles "VelocityCopy"
+          $uninstaller = Join-Path $root "Uninstall.exe"
+          $p = Start-Process $uninstaller -ArgumentList "/S" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Uninstaller failed: $($p.ExitCode)" }
+          Start-Sleep -Seconds 2
+          if (Test-Path $root) { throw "Installation directory remains after uninstall" }
+          & ./tools/Test-ShellRegistration.ps1 -Phase Uninstalled
+
+      - name: Upload PRI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: VelocityCopy-PRI-evidence-${{ matrix.arch }}-${{ github.run_id }}
+          path: artifacts/pri-evidence-${{ matrix.arch }}
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload validated installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: VelocityCopy-Setup-${{ matrix.arch }}-${{ env.VELOCITYCOPY_VERSION }}
+          path: artifacts/installer/${{ matrix.setup_name }}
+          if-no-files-found: error
+          retention-days: 14
+ } |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+          if (-not $signtool) { throw "signtool.exe was not found" }
+
+          $pfx = Join-Path $env:RUNNER_TEMP "velocitycopy-signing.pfx"
+          try {
+            [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:SIGNING_PFX_BASE64))
+            $payload = (Resolve-Path "artifacts/installer-payload-${{ matrix.arch }}").Path
+            foreach ($binary in @(
+              (Join-Path $payload "VelocityCopy.WinUI.exe"),
+              (Join-Path $payload "VelocityCopy.Shell.dll")
+            )) {
+              & $signtool.FullName sign /f $pfx /p $env:SIGNING_PFX_PASSWORD /fd SHA256 /tr "https://timestamp.digicert.com" /td SHA256 $binary
+              if ($LASTEXITCODE -ne 0) { throw "Authenticode signing failed for $binary" }
+              $signature = Get-AuthenticodeSignature -FilePath $binary
+              if ($signature.Status -ne 'Valid') {
+                throw "Invalid Authenticode signature for $binary: $($signature.Status)"
+              }
+            }
+          } finally {
+            Remove-Item $pfx -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: Validate application PRI in payload
+        shell: pwsh
+        run: |
+          $payload = (Resolve-Path "artifacts/installer-payload-${{ matrix.arch }}").Path
+          pwsh -NoProfile -File tools/ci/Assert-PriResource.ps1 -RootPath $payload -EvidencePath "artifacts/pri-evidence-${{ matrix.arch }}/payload" -Key RecoveryRestoreError -LanguagesCsv 'en-US,es-ES'
+          if ($LASTEXITCODE -ne 0) { throw "Payload PRI validation failed for ${{ matrix.arch }}" }
+
+      - name: Exercise PRI validator with real fixtures
+        shell: pwsh
+        run: |
+          $sourcePri = (Resolve-Path "artifacts/installer-payload-${{ matrix.arch }}/VelocityCopy.WinUI.pri").Path
+          $fixtures = "artifacts/pri-fixtures-${{ matrix.arch }}"
+          Remove-Item $fixtures -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force "$fixtures/positive" | Out-Null
+          Copy-Item $sourcePri "$fixtures/positive/VelocityCopy.WinUI.pri"
+          pwsh -NoProfile -File tools/ci/Assert-PriResource.ps1 -RootPath "$fixtures/positive" -EvidencePath "artifacts/pri-evidence-${{ matrix.arch }}/fixture-positive" -Key RecoveryRestoreError -LanguagesCsv 'en-US,es-ES'
+          if ($LASTEXITCODE -ne 0) { throw 'Positive PRI fixture was rejected' }
+
+          New-Item -ItemType Directory -Force "$fixtures/negative" | Out-Null
+          Copy-Item $sourcePri "$fixtures/negative/VelocityCopy.WinUI.pri"
+          # Each negative case must fail for ITS reason. A non-zero exit alone is
+          # not proof: a missing makepri or a broken dump also exits non-zero.
+          $negatives = @(
+            @{ Name = 'missing-key';      Key = '__VelocityCopyMissingFixtureKey__'; Languages = 'en-US,es-ES';
+               Reason = 'PRI dump does not contain resource key __VelocityCopyMissingFixtureKey__' },
+            @{ Name = 'missing-language'; Key = 'RecoveryRestoreError';              Languages = 'en-US,es-ES,fr-FR';
+               Reason = 'PRI resource RecoveryRestoreError has no candidate qualified for fr-FR' }
+          )
+          foreach ($case in $negatives) {
+            $output = pwsh -NoProfile -File tools/ci/Assert-PriResource.ps1 -RootPath "$fixtures/negative" -EvidencePath "artifacts/pri-evidence-${{ matrix.arch }}/fixture-negative-$($case.Name)" -Key $case.Key -LanguagesCsv $case.Languages 2>&1 | Out-String
+            $exitCode = $LASTEXITCODE
+            if ($exitCode -eq 0) { throw "Negative PRI case '$($case.Name)' was incorrectly accepted" }
+            if (-not $output.Contains($case.Reason)) {
+              Write-Host $output
+              throw "Negative PRI case '$($case.Name)' failed for an unexpected reason"
+            }
+            Write-Host "Negative PRI case '$($case.Name)' rejected as expected: $($case.Reason)"
+          }
+          $global:LASTEXITCODE = 0
+
+      - name: Cache pinned NSIS
+        id: cache-nsis
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/nsis-3.11.zip
+          key: nsis-3.11-${{ matrix.arch }}-c7d27f780ddb6cffb4730138cd1591e841f4b7edb155856901cdf5f214394fa1
+
+      - name: Fetch and verify pinned NSIS
+        shell: pwsh
+        run: |
+          $version = "3.11"
+          $expected = "c7d27f780ddb6cffb4730138cd1591e841f4b7edb155856901cdf5f214394fa1"
+          $zip = Join-Path $env:RUNNER_TEMP "nsis-$version.zip"
+          if (-not (Test-Path $zip)) {
+            $url = "https://github.com/tauri-apps/binary-releases/releases/download/nsis-$version/nsis-$version.zip"
+            & curl.exe -L --fail --retry 4 --retry-all-errors --output $zip $url
+            if ($LASTEXITCODE -ne 0 -or -not (Test-Path $zip)) { throw "Pinned NSIS download failed" }
+          }
+          $actual = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $expected) { throw "NSIS SHA256 mismatch: expected $expected, got $actual" }
+          Write-Host "Verified NSIS $version SHA256: $actual"
+          $tools = Join-Path $env:RUNNER_TEMP "nsis-$version"
+          Remove-Item $tools -Recurse -Force -ErrorAction SilentlyContinue
+          Expand-Archive -Path $zip -DestinationPath $tools -Force
+          $makensis = Get-ChildItem $tools -Recurse -File -Filter makensis.exe | Select-Object -First 1
+          if (-not $makensis) { throw "Pinned NSIS $version does not contain makensis.exe" }
+          "NSIS_MAKENSIS=$($makensis.FullName)" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "Using pinned NSIS $version at $($makensis.FullName)"
+
+      - name: Build classic installer
+        shell: pwsh
+        run: |
+          if (-not $env:NSIS_MAKENSIS -or -not (Test-Path $env:NSIS_MAKENSIS)) { throw "Portable NSIS is unavailable" }
+          New-Item -ItemType Directory -Force artifacts/installer | Out-Null
+          $payload = (Resolve-Path artifacts/installer-payload-${{ matrix.arch }}).Path
+          $output = Join-Path (Resolve-Path artifacts/installer).Path "${{ matrix.setup_name }}"
+          & $env:NSIS_MAKENSIS "/DPAYLOAD_DIR=$payload" "/DOUTPUT_FILE=$output" "/DDISPLAY_VERSION=$env:VELOCITYCOPY_VERSION" "/DPAYLOAD_ARCH=${{ matrix.platform }}" tools/VelocityCopy-Test-Installer.nsi
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $output)) { throw "Classic ${{ matrix.arch }} installer build failed" }
+
+      - name: Smoke install classic x64 installer
+        if: ${{ matrix.smoke }}
+        shell: pwsh
+        run: |
+          $setup = (Resolve-Path artifacts/installer/${{ matrix.setup_name }}).Path
+          & ./tools/Test-ShellRegistration.ps1 -Phase SeedLegacy
+          $install = Start-Process $setup -ArgumentList "/S" -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Installer failed: $($install.ExitCode)" }
+          $root = Join-Path $env:ProgramFiles "VelocityCopy"
+          $exe = Join-Path $root "VelocityCopy.WinUI.exe"
+          $uninstaller = Join-Path $root "Uninstall.exe"
+          $shellDll = Join-Path $root "VelocityCopy.Shell.dll"
+          if (-not (Test-Path $exe)) { throw "Installed executable is missing" }
+          if (-not (Test-Path $uninstaller)) { throw "Uninstaller is missing" }
+          if (-not (Test-Path $shellDll)) { throw "Installed shell extension is missing" }
+          $installedPri = Join-Path $root "VelocityCopy.WinUI.pri"
+          if (-not (Test-Path $installedPri)) { throw "Installed VelocityCopy.WinUI.pri is missing beside VelocityCopy.WinUI.exe" }
+          if (Test-Path (Join-Path $root "resources.pri")) { throw "Legacy resources.pri must not be installed" }
+          pwsh -NoProfile -File tools/ci/Assert-PriResource.ps1 -RootPath $root -EvidencePath "artifacts/pri-evidence-${{ matrix.arch }}/installed" -Key RecoveryRestoreError -LanguagesCsv 'en-US,es-ES'
+          if ($LASTEXITCODE -ne 0) { throw "Installed PRI validation failed" }
+          & ./tools/Test-ShellRegistration.ps1 -Phase Installed
+
+          $app = Start-Process $exe -PassThru
+          Start-Sleep -Seconds 5
+          $app.Refresh()
+          if ($app.HasExited) {
+            $exitCode = $app.ExitCode
+            $hexCode = ('0x{0:X8}' -f ([BitConverter]::ToUInt32([BitConverter]::GetBytes([int32]$exitCode), 0)))
+            Write-Host "VelocityCopy exited with $exitCode ($hexCode)"
+            Write-Host "Installed payload files:"
+            Get-ChildItem $root -Recurse -File | Sort-Object FullName | ForEach-Object { Write-Host $_.FullName }
+            Write-Host "Recent Application event log entries for VelocityCopy / XAML / Windows App Runtime:"
+            Get-WinEvent -FilterHashtable @{ LogName='Application'; StartTime=(Get-Date).AddMinutes(-5) } -ErrorAction SilentlyContinue |
+              Where-Object { $_.Message -match 'VelocityCopy|Microsoft.UI.Xaml|WindowsAppRuntime|CoreMessaging|0xc000027b' } |
+              Select-Object -First 20 TimeCreated, Id, ProviderName, LevelDisplayName, Message |
+              Format-List | Out-String -Width 4096 | Write-Host
+            throw "Installed VelocityCopy exited during launch smoke test with code $exitCode ($hexCode)"
+          }
+          Stop-Process -Id $app.Id -Force
+          Write-Host "Installed payload launched successfully at $root"
+
+      - name: Smoke uninstall classic x64 installer
+        if: ${{ matrix.smoke }}
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:ProgramFiles "VelocityCopy"
+          $uninstaller = Join-Path $root "Uninstall.exe"
+          $p = Start-Process $uninstaller -ArgumentList "/S" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Uninstaller failed: $($p.ExitCode)" }
+          Start-Sleep -Seconds 2
+          if (Test-Path $root) { throw "Installation directory remains after uninstall" }
+          & ./tools/Test-ShellRegistration.ps1 -Phase Uninstalled
+
+      - name: Upload PRI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: VelocityCopy-PRI-evidence-${{ matrix.arch }}-${{ github.run_id }}
+          path: artifacts/pri-evidence-${{ matrix.arch }}
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload validated installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: VelocityCopy-Setup-${{ matrix.arch }}-${{ env.VELOCITYCOPY_VERSION }}
+          path: artifacts/installer/${{ matrix.setup_name }}
+          if-no-files-found: error
+          retention-days: 14
+ } |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+          if (-not $signtool) { throw "signtool.exe was not found" }
+
+          $pfx = Join-Path $env:RUNNER_TEMP "velocitycopy-signing.pfx"
+          $setup = (Resolve-Path "artifacts/installer/${{ matrix.setup_name }}").Path
+          try {
+            [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:SIGNING_PFX_BASE64))
+            & $signtool.FullName sign /f $pfx /p $env:SIGNING_PFX_PASSWORD /fd SHA256 /tr "https://timestamp.digicert.com" /td SHA256 $setup
+            if ($LASTEXITCODE -ne 0) { throw "Authenticode signing failed for $setup" }
+            $signature = Get-AuthenticodeSignature -FilePath $setup
+            if ($signature.Status -ne 'Valid') {
+              throw "Invalid Authenticode installer signature: $($signature.Status)"
+            }
+          } finally {
+            Remove-Item $pfx -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: Smoke install classic x64 installer
+        if: ${{ matrix.smoke }}
+        shell: pwsh
+        run: |
+          $setup = (Resolve-Path artifacts/installer/${{ matrix.setup_name }}).Path
+          & ./tools/Test-ShellRegistration.ps1 -Phase SeedLegacy
+          $install = Start-Process $setup -ArgumentList "/S" -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Installer failed: $($install.ExitCode)" }
+          $root = Join-Path $env:ProgramFiles "VelocityCopy"
+          $exe = Join-Path $root "VelocityCopy.WinUI.exe"
+          $uninstaller = Join-Path $root "Uninstall.exe"
+          $shellDll = Join-Path $root "VelocityCopy.Shell.dll"
+          if (-not (Test-Path $exe)) { throw "Installed executable is missing" }
+          if (-not (Test-Path $uninstaller)) { throw "Uninstaller is missing" }
+          if (-not (Test-Path $shellDll)) { throw "Installed shell extension is missing" }
+          $installedPri = Join-Path $root "VelocityCopy.WinUI.pri"
+          if (-not (Test-Path $installedPri)) { throw "Installed VelocityCopy.WinUI.pri is missing beside VelocityCopy.WinUI.exe" }
+          if (Test-Path (Join-Path $root "resources.pri")) { throw "Legacy resources.pri must not be installed" }
+          pwsh -NoProfile -File tools/ci/Assert-PriResource.ps1 -RootPath $root -EvidencePath "artifacts/pri-evidence-${{ matrix.arch }}/installed" -Key RecoveryRestoreError -LanguagesCsv 'en-US,es-ES'
+          if ($LASTEXITCODE -ne 0) { throw "Installed PRI validation failed" }
+          & ./tools/Test-ShellRegistration.ps1 -Phase Installed
+
+          $app = Start-Process $exe -PassThru
+          Start-Sleep -Seconds 5
+          $app.Refresh()
+          if ($app.HasExited) {
+            $exitCode = $app.ExitCode
+            $hexCode = ('0x{0:X8}' -f ([BitConverter]::ToUInt32([BitConverter]::GetBytes([int32]$exitCode), 0)))
+            Write-Host "VelocityCopy exited with $exitCode ($hexCode)"
+            Write-Host "Installed payload files:"
+            Get-ChildItem $root -Recurse -File | Sort-Object FullName | ForEach-Object { Write-Host $_.FullName }
+            Write-Host "Recent Application event log entries for VelocityCopy / XAML / Windows App Runtime:"
+            Get-WinEvent -FilterHashtable @{ LogName='Application'; StartTime=(Get-Date).AddMinutes(-5) } -ErrorAction SilentlyContinue |
+              Where-Object { $_.Message -match 'VelocityCopy|Microsoft.UI.Xaml|WindowsAppRuntime|CoreMessaging|0xc000027b' } |
+              Select-Object -First 20 TimeCreated, Id, ProviderName, LevelDisplayName, Message |
+              Format-List | Out-String -Width 4096 | Write-Host
+            throw "Installed VelocityCopy exited during launch smoke test with code $exitCode ($hexCode)"
+          }
+          Stop-Process -Id $app.Id -Force
+          Write-Host "Installed payload launched successfully at $root"
+
+      - name: Smoke uninstall classic x64 installer
+        if: ${{ matrix.smoke }}
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:ProgramFiles "VelocityCopy"
+          $uninstaller = Join-Path $root "Uninstall.exe"
+          $p = Start-Process $uninstaller -ArgumentList "/S" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Uninstaller failed: $($p.ExitCode)" }
+          Start-Sleep -Seconds 2
+          if (Test-Path $root) { throw "Installation directory remains after uninstall" }
+          & ./tools/Test-ShellRegistration.ps1 -Phase Uninstalled
+
+      - name: Upload PRI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: VelocityCopy-PRI-evidence-${{ matrix.arch }}-${{ github.run_id }}
+          path: artifacts/pri-evidence-${{ matrix.arch }}
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload validated installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: VelocityCopy-Setup-${{ matrix.arch }}-${{ env.VELOCITYCOPY_VERSION }}
+          path: artifacts/installer/${{ matrix.setup_name }}
+          if-no-files-found: error
+          retention-days: 14
+ } |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+          if (-not $signtool) { throw "signtool.exe was not found" }
+
+          $pfx = Join-Path $env:RUNNER_TEMP "velocitycopy-signing.pfx"
+          try {
+            [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:SIGNING_PFX_BASE64))
+            $payload = (Resolve-Path "artifacts/installer-payload-${{ matrix.arch }}").Path
+            foreach ($binary in @(
+              (Join-Path $payload "VelocityCopy.WinUI.exe"),
+              (Join-Path $payload "VelocityCopy.Shell.dll")
+            )) {
+              & $signtool.FullName sign /f $pfx /p $env:SIGNING_PFX_PASSWORD /fd SHA256 /tr "https://timestamp.digicert.com" /td SHA256 $binary
+              if ($LASTEXITCODE -ne 0) { throw "Authenticode signing failed for $binary" }
+              $signature = Get-AuthenticodeSignature -FilePath $binary
+              if ($signature.Status -ne 'Valid') {
+                throw "Invalid Authenticode signature for $binary: $($signature.Status)"
+              }
+            }
+          } finally {
+            Remove-Item $pfx -Force -ErrorAction SilentlyContinue
+          }
+
       - name: Validate application PRI in payload
         shell: pwsh
         run: |
