@@ -22,9 +22,20 @@ try {
 
     Write-Host "Running bounded Authenticode signing proof without modifying trust stores"
     & "$PSScriptRoot\Sign-VelocityCopyBinary.ps1" -Path $Path -PfxPath $pfx -PfxPassword $plain -SkipTimestamp -ExpectedSignerThumbprint $cert.Thumbprint
+
+    Write-Host "Proving Authenticode detects post-signing content modification"
+    $bytes = [IO.File]::ReadAllBytes($Path)
+    if ($bytes.Length -lt 1) { throw "Signed Authenticode fixture is empty: $Path" }
+    $bytes[0] = $bytes[0] -bxor 0x01
+    [IO.File]::WriteAllBytes($Path, $bytes)
+    $tampered = Get-AuthenticodeSignature -FilePath $Path
+    if ($tampered.Status -ne 'HashMismatch') {
+        throw "Tampered Authenticode fixture was not rejected with HashMismatch: $($tampered.Status)"
+    }
+    Write-Host "Verified Authenticode HashMismatch after content modification"
 } finally {
     if ($cert) {
-        Remove-Item -LiteralPath ("Cert:\CurrentUser\My\" + $cert.Thumbprint) -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath ("Cert:\CurrentUser\My\" + $cert.Thumbprint) -DeleteKey -Force -ErrorAction SilentlyContinue
     }
     Remove-Item $pfx -Force -ErrorAction SilentlyContinue
 }
