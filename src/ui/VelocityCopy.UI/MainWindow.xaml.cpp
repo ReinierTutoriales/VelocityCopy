@@ -43,15 +43,15 @@ MainWindow::MainWindow() {
     // independent internal reorder path.
     RootGrid().AddHandler(
         UIElement::DragEnterEvent(),
-        DragEventHandler{this, &MainWindow::OnDragEnter},
+        box_value(DragEventHandler{this, &MainWindow::OnDragEnter}),
         true);
     RootGrid().AddHandler(
         UIElement::DragOverEvent(),
-        DragEventHandler{this, &MainWindow::OnDragOver},
+        box_value(DragEventHandler{this, &MainWindow::OnDragOver}),
         true);
     RootGrid().AddHandler(
         UIElement::DropEvent(),
-        DragEventHandler{this, &MainWindow::OnDrop},
+        box_value(DragEventHandler{this, &MainWindow::OnDrop}),
         true);
     dispatcher_ = Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
     ErrorBar().Closed([weak = get_weak()](InfoBar const&, InfoBarClosedEventArgs const&) {
