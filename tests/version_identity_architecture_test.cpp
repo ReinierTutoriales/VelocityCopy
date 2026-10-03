@@ -75,10 +75,10 @@ int main() {
         !contains(resource, "PRODUCTVERSION VELOCITYCOPY_VERSION_COMMA") ||
         !contains(resource, "CompanyName") || !contains(resource, "FileDescription") ||
         !contains(resource, "FileVersion") || !contains(resource, "ProductVersion") ||
-        !contains(resource, "ProductName\", \"RepartoCopier") ||
-        !contains(en, "name=\"AppDisplayName\"") || !contains(en, "<value>RepartoCopier</value>") ||
-        !contains(es, "name=\"AppDisplayName\"") || !contains(es, "<value>RepartoCopier</value>")) {
-        return fail(4, "WinUI executable and localized UI must expose the RepartoCopier product identity");
+        !contains(resource, "ProductName\", \"VelocityCopy") ||
+        !contains(en, "name=\"AppDisplayName\"") || !contains(en, "<value>VelocityCopy</value>") ||
+        !contains(es, "name=\"AppDisplayName\"") || !contains(es, "<value>VelocityCopy</value>")) {
+        return fail(4, "WinUI executable and localized UI must expose the VelocityCopy product identity");
     }
 
     if (!contains(project, "ClInclude Include=\"Version.h\"") ||
