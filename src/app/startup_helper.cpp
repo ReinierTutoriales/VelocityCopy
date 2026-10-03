@@ -143,7 +143,14 @@ DWORD run_with_shell_token(
     }
     CloseHandle(shell_token);
 
-    std::wstring command = quote(self);
+    wchar_t module_path[32768]{};
+    const DWORD module_length = GetModuleFileNameW(nullptr, module_path, static_cast<DWORD>(std::size(module_path)));
+    if (module_length == 0 || module_length >= std::size(module_path)) {
+        return GetLastError() == ERROR_SUCCESS ? ERROR_FILE_NOT_FOUND : GetLastError();
+    }
+    const std::wstring canonical_self{module_path, module_length};
+
+    std::wstring command = quote(canonical_self);
     command += L" ";
     command += apply_mode;
     command += L" ";
@@ -155,7 +162,7 @@ DWORD run_with_shell_token(
     if (!CreateProcessWithTokenW(
             primary_token,
             LOGON_WITH_PROFILE,
-            self,
+            canonical_self.c_str(),
             command.data(),
             0,
             nullptr,
