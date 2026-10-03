@@ -42,7 +42,7 @@
   <data name="ActionQueueOptions" xml:space="preserve"><value>Options</value></data>
   <data name="ActionHideToTray" xml:space="preserve"><value>Hide to tray</value></data>
   <data name="ActionAbout" xml:space="preserve"><value>About RepartoCopier</value></data>
-  <data name="AboutTitle" xml:space="preserve"><value>About VelocityCopy</value></data>
+  <data name="AboutTitle" xml:space="preserve"><value>About RepartoCopier</value></data>
   <data name="AboutTagline" xml:space="preserve"><value>Fast, focused file transfers for Windows 11.</value></data>
   <data name="AboutVersionFormat" xml:space="preserve"><value>Version {0}</value></data>
   <data name="AboutPublisher" xml:space="preserve"><value>ReinierTutoriales</value></data>
