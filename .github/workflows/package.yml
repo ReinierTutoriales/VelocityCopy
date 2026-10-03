@@ -284,6 +284,36 @@ jobs:
               throw "Upgrade did not replace the loaded VelocityCopy.Shell.dll with the current payload"
             }
             & ./tools/Test-ShellRegistration.ps1 -Phase Installed
+
+            # Keep the first retired generation mapped, then map the newly
+            # installed canonical DLL as a second generation. A second upgrade
+            # must retire it to another unique path instead of colliding with
+            # the still-locked first retired image.
+            $holder2 = Start-Process powershell.exe -ArgumentList @(
+              "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $holderScript, $shellDll
+            ) -PassThru
+            Start-Sleep -Seconds 3
+            $holder2.Refresh()
+            if ($holder2.HasExited) {
+              throw "Unable to keep the current shell DLL loaded for second-upgrade smoke; holder exit $($holder2.ExitCode)"
+            }
+            try {
+              $upgrade2 = Start-Process $setup -ArgumentList "/S" -Wait -PassThru
+              if ($upgrade2.ExitCode -ne 0) {
+                throw "Second upgrade with two mapped shell generations failed: $($upgrade2.ExitCode)"
+              }
+              $actualShellHash2 = (Get-FileHash -LiteralPath $shellDll -Algorithm SHA256).Hash
+              if ($actualShellHash2 -ne $expectedShellHash) {
+                throw "Second upgrade did not leave the current VelocityCopy.Shell.dll at the canonical path"
+              }
+              $holder.Refresh()
+              $holder2.Refresh()
+              if ($holder.HasExited -or $holder2.HasExited) {
+                throw "A mapped shell generation was unexpectedly terminated by the second upgrade"
+              }
+            } finally {
+              Stop-Process -Id $holder2.Id -Force -ErrorAction SilentlyContinue
+            }
           } finally {
             Stop-Process -Id $holder.Id -Force -ErrorAction SilentlyContinue
           }
