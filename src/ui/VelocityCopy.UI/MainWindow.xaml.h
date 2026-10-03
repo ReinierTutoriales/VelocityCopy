@@ -17,6 +17,7 @@
 
 #include <chrono>
 #include <condition_variable>
+#include <atomic>
 #include <cstdint>
 #include <deque>
 #include <memory>
@@ -49,7 +50,6 @@ struct MainWindow : MainWindowT<MainWindow> {
     [[nodiscard]] HWND NativeOwner() const noexcept { return hwnd_; }
     void MoveNativeWindow(int x, int y) noexcept;
     winrt::Windows::Foundation::IAsyncOperation<std::uint32_t> RequestDecisionAsync(velocitycopy::ui::DecisionOptions options);
-    [[nodiscard]] bool HasDecisionInFlight() const noexcept { return decision_operation_ != nullptr; }
     void OnDragEnter(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
     void OnDragOver(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
     void OnDragLeave(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
@@ -133,7 +133,6 @@ private:
 
     winrt::fire_and_forget HandleDropAsync(Microsoft::UI::Xaml::DragEventArgs args);
     winrt::fire_and_forget ShowConflictDialogAsync(velocitycopy::JobResult conflict);
-    void ShowPendingConflictDecision();
     winrt::fire_and_forget SaveQueueAsync();
     winrt::fire_and_forget LoadQueueAsync();
     winrt::fire_and_forget MaybeOfferRecoveryAsync();
@@ -239,8 +238,15 @@ private:
     Microsoft::UI::Xaml::Controls::MenuFlyoutItem stop_menu_item_{nullptr};
     Microsoft::UI::Xaml::Controls::MenuFlyoutItem about_menu_item_{nullptr};
     Microsoft::UI::Xaml::Window about_window_{nullptr};
+    struct PendingDecision {
+        PendingDecision() : turn(CreateEventW(nullptr, TRUE, FALSE, nullptr)) {}
+        ~PendingDecision() { if (turn) CloseHandle(turn); }
+        HANDLE turn{};
+        std::atomic_bool cancelled{false};
+    };
+    void CancelDecisionQueue() noexcept;
     winrt::Windows::Foundation::IAsyncOperation<std::uint32_t> decision_operation_{nullptr};
-    std::optional<velocitycopy::JobResult> pending_conflict_;
+    std::deque<std::shared_ptr<PendingDecision>> decision_queue_;
     Microsoft::UI::Xaml::Thickness base_caption_content_padding_{};
     std::atomic_bool cancel_requested_{false};
     double progress_fraction_{};
