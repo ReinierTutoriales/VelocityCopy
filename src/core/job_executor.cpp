@@ -65,13 +65,17 @@ std::int32_t remove_moved_source_file(const std::filesystem::path& source) noexc
         : S_OK;
 }
 
+bool is_already_gone(const std::error_code& ec) noexcept {
+    return ec.value() == ERROR_FILE_NOT_FOUND || ec.value() == ERROR_PATH_NOT_FOUND;
+}
+
 std::int32_t remove_empty_source_directories(
     const std::vector<std::filesystem::path>& source_roots) noexcept {
     try {
         for (const auto& root : source_roots) {
             std::error_code ec;
             if (!std::filesystem::is_directory(root, ec)) {
-                if (ec) {
+                if (ec && !is_already_gone(ec)) {
                     return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
                 }
                 continue;
@@ -84,17 +88,22 @@ std::int32_t remove_empty_source_directories(
                 ec);
             const std::filesystem::recursive_directory_iterator end;
             if (ec) {
+                if (is_already_gone(ec)) continue;
                 return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
             }
             for (; it != end; it.increment(ec)) {
                 if (ec) {
+                    if (is_already_gone(ec)) break;
                     return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
                 }
                 if (it->is_directory(ec)) {
                     if (ec) {
+                        if (is_already_gone(ec)) continue;
                         return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
                     }
                     directories.push_back(it->path());
+                } else if (ec && !is_already_gone(ec)) {
+                    return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
                 }
             }
 
@@ -109,14 +118,14 @@ std::int32_t remove_empty_source_directories(
             for (const auto& directory : directories) {
                 ec.clear();
                 (void)std::filesystem::remove(directory, ec);
-                if (ec && ec.value() != ERROR_DIR_NOT_EMPTY) {
+                if (ec && ec.value() != ERROR_DIR_NOT_EMPTY && !is_already_gone(ec)) {
                     return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
                 }
             }
 
             ec.clear();
             (void)std::filesystem::remove(root, ec);
-            if (ec && ec.value() != ERROR_DIR_NOT_EMPTY) {
+            if (ec && ec.value() != ERROR_DIR_NOT_EMPTY && !is_already_gone(ec)) {
                 return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
             }
         }
