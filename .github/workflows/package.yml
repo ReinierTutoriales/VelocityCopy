@@ -226,6 +226,62 @@ jobs:
           & $env:NSIS_MAKENSIS "/DPAYLOAD_DIR=$payload" "/DOUTPUT_FILE=$output" "/DDISPLAY_VERSION=$env:VELOCITYCOPY_VERSION" "/DPAYLOAD_ARCH=${{ matrix.platform }}" tools/VelocityCopy-Test-Installer.nsi
           if ($LASTEXITCODE -ne 0 -or -not (Test-Path $output)) { throw "Classic ${{ matrix.arch }} installer build failed" }
 
+      - name: Smoke upgrade from v1.0.0 with loaded shell DLL
+        if: ${{ matrix.smoke }}
+        shell: pwsh
+        run: |
+          $legacy = Join-Path $env:RUNNER_TEMP "VelocityCopy-Setup-x64-v1.0.0.exe"
+          $legacyUrl = "https://github.com/ReinierTutoriales/VelocityCopy/releases/download/v1.0.0/VelocityCopy-Setup-x64-v1.0.0.exe"
+          & curl.exe -L --fail --retry 4 --retry-all-errors --output $legacy $legacyUrl
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $legacy)) { throw "Unable to download v1.0.0 upgrade fixture" }
+          $expected = "3feb0cf9d5d1be727a267620d4402e6348ed6d2ceee5237b8e07fe00ac0839b8"
+          $actual = (Get-FileHash -LiteralPath $legacy -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $expected) { throw "v1.0.0 fixture SHA256 mismatch: $actual" }
+
+          $legacyInstall = Start-Process $legacy -ArgumentList "/S" -Wait -PassThru
+          if ($legacyInstall.ExitCode -ne 0) { throw "v1.0.0 install failed: $($legacyInstall.ExitCode)" }
+
+          $root = Join-Path $env:ProgramFiles "VelocityCopy"
+          $shellDll = Join-Path $root "VelocityCopy.Shell.dll"
+          if (-not (Test-Path $shellDll)) { throw "v1.0.0 shell DLL is missing" }
+
+          $holderScript = Join-Path $env:RUNNER_TEMP "hold-velocitycopy-shell.ps1"
+          @'
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public static class VelocityCopyShellHolder {
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern IntPtr LoadLibraryW(string path);
+}
+"@
+$handle = [VelocityCopyShellHolder]::LoadLibraryW($args[0])
+if ($handle -eq [IntPtr]::Zero) { exit 41 }
+Start-Sleep -Seconds 180
+'@ | Set-Content -LiteralPath $holderScript -Encoding UTF8
+
+          $holder = Start-Process powershell.exe -ArgumentList @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $holderScript, $shellDll
+          ) -PassThru
+          Start-Sleep -Seconds 3
+          $holder.Refresh()
+          if ($holder.HasExited) { throw "Unable to keep the v1.0.0 shell DLL loaded; holder exit $($holder.ExitCode)" }
+
+          try {
+            $setup = (Resolve-Path artifacts/installer/${{ matrix.setup_name }}).Path
+            $upgrade = Start-Process $setup -ArgumentList "/S" -Wait -PassThru
+            if ($upgrade.ExitCode -ne 0) { throw "Upgrade over loaded v1.0.0 shell DLL failed: $($upgrade.ExitCode)" }
+            if (-not (Test-Path $shellDll)) { throw "Shell DLL disappeared after upgrade" }
+
+            $version = (Get-Item (Join-Path $root "VelocityCopy.WinUI.exe")).VersionInfo.ProductVersion
+            if ($version -ne $env:VELOCITYCOPY_VERSION) {
+              throw "Upgrade left wrong product version: expected $env:VELOCITYCOPY_VERSION, got $version"
+            }
+            & ./tools/Test-ShellRegistration.ps1 -Phase Installed
+          } finally {
+            Stop-Process -Id $holder.Id -Force -ErrorAction SilentlyContinue
+          }
+
       - name: Smoke install classic x64 installer
         if: ${{ matrix.smoke }}
         shell: pwsh
