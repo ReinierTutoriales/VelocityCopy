@@ -54,6 +54,9 @@ int main() {
         contains(path_guard, "FILE_SHARE_DELETE") ||
         !contains(path_guard, "CreateDirectoryW") ||
         !contains(path_guard, "IsReparseTagNameSurrogate") ||
+        !contains(path_guard, "SetFileInformationByHandle") ||
+        !contains(path_guard, "FileDispositionInfo") ||
+        !contains(path_guard, "DELETE") ||
         contains(engine, "COPY_FILE_COPY_SYMLINK") ||
         contains(engine, "create_directories") ||
         contains(executor, "create_directories") ||
