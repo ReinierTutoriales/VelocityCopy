@@ -19,6 +19,24 @@ inline bool name_surrogate_reparse(const HANDLE handle) noexcept {
     return IsReparseTagNameSurrogate(info.ReparseTag) != FALSE;
 }
 
+inline bool safe_directory_handle(HANDLE handle, std::error_code& error) noexcept {
+    FILE_ATTRIBUTE_TAG_INFO info{};
+    if (GetFileInformationByHandleEx(handle, FileAttributeTagInfo, &info, sizeof(info)) == 0) {
+        error = std::error_code(static_cast<int>(GetLastError()), std::system_category());
+        return false;
+    }
+    if ((info.FileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0) {
+        error = std::error_code(ERROR_DIRECTORY, std::system_category());
+        return false;
+    }
+    if ((info.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0 &&
+        IsReparseTagNameSurrogate(info.ReparseTag) != FALSE) {
+        error = std::error_code(ERROR_CANT_ACCESS_FILE, std::system_category());
+        return false;
+    }
+    return true;
+}
+
 struct DestinationPathHandle final {
     HANDLE handle{INVALID_HANDLE_VALUE};
     bool created{};
@@ -87,9 +105,8 @@ struct DestinationPathGuard final {
                 continue;
             }
 
-            if (name_surrogate_reparse(handle)) {
+            if (!safe_directory_handle(handle, error)) {
                 CloseHandle(handle);
-                error = std::error_code(ERROR_CANT_ACCESS_FILE, std::system_category());
                 return false;
             }
 
@@ -119,11 +136,13 @@ struct DestinationPathGuard final {
                 OPEN_EXISTING,
                 FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT,
                 nullptr);
-            if (handle == INVALID_HANDLE_VALUE || name_surrogate_reparse(handle)) {
-                if (handle != INVALID_HANDLE_VALUE) {
-                    CloseHandle(handle);
-                }
-                error = std::error_code(ERROR_CANT_ACCESS_FILE, std::system_category());
+            if (handle == INVALID_HANDLE_VALUE) {
+                error = std::error_code(static_cast<int>(GetLastError()), std::system_category());
+                rollback_created();
+                return false;
+            }
+            if (!safe_directory_handle(handle, error)) {
+                CloseHandle(handle);
                 rollback_created();
                 return false;
             }
