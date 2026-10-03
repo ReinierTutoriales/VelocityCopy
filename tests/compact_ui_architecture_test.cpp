@@ -140,7 +140,11 @@ int main() {
 
     if (!contains(xaml, "x:Name=\"TitleBarDragRegion\"") ||
         !contains(window, "SetTitleBar(TitleBarDragRegion())") ||
-        !contains(xaml, "AllowDrop=\"True\"") || !contains(xaml, "Drop=\"OnDrop\"")) {
+        !contains(xaml, "AllowDrop=\"True\"") ||
+        !contains(window, "RootGrid().AddHandler(") ||
+        !contains(window, "UIElement::DropEvent()") ||
+        !contains(window, "box_value(DragEventHandler{this, &MainWindow::OnDrop})") ||
+        !contains(window, "true);")) {
         return fail(9, "custom drag region and whole-window append drop must remain wired");
     }
 
