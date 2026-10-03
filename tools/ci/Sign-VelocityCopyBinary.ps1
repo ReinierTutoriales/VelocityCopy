@@ -8,7 +8,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$PfxPassword,
 
-    [string]$TimestampUrl = 'https://timestamp.digicert.com'
+    [int]$ToolTimeoutSeconds = 75
 )
 
 $ErrorActionPreference = 'Stop'
@@ -22,11 +22,65 @@ $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurs
     Select-Object -First 1
 if (-not $signtool) { throw 'signtool.exe was not found' }
 
-& $signtool.FullName sign /f $PfxPath /p $PfxPassword /fd SHA256 /tr $TimestampUrl /td SHA256 $Path
-if ($LASTEXITCODE -ne 0) { throw "Authenticode signing failed for $Path" }
+function Invoke-BoundedSignTool {
+    param([string[]]$Arguments)
 
-& $signtool.FullName verify /pa /all $Path
-if ($LASTEXITCODE -ne 0) { throw "signtool verification failed for $Path" }
+    $start = [Diagnostics.ProcessStartInfo]::new()
+    $start.FileName = $signtool.FullName
+    $start.UseShellExecute = $false
+    $start.RedirectStandardOutput = $true
+    $start.RedirectStandardError = $true
+    foreach ($argument in $Arguments) {
+        [void]$start.ArgumentList.Add($argument)
+    }
+
+    $process = [Diagnostics.Process]::new()
+    $process.StartInfo = $start
+    if (-not $process.Start()) { throw 'Unable to start signtool.exe' }
+
+    if (-not $process.WaitForExit($ToolTimeoutSeconds * 1000)) {
+        try { $process.Kill($true) } catch {}
+        $process.WaitForExit()
+        throw "signtool timed out after $ToolTimeoutSeconds seconds"
+    }
+
+    $stdout = $process.StandardOutput.ReadToEnd()
+    $stderr = $process.StandardError.ReadToEnd()
+    if ($stdout) { Write-Host $stdout.TrimEnd() }
+    if ($stderr) { Write-Host $stderr.TrimEnd() }
+    return $process.ExitCode
+}
+
+$timestampUrls = @(
+    'https://timestamp.digicert.com',
+    'http://timestamp.sectigo.com'
+)
+
+$signed = $false
+$lastFailure = $null
+foreach ($timestampUrl in $timestampUrls) {
+    try {
+        Write-Host "Signing $Path with RFC3161 timestamp $timestampUrl"
+        $exit = Invoke-BoundedSignTool @(
+            'sign', '/f', $PfxPath, '/p', $PfxPassword,
+            '/fd', 'SHA256', '/tr', $timestampUrl, '/td', 'SHA256', $Path
+        )
+        if ($exit -eq 0) {
+            $signed = $true
+            break
+        }
+        $lastFailure = "signtool sign exited with code $exit using $timestampUrl"
+    } catch {
+        $lastFailure = $_.Exception.Message
+        Write-Warning "Timestamp/sign attempt failed: $lastFailure"
+    }
+}
+if (-not $signed) {
+    throw "Authenticode signing failed for $Path. Last failure: $lastFailure"
+}
+
+$verifyExit = Invoke-BoundedSignTool @('verify', '/pa', '/all', $Path)
+if ($verifyExit -ne 0) { throw "signtool verification failed for $Path with code $verifyExit" }
 
 $signature = Get-AuthenticodeSignature -FilePath $Path
 if ($signature.Status -ne 'Valid') {
