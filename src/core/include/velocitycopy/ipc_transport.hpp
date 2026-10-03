@@ -50,7 +50,14 @@ private:
     std::atomic_bool stopping_{false};
 };
 
-[[nodiscard]] bool send_shell_request(
+struct IpcSendResult {
+    bool success{};
+    std::int32_t native_code{};
+
+    [[nodiscard]] explicit operator bool() const noexcept { return success; }
+};
+
+[[nodiscard]] IpcSendResult send_shell_request(
     const ShellRequest& request,
     std::uint32_t timeout_ms = 1000) noexcept;
 

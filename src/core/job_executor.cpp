@@ -8,6 +8,7 @@
 #include <limits>
 #include <iterator>
 #include <mutex>
+#include <new>
 #include <system_error>
 #include <thread>
 #include <unordered_map>
@@ -18,6 +19,11 @@ namespace velocitycopy {
 namespace {
 
 constexpr std::uint32_t kMaxCopyWorkers = 4;
+
+std::int32_t native_hresult(const std::error_code& code, const DWORD fallback = ERROR_INVALID_DATA) noexcept {
+    const auto value = code.value();
+    return static_cast<std::int32_t>(HRESULT_FROM_WIN32(value == 0 ? fallback : static_cast<DWORD>(value)));
+}
 
 void remove_partial_destination(const std::filesystem::path& destination) noexcept {
     std::error_code ec;
@@ -130,6 +136,10 @@ std::int32_t remove_empty_source_directories(
             }
         }
         return S_OK;
+    } catch (const std::bad_alloc&) {
+        return static_cast<std::int32_t>(E_OUTOFMEMORY);
+    } catch (const std::system_error& error) {
+        return native_hresult(error.code());
     } catch (...) {
         return static_cast<std::int32_t>(E_FAIL);
     }
@@ -258,12 +268,15 @@ JobResult JobExecutor::execute(
         LiveCopyPlan live_plan(std::move(plan));
         return execute(live_plan, progress);
     } catch (const std::filesystem::filesystem_error& error) {
-        const auto code = error.code().value();
         return {
             false,
             false,
-            static_cast<std::int32_t>(HRESULT_FROM_WIN32(code == 0 ? ERROR_INVALID_DATA : code)),
+            native_hresult(error.code()),
         };
+    } catch (const std::bad_alloc&) {
+        return {false, false, static_cast<std::int32_t>(E_OUTOFMEMORY)};
+    } catch (const std::system_error& error) {
+        return {false, false, native_hresult(error.code())};
     } catch (...) {
         return {false, false, static_cast<std::int32_t>(E_FAIL)};
     }
@@ -276,12 +289,15 @@ JobResult JobExecutor::execute(
         LiveCopyPlan live_plan(plan);
         return execute(live_plan, progress);
     } catch (const std::filesystem::filesystem_error& error) {
-        const auto code = error.code().value();
         return {
             false,
             false,
-            static_cast<std::int32_t>(HRESULT_FROM_WIN32(code == 0 ? ERROR_INVALID_DATA : code)),
+            native_hresult(error.code()),
         };
+    } catch (const std::bad_alloc&) {
+        return {false, false, static_cast<std::int32_t>(E_OUTOFMEMORY)};
+    } catch (const std::system_error& error) {
+        return {false, false, native_hresult(error.code())};
     } catch (...) {
         return {false, false, static_cast<std::int32_t>(E_FAIL)};
     }
@@ -768,9 +784,24 @@ JobResult JobExecutor::execute(
                         }
                     }
                 } catch (const std::filesystem::filesystem_error& error) {
-                    const auto code = error.code().value();
-                    const auto native = static_cast<std::int32_t>(
-                        HRESULT_FROM_WIN32(code == 0 ? ERROR_INVALID_DATA : code));
+                    const auto native = native_hresult(error.code());
+                    if (!is_session_fatal(native) && held_file_id != 0 &&
+                        plan.park_active(held_file_id, native, false, RecoveryAction::RetryTransfer)) {
+                        held_file_id = 0;
+                        continue;
+                    }
+                    result_state.record_error(native);
+                    control.request_cancel();
+                    worker_results[worker_index] = {false, false, native, false};
+                    return;
+                } catch (const std::bad_alloc&) {
+                    const auto native = static_cast<std::int32_t>(E_OUTOFMEMORY);
+                    result_state.record_error(native);
+                    control.request_cancel();
+                    worker_results[worker_index] = {false, false, native, false};
+                    return;
+                } catch (const std::system_error& error) {
+                    const auto native = native_hresult(error.code());
                     if (!is_session_fatal(native) && held_file_id != 0 &&
                         plan.park_active(held_file_id, native, false, RecoveryAction::RetryTransfer)) {
                         held_file_id = 0;
@@ -818,12 +849,15 @@ JobResult JobExecutor::execute(
         }
         return finish({true, false, S_OK, false});
     } catch (const std::filesystem::filesystem_error& error) {
-        const auto code = error.code().value();
         return {
             false,
             false,
-            static_cast<std::int32_t>(HRESULT_FROM_WIN32(code == 0 ? ERROR_INVALID_DATA : code)),
+            native_hresult(error.code()),
         };
+    } catch (const std::bad_alloc&) {
+        return {false, false, static_cast<std::int32_t>(E_OUTOFMEMORY)};
+    } catch (const std::system_error& error) {
+        return {false, false, native_hresult(error.code())};
     } catch (...) {
         return {false, false, static_cast<std::int32_t>(E_FAIL)};
     }
