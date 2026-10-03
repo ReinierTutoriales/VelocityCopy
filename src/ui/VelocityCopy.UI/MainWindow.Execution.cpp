@@ -404,6 +404,7 @@ void MainWindow::CancelCurrentSession() {
         decision_operation_.Cancel();
         decision_operation_ = nullptr;
     }
+    pending_conflict_.reset();
     cancel_requested_.store(true, std::memory_order_relaxed);
     pending_resume_ = {};
     SpeedText().Text(L"—");
@@ -731,6 +732,7 @@ fire_and_forget MainWindow::ShowRetryDecisionAsync() {
         const auto decision = velocitycopy::ui::decode_decision(
             co_await velocitycopy::ui::await_decision(decision_operation_));
         decision_operation_ = nullptr;
+        if (tray_exit_requested_ || session_ending_) co_return;
         if (interrupted_session_ != InterruptedSessionState::Decision || !live_plan_) co_return;
         if (decision.choice == velocitycopy::ui::DecisionChoice::Primary) ResumeParkedFailures();
         else if (decision.choice == velocitycopy::ui::DecisionChoice::Secondary) ResolveParkedFailures();

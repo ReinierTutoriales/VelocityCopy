@@ -137,6 +137,7 @@ private:
 
     winrt::fire_and_forget HandleDropAsync(Microsoft::UI::Xaml::DragEventArgs args);
     winrt::fire_and_forget ShowConflictDialogAsync(velocitycopy::JobResult conflict);
+    void ShowPendingConflictDecision();
     winrt::fire_and_forget SaveQueueAsync();
     winrt::fire_and_forget LoadQueueAsync();
     winrt::fire_and_forget MaybeOfferRecoveryAsync();
@@ -243,6 +244,7 @@ private:
     Microsoft::UI::Xaml::Controls::MenuFlyoutItem about_menu_item_{nullptr};
     Microsoft::UI::Xaml::Window about_window_{nullptr};
     winrt::Windows::Foundation::IAsyncOperation<std::uint32_t> decision_operation_{nullptr};
+    std::optional<velocitycopy::JobResult> pending_conflict_;
     Microsoft::UI::Xaml::Thickness base_caption_content_padding_{};
     std::atomic_bool cancel_requested_{false};
     double progress_fraction_{};

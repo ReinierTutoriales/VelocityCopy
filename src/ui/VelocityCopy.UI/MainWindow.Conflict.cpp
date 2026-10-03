@@ -30,7 +30,10 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
             detail = filename.empty() ? conflict.conflict_destination.wstring() : filename.wstring();
         }
 
-        if (decision_operation_) co_return;
+        if (decision_operation_) {
+            pending_conflict_ = std::move(conflict);
+            co_return;
+        }
         const std::wstring apply_to_all_label =
             velocitycopy::localization::get_string(L"ConflictApplyToAll").c_str();
         decision_operation_ = velocitycopy::ui::show_decision_async({
@@ -48,6 +51,7 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
             co_await velocitycopy::ui::await_decision(decision_operation_));
         decision_operation_ = nullptr;
 
+        if (tray_exit_requested_ || session_ending_) co_return;
         if (interrupted_session_ != InterruptedSessionState::Conflict || !live_plan_) co_return;
         const bool apply_to_all = decision.verification_checked;
 
@@ -77,8 +81,17 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
         }
     } catch (...) {
         decision_operation_ = nullptr;
-        if (interrupted_session_ == InterruptedSessionState::Conflict) CancelCurrentSession();
+        if (!tray_exit_requested_ && !session_ending_ && interrupted_session_ == InterruptedSessionState::Conflict) CancelCurrentSession();
     }
+    ShowPendingConflictDecision();
+}
+
+void MainWindow::ShowPendingConflictDecision() {
+    if (decision_operation_ || tray_exit_requested_ || session_ending_ ||
+        interrupted_session_ != InterruptedSessionState::Conflict || !pending_conflict_) return;
+    auto conflict = std::move(*pending_conflict_);
+    pending_conflict_.reset();
+    ShowConflictDialogAsync(std::move(conflict));
 }
 
 void MainWindow::ResumeConflictCopy(
