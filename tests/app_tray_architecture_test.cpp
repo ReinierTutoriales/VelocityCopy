@@ -11,7 +11,7 @@ int main(){
  if(tray.find("Shell_NotifyIconW")==std::string::npos || tray.find("WS_EX_TOOLWINDOW")==std::string::npos) return 1;
  if(tray.find("HWND_MESSAGE")!=std::string::npos) return 4;
  if(tray.find("MenuFlyout flyout") == std::string::npos ||
-    tray.find("flyout.ShowAt(menu_anchor_)") == std::string::npos ||
+    tray.find("flyout.ShowAt(menu_anchor_, show_options)") == std::string::npos ||
     tray.find("CreatePopupMenu") != std::string::npos ||
     tray.find("TrackPopupMenuEx") != std::string::npos ||
     tray.find("AppendMenuW") != std::string::npos) return 5;
@@ -74,6 +74,10 @@ int main(){
     tray.find("presenter.SetBorderAndTitleBar(false, false)") == std::string::npos ||
     tray.find("MenuFlyoutSeparator") == std::string::npos ||
     tray.find("flyout.Closed([this]") == std::string::npos) return 35;
+ if(tray.find("MonitorFromPoint(anchor, MONITOR_DEFAULTTONEAREST)") == std::string::npos ||
+    tray.find("monitor_info.rcWork") == std::string::npos ||
+    tray.find("show_options.Placement(FlyoutPlacementMode::Top)") == std::string::npos ||
+    tray.find("SetForegroundWindow(hwnd_)") == std::string::npos) return 36;
 
  // Closing an active transfer window means cancel-and-retire, not hide-and-keep-copying.
  // Queued WaitFor work belongs to that closing window and must not restart behind the user's back.
