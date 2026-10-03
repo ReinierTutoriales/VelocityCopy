@@ -1,12 +1,12 @@
-# VelocityCopy release gates
+# RepartoCopier release gates
 
-These gates define the 1.0 stable release pipeline and must remain aligned with the engineering and implementation rules.
+These gates define the 2.1.2 stable release pipeline and must remain aligned with the engineering and implementation rules.
 
 ## Stable release gate
 
 - `main` must pass Windows CI: x64 Release configure, build and `ctest`.
-- Windows Package runs on every main commit, on `v*` tags and on `workflow_dispatch`; commit CI stays free of packaging.
-- x64 and ARM64 classic installers are built with payload verification; smoke install/uninstall runs on x64.
+- Windows Package runs on pull requests, every main commit, `v*` tags and `workflow_dispatch`; commit CI stays free of packaging while package validation remains a separate workflow.
+- x64 and ARM64 classic installers are built with payload verification, including PE-machine checks for both `VelocityCopy.WinUI.exe` and `VelocityCopy.Shell.dll`; smoke install/uninstall runs on x64.
 - A stable tag is cut only from a main commit whose CI and Package runs are green.
 
 ## Packaging rules
@@ -26,7 +26,7 @@ Architecture tests validate durable workflow behavior.
 
 Required commit-CI behavior: x64 configure/build/ctest; ARM64 core compile; ASan RelWithDebInfo compile; WinUI x64 build; no AppX installation; no packaging in commit CI.
 
-Required package behavior: main-push, `v*` tag and manual triggers; self-contained WinUI payload; classic x64 and ARM64 installers; payload verification; smoke install/uninstall.
+Required package behavior: main-push, `v*` tag and manual triggers; self-contained WinUI payload; classic x64 and ARM64 RepartoCopier installers; payload verification; smoke install/uninstall.
 
 ## Branch and commit hygiene
 

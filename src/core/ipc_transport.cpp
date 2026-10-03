@@ -5,7 +5,11 @@
 #include <windows.h>
 #include <sddl.h>
 
+#include <algorithm>
+#include <chrono>
 #include <cstdint>
+#include <limits>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -144,6 +148,18 @@ bool write_all(HANDLE handle, const void* data, std::uint32_t bytes) noexcept {
         written_total += written;
     }
     return true;
+}
+
+using SteadyClock = std::chrono::steady_clock;
+
+DWORD remaining_timeout_ms(const SteadyClock::time_point deadline) noexcept {
+    const auto now = SteadyClock::now();
+    if (now >= deadline) return 0;
+    const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now);
+    const auto count = remaining.count();
+    if (count <= 0) return 1;
+    return static_cast<DWORD>((std::min<std::int64_t>)(
+        count, static_cast<std::int64_t>(std::numeric_limits<DWORD>::max())));
 }
 
 bool read_all(HANDLE handle, void* data, std::uint32_t bytes) noexcept {
@@ -313,21 +329,60 @@ std::optional<ShellRequest> ShellIpcServer::receive() noexcept {
 bool send_shell_request(const ShellRequest& request, const std::uint32_t timeout_ms) noexcept {
     try {
         const auto payload = serialize_shell_request(request);
-        if (!payload) return false;
+        if (!payload || timeout_ms == 0 ||
+            payload->size() > std::numeric_limits<std::uint32_t>::max()) {
+            return false;
+        }
 
+        const auto deadline = SteadyClock::now() + std::chrono::milliseconds(timeout_ms);
         const auto name = shell_pipe_name();
-        if (name.empty() || !WaitNamedPipeW(name.c_str(), timeout_ms)) return false;
+        const auto connect_timeout = remaining_timeout_ms(deadline);
+        if (name.empty() || connect_timeout == 0 ||
+            !WaitNamedPipeW(name.c_str(), connect_timeout)) {
+            return false;
+        }
 
         UniqueHandle pipe{CreateFileW(
             name.c_str(), GENERIC_WRITE, 0, nullptr, OPEN_EXISTING,
             FILE_ATTRIBUTE_NORMAL, nullptr)};
         if (!pipe.valid()) return false;
 
-        const auto size = static_cast<std::uint32_t>(payload->size());
-        const bool ok = write_all(pipe.get(), &size, sizeof(size)) &&
-            write_all(pipe.get(), payload->data(), size);
-        (void)FlushFileBuffers(pipe.get());
-        return ok;
+        // Send one byte-stream frame so timeout cancellation cannot land between
+        // separate header/payload writes. The server still reads the first four
+        // bytes as the size and then consumes the remaining payload normally.
+        const auto payload_size = static_cast<std::uint32_t>(payload->size());
+        std::vector<std::uint8_t> frame(sizeof(payload_size) + payload->size());
+        std::memcpy(frame.data(), &payload_size, sizeof(payload_size));
+        std::memcpy(frame.data() + sizeof(payload_size), payload->data(), payload->size());
+
+        bool write_succeeded = false;
+        std::jthread writer([&] {
+            DWORD written = 0;
+            write_succeeded =
+                WriteFile(
+                    pipe.get(),
+                    frame.data(),
+                    static_cast<DWORD>(frame.size()),
+                    &written,
+                    nullptr) != FALSE &&
+                written == frame.size();
+        });
+
+        const auto write_timeout = remaining_timeout_ms(deadline);
+        if (write_timeout == 0 ||
+            WaitForSingleObject(
+                static_cast<HANDLE>(writer.native_handle()),
+                write_timeout) != WAIT_OBJECT_0) {
+            // Cancel only the synchronous I/O owned by this dedicated writer.
+            // The worker performs no other blocking operation, avoiding the
+            // wrong-call race described by CancelSynchronousIo.
+            (void)CancelSynchronousIo(static_cast<HANDLE>(writer.native_handle()));
+            writer.join();
+            return false;
+        }
+
+        writer.join();
+        return write_succeeded;
     } catch (...) {
         return false;
     }

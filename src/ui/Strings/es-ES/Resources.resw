@@ -4,7 +4,7 @@
   <resheader name="version"><value>2.0</value></resheader>
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
-  <data name="AppDisplayName" xml:space="preserve"><value>VelocityCopy</value></data>
+  <data name="AppDisplayName" xml:space="preserve"><value>RepartoCopier</value></data>
   <data name="StatusPreparing" xml:space="preserve"><value>Preparando copia…</value></data>
   <data name="StatusCopying" xml:space="preserve"><value>Copiando</value></data>
   <data name="StatusPaused" xml:space="preserve"><value>Pausado</value></data>
@@ -41,8 +41,8 @@
   <data name="ActionLoadQueue" xml:space="preserve"><value>Cargar cola</value></data>
   <data name="ActionQueueOptions" xml:space="preserve"><value>Opciones</value></data>
   <data name="ActionHideToTray" xml:space="preserve"><value>Ocultar en la bandeja</value></data>
-  <data name="ActionAbout" xml:space="preserve"><value>Acerca de VelocityCopy</value></data>
-  <data name="AboutTitle" xml:space="preserve"><value>Acerca de VelocityCopy</value></data>
+  <data name="ActionAbout" xml:space="preserve"><value>Acerca de RepartoCopier</value></data>
+  <data name="AboutTitle" xml:space="preserve"><value>Acerca de RepartoCopier</value></data>
   <data name="AboutTagline" xml:space="preserve"><value>Transferencias de archivos rápidas y enfocadas para Windows 11.</value></data>
   <data name="AboutVersionFormat" xml:space="preserve"><value>Versión {0}</value></data>
   <data name="AboutPublisher" xml:space="preserve"><value>ReinierTutoriales</value></data>
@@ -50,10 +50,10 @@
   <data name="AboutRepositoryLabel" xml:space="preserve"><value>Ver proyecto en GitHub</value></data>
   <data name="ActionShowQueue" xml:space="preserve"><value>Mostrar cola</value></data>
   <data name="ActionHideQueue" xml:space="preserve"><value>Ocultar cola</value></data>
-  <data name="TrayOpen" xml:space="preserve"><value>Abrir VelocityCopy</value></data>
+  <data name="TrayOpen" xml:space="preserve"><value>Abrir RepartoCopier</value></data>
   <data name="TrayExit" xml:space="preserve"><value>Salir</value></data>
   <data name="RecoveryTitle" xml:space="preserve"><value>¿Reanudar la transferencia interrumpida?</value></data>
-  <data name="RecoveryMessage" xml:space="preserve"><value>VelocityCopy encontró trabajo guardado durante el apagado de Windows. No se reanudará nada hasta que elijas Reanudar.</value></data>
+  <data name="RecoveryMessage" xml:space="preserve"><value>RepartoCopier encontró trabajo guardado durante el apagado de Windows. No se reanudará nada hasta que elijas Reanudar.</value></data>
   <data name="RecoveryResume" xml:space="preserve"><value>Reanudar</value></data>
   <data name="RecoveryDiscard" xml:space="preserve"><value>Descartar</value></data>
   <data name="RecoveryRestoreError" xml:space="preserve"><value>No se pudo restaurar la recuperación guardada. Puedes volver a intentarlo o descartarla.</value></data>

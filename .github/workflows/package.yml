@@ -10,7 +10,7 @@ on:
 
 concurrency:
   group: windows-package-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -22,12 +22,12 @@ jobs:
           - arch: x64
             cmake_arch: x64
             platform: x64
-            setup_name: VelocityCopy-Setup-x64.exe
+            setup_name: RepartoCopier-Setup-x64.exe
             smoke: true
           - arch: arm64
             cmake_arch: ARM64
             platform: ARM64
-            setup_name: VelocityCopy-Setup-ARM64.exe
+            setup_name: RepartoCopier-Setup-ARM64.exe
             smoke: false
 
     steps:
@@ -117,6 +117,31 @@ jobs:
             }
           }
           if (-not (Test-Path $shellDll)) { throw "Installer payload is missing VelocityCopy.Shell.dll" }
+
+          function Get-PeMachine([string]$path) {
+            $stream = [System.IO.File]::OpenRead($path)
+            try {
+              $reader = [System.IO.BinaryReader]::new($stream)
+              if ($reader.ReadUInt16() -ne 0x5A4D) { throw "$path is not a PE image" }
+              $stream.Position = 0x3C
+              $peOffset = $reader.ReadInt32()
+              if ($peOffset -lt 0 -or $peOffset -gt ($stream.Length - 6)) { throw "$path has an invalid PE header offset" }
+              $stream.Position = $peOffset
+              if ($reader.ReadUInt32() -ne 0x00004550) { throw "$path has no PE signature" }
+              return $reader.ReadUInt16()
+            } finally {
+              $stream.Dispose()
+            }
+          }
+
+          $expectedMachine = if ("${{ matrix.platform }}" -eq "ARM64") { 0xAA64 } else { 0x8664 }
+          foreach ($binary in @("$payload/VelocityCopy.WinUI.exe", $shellDll)) {
+            $machine = Get-PeMachine $binary
+            if ($machine -ne $expectedMachine) {
+              throw ("Architecture mismatch for {0}: expected PE machine 0x{1:X4}, got 0x{2:X4}" -f $binary, $expectedMachine, $machine)
+            }
+          }
+
           $forbidden = @(Get-ChildItem $payload -Recurse -File | Where-Object { $_.Extension -in '.msix','.msixbundle','.appx','.appxbundle','.cer','.pfx' })
           if ($forbidden.Count) { throw "Installer payload contains package/certificate artifacts" }
           $size = (Get-ChildItem $payload -Recurse -File | Measure-Object Length -Sum).Sum
@@ -266,7 +291,7 @@ jobs:
       - name: Upload validated installer
         uses: actions/upload-artifact@v4
         with:
-          name: VelocityCopy-Setup-${{ matrix.arch }}-${{ env.VELOCITYCOPY_VERSION }}
+          name: RepartoCopier-Setup-${{ matrix.arch }}-${{ env.VELOCITYCOPY_VERSION }}
           path: artifacts/installer/${{ matrix.setup_name }}
           if-no-files-found: error
           retention-days: 14

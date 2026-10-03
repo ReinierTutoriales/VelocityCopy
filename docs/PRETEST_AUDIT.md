@@ -1,4 +1,4 @@
-# VelocityCopy pre-test audit
+# RepartoCopier pre-test audit
 
 Status: pre-release manual test gate
 
@@ -6,7 +6,6 @@ Status: pre-release manual test gate
 
 The Windows CI and Package gates must be green before using an artifact for manual testing:
 
-- x64 Release configure/build and core `ctest`
 - x64 Release configure/build and core `ctest`
 - self-contained WinUI 3 Release build for x64 when packaging is requested
 - classic NSIS x64 installer generation
@@ -23,11 +22,11 @@ Explorer integration now carries a complete transfer snapshot. See EXPLORER_INTE
 
 ### One-click test installer
 
-During the current stabilization phase, manual testing uses the classic x64 installer `VelocityCopy-Setup-x64.exe`. ARM64 packaging is re-enabled after the x64 path is stable.
+Manual testing starts with the classic x64 installer `RepartoCopier-Setup-x64.exe`. ARM64 packaging is built in the same release workflow after the x64 stabilization gate remains green.
 
 The setup requests elevation through UAC and copies the self-contained WinUI payload, including `VelocityCopy.WinUI.exe` and `VelocityCopy.Shell.dll`, into Program Files. Testers do not run PowerShell, certificates, MSIX files or framework packages manually.
 
-The installer and uninstaller must force-close the resident `VelocityCopy.WinUI.exe` before replacing or removing installed files. A normal `WM_CLOSE` is insufficient because VelocityCopy intentionally hides to tray. The package smoke gate must launch the app in `--startup` mode before uninstall and must fail if the process remains alive or `$ProgramFiles\VelocityCopy` still exists afterward.
+The installer and uninstaller must force-close the resident `VelocityCopy.WinUI.exe` before replacing or removing installed files. A normal `WM_CLOSE` is insufficient to guarantee process termination because the resident tray process may outlive individual windows. The package smoke gate must launch the app in `--startup` mode before uninstall and must fail if the process remains alive or `$ProgramFiles\VelocityCopy` still exists afterward.
 
 ### Shutdown recovery prompt
 
@@ -37,13 +36,13 @@ VelocityCopy discovers `VelocityCopy.Recovery.vcq`, validates the saved work, an
 
 ### Installation and shell registration
 
-- Double-click `VelocityCopy-Setup-x64.exe` and accept the UAC prompt.
-- Confirm VelocityCopy appears in installed apps.
+- Double-click `RepartoCopier-Setup-x64.exe` and accept the UAC prompt.
+- Confirm RepartoCopier 2.1.2 appears in installed apps.
 - Launch once and confirm the tray icon appears.
 - Confirm Explorer transfer handling is registered for Directory/Drive/Folder drag-drop targets.
 - Restart Explorer and confirm the tray icon re-registers.
 - Re-run the installer while VelocityCopy is resident and confirm the installed files are replaced cleanly.
-- Uninstall VelocityCopy from Windows Installed apps while it is resident in the tray.
+- Uninstall RepartoCopier from Windows Installed apps while it is resident in the tray.
 - Confirm the VelocityCopy process is gone, shell registration is removed, and `C:\Program Files\VelocityCopy` no longer exists.
 
 ### Resident startup and tray
@@ -53,7 +52,8 @@ VelocityCopy discovers `VelocityCopy.Recovery.vcq`, validates the saved work, an
 - Confirm exactly one resident VelocityCopy process.
 - Confirm tray icon is present.
 - Confirm click restores the compact window.
-- Confirm minimize and close return the window to tray without stopping work.
+- Confirm Minimize performs a native taskbar minimize without stopping work.
+- Confirm Close on an active transfer cancels and retires that transfer window, while the resident tray process remains available.
 - Confirm tray Exit terminates the resident process.
 - Confirm idle CPU remains effectively zero and Efficiency Mode appears when hidden and idle.
 
@@ -112,7 +112,7 @@ VelocityCopy discovers `VelocityCopy.Recovery.vcq`, validates the saved work, an
 
 ### UI
 
-- single-surface compact window around the 460x72 target; the window itself is the copier, with no nested decorative capsule
+- single-surface compact window around the 380x72 target; the window itself is the copier, with no nested decorative capsule
 - logo at far left
 - queue disclosure at far right
 - whole-body progress fill

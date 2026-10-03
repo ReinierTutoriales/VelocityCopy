@@ -110,6 +110,11 @@ bool launch_velocitycopy_with_request(
 
         STARTUPINFOEXW startup{};
         startup.StartupInfo.cb = sizeof(startup);
+        // Explorer transfer activation is an explicit foreground user action.
+        // Do not let the newly created WinUI process inherit an incidental
+        // minimized/hidden presentation state from the shell invocation path.
+        startup.StartupInfo.dwFlags = STARTF_USESHOWWINDOW;
+        startup.StartupInfo.wShowWindow = SW_SHOWNORMAL;
         startup.lpAttributeList = attributes.get();
 
         PROCESS_INFORMATION process{};

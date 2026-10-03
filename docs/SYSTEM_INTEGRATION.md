@@ -4,7 +4,7 @@ VelocityCopy integrates deeply enough to feel native on Windows 11 without repla
 
 ## Installation
 
-- Distribution target: classic self-contained NSIS installers for Windows 11 x64 and ARM64 (`VelocityCopy-Setup-x64.exe` and `VelocityCopy-Setup-ARM64.exe`).
+- Distribution target: classic self-contained NSIS installers for Windows 11 x64 and ARM64 (`RepartoCopier-Setup-x64.exe` and `RepartoCopier-Setup-ARM64.exe`).
 - Each installer copies the autonomous WinUI payload, registers Explorer `DragDropHandlers` and a conventional Add/Remove Programs entry.
 - The installer owns startup registration through HKCU Run (`VelocityCopy`) with `--startup`. Runtime code must never create or repair that value.
 - Use the installer that matches the native OS architecture. The x64 setup refuses ARM64 Windows and the ARM64 setup refuses x64 Windows.
@@ -22,10 +22,10 @@ VelocityCopy integrates deeply enough to feel native on Windows 11 without repla
 
 - VelocityCopy owns a persistent notification-area icon while the resident process is running.
 - When the compact window is visible it behaves as a normal Windows desktop app and may appear in the taskbar/system switchers.
-- Minimize and close hide the compact window to the notification area instead of terminating the resident process.
-- Minimizing or hiding never pauses, cancels or stops an active transfer; execution is owned by the core worker, not by window visibility.
-- Clicking the tray icon restores the same live queue/progress state.
-- The tray menu exposes Open VelocityCopy and Exit. Exit is the explicit action that terminates the resident process.
+- Minimize is a native Windows minimize operation. It keeps the transfer window in the taskbar/switcher model and never pauses, cancels or stops active work.
+- Close is intentionally different from Minimize: closing an active transfer window cancels the work owned by that window and retires that transfer surface. Closing an idle window retires only that window; the resident app/tray process remains available.
+- Clicking the tray icon restores the most recent live window when one exists or creates a new idle compact window when none remains.
+- The tray menu exposes Open VelocityCopy and Exit. Exit is the explicit action that terminates the resident process and all remaining windows.
 - Silent sign-in startup creates the tray presence without activating the compact window or creating a taskbar button.
 - The tray icon negotiates `NOTIFYICON_VERSION_4` after `NIM_ADD` and handles the v4 callback layout, including keyboard selection.
 - If Explorer restarts, VelocityCopy handles the registered `TaskbarCreated` message and re-adds the notification icon.

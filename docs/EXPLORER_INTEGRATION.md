@@ -16,7 +16,7 @@ Automatic Ctrl+C/Ctrl+X -> Ctrl+V is a required product gate. This change must n
 
 ## Ownership and failure
 
-The extension validates and snapshots data; it does not enumerate directories or copy files. InvokeCommand dispatches to the existing user/session-local pipe, with on-demand activation of VelocityCopy.WinUI.exe when needed. The current transport's connection timeout does not bound all synchronous pipe writes; a hung receiver remains a transport limitation.
+The extension validates and snapshots data; it does not enumerate directories or copy files. InvokeCommand dispatches to the existing user/session-local pipe, with on-demand activation of VelocityCopy.WinUI.exe when needed. The transport uses a single bounded deadline for pipe availability and overlapped client writes. A resident process that accepts the pipe but stops consuming data must cause the shell handoff to fail within that deadline rather than blocking Explorer indefinitely.
 
 The app owns layout selection, validation, queueing, conflicts, cancellation and source deletion after successful Move. Queue admission is not transfer completion: the extension never sends PASTESUCCEEDED or a performed MOVE back to the source. A failed handoff returns failure; automatic native retry is not assumed. Shell objects are released locally and never stored in IPC. An instance rejects duplicate invocation after a successful handoff.
 
