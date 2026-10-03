@@ -142,9 +142,24 @@ jobs:
 
           New-Item -ItemType Directory -Force "$fixtures/negative" | Out-Null
           Copy-Item $sourcePri "$fixtures/negative/VelocityCopy.WinUI.pri"
-          pwsh -NoProfile -File tools/ci/Assert-PriResource.ps1 -RootPath "$fixtures/negative" -EvidencePath "artifacts/pri-evidence-${{ matrix.arch }}/fixture-negative" -Key __VelocityCopyMissingFixtureKey__ -LanguagesCsv 'en-US,es-ES'
-          if ($LASTEXITCODE -eq 0) { throw 'Negative PRI fixture was incorrectly accepted' }
-          Write-Host 'Negative PRI fixture rejected as expected: missing resource key'
+          # Each negative case must fail for ITS reason. A non-zero exit alone is
+          # not proof: a missing makepri or a broken dump also exits non-zero.
+          $negatives = @(
+            @{ Name = 'missing-key';      Key = '__VelocityCopyMissingFixtureKey__'; Languages = 'en-US,es-ES';
+               Reason = 'PRI dump does not contain resource key __VelocityCopyMissingFixtureKey__' },
+            @{ Name = 'missing-language'; Key = 'RecoveryRestoreError';              Languages = 'en-US,es-ES,fr-FR';
+               Reason = 'PRI resource RecoveryRestoreError has no candidate qualified for fr-FR' }
+          )
+          foreach ($case in $negatives) {
+            $output = pwsh -NoProfile -File tools/ci/Assert-PriResource.ps1 -RootPath "$fixtures/negative" -EvidencePath "artifacts/pri-evidence-${{ matrix.arch }}/fixture-negative-$($case.Name)" -Key $case.Key -LanguagesCsv $case.Languages 2>&1 | Out-String
+            $exitCode = $LASTEXITCODE
+            if ($exitCode -eq 0) { throw "Negative PRI case '$($case.Name)' was incorrectly accepted" }
+            if (-not $output.Contains($case.Reason)) {
+              Write-Host $output
+              throw "Negative PRI case '$($case.Name)' failed for an unexpected reason"
+            }
+            Write-Host "Negative PRI case '$($case.Name)' rejected as expected: $($case.Reason)"
+          }
 
       - name: Cache pinned NSIS
         id: cache-nsis
