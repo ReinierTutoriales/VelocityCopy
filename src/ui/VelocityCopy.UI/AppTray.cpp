@@ -136,8 +136,8 @@ bool AppTray::EnsureMenuSurface() noexcept {
 
         Window window;
         Grid anchor;
-        anchor.Width(1);
-        anchor.Height(1);
+        anchor.Width(32);
+        anchor.Height(32);
         window.Content(anchor);
 
         auto app_window = window.AppWindow();
@@ -148,7 +148,7 @@ bool AppTray::EnsureMenuSurface() noexcept {
             presenter.IsMinimizable(false);
             presenter.IsMaximizable(false);
         }
-        app_window.Resize(Windows::Graphics::SizeInt32{1, 1});
+        app_window.Resize(Windows::Graphics::SizeInt32{32, 32});
 
         window.Closed([this](auto const&, auto const&) {
             menu_open_ = false;
@@ -186,9 +186,18 @@ void AppTray::ShowMenu(POINT anchor) noexcept {
 
         if (anchor.x == -1 && anchor.y == -1) GetCursorPos(&anchor);
 
+        HMONITOR monitor = MonitorFromPoint(anchor, MONITOR_DEFAULTTONEAREST);
+        MONITORINFO monitor_info{sizeof(monitor_info)};
+        if (!GetMonitorInfoW(monitor, &monitor_info)) return;
+        constexpr LONG kAnchorSize = 32;
+        const LONG left = std::clamp(anchor.x - kAnchorSize / 2,
+            monitor_info.rcWork.left, monitor_info.rcWork.right - kAnchorSize);
+        const LONG top = std::clamp(anchor.y - kAnchorSize,
+            monitor_info.rcWork.top, monitor_info.rcWork.bottom - kAnchorSize);
+
         auto app_window = menu_window_.AppWindow();
-        app_window.Move(Windows::Graphics::PointInt32{anchor.x, anchor.y});
-        app_window.Resize(Windows::Graphics::SizeInt32{1, 1});
+        app_window.Move(Windows::Graphics::PointInt32{left, top});
+        app_window.Resize(Windows::Graphics::SizeInt32{kAnchorSize, kAnchorSize});
         menu_window_.Activate();
 
         std::wstring open_text = L"Open VelocityCopy", exit_text = L"Exit";
@@ -219,12 +228,17 @@ void AppTray::ShowMenu(POINT anchor) noexcept {
                     auto native = menu_window_.as<::IWindowNative>();
                     if (SUCCEEDED(native->get_WindowHandle(&menu_hwnd)) && menu_hwnd) ShowWindow(menu_hwnd, SW_HIDE);
                 }
+                if (hwnd_) SetForegroundWindow(hwnd_);
             } catch (...) {}
         });
 
+        FlyoutShowOptions show_options;
+        show_options.Placement(FlyoutPlacementMode::Top);
+        show_options.Position(Windows::Foundation::Point{16.0f, 16.0f});
+
         menu_open_ = true;
         menu_flyout_ = flyout;
-        flyout.ShowAt(menu_anchor_);
+        flyout.ShowAt(menu_anchor_, show_options);
     } catch (...) {
         HideMenuSurface();
     }
