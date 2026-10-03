@@ -1,4 +1,4 @@
-# VelocityCopy pre-test audit
+# RepartoCopier pre-test audit
 
 Status: pre-release manual test gate
 
@@ -22,7 +22,7 @@ Explorer integration now carries a complete transfer snapshot. See EXPLORER_INTE
 
 ### One-click test installer
 
-During the current stabilization phase, manual testing uses the classic x64 installer `VelocityCopy-Setup-x64.exe`. ARM64 packaging is re-enabled after the x64 path is stable.
+During the current stabilization phase, manual testing uses the classic x64 installer `RepartoCopier-Setup-x64.exe`. ARM64 packaging is re-enabled after the x64 path is stable.
 
 The setup requests elevation through UAC and copies the self-contained WinUI payload, including `VelocityCopy.WinUI.exe` and `VelocityCopy.Shell.dll`, into Program Files. Testers do not run PowerShell, certificates, MSIX files or framework packages manually.
 
@@ -37,7 +37,7 @@ VelocityCopy discovers `VelocityCopy.Recovery.vcq`, validates the saved work, an
 ### Installation and shell registration
 
 - Double-click `VelocityCopy-Setup-x64.exe` and accept the UAC prompt.
-- Confirm VelocityCopy appears in installed apps.
+- Confirm RepartoCopier 2.1.2 appears in installed apps.
 - Launch once and confirm the tray icon appears.
 - Confirm Explorer transfer handling is registered for Directory/Drive/Folder drag-drop targets.
 - Restart Explorer and confirm the tray icon re-registers.
