@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="Logo/VelocityCopy.png" alt="VelocityCopy" width="170" />
+<img src="Logo/VelocityCopy.png" alt="RepartoCopier" width="170" />
 
-# VelocityCopy
+# RepartoCopier
 
 ### A faster, smarter, and cleaner way to copy and move files on Windows 11.
 
@@ -12,7 +12,7 @@
 
 ## Status
 
-VelocityCopy 1.0 is the stable Windows 11 release line. The copy engine, compact WinUI shell, Explorer integration and classic installers are built and verified by the repository release pipeline.
+RepartoCopier 2.1.2 is the current Windows 11 release line. The copy engine, compact WinUI shell, Explorer integration and classic installers are built and verified by the repository release pipeline.
 
 Current automated baseline (`main`):
 
@@ -20,7 +20,7 @@ Current automated baseline (`main`):
 - ARM64 core compile
 - ASan RelWithDebInfo compile
 - self-contained unpackaged WinUI for x64 and ARM64
-- `VelocityCopy-Setup-x64.exe` and `VelocityCopy-Setup-ARM64.exe`
+- `RepartoCopier-Setup-x64.exe` and `RepartoCopier-Setup-ARM64.exe`
 
 Download installers from Releases. Use the setup that matches the PC: x64 setup refuses ARM64 Windows, and the ARM64 setup refuses x64 Windows.
 
@@ -63,4 +63,4 @@ Installers are produced by GitHub Actions, not by the local CMake tree.
 
 ## License
 
-VelocityCopy is available under the MIT License.
+RepartoCopier is available under the MIT License.
