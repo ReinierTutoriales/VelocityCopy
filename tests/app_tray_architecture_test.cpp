@@ -76,7 +76,8 @@ int main(){
     tray.find("flyout.Closed([this]") == std::string::npos) return 35;
  if(tray.find("MonitorFromPoint(anchor, MONITOR_DEFAULTTONEAREST)") == std::string::npos ||
     tray.find("monitor_info.rcWork") == std::string::npos ||
-    tray.find("show_options.ShouldConstrainToRootBounds(false)") == std::string::npos ||
+    tray.find("show_options.Placement(placement)") == std::string::npos ||
+    tray.find("show_options.Position(") == std::string::npos ||
     tray.find("GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI") == std::string::npos ||
     tray.find("dpi_x = GetDpiForWindow(menu_hwnd)") == std::string::npos ||
     tray.find("MulDiv(kAnchorDip") == std::string::npos ||
