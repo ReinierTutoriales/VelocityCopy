@@ -29,7 +29,7 @@ bool AppTray::Initialize(App* owner) noexcept {
         // Hidden top-level owner. Message-only windows do not receive broadcast messages,
         // so they cannot observe TaskbarCreated after Explorer starts/restarts. A real
         // top-level owner is also required by the standard notification-area menu pattern.
-        hwnd_ = CreateWindowExW(WS_EX_TOOLWINDOW, kTrayWindowClass, L"RepartoCopier", WS_POPUP,
+        hwnd_ = CreateWindowExW(WS_EX_TOOLWINDOW, kTrayWindowClass, L"VelocityCopy", WS_POPUP,
                                 0, 0, 0, 0, nullptr, nullptr, instance, this);
         if (!hwnd_) return false;
 
@@ -48,7 +48,7 @@ bool AppTray::Initialize(App* owner) noexcept {
         data_.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP | NIF_SHOWTIP;
         data_.uCallbackMessage = kTrayCallbackMessage;
         data_.hIcon = icon_;
-        wcscpy_s(data_.szTip, L"RepartoCopier");
+        wcscpy_s(data_.szTip, L"VelocityCopy");
         RestoreIcon();
         taskbar_created_message_ = RegisterWindowMessageW(L"TaskbarCreated");
         return added_;
@@ -142,7 +142,7 @@ void AppTray::ShowMenu(POINT anchor) noexcept {
         anchor.y = icon_rect.top + (icon_rect.bottom - icon_rect.top) / 2;
     }
 
-    std::wstring open_text = L"Open RepartoCopier", exit_text = L"Exit";
+    std::wstring open_text = L"Open VelocityCopy", exit_text = L"Exit";
     try {
         open_text = velocitycopy::localization::get_string(L"TrayOpen").c_str();
         exit_text = velocitycopy::localization::get_string(L"TrayExit").c_str();
