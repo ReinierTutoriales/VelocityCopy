@@ -111,15 +111,24 @@ FunctionEnd
 ; success if the installed name still cannot be replaced.
 Function ReleaseLoadedShellDll
   StrCpy $0 "$INSTDIR\VelocityCopy.Shell.dll"
+  StrCpy $1 ""
   IfFileExists $0 0 shell_release_done
-  StrCpy $1 "$INSTDIR\VelocityCopy.Shell.dll.old"
-  ClearErrors
+
+  ; Generate a unique retirement path for every upgrade. The mapped image may
+  ; remain locked until Explorer exits, so a fixed .old filename can collide
+  ; with a previous still-mapped generation on the next upgrade.
+  GetTempFileName $1 "$INSTDIR"
+  IfErrors shell_release_failed
   Delete $1
   ClearErrors
   Rename $0 $1
-  IfErrors 0 shell_release_done
-  DetailPrint "VelocityCopy.Shell.dll is locked and could not be renamed."
+  IfErrors shell_release_failed
+  Goto shell_release_done
+
+shell_release_failed:
+  DetailPrint "VelocityCopy.Shell.dll is locked and could not be retired."
   Abort "VelocityCopy.Shell.dll is in use and was not replaced."
+
 shell_release_done:
 FunctionEnd
 
@@ -129,7 +138,9 @@ Section "Install VelocityCopy" SEC_INSTALL
   Call ReleaseLoadedShellDll
   SetOutPath "$INSTDIR"
   File /r "${PAYLOAD_DIR}\*.*"
-  Delete /REBOOTOK "$INSTDIR\VelocityCopy.Shell.dll.old"
+  ${If} $1 != ""
+    Delete /REBOOTOK "$1"
+  ${EndIf}
 
   Delete "$SMPROGRAMS\VelocityCopy\VelocityCopy.lnk"
   RMDir "$SMPROGRAMS\VelocityCopy"
@@ -176,6 +187,5 @@ Section "Uninstall"
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
 
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy"
-  Delete /REBOOTOK "$INSTDIR\VelocityCopy.Shell.dll.old"
   RMDir /r "$INSTDIR"
 SectionEnd
