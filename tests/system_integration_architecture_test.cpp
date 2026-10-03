@@ -35,7 +35,6 @@ int main() {
     const auto persistence = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.QueuePersistence.cpp");
     const auto recovery = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Recovery.cpp");
     const auto conflict = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Conflict.cpp");
-    const auto auxiliary = read_all(root / "src/ui/VelocityCopy.UI/AuxiliarySurface.cpp");
     const auto ci_workflow = read_all(root / ".github/workflows/ci.yml");
     const auto package_workflow = read_all(root / ".github/workflows/package.yml");
     const auto installer_exe = read_all(root / "tools/VelocityCopy-Test-Installer.nsi");
@@ -43,7 +42,7 @@ int main() {
     const auto docs = read_all(root / "docs/SYSTEM_INTEGRATION.md");
 
     if (app.empty() || shell.empty() || ipc.empty() ||
-        window.empty() || tray.empty() || app_tray.empty() || persistence.empty() || recovery.empty() || conflict.empty() || auxiliary.empty() ||
+        window.empty() || tray.empty() || app_tray.empty() || persistence.empty() || recovery.empty() || conflict.empty() ||
         ci_workflow.empty() || package_workflow.empty() || installer_exe.empty() || installer_smoke.empty() || docs.empty()) {
         return fail(1, "required integration source missing");
     }
@@ -178,16 +177,11 @@ int main() {
         return fail(16, "decisions must use top-level surfaces outside the compact XAML root; conflict uses the WinUI decision surface");
     }
 
-    if (!contains(auxiliary, "config.hwndParent = options.owner;") ||
-        !contains(auxiliary, "config.pszMainInstruction = options.title.c_str();") ||
-        !contains(auxiliary, "config.pszContent = options.message.c_str();") ||
-        !contains(auxiliary, "config.pfCallback = &task_dialog_theme_callback;") ||
-        !contains(auxiliary, "config.pszVerificationText = options.verification_label.c_str();") ||
-        contains(auxiliary, "TDF_POSITION_RELATIVE_TO_WINDOW") ||
-        !contains(auxiliary, "config.cxWidth = verification_checked != nullptr ? 240 : 260;") ||
-        !contains(conflict, "conflict.conflict_destination.filename()") ||
-        contains(auxiliary, "TDF_SIZE_TO_CONTENT")) {
-        return fail(17, "native decision dialogs must keep owner/theme/verification plumbing without positioning inside the compact owner surface");
+    if (!contains(conflict, "conflict.conflict_destination.filename()") ||
+        contains(app, "ShowNativeDecisionDialog") || contains(recovery, "ShowNativeDecisionDialog") ||
+        contains(app, "NativeDialogChoice") || contains(recovery, "NativeDialogChoice") ||
+        !contains(app, "RequestDecisionAsync({") || !contains(recovery, "RequestDecisionAsync({")) {
+        return fail(17, "all runtime decisions must use the serialized WinUI decision surface");
     }
     return 0;
 }

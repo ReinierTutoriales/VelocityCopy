@@ -53,9 +53,7 @@ void MainWindow::InitializeTrayIntegration() {
         if (!SetWindowSubclass(hwnd_, &MainWindow::TraySubclassProc, kTraySubclassId,
                                reinterpret_cast<DWORD_PTR>(this))) { hwnd_ = nullptr; return; }
 
-        // Keep the native HWND theme synchronized with WinUI ActualTheme. Native-owned
-        // surfaces (TaskDialog, system menu, caption/Snap chrome) can then query the
-        // window's real DWM dark-mode state instead of guessing from an unset attribute.
+        // Keep native caption/Snap chrome synchronized with WinUI ActualTheme.
         sync_native_window_theme(hwnd_, RootGrid().ActualTheme());
         auto weak = get_weak();
         RootGrid().ActualThemeChanged(
