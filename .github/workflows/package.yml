@@ -226,7 +226,7 @@ jobs:
           & $env:NSIS_MAKENSIS "/DPAYLOAD_DIR=$payload" "/DOUTPUT_FILE=$output" "/DDISPLAY_VERSION=$env:VELOCITYCOPY_VERSION" "/DPAYLOAD_ARCH=${{ matrix.platform }}" tools/VelocityCopy-Test-Installer.nsi
           if ($LASTEXITCODE -ne 0 -or -not (Test-Path $output)) { throw "Classic ${{ matrix.arch }} installer build failed" }
 
-      - name: Smoke upgrade from v1.0.0 with loaded shell DLL
+      - name: Smoke upgrade from v1.0.0 with write-locked shell DLL
         if: ${{ matrix.smoke }}
         shell: pwsh
         run: |
@@ -247,15 +247,18 @@ jobs:
 
           $holderScript = Join-Path $env:RUNNER_TEMP "hold-velocitycopy-shell.ps1"
           @(
-            '$member = ''[DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] public static extern IntPtr LoadLibraryExW(string path, IntPtr file, uint flags);'''
+            '$member = ''[DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] public static extern IntPtr CreateFileW(string path, uint access, uint share, IntPtr security, uint creation, uint flags, IntPtr templateFile); [DllImport("kernel32.dll")] public static extern bool CloseHandle(IntPtr handle);'''
             'Add-Type -Namespace VelocityCopyNative -Name ShellHolder -MemberDefinition $member'
-            '$handle = [VelocityCopyNative.ShellHolder]::LoadLibraryExW($args[0], [IntPtr]::Zero, 0x00000008)'
-            'if ($handle -eq [IntPtr]::Zero) {'
+            '# Read access, share read + delete, but deliberately do not share write.'
+            '# The canonical DLL cannot be overwritten while this handle exists,'
+            '# yet Windows may rename it so the installer can retire the generation.'
+            '$handle = [VelocityCopyNative.ShellHolder]::CreateFileW($args[0], 0x80000000, 0x00000005, [IntPtr]::Zero, 3, 0x80, [IntPtr]::Zero)'
+            'if ($handle -eq [IntPtr](-1)) {'
             '  $error = [Runtime.InteropServices.Marshal]::GetLastWin32Error()'
-            '  Write-Error "LoadLibraryExW failed for $($args[0]) with Win32 error $error"'
+            '  Write-Error "CreateFileW lock fixture failed for $($args[0]) with Win32 error $error"'
             '  exit 41'
             '}'
-            'Start-Sleep -Seconds 180'
+            'try { Start-Sleep -Seconds 180 } finally { [void][VelocityCopyNative.ShellHolder]::CloseHandle($handle) }'
           ) | Set-Content -LiteralPath $holderScript -Encoding UTF8
 
           $holder = Start-Process powershell.exe -ArgumentList @(
@@ -268,7 +271,7 @@ jobs:
           try {
             $setup = (Resolve-Path artifacts/installer/${{ matrix.setup_name }}).Path
             $upgrade = Start-Process $setup -ArgumentList "/S" -Wait -PassThru
-            if ($upgrade.ExitCode -ne 0) { throw "Upgrade over loaded v1.0.0 shell DLL failed: $($upgrade.ExitCode)" }
+            if ($upgrade.ExitCode -ne 0) { throw "Upgrade over write-locked v1.0.0 shell DLL failed: $($upgrade.ExitCode)" }
             if (-not (Test-Path $shellDll)) { throw "Shell DLL disappeared after upgrade" }
 
             $payloadRoot = (Resolve-Path "artifacts/installer-payload-x64").Path
@@ -304,7 +307,7 @@ jobs:
             try {
               $upgrade2 = Start-Process $setup -ArgumentList "/S" -Wait -PassThru
               if ($upgrade2.ExitCode -ne 0) {
-                throw "Second upgrade with two mapped shell generations failed: $($upgrade2.ExitCode)"
+                throw "Second upgrade with two write-locked shell generations failed: $($upgrade2.ExitCode)"
               }
               $actualShellHash2 = (Get-FileHash -LiteralPath $shellDll -Algorithm SHA256).Hash
               if ($actualShellHash2 -ne $expectedShellHash) {
@@ -313,7 +316,7 @@ jobs:
               $holder.Refresh()
               $holder2.Refresh()
               if ($holder.HasExited -or $holder2.HasExited) {
-                throw "A mapped shell generation was unexpectedly terminated by the second upgrade"
+                throw "A write-locked shell generation was unexpectedly terminated by the second upgrade"
               }
             } finally {
               Stop-Process -Id $holder2.Id -Force -ErrorAction SilentlyContinue
