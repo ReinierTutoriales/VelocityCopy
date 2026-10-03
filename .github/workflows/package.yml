@@ -291,7 +291,7 @@ jobs:
       - name: Upload validated installer
         uses: actions/upload-artifact@v4
         with:
-          name: VelocityCopy-Setup-${{ matrix.arch }}-${{ env.VELOCITYCOPY_VERSION }}
+          name: RepartoCopier-Setup-${{ matrix.arch }}-${{ env.VELOCITYCOPY_VERSION }}
           path: artifacts/installer/${{ matrix.setup_name }}
           if-no-files-found: error
           retention-days: 14
