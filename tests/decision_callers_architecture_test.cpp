@@ -21,7 +21,11 @@ int main() {
     conflict.find("decision.verification_checked") == std::string::npos) return 6;
  if(execution.find("decision_operation_.Cancel()") == std::string::npos ||
     tray.find("decision_operation_.Cancel()") == std::string::npos) return 7;
- if(conflict.find("if (decision_operation_) co_return") == std::string::npos ||
-    execution.find("decision_operation_) co_return") == std::string::npos) return 8;
+ if(conflict.find("pending_conflict_ = std::move(conflict)") == std::string::npos ||
+    conflict.find("ShowPendingConflictDecision()") == std::string::npos ||
+    header.find("std::optional<velocitycopy::JobResult> pending_conflict_") == std::string::npos) return 8;
+ if(conflict.find("tray_exit_requested_ || session_ending_") == std::string::npos ||
+    execution.find("tray_exit_requested_ || session_ending_") == std::string::npos) return 9;
+ if(execution.find("pending_conflict_.reset()") == std::string::npos) return 10;
  return 0;
 }
