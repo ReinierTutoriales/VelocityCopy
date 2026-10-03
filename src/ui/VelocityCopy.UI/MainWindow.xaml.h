@@ -49,6 +49,7 @@ struct MainWindow : MainWindowT<MainWindow> {
     [[nodiscard]] HWND NativeOwner() const noexcept { return hwnd_; }
     void MoveNativeWindow(int x, int y) noexcept;
     winrt::Windows::Foundation::IAsyncOperation<std::uint32_t> RequestDecisionAsync(velocitycopy::ui::DecisionOptions options);
+    [[nodiscard]] bool HasDecisionInFlight() const noexcept { return decision_operation_ != nullptr; }
     void OnDragEnter(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
     void OnDragOver(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
     void OnDragLeave(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
