@@ -268,7 +268,6 @@ JobResult JobExecutor::execute(
         LiveCopyPlan live_plan(std::move(plan));
         return execute(live_plan, progress);
     } catch (const std::filesystem::filesystem_error& error) {
-        const auto code = error.code().value();
         return {
             false,
             false,
@@ -290,7 +289,6 @@ JobResult JobExecutor::execute(
         LiveCopyPlan live_plan(plan);
         return execute(live_plan, progress);
     } catch (const std::filesystem::filesystem_error& error) {
-        const auto code = error.code().value();
         return {
             false,
             false,
@@ -786,9 +784,7 @@ JobResult JobExecutor::execute(
                         }
                     }
                 } catch (const std::filesystem::filesystem_error& error) {
-                    const auto code = error.code().value();
-                    const auto native = static_cast<std::int32_t>(
-                        HRESULT_FROM_WIN32(code == 0 ? ERROR_INVALID_DATA : code));
+                    const auto native = native_hresult(error.code());
                     if (!is_session_fatal(native) && held_file_id != 0 &&
                         plan.park_active(held_file_id, native, false, RecoveryAction::RetryTransfer)) {
                         held_file_id = 0;
@@ -853,7 +849,6 @@ JobResult JobExecutor::execute(
         }
         return finish({true, false, S_OK, false});
     } catch (const std::filesystem::filesystem_error& error) {
-        const auto code = error.code().value();
         return {
             false,
             false,
