@@ -150,6 +150,23 @@ bool AppTray::EnsureMenuSurface() noexcept {
             presenter.IsMinimizable(false);
             presenter.IsMaximizable(false);
         }
+
+        // The XAML root must belong to a live top-level window so MenuFlyout can use it
+        // as its placement target. Keep that technical host fully transparent: only the
+        // flyout itself is user-visible.
+        HWND menu_hwnd{};
+        auto native = window.as<::IWindowNative>();
+        if (FAILED(native->get_WindowHandle(&menu_hwnd)) || !menu_hwnd) return false;
+        SetLastError(ERROR_SUCCESS);
+        const LONG_PTR ex_style = GetWindowLongPtrW(menu_hwnd, GWL_EXSTYLE);
+        if (ex_style == 0 && GetLastError() != ERROR_SUCCESS) return false;
+        SetLastError(ERROR_SUCCESS);
+        if (SetWindowLongPtrW(menu_hwnd, GWL_EXSTYLE, ex_style | WS_EX_LAYERED) == 0 &&
+            GetLastError() != ERROR_SUCCESS) {
+            return false;
+        }
+        if (!SetLayeredWindowAttributes(menu_hwnd, 0, 0, LWA_ALPHA)) return false;
+
         app_window.Resize(Windows::Graphics::SizeInt32{32, 32});
 
         window.Closed([this](auto const&, auto const&) {

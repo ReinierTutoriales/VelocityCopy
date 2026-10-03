@@ -72,6 +72,8 @@ int main(){
     tray_h.find("MenuFlyout menu_flyout_{nullptr}") == std::string::npos ||
     tray.find("app_window.IsShownInSwitchers(false)") == std::string::npos ||
     tray.find("presenter.SetBorderAndTitleBar(false, false)") == std::string::npos ||
+    tray.find("WS_EX_LAYERED") == std::string::npos ||
+    tray.find("SetLayeredWindowAttributes(menu_hwnd, 0, 0, LWA_ALPHA)") == std::string::npos ||
     tray.find("MenuFlyoutSeparator") == std::string::npos ||
     tray.find("flyout.Closed([this]") == std::string::npos) return 35;
  if(tray.find("MonitorFromPoint(anchor, MONITOR_DEFAULTTONEAREST)") == std::string::npos ||
