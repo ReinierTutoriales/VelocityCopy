@@ -8,7 +8,7 @@
 
 namespace velocitycopy::ui {
 
-enum class DecisionChoice : std::int32_t { Cancel = 0, Primary = 1, Secondary = 2 };
+enum class DecisionChoice : std::uint32_t { Cancel = 0, Primary = 1, Secondary = 2 };
 
 struct DecisionOptions {
     HWND owner{};
@@ -27,10 +27,18 @@ struct DecisionResult {
     bool verification_checked{};
 };
 
-// Non-blocking WinUI decision surface. Closing the surface is Cancel and every
-// invocation completes exactly once. Callers serialize requests per owner.
-winrt::Windows::Foundation::IAsyncOperation<std::int32_t> show_decision_async(
-    const DecisionOptions& options,
-    bool* verification_checked = nullptr);
+[[nodiscard]] constexpr std::uint32_t encode_decision(const DecisionResult result) noexcept {
+    return static_cast<std::uint32_t>(result.choice) | (result.verification_checked ? 0x100u : 0u);
+}
+
+[[nodiscard]] constexpr DecisionResult decode_decision(const std::uint32_t encoded) noexcept {
+    return {static_cast<DecisionChoice>(encoded & 0xffu), (encoded & 0x100u) != 0};
+}
+
+// Non-blocking WinUI decision surface. Closing/cancelling the operation is Cancel
+// and every invocation completes exactly once. Callers serialize requests per owner
+// and cancel the returned operation before destroying that owner.
+winrt::Windows::Foundation::IAsyncOperation<std::uint32_t> show_decision_async(
+    DecisionOptions options);
 
 } // namespace velocitycopy::ui
