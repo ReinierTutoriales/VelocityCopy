@@ -4,6 +4,7 @@
 #include "App.xaml.h"
 
 #include <shlobj_core.h>
+#include <shellscalingapi.h>
 
 namespace winrt::VelocityCopyUI::implementation {
 namespace {
@@ -194,8 +195,12 @@ void AppTray::ShowMenu(POINT anchor) noexcept {
         HWND menu_hwnd{};
         auto native = menu_window_.as<::IWindowNative>();
         if (FAILED(native->get_WindowHandle(&menu_hwnd)) || !menu_hwnd) return;
-        const UINT dpi = GetDpiForWindow(menu_hwnd);
-        const LONG anchor_px = MulDiv(kAnchorDip, static_cast<int>(dpi), USER_DEFAULT_SCREEN_DPI);
+        UINT dpi_x = USER_DEFAULT_SCREEN_DPI;
+        UINT dpi_y = USER_DEFAULT_SCREEN_DPI;
+        if (FAILED(GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &dpi_x, &dpi_y))) {
+            dpi_x = GetDpiForWindow(menu_hwnd);
+        }
+        const LONG anchor_px = MulDiv(kAnchorDip, static_cast<int>(dpi_x), USER_DEFAULT_SCREEN_DPI);
         const LONG left = std::clamp(anchor.x - anchor_px / 2,
             monitor_info.rcWork.left, monitor_info.rcWork.right - anchor_px);
         const LONG top = std::clamp(anchor.y - anchor_px,
