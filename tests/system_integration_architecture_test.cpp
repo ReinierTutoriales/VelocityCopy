@@ -132,7 +132,7 @@ int main() {
         !contains(installer_exe, "/IM VelocityCopy.WinUI.exe /F") ||
         !contains(installer_exe, "GetTempFileName $1") ||
         contains(installer_exe, "VelocityCopy.Shell.dll.old") ||
-        !contains(package_workflow, "Second upgrade with two mapped shell generations failed") ||
+        !contains(package_workflow, "Second upgrade with two write-locked shell generations failed") ||
         !contains(installer_smoke, "Launching VelocityCopy in startup/tray mode before uninstall smoke test") ||
         !contains(installer_smoke, "the install directory still exists") ||
         contains(installer_exe, "Add-AppxPackage")) {
