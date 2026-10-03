@@ -400,11 +400,7 @@ void MainWindow::OnCancelClick(IInspectable const&, RoutedEventArgs const&) {
 }
 
 void MainWindow::CancelCurrentSession() {
-    if (decision_operation_) {
-        decision_operation_.Cancel();
-        decision_operation_ = nullptr;
-    }
-    pending_conflict_.reset();
+    CancelDecisionQueue();
     cancel_requested_.store(true, std::memory_order_relaxed);
     pending_resume_ = {};
     SpeedText().Text(L"—");
@@ -716,9 +712,9 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
 
 fire_and_forget MainWindow::ShowRetryDecisionAsync() {
     auto lifetime = get_strong();
-    if (interrupted_session_ != InterruptedSessionState::Decision || !live_plan_ || decision_operation_) co_return;
+    if (interrupted_session_ != InterruptedSessionState::Decision || !live_plan_) co_return;
     try {
-        decision_operation_ = velocitycopy::ui::show_decision_async({
+        const auto decision = velocitycopy::ui::decode_decision(co_await RequestDecisionAsync({
             hwnd_,
             velocitycopy::localization::get_string(L"RetryDecisionTitle").c_str(),
             velocitycopy::localization::get_string(L"RetryDecisionMessage").c_str(),
@@ -728,17 +724,13 @@ fire_and_forget MainWindow::ShowRetryDecisionAsync() {
             velocitycopy::localization::get_string(L"ActionCancel").c_str(),
             {},
             true,
-        });
-        const auto decision = velocitycopy::ui::decode_decision(
-            co_await velocitycopy::ui::await_decision(decision_operation_));
-        decision_operation_ = nullptr;
+        }));
         if (tray_exit_requested_ || session_ending_) co_return;
         if (interrupted_session_ != InterruptedSessionState::Decision || !live_plan_) co_return;
         if (decision.choice == velocitycopy::ui::DecisionChoice::Primary) ResumeParkedFailures();
         else if (decision.choice == velocitycopy::ui::DecisionChoice::Secondary) ResolveParkedFailures();
         // Closing/cancelling is non-destructive; parked work remains available.
     } catch (...) {
-        decision_operation_ = nullptr;
         // Preserve Decision state and all unresolved work.
     }
 }

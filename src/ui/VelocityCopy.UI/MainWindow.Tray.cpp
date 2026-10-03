@@ -32,10 +32,7 @@ void sync_native_window_theme(
 } // namespace
 
 MainWindow::~MainWindow() {
-    if (decision_operation_) {
-        try { decision_operation_.Cancel(); } catch (...) {}
-        decision_operation_ = nullptr;
-    }
+    CancelDecisionQueue();
     try {
         if (about_window_) {
             auto about = about_window_;
@@ -120,6 +117,7 @@ void MainWindow::CancelAndCloseWindow() noexcept {
     // window. Unlike the Cancel button, which preserves jobs explicitly placed in Wait,
     // the window-close affordance means this transfer surface itself is being retired.
     tray_exit_requested_ = true;
+    CancelDecisionQueue();
     queued_sessions_.clear();
 
     try {
@@ -163,6 +161,7 @@ void MainWindow::ShowRequestError() {
 
 void MainWindow::RequestAppExit() noexcept {
     tray_exit_requested_ = true;
+    CancelDecisionQueue();
     RefreshEfficiencyMode();
     if (hwnd_ != nullptr) PostMessageW(hwnd_, WM_CLOSE, 0, 0);
 }
@@ -233,6 +232,7 @@ LRESULT CALLBACK MainWindow::TraySubclassProc(
     case WM_ENDSESSION:
         if (wparam != FALSE) {
             self->session_ending_ = true;
+            self->CancelDecisionQueue();
             if (auto* app = App::Instance()) app->SetShuttingDown(true);
             self->RefreshEfficiencyMode();
             self->PersistRecoveryQueueNoThrow();
