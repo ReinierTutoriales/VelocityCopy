@@ -22,7 +22,7 @@ Explorer integration now carries a complete transfer snapshot. See EXPLORER_INTE
 
 ### One-click test installer
 
-During the current stabilization phase, manual testing uses the classic x64 installer `RepartoCopier-Setup-x64.exe`. ARM64 packaging is re-enabled after the x64 path is stable.
+Manual testing starts with the classic x64 installer `RepartoCopier-Setup-x64.exe`. ARM64 packaging is built in the same release workflow after the x64 stabilization gate remains green.
 
 The setup requests elevation through UAC and copies the self-contained WinUI payload, including `VelocityCopy.WinUI.exe` and `VelocityCopy.Shell.dll`, into Program Files. Testers do not run PowerShell, certificates, MSIX files or framework packages manually.
 
