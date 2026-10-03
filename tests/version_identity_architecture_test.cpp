@@ -40,6 +40,7 @@ int main() {
     const auto cmake = read_all(root / "CMakeLists.txt");
     const auto version_h = read_all(root / "src/ui/VelocityCopy.UI/Version.h");
     const auto resource = read_all(root / "src/ui/VelocityCopy.UI/AppIcon.rc");
+    const auto shell_resource = read_all(root / "src/shell/shell_strings.rc");
     const auto project = read_all(root / "src/ui/VelocityCopy.UI/VelocityCopy.UI.vcxproj");
     const auto about = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.About.cpp");
     const auto persistence = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.QueuePersistence.cpp");
@@ -48,7 +49,7 @@ int main() {
     const auto package = read_all(root / ".github/workflows/package.yml");
     const auto spec = read_all(root / "docs/UI_SPEC.md");
 
-    if (cmake.empty() || version_h.empty() || resource.empty() || project.empty() || about.empty() ||
+    if (cmake.empty() || version_h.empty() || resource.empty() || shell_resource.empty() || project.empty() || about.empty() ||
         persistence.empty() || en.empty() || es.empty() || package.empty() || spec.empty()) {
         return fail(1, "required version/about source missing");
     }
@@ -79,6 +80,15 @@ int main() {
         !contains(en, "name=\"AppDisplayName\"") || !contains(en, "<value>VelocityCopy</value>") ||
         !contains(es, "name=\"AppDisplayName\"") || !contains(es, "<value>VelocityCopy</value>")) {
         return fail(4, "WinUI executable and localized UI must expose the VelocityCopy product identity");
+    }
+
+    if (!contains(shell_resource, "VS_VERSION_INFO VERSIONINFO") ||
+        !contains(shell_resource, "FILEVERSION VELOCITYCOPY_VERSION_COMMA") ||
+        !contains(shell_resource, "PRODUCTVERSION VELOCITYCOPY_VERSION_COMMA") ||
+        !contains(shell_resource, "VelocityCopy Explorer Shell Extension") ||
+        !contains(shell_resource, "ProductName\", \"VelocityCopy") ||
+        !contains(shell_resource, "OriginalFilename\", \"VelocityCopy.Shell.dll")) {
+        return fail(11, "Explorer shell DLL must expose the same VelocityCopy version identity");
     }
 
     if (!contains(project, "ClInclude Include=\"Version.h\"") ||
