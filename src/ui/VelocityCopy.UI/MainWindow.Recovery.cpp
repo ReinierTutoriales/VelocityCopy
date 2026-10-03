@@ -1,6 +1,5 @@
 #include "pch.h"
 #include "MainWindow.xaml.h"
-#include "AuxiliarySurface.h"
 #include "App.xaml.h"
 #include "Localization.h"
 
@@ -8,20 +7,6 @@ using namespace winrt;
 using namespace Microsoft::UI::Xaml;
 
 namespace winrt::VelocityCopyUI::implementation {
-// Transitional native decision path: Recovery and App routing only.
-MainWindow::NativeDialogChoice MainWindow::ShowNativeDecisionDialog(
-    HWND owner, const std::wstring& title, const std::wstring& message,
-    const std::wstring& primary_label, const std::wstring& secondary_label,
-    const bool include_cancel, const std::wstring& cancel_label,
-    const std::wstring& verification_label, bool* remember_choice) noexcept {
-    const auto decision = velocitycopy::ui::show_native_decision(
-        {owner, title, message, primary_label, secondary_label, cancel_label,
-         verification_label, include_cancel}, remember_choice);
-    if (decision == velocitycopy::ui::NativeDecision::Primary) return NativeDialogChoice::Primary;
-    if (decision == velocitycopy::ui::NativeDecision::Secondary) return NativeDialogChoice::Secondary;
-    return NativeDialogChoice::Cancel;
-}
-
 namespace {
 
 bool revalidate_recovery_plan(velocitycopy::CopyPlan& plan) noexcept {
@@ -182,18 +167,24 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
     } catch (...) {
     }
 
-    // Recovery is a modal decision just like conflict handling. Keep it in a
-    // native top-level dialog owned by the copier HWND so the 72 epx XAML root
-    // never clips or resizes itself to host the prompt.
-    const auto choice = ShowNativeDecisionDialog(
+    const auto decision = velocitycopy::ui::decode_decision(co_await RequestDecisionAsync({
         hwnd_,
         std::wstring(title.c_str()),
         std::wstring(message.c_str()),
+        {},
         std::wstring(resume.c_str()),
         std::wstring(discard.c_str()),
-        false);
+        {},
+        {},
+        false,
+    }));
+    if (tray_exit_requested_ || session_ending_) {
+        app->ReturnRecoveryFile(path);
+        recovery_prompt_active_ = false;
+        co_return;
+    }
 
-    if (choice == NativeDialogChoice::Secondary) {
+    if (decision.choice == velocitycopy::ui::DecisionChoice::Secondary) {
         velocitycopy::retire_recovery_file(path);
         recovery_prompt_active_ = false;
         recovery_prompt_checked_ = false;
@@ -201,7 +192,7 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
         co_return;
     }
 
-    if (choice != NativeDialogChoice::Primary) {
+    if (decision.choice != velocitycopy::ui::DecisionChoice::Primary) {
         app->ReturnRecoveryFile(path);
         recovery_prompt_active_ = false;
         co_return;

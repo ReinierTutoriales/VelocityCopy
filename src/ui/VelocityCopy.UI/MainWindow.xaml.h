@@ -13,6 +13,7 @@
 #include "velocitycopy/shell_session.hpp"
 #include "velocitycopy/transfer_router.hpp"
 #include "velocitycopy/ui_snapshot.hpp"
+#include "DecisionSurface.h"
 
 #include <chrono>
 #include <condition_variable>
@@ -30,13 +31,6 @@ namespace winrt::VelocityCopyUI::implementation {
 enum class InterruptedSessionState : std::uint8_t { None, Stopped, Conflict, Decision };
 
 struct MainWindow : MainWindowT<MainWindow> {
-    enum class NativeDialogChoice : std::uint8_t { Cancel, Primary, Secondary };
-    // Transitional: Recovery and App routing are the only native-dialog callers.
-    static NativeDialogChoice ShowNativeDecisionDialog(
-        HWND owner, const std::wstring& title, const std::wstring& message,
-        const std::wstring& primary_label, const std::wstring& secondary_label,
-        bool include_cancel, const std::wstring& cancel_label = {},
-        const std::wstring& verification_label = {}, bool* remember_choice = nullptr) noexcept;
     MainWindow();
     ~MainWindow();
 
@@ -54,6 +48,7 @@ struct MainWindow : MainWindowT<MainWindow> {
     [[nodiscard]] bool IsVisibleForRouting() const noexcept;
     [[nodiscard]] HWND NativeOwner() const noexcept { return hwnd_; }
     void MoveNativeWindow(int x, int y) noexcept;
+    winrt::Windows::Foundation::IAsyncOperation<std::uint32_t> RequestDecisionAsync(velocitycopy::ui::DecisionOptions options);
     void OnDragEnter(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
     void OnDragOver(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
     void OnDragLeave(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
