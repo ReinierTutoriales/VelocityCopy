@@ -56,6 +56,7 @@ int main() {
         !contains(path_guard, "IsReparseTagNameSurrogate") ||
         !contains(path_guard, "SetFileInformationByHandle") ||
         !contains(path_guard, "FileDispositionInfo") ||
+        !contains(path_guard, "ERROR_DIRECTORY") ||
         !contains(path_guard, "DELETE") ||
         contains(engine, "COPY_FILE_COPY_SYMLINK") ||
         contains(engine, "create_directories") ||
