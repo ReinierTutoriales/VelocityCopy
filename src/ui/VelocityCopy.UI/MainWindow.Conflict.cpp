@@ -1,55 +1,14 @@
 #include "pch.h"
 #include "MainWindow.xaml.h"
 #include "Localization.h"
-#include "AuxiliarySurface.h"
+#include "DecisionSurface.h"
 #include "UiTokens.h"
-
-#include <commctrl.h>
-#include <dwmapi.h>
-#include <uxtheme.h>
-
-#pragma comment(lib, "dwmapi.lib")
-#pragma comment(lib, "uxtheme.lib")
 
 using namespace winrt;
 using namespace Microsoft::UI::Xaml;
 using namespace Microsoft::UI::Xaml::Controls;
 
 namespace winrt::VelocityCopyUI::implementation {
-MainWindow::NativeDialogChoice MainWindow::ShowNativeDecisionDialog(
-    HWND owner,
-    const std::wstring& title,
-    const std::wstring& message,
-    const std::wstring& primary_label,
-    const std::wstring& secondary_label,
-    const bool include_cancel,
-    const std::wstring& cancel_label,
-    const std::wstring& verification_label,
-    bool* remember_choice) noexcept {
-    const auto decision = velocitycopy::ui::show_native_decision(
-        velocitycopy::ui::NativeDecisionOptions{
-            owner,
-            title,
-            message,
-            primary_label,
-            secondary_label,
-            cancel_label,
-            verification_label,
-            include_cancel,
-        },
-        remember_choice);
-
-    switch (decision) {
-    case velocitycopy::ui::NativeDecision::Primary:
-        return NativeDialogChoice::Primary;
-    case velocitycopy::ui::NativeDecision::Secondary:
-        return NativeDialogChoice::Secondary;
-    case velocitycopy::ui::NativeDecision::Cancel:
-    default:
-        return NativeDialogChoice::Cancel;
-    }
-}
-
 fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conflict) {
     auto lifetime = get_strong();
 
@@ -64,40 +23,41 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
         const std::wstring skip_label = velocitycopy::localization::get_string(L"ActionSkip").c_str();
         const std::wstring cancel_label = velocitycopy::localization::get_string(L"ActionCancel").c_str();
 
-        std::wstring message = velocitycopy::localization::get_string(L"ConflictMessage").c_str();
+        const std::wstring message = velocitycopy::localization::get_string(L"ConflictMessage").c_str();
+        std::wstring detail;
         if (!conflict.conflict_destination.empty()) {
-            message.append(L"\n\n");
             const auto filename = conflict.conflict_destination.filename();
-            message.append(filename.empty()
-                ? conflict.conflict_destination.wstring()
-                : filename.wstring());
+            detail = filename.empty() ? conflict.conflict_destination.wstring() : filename.wstring();
         }
 
-        // All modal decisions use a separate native top-level dialog owned by
-        // VelocityCopy. Never constrain a modal choice to the compact XAML root.
+        if (decision_operation_) co_return;
         const std::wstring apply_to_all_label =
             velocitycopy::localization::get_string(L"ConflictApplyToAll").c_str();
-        bool apply_to_all = false;
-        const auto choice = ShowNativeDecisionDialog(
+        decision_operation_ = velocitycopy::ui::show_decision_async({
             hwnd_,
             title,
             message,
+            detail,
             replace_label,
             skip_label,
-            true,
             cancel_label,
             apply_to_all_label,
-            &apply_to_all);
+            true,
+        });
+        const auto decision = velocitycopy::ui::decode_decision(
+            co_await velocitycopy::ui::await_decision(decision_operation_));
+        decision_operation_ = nullptr;
 
         if (interrupted_session_ != InterruptedSessionState::Conflict || !live_plan_) co_return;
+        const bool apply_to_all = decision.verification_checked;
 
-        switch (choice) {
-        case NativeDialogChoice::Primary:
+        switch (decision.choice) {
+        case velocitycopy::ui::DecisionChoice::Primary:
             ResumeConflictCopy(
                 apply_to_all ? 0 : conflict.conflict_file_id,
                 apply_to_all ? velocitycopy::ConflictPolicy::ReplaceAll : velocitycopy::ConflictPolicy::Prompt);
             co_return;
-        case NativeDialogChoice::Secondary:
+        case velocitycopy::ui::DecisionChoice::Secondary:
             if (apply_to_all) {
                 ResumeConflictCopy(0, velocitycopy::ConflictPolicy::SkipAll);
                 co_return;
@@ -110,12 +70,13 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
             RefreshQueue();
             ResumeConflictCopy(0, velocitycopy::ConflictPolicy::Prompt);
             co_return;
-        case NativeDialogChoice::Cancel:
+        case velocitycopy::ui::DecisionChoice::Cancel:
         default:
             CancelCurrentSession();
             co_return;
         }
     } catch (...) {
+        decision_operation_ = nullptr;
         if (interrupted_session_ == InterruptedSessionState::Conflict) CancelCurrentSession();
     }
 }

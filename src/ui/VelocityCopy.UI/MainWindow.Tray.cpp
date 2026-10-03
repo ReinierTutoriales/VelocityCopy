@@ -32,6 +32,10 @@ void sync_native_window_theme(
 } // namespace
 
 MainWindow::~MainWindow() {
+    if (decision_operation_) {
+        try { decision_operation_.Cancel(); } catch (...) {}
+        decision_operation_ = nullptr;
+    }
     try {
         if (about_window_) {
             auto about = about_window_;
