@@ -143,12 +143,13 @@ int main() {
     }
 
     if (!contains(execution, "destination_conflict") || !contains(execution, "SetExecutionButtonsConflict") ||
-        !contains(execution, "ShowConflictDialogAsync") || !contains(conflict, "show_native_decision") ||
-        !contains(auxiliary, "TaskDialogIndirect") ||
+        !contains(execution, "ShowConflictDialogAsync") || !contains(conflict, "show_decision_async(") ||
+        !contains(conflict, "await_decision(decision_operation_)") ||
+        contains(conflict, "show_native_decision") || contains(conflict, "ShowNativeDecisionDialog") ||
         contains(conflict, "ContentDialog") || contains(conflict, ".XamlRoot(") ||
         !contains(conflict, "ActionReplace") || !contains(conflict, "ActionSkip") ||
         !contains(conflict, "ResumeConflictCopy") || !contains(conflict, "CancelCurrentSession")) {
-        return fail(19, "conflict resolution must use a separate native dialog and preserve replace/skip/cancel semantics");
+        return fail(19, "conflict resolution must use the WinUI decision surface and preserve replace/skip/cancel semantics");
     }
 
     if (!contains(live_h, "LiveDirectoryBatch") || !contains(live_h, "pending_directories() const") ||
@@ -335,7 +336,7 @@ int main() {
 
     // Contract 39: source-removal retries are explicit Decision work, and
     // dismissing the decision dialog must not cancel or destroy the session.
-    const auto retry_dialog = body_of(execution, "void MainWindow::ShowRetryDecisionAsync()");
+    const auto retry_dialog = body_of(execution, "fire_and_forget MainWindow::ShowRetryDecisionAsync()");
     const auto decision_launcher = body_of(execution, "void MainWindow::StartDecisionSession(");
     if (retry_dialog.empty() || decision_launcher.empty() ||
         contains(retry_dialog, "CancelCurrentSession()") ||

@@ -173,10 +173,9 @@ int main() {
 
     if (contains(recovery, "ContentDialog") || contains(recovery, "XamlRoot(") ||
         contains(conflict, "ContentDialog") ||
-        !contains(recovery, "ShowNativeDecisionDialog") ||
-        !contains(conflict, "ShowNativeDecisionDialog") ||
-        !contains(auxiliary, "TaskDialogIndirect")) {
-        return fail(16, "modal conflict and recovery decisions must remain native top-level dialogs outside the compact XAML surface");
+        contains(conflict, "ShowNativeDecisionDialog") ||
+        !contains(conflict, "show_decision_async(")) {
+        return fail(16, "decisions must use top-level surfaces outside the compact XAML root; conflict uses the WinUI decision surface");
     }
 
     if (!contains(auxiliary, "config.hwndParent = options.owner;") ||
