@@ -246,19 +246,13 @@ jobs:
           if (-not (Test-Path $shellDll)) { throw "v1.0.0 shell DLL is missing" }
 
           $holderScript = Join-Path $env:RUNNER_TEMP "hold-velocitycopy-shell.ps1"
-          @'
-Add-Type @"
-using System;
-using System.Runtime.InteropServices;
-public static class VelocityCopyShellHolder {
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    public static extern IntPtr LoadLibraryW(string path);
-}
-"@
-$handle = [VelocityCopyShellHolder]::LoadLibraryW($args[0])
-if ($handle -eq [IntPtr]::Zero) { exit 41 }
-Start-Sleep -Seconds 180
-'@ | Set-Content -LiteralPath $holderScript -Encoding UTF8
+          @(
+            '$member = ''[DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] public static extern IntPtr LoadLibraryW(string path);'''
+            'Add-Type -Namespace VelocityCopyNative -Name ShellHolder -MemberDefinition $member'
+            '$handle = [VelocityCopyNative.ShellHolder]::LoadLibraryW($args[0])'
+            'if ($handle -eq [IntPtr]::Zero) { exit 41 }'
+            'Start-Sleep -Seconds 180'
+          ) | Set-Content -LiteralPath $holderScript -Encoding UTF8
 
           $holder = Start-Process powershell.exe -ArgumentList @(
             "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $holderScript, $shellDll
