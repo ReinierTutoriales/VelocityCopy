@@ -10,7 +10,11 @@ int main(){
  const auto tray=read(ui/"AppTray.cpp"), tray_h=read(ui/"AppTray.h"), main=read(ui/"MainWindow.Tray.cpp"), app=read(ui/"App.xaml.h"), app_cpp=read(ui/"App.xaml.cpp"), window_cpp=read(ui/"MainWindow.xaml.cpp"), conflict=read(ui/"MainWindow.Conflict.cpp"), append=read(ui/"MainWindow.CopyAppend.cpp"), about=read(ui/"MainWindow.About.cpp"), window_h=read(ui/"MainWindow.xaml.h");
  if(tray.find("Shell_NotifyIconW")==std::string::npos || tray.find("WS_EX_TOOLWINDOW")==std::string::npos) return 1;
  if(tray.find("HWND_MESSAGE")!=std::string::npos) return 4;
- if(tray.find("PostMessageW(hwnd_, WM_NULL") == std::string::npos) return 5;
+ if(tray.find("MenuFlyout flyout") == std::string::npos ||
+    tray.find("flyout.ShowAt(menu_anchor_)") == std::string::npos ||
+    tray.find("CreatePopupMenu") != std::string::npos ||
+    tray.find("TrackPopupMenuEx") != std::string::npos ||
+    tray.find("AppendMenuW") != std::string::npos) return 5;
  if(main.find("Shell_NotifyIconW")!=std::string::npos || main.find("NOTIFYICONDATA")!=std::string::npos) return 2;
  if(app.find("AppTray tray_")==std::string::npos) return 3;
  if(tray.find("DefWindowProcW(hwnd_")!=std::string::npos || tray.find("HandleMessage(HWND hwnd") == std::string::npos) return 6;
@@ -59,7 +63,17 @@ int main(){
  const auto direct_open = tray.find("owner_->ShowPrimaryWindow()");
  if(direct_open == std::string::npos || tray.find("owner_->ShowPrimaryWindow()", direct_open + 1) != std::string::npos) return 23;
  if(tray.find("OpenPrimaryWindow(); return 0;") == std::string::npos ||
-    tray.find("if (command == kTrayOpenCommand) OpenPrimaryWindow();") == std::string::npos) return 24;
+    tray.find("open_item.Click([this]") == std::string::npos ||
+    tray.find("OpenPrimaryWindow(); });") == std::string::npos) return 24;
+
+ // The notification icon remains native for Explorer restart/broadcast semantics, but
+ // its context menu is a WinUI MenuFlyout hosted by a non-switcher anchor window.
+ if(tray_h.find("Window menu_window_{nullptr}") == std::string::npos ||
+    tray_h.find("MenuFlyout menu_flyout_{nullptr}") == std::string::npos ||
+    tray.find("app_window.IsShownInSwitchers(false)") == std::string::npos ||
+    tray.find("presenter.SetBorderAndTitleBar(false, false)") == std::string::npos ||
+    tray.find("MenuFlyoutSeparator") == std::string::npos ||
+    tray.find("flyout.Closed([this]") == std::string::npos) return 35;
 
  // Closing an active transfer window means cancel-and-retire, not hide-and-keep-copying.
  // Queued WaitFor work belongs to that closing window and must not restart behind the user's back.

@@ -10,8 +10,6 @@ namespace {
 constexpr wchar_t kTrayWindowClass[] = L"VelocityCopy.AppTrayWindow";
 constexpr UINT kTrayCallbackMessage = WM_APP + 0x51;
 constexpr UINT kTrayIconId = 1;
-constexpr UINT kTrayOpenCommand = 1;
-constexpr UINT kTrayExitCommand = 2;
 }
 
 AppTray::~AppTray() { Remove(); }
@@ -73,6 +71,10 @@ void AppTray::Remove() noexcept {
     if (icon_) DestroyIcon(icon_);
     icon_ = nullptr;
     data_ = {};
+    HideMenuSurface();
+    menu_flyout_ = nullptr;
+    menu_anchor_ = nullptr;
+    menu_window_ = nullptr;
     owner_ = nullptr;
     open_dispatch_active_ = false;
 }
@@ -126,26 +128,106 @@ LRESULT AppTray::HandleMessage(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
     return DefWindowProcW(hwnd, message, wparam, lparam);
 }
 
-void AppTray::ShowMenu(POINT anchor) noexcept {
-    if (!hwnd_) return;
-    HMENU menu = CreatePopupMenu();
-    if (!menu) return;
-    std::wstring open_text = L"Open VelocityCopy", exit_text = L"Exit";
+bool AppTray::EnsureMenuSurface() noexcept {
+    if (menu_window_) return true;
     try {
-        open_text = velocitycopy::localization::get_string(L"TrayOpen").c_str();
-        exit_text = velocitycopy::localization::get_string(L"TrayExit").c_str();
+        using namespace Microsoft::UI::Xaml;
+        using namespace Microsoft::UI::Xaml::Controls;
+
+        Window window;
+        Grid anchor;
+        anchor.Width(1);
+        anchor.Height(1);
+        window.Content(anchor);
+
+        auto app_window = window.AppWindow();
+        app_window.IsShownInSwitchers(false);
+        if (auto presenter = app_window.Presenter().try_as<Microsoft::UI::Windowing::OverlappedPresenter>()) {
+            presenter.SetBorderAndTitleBar(false, false);
+            presenter.IsResizable(false);
+            presenter.IsMinimizable(false);
+            presenter.IsMaximizable(false);
+        }
+        app_window.Resize(Windows::Graphics::SizeInt32{1, 1});
+
+        window.Closed([this](auto const&, auto const&) {
+            menu_open_ = false;
+            menu_flyout_ = nullptr;
+            menu_anchor_ = nullptr;
+            menu_window_ = nullptr;
+        });
+        menu_window_ = window;
+        menu_anchor_ = anchor;
+        return true;
+    } catch (...) {
+        menu_window_ = nullptr;
+        menu_anchor_ = nullptr;
+        return false;
+    }
+}
+
+void AppTray::HideMenuSurface() noexcept {
+    menu_open_ = false;
+    try {
+        if (menu_flyout_) menu_flyout_.Hide();
+        if (menu_window_) {
+            HWND menu_hwnd{};
+            auto native = menu_window_.as<::IWindowNative>();
+            if (SUCCEEDED(native->get_WindowHandle(&menu_hwnd)) && menu_hwnd) ShowWindow(menu_hwnd, SW_HIDE);
+        }
     } catch (...) {}
-    AppendMenuW(menu, MF_STRING, kTrayOpenCommand, open_text.c_str());
-    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING, kTrayExitCommand, exit_text.c_str());
-    if (anchor.x == -1 && anchor.y == -1) GetCursorPos(&anchor);
-    SetForegroundWindow(hwnd_);
-    const UINT command = TrackPopupMenuEx(menu, TPM_RETURNCMD | TPM_NONOTIFY | TPM_RIGHTBUTTON,
-                                          anchor.x, anchor.y, hwnd_, nullptr);
-    DestroyMenu(menu);
-    PostMessageW(hwnd_, WM_NULL, 0, 0);
-    if (command == kTrayOpenCommand) OpenPrimaryWindow();
-    else if (command == kTrayExitCommand && owner_) owner_->ExitFromTray();
+}
+
+void AppTray::ShowMenu(POINT anchor) noexcept {
+    if (!hwnd_ || menu_open_ || !EnsureMenuSurface()) return;
+    try {
+        using namespace Microsoft::UI::Xaml;
+        using namespace Microsoft::UI::Xaml::Controls;
+
+        if (anchor.x == -1 && anchor.y == -1) GetCursorPos(&anchor);
+
+        auto app_window = menu_window_.AppWindow();
+        app_window.Move(Windows::Graphics::PointInt32{anchor.x, anchor.y});
+        app_window.Resize(Windows::Graphics::SizeInt32{1, 1});
+        menu_window_.Activate();
+
+        std::wstring open_text = L"Open VelocityCopy", exit_text = L"Exit";
+        try {
+            open_text = velocitycopy::localization::get_string(L"TrayOpen").c_str();
+            exit_text = velocitycopy::localization::get_string(L"TrayExit").c_str();
+        } catch (...) {}
+
+        MenuFlyout flyout;
+        MenuFlyoutItem open_item;
+        open_item.Text(open_text);
+        open_item.Click([this](auto const&, auto const&) { OpenPrimaryWindow(); });
+        flyout.Items().Append(open_item);
+        flyout.Items().Append(MenuFlyoutSeparator{});
+        MenuFlyoutItem exit_item;
+        exit_item.Text(exit_text);
+        exit_item.Click([this](auto const&, auto const&) {
+            if (owner_) owner_->ExitFromTray();
+        });
+        flyout.Items().Append(exit_item);
+
+        flyout.Closed([this](auto const&, auto const&) {
+            menu_open_ = false;
+            menu_flyout_ = nullptr;
+            try {
+                if (menu_window_) {
+                    HWND menu_hwnd{};
+                    auto native = menu_window_.as<::IWindowNative>();
+                    if (SUCCEEDED(native->get_WindowHandle(&menu_hwnd)) && menu_hwnd) ShowWindow(menu_hwnd, SW_HIDE);
+                }
+            } catch (...) {}
+        });
+
+        menu_open_ = true;
+        menu_flyout_ = flyout;
+        flyout.ShowAt(menu_anchor_);
+    } catch (...) {
+        HideMenuSurface();
+    }
 }
 
 } // namespace winrt::VelocityCopyUI::implementation
