@@ -156,6 +156,16 @@ jobs:
           $size = (Get-ChildItem $payload -Recurse -File | Measure-Object Length -Sum).Sum
           Write-Host ("Self-contained ${{ matrix.arch }} payload: {0:N1} MB" -f ($size / 1MB))
 
+      - name: Verify startup helper across two real profiles
+        if: ${{ matrix.smoke }}
+        shell: pwsh
+        run: |
+          $payload = (Resolve-Path "artifacts/installer-payload-x64").Path
+          $helper = Join-Path $payload "VelocityCopy.StartupHelper.exe"
+          $app = Join-Path $payload "VelocityCopy.WinUI.exe"
+          pwsh -NoProfile -File tools/Test-StartupHelperProfiles.ps1 -HelperPath $helper -ApplicationPath $app
+          if ($LASTEXITCODE -ne 0) { throw "Two-profile startup registration test failed" }
+
       - name: Validate application PRI in payload
         shell: pwsh
         run: |
