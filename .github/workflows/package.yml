@@ -55,7 +55,7 @@ jobs:
         run: |
           cmake -S . -B build/${{ matrix.cmake_arch }} -A ${{ matrix.cmake_arch }} -DVELOCITYCOPY_HYBRID_CRT=ON
           if ($LASTEXITCODE -ne 0) { throw "CMake configure failed for ${{ matrix.arch }}" }
-          cmake --build build/${{ matrix.cmake_arch }} --config Release --target velocitycopy_core VelocityCopyShell --parallel
+          cmake --build build/${{ matrix.cmake_arch }} --config Release --target velocitycopy_core VelocityCopyShell VelocityCopyStartupHelper --parallel
           if ($LASTEXITCODE -ne 0) { throw "Core build failed for ${{ matrix.arch }}" }
 
       - name: Build self-contained WinUI
@@ -118,6 +118,15 @@ jobs:
           }
           if (-not (Test-Path $shellDll)) { throw "Installer payload is missing VelocityCopy.Shell.dll" }
 
+          $startupHelper = Join-Path $payload "VelocityCopy.StartupHelper.exe"
+          if (-not (Test-Path $startupHelper)) {
+            $builtHelper = "build/${{ matrix.cmake_arch }}/Release/VelocityCopy.StartupHelper.exe"
+            if (Test-Path $builtHelper) {
+              Copy-Item $builtHelper -Destination $startupHelper
+            }
+          }
+          if (-not (Test-Path $startupHelper)) { throw "Installer payload is missing VelocityCopy.StartupHelper.exe" }
+
           function Get-PeMachine([string]$path) {
             $stream = [System.IO.File]::OpenRead($path)
             try {
@@ -135,7 +144,7 @@ jobs:
           }
 
           $expectedMachine = if ("${{ matrix.platform }}" -eq "ARM64") { 0xAA64 } else { 0x8664 }
-          foreach ($binary in @("$payload/VelocityCopy.WinUI.exe", $shellDll)) {
+          foreach ($binary in @("$payload/VelocityCopy.WinUI.exe", $shellDll, $startupHelper)) {
             $machine = Get-PeMachine $binary
             if ($machine -ne $expectedMachine) {
               throw ("Architecture mismatch for {0}: expected PE machine 0x{1:X4}, got 0x{2:X4}" -f $binary, $expectedMachine, $machine)
@@ -146,6 +155,22 @@ jobs:
           if ($forbidden.Count) { throw "Installer payload contains package/certificate artifacts" }
           $size = (Get-ChildItem $payload -Recurse -File | Measure-Object Length -Sum).Sum
           Write-Host ("Self-contained ${{ matrix.arch }} payload: {0:N1} MB" -f ($size / 1MB))
+
+      - name: Verify startup helper across two real profiles
+        if: ${{ matrix.smoke }}
+        shell: pwsh
+        run: |
+          $payload = (Resolve-Path "artifacts/installer-payload-x64").Path
+          $helper = Join-Path $payload "VelocityCopy.StartupHelper.exe"
+          $publicHelper = Join-Path $env:PUBLIC "VelocityCopy.StartupHelper.ProfileTest.exe"
+          Copy-Item -LiteralPath $helper -Destination $publicHelper -Force
+          $app = Join-Path $payload "VelocityCopy.WinUI.exe"
+          try {
+            pwsh -NoProfile -File tools/Test-StartupHelperProfiles.ps1 -HelperPath $publicHelper -ApplicationPath $app
+            if ($LASTEXITCODE -ne 0) { throw "Two-profile startup registration test failed" }
+          } finally {
+            Remove-Item $publicHelper -Force -ErrorAction SilentlyContinue
+          }
 
       - name: Validate application PRI in payload
         shell: pwsh
