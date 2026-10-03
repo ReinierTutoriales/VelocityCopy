@@ -44,3 +44,17 @@ try {
     } elseif ($null -ne $key) { throw 'COM server registration remains' }
   } finally { if ($key) { $key.Dispose() } }
 } finally { $registry.Dispose() }
+
+
+$expectedRun = '"' + (Join-Path $env:ProgramFiles 'VelocityCopy\VelocityCopy.WinUI.exe') + '" --startup'
+$runKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\Microsoft\Windows\CurrentVersion\Run')
+try {
+  $runValue = if ($runKey) { [string]$runKey.GetValue('VelocityCopy', $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames) } else { $null }
+  if ($Phase -eq 'Installed') {
+    if ($runValue -ne $expectedRun) { throw "Invalid current-user startup registration: '$runValue'" }
+  } elseif ($Phase -eq 'Uninstalled' -and $null -ne $runValue) {
+    throw "VelocityCopy startup registration remains after uninstall: '$runValue'"
+  }
+} finally {
+  if ($runKey) { $runKey.Dispose() }
+}
