@@ -122,7 +122,9 @@ int main() {
         !contains(package_workflow, "VELOCITYCOPY_SIGNING_PFX_BASE64") ||
         !contains(signing_script, "signtool") ||
         !contains(signing_script, "TimeStamperCertificate") ||
+        !contains(signing_script, "SkipTimestamp") ||
         !contains(signing_test, "New-SelfSignedCertificate") ||
+        !contains(signing_test, "-SkipTimestamp") ||
         contains(package_workflow, "choco ") ||
         contains(package_workflow, "Add-AppxPackage") ||
         contains(package_workflow, "VelocityCopy.msixbundle")) {
