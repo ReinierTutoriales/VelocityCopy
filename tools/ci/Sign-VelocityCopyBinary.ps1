@@ -8,6 +8,8 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$PfxPassword,
 
+    [switch]$SkipTimestamp,
+
     [int]$ToolTimeoutSeconds = 20
 )
 
@@ -47,32 +49,43 @@ function Invoke-BoundedSignTool {
     return $process.ExitCode
 }
 
-$timestampUrls = @(
-    'http://timestamp.digicert.com',
-    'http://timestamp.sectigo.com'
-)
-
-$signed = $false
-$lastFailure = $null
-foreach ($timestampUrl in $timestampUrls) {
-    try {
-        Write-Host "Signing $Path with RFC3161 timestamp $timestampUrl"
-        $exit = Invoke-BoundedSignTool @(
-            'sign', '/f', $PfxPath, '/p', $PfxPassword,
-            '/fd', 'SHA256', '/tr', $timestampUrl, '/td', 'SHA256', $Path
-        )
-        if ($exit -eq 0) {
-            $signed = $true
-            break
-        }
-        $lastFailure = "signtool sign exited with code $exit using $timestampUrl"
-    } catch {
-        $lastFailure = $_.Exception.Message
-        Write-Warning "Timestamp/sign attempt failed: $lastFailure"
+if ($SkipTimestamp) {
+    Write-Host "Signing $Path without timestamp for deterministic CI verification"
+    $signExit = Invoke-BoundedSignTool @(
+        'sign', '/f', $PfxPath, '/p', $PfxPassword,
+        '/fd', 'SHA256', $Path
+    )
+    if ($signExit -ne 0) {
+        throw "Authenticode signing failed for $Path with code $signExit"
     }
-}
-if (-not $signed) {
-    throw "Authenticode signing failed for $Path. Last failure: $lastFailure"
+} else {
+    $timestampUrls = @(
+        'https://timestamp.digicert.com',
+        'http://timestamp.sectigo.com'
+    )
+
+    $signed = $false
+    $lastFailure = $null
+    foreach ($timestampUrl in $timestampUrls) {
+        try {
+            Write-Host "Signing $Path with RFC3161 timestamp $timestampUrl"
+            $exit = Invoke-BoundedSignTool @(
+                'sign', '/f', $PfxPath, '/p', $PfxPassword,
+                '/fd', 'SHA256', '/tr', $timestampUrl, '/td', 'SHA256', $Path
+            )
+            if ($exit -eq 0) {
+                $signed = $true
+                break
+            }
+            $lastFailure = "signtool sign exited with code $exit using $timestampUrl"
+        } catch {
+            $lastFailure = $_.Exception.Message
+            Write-Warning "Timestamp/sign attempt failed: $lastFailure"
+        }
+    }
+    if (-not $signed) {
+        throw "Authenticode signing failed for $Path. Last failure: $lastFailure"
+    }
 }
 
 $verifyExit = Invoke-BoundedSignTool @('verify', '/pa', '/all', $Path)
@@ -82,8 +95,12 @@ $signature = Get-AuthenticodeSignature -FilePath $Path
 if ($signature.Status -ne 'Valid') {
     throw "Invalid Authenticode signature for $Path: $($signature.Status)"
 }
-if ($null -eq $signature.TimeStamperCertificate) {
+if (-not $SkipTimestamp -and $null -eq $signature.TimeStamperCertificate) {
     throw "Authenticode signature has no RFC3161 timestamp certificate: $Path"
 }
 
-Write-Host "Verified Authenticode signature and timestamp: $Path"
+if ($SkipTimestamp) {
+    Write-Host "Verified Authenticode signature: $Path"
+} else {
+    Write-Host "Verified Authenticode signature and RFC3161 timestamp: $Path"
+}
