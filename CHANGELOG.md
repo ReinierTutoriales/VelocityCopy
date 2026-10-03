@@ -1,16 +1,5 @@
 # Changelog
 
-## 2.1.2 — 2026-10-03
-
-RepartoCopier release hardening.
-
-- Explorer handoff now uses a bounded IPC deadline so a stalled resident receiver cannot block the shell indefinitely.
-- New Explorer-triggered transfers explicitly start in a normal visible window instead of inheriting a minimized presentation state.
-- Full-window external drag/drop reaches the active transfer surface while preserving queue reordering.
-- Installer payloads validate PE architecture for both the WinUI executable and shell DLL before packaging.
-- Public product identity, About, tray, Explorer commands and installer are aligned to RepartoCopier 2.1.2 while technical VelocityCopy identifiers remain stable for upgrade compatibility.
-- Window lifecycle documentation and pre-release checks now match the implemented Minimize/Close behavior.
-
 ## 1.0.0 — 2026-09-22
 
 First stable VelocityCopy release.
