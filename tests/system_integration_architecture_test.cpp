@@ -140,8 +140,10 @@ int main() {
         !contains(startup_helper, "GetShellWindow") ||
         !contains(startup_helper, "ProcessIdToSessionId") ||
         !contains(startup_helper, "OpenProcessToken") ||
-        !contains(startup_helper, "DuplicateTokenEx") ||
-        !contains(startup_helper, "CreateProcessWithTokenW") ||
+        !contains(startup_helper, "ImpersonateLoggedOnUser") ||
+        !contains(startup_helper, "RegOpenCurrentUser") ||
+        !contains(startup_helper, "RevertToSelf") ||
+        contains(startup_helper, "CreateProcessWithTokenW") ||
         !contains(startup_profile_test, "CreateProcessWithLogonW") ||
         !contains(startup_profile_test, "VCStartupA") ||
         !contains(startup_profile_test, "VCStartupB") ||
