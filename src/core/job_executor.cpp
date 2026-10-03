@@ -816,12 +816,12 @@ JobResult JobExecutor::execute(
                     worker_results[worker_index] = {false, false, native, false};
                     return;
                 } catch (...) {
-                    result_state.record_error(kInvalidPlanState);
+                    result_state.record_error(kUnhandledExecutorError);
                     control.request_cancel();
                     worker_results[worker_index] = {
                         false,
                         false,
-                        kInvalidPlanState,
+                        kUnhandledExecutorError,
                         false,
                     };
                     return;
