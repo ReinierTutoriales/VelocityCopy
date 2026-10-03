@@ -49,11 +49,13 @@ int main() {
         !contains(engine, "FILE_FLAG_OPEN_REPARSE_POINT") ||
         !contains(engine, "FileAttributeTagInfo") ||
         !contains(engine, "FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE") ||
+        !contains(engine, "probe.c_str(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE,") ||
+        !contains(engine, "created_now = CreateDirectoryW") ||
         contains(engine, "COPY_FILE_COPY_SYMLINK") ||
         contains(engine, "create_directories") ||
         !contains(engine, "IsReparseTagNameSurrogate") ||
         destination_check > copy_call) {
-        return fail(6, "destination reparse defenses must precede CopyFile2 without re-enabling symlink traversal");
+        return fail(6, "destination reparse defenses must precede CopyFile2, retain parents without delete sharing, and roll back only owned directories");
     }
 
     if (!contains(engine, "COPYFILE2_EXTENDED_PARAMETERS_V2") ||
