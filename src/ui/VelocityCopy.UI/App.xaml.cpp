@@ -306,36 +306,20 @@ winrt::Windows::Foundation::IAsyncAction App::DeliverConvertedJob(velocitycopy::
             const bool same_destination_prompt =
                 route.offered[0] == velocitycopy::RouteChoice::Append &&
                 route.offered[1] == velocitycopy::RouteChoice::Wait;
-            std::wstring title;
-            std::wstring message;
-            std::wstring primary;
-            std::wstring secondary;
-            std::wstring remember_label;
-            try {
-                title = velocitycopy::localization::get_string(
-                    same_destination_prompt
-                        ? L"RoutingDestinationInUseTitle"
-                        : L"RoutingStorageInUseTitle").c_str();
-                message = velocitycopy::localization::get_string(
-                    same_destination_prompt
-                        ? L"RoutingDestinationInUseMessage"
-                        : L"RoutingStorageInUseMessage").c_str();
-                primary = velocitycopy::localization::get_string(
-                    same_destination_prompt ? L"RoutingActionAdd" : L"RoutingActionWait").c_str();
-                secondary = velocitycopy::localization::get_string(
-                    same_destination_prompt ? L"RoutingActionWait" : L"RoutingActionParallel").c_str();
-                remember_label = velocitycopy::localization::get_string(L"DialogRememberChoice").c_str();
-            } catch (...) {
-                title = same_destination_prompt
-                    ? L"Destination already in use"
-                    : L"Storage device already in use";
-                message = same_destination_prompt
-                    ? L"A transfer to this destination is already running. Add these files to it or wait?"
-                    : L"Another transfer is using the same storage device. Wait or run this transfer in parallel?";
-                primary = same_destination_prompt ? L"Add" : L"Wait";
-                secondary = same_destination_prompt ? L"Wait" : L"Parallel";
-                remember_label = L"Remember my choice";
-            }
+            const std::wstring title = velocitycopy::localization::get_string(
+                same_destination_prompt
+                    ? L"RoutingDestinationInUseTitle"
+                    : L"RoutingStorageInUseTitle").c_str();
+            const std::wstring message = velocitycopy::localization::get_string(
+                same_destination_prompt
+                    ? L"RoutingDestinationInUseMessage"
+                    : L"RoutingStorageInUseMessage").c_str();
+            const std::wstring primary = velocitycopy::localization::get_string(
+                same_destination_prompt ? L"RoutingActionAdd" : L"RoutingActionWait").c_str();
+            const std::wstring secondary = velocitycopy::localization::get_string(
+                same_destination_prompt ? L"RoutingActionWait" : L"RoutingActionParallel").c_str();
+            const std::wstring remember_label =
+                velocitycopy::localization::get_string(L"DialogRememberChoice").c_str();
 
             const auto decision = velocitycopy::ui::decode_decision(co_await dialog_owner->RequestDecisionAsync({
                 dialog_owner->NativeOwner(),
