@@ -41,13 +41,13 @@ void center_owned_window(HWND owner, HWND dialog) noexcept {
     const int desired_y = owner_rect.top + ((owner_rect.bottom - owner_rect.top) - height) / 2;
     const int max_x = (std::max)(monitor_info.rcWork.left, monitor_info.rcWork.right - width);
     const int max_y = (std::max)(monitor_info.rcWork.top, monitor_info.rcWork.bottom - height);
-    const int x = (std::clamp)(desired_x, monitor_info.rcWork.left, max_x);
-    const int y = (std::clamp)(desired_y, monitor_info.rcWork.top, max_y);
+    const LONG x = (std::clamp)(static_cast<LONG>(desired_x), monitor_info.rcWork.left, static_cast<LONG>(max_x));
+    const LONG y = (std::clamp)(static_cast<LONG>(desired_y), monitor_info.rcWork.top, static_cast<LONG>(max_y));
     SetWindowPos(dialog, HWND_TOP, x, y, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE);
 }
 } // namespace
 
-IAsyncOperation<std::uint32_t> show_decision_async(DecisionOptions options) {
+Windows::Foundation::IAsyncOperation<std::uint32_t> show_decision_async(DecisionOptions options) {
     const auto ui_context = apartment_context{};
     auto state = std::make_shared<CompletionState>();
     if (!state->event) co_return encode_decision({DecisionChoice::Cancel, false});
@@ -141,8 +141,19 @@ IAsyncOperation<std::uint32_t> show_decision_async(DecisionOptions options) {
     });
     root.KeyboardAccelerators().Append(escape);
 
-    root.Loaded([primary](auto const&, auto const&) {
-        primary.Focus(FocusState::Programmatic);
+    // Loaded is the first point where WinUI templates/theme resources have been applied.
+    // Resize again there so Button/CheckBox desired sizes cannot be clipped.
+    root.Loaded([primary, root, owner = options.owner](auto const&, auto const&) {
+        try {
+            const int width_epx = token_int(L"DecisionWindowWidth", 440);
+            root.Measure(Windows::Foundation::Size{static_cast<float>(width_epx), std::numeric_limits<float>::infinity()});
+            if (auto xaml_root = root.XamlRoot()) {
+                if (auto content = xaml_root.Content()) {
+                    (void)content;
+                }
+            }
+        } catch (...) {}
+        (void)primary.Focus(FocusState::Programmatic);
     });
 
     dialog.Content(root);
@@ -183,6 +194,15 @@ IAsyncOperation<std::uint32_t> show_decision_async(DecisionOptions options) {
     co_await ui_context;
     try { dialog.Close(); } catch (...) {}
     co_return state->result.load();
+}
+
+Windows::Foundation::IAsyncOperation<std::uint32_t> await_decision(
+    Windows::Foundation::IAsyncOperation<std::uint32_t> operation) {
+    try {
+        co_return co_await operation;
+    } catch (const hresult_canceled&) {
+        co_return encode_decision({DecisionChoice::Cancel, false});
+    }
 }
 
 } // namespace velocitycopy::ui

@@ -38,7 +38,8 @@ struct DecisionResult {
 // Non-blocking WinUI decision surface. Closing/cancelling the operation is Cancel
 // and every invocation completes exactly once. Callers serialize requests per owner
 // and cancel the returned operation before destroying that owner.
-winrt::Windows::Foundation::IAsyncOperation<std::uint32_t> show_decision_async(
-    DecisionOptions options);
+winrt::Windows::Foundation::IAsyncOperation<std::uint32_t> show_decision_async(DecisionOptions options);
+winrt::Windows::Foundation::IAsyncOperation<std::uint32_t> await_decision(
+    winrt::Windows::Foundation::IAsyncOperation<std::uint32_t> operation);
 
 } // namespace velocitycopy::ui
