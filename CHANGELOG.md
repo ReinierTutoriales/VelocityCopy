@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0 — 2026-10-03
+
+VelocityCopy stabilization release.
+
+- Explorer-triggered transfers now start in a normal visible window instead of inheriting a minimized presentation state.
+- External Explorer drag/drop reaches the full transfer surface while preserving internal queue reordering.
+- Shell IPC handoff is bounded so a stalled resident receiver cannot block Explorer indefinitely.
+- Installer packaging validates the PE architecture of both `VelocityCopy.WinUI.exe` and `VelocityCopy.Shell.dll`.
+- Release and pre-test contracts now match the implemented window lifecycle and current 380x72 compact UI.
+- Regression coverage was expanded for routed drop, activation visibility, stalled IPC and package identity.
+
 ## 1.0.0 — 2026-09-22
 
 First stable VelocityCopy release.
