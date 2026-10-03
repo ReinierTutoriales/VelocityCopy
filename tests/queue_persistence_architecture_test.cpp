@@ -124,9 +124,10 @@ int main() {
         contains(recovery, "list_recovery_files(") ||
         !contains(recovery, "TakeRecoveryFile()") ||
         !contains(recovery, "session_id_ =") ||
-        !contains(recovery, "ShowNativeDecisionDialog(") ||
-        !contains(recovery, "NativeDialogChoice::Primary") ||
-        !contains(recovery, "NativeDialogChoice::Secondary") ||
+        !contains(recovery, "RequestDecisionAsync(") ||
+        !contains(recovery, "DecisionChoice::Primary") ||
+        !contains(recovery, "DecisionChoice::Secondary") ||
+        !contains(recovery, "tray_exit_requested_ || session_ending_") ||
         contains(recovery, "ContentDialog") ||
         contains(recovery, "XamlRoot") ||
         !contains(recovery, "revalidate_recovery_plan") ||

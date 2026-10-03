@@ -68,7 +68,7 @@ int main(){
  const auto primary=body_of(app,"void App::ShowPrimaryWindow(");
  if(primary.empty() || primary.find("implementation->ShowFromTray();") == std::string::npos ||
     primary.find("implementation->OfferRecoveryIfIdle();") == std::string::npos) return 20;
- const auto deliver_job=body_of(app,"void App::DeliverConvertedJob(");
+ const auto deliver_job=body_of(app,"winrt::Windows::Foundation::IAsyncAction App::DeliverConvertedJob(");
  if(deliver_job.empty() || deliver_job.find("OfferRecoveryIfIdle") != std::string::npos) return 21;
  const auto launched=body_of(app,"void App::OnLaunched(");
  if(launched.empty() || launched.find("if (!initial_request)") == std::string::npos ||
@@ -78,7 +78,7 @@ int main(){
  if(app.find("IsVisibleForRouting()") == std::string::npos || app.find("!implementation->HasActiveTransfer()") == std::string::npos) return 15;
  const auto create=body_of(app,"VelocityCopyUI::MainWindow App::CreateMainWindow(");
  if(create.empty() || create.find("MonitorFromWindow(")!=std::string::npos || create.find("GetMonitorInfoW(")!=std::string::npos) return 16;
- const auto deliver=body_of(app,"void App::DeliverConvertedJob(");
+ const auto deliver=body_of(app,"winrt::Windows::Foundation::IAsyncAction App::DeliverConvertedJob(");
  if(deliver.empty() || deliver.find("MonitorFromWindow(reference_hwnd, MONITOR_DEFAULTTONEAREST)") == std::string::npos ||
     deliver.find("GetMonitorInfoW(") == std::string::npos || deliver.find("IsIconic(reference_hwnd)") == std::string::npos ||
     deliver.find("x + width > monitor_info.rcWork.right") == std::string::npos ||

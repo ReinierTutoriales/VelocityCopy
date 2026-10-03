@@ -2,6 +2,7 @@
 #include "MainWindow.xaml.h"
 #include "Localization.h"
 #include "UiTokens.h"
+#include "DecisionSurface.h"
 #include "App.xaml.h"
 
 #include "velocitycopy/diagnostics.hpp"
@@ -399,6 +400,7 @@ void MainWindow::OnCancelClick(IInspectable const&, RoutedEventArgs const&) {
 }
 
 void MainWindow::CancelCurrentSession() {
+    CancelDecisionQueue();
     cancel_requested_.store(true, std::memory_order_relaxed);
     pending_resume_ = {};
     SpeedText().Text(L"—");
@@ -708,23 +710,26 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     StartNextQueuedSession();
 }
 
-void MainWindow::ShowRetryDecisionAsync() {
+fire_and_forget MainWindow::ShowRetryDecisionAsync() {
     auto lifetime = get_strong();
-    if (interrupted_session_ != InterruptedSessionState::Decision || !live_plan_) return;
+    if (interrupted_session_ != InterruptedSessionState::Decision || !live_plan_) co_return;
     try {
-        const auto choice = ShowNativeDecisionDialog(
+        const auto decision = velocitycopy::ui::decode_decision(co_await RequestDecisionAsync({
             hwnd_,
             velocitycopy::localization::get_string(L"RetryDecisionTitle").c_str(),
             velocitycopy::localization::get_string(L"RetryDecisionMessage").c_str(),
+            {},
             velocitycopy::localization::get_string(L"ActionRetryAll").c_str(),
             velocitycopy::localization::get_string(L"ActionSkipAll").c_str(),
+            velocitycopy::localization::get_string(L"ActionCancel").c_str(),
+            {},
             true,
-            velocitycopy::localization::get_string(L"ActionCancel").c_str());
-        if (interrupted_session_ != InterruptedSessionState::Decision || !live_plan_) return;
-        if (choice == NativeDialogChoice::Primary) ResumeParkedFailures();
-        else if (choice == NativeDialogChoice::Secondary) ResolveParkedFailures();
-        // Closing/cancelling the decision dialog is non-destructive. The
-        // parked session remains available for a later decision.
+        }));
+        if (tray_exit_requested_ || session_ending_) co_return;
+        if (interrupted_session_ != InterruptedSessionState::Decision || !live_plan_) co_return;
+        if (decision.choice == velocitycopy::ui::DecisionChoice::Primary) ResumeParkedFailures();
+        else if (decision.choice == velocitycopy::ui::DecisionChoice::Secondary) ResolveParkedFailures();
+        // Closing/cancelling is non-destructive; parked work remains available.
     } catch (...) {
         // Preserve Decision state and all unresolved work.
     }

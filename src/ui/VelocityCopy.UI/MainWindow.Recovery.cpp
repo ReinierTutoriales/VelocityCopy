@@ -167,18 +167,24 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
     } catch (...) {
     }
 
-    // Recovery is a modal decision just like conflict handling. Keep it in a
-    // native top-level dialog owned by the copier HWND so the 72 epx XAML root
-    // never clips or resizes itself to host the prompt.
-    const auto choice = ShowNativeDecisionDialog(
+    const auto decision = velocitycopy::ui::decode_decision(co_await RequestDecisionAsync({
         hwnd_,
         std::wstring(title.c_str()),
         std::wstring(message.c_str()),
+        {},
         std::wstring(resume.c_str()),
         std::wstring(discard.c_str()),
-        false);
+        {},
+        {},
+        false,
+    }));
+    if (tray_exit_requested_ || session_ending_) {
+        app->ReturnRecoveryFile(path);
+        recovery_prompt_active_ = false;
+        co_return;
+    }
 
-    if (choice == NativeDialogChoice::Secondary) {
+    if (decision.choice == velocitycopy::ui::DecisionChoice::Secondary) {
         velocitycopy::retire_recovery_file(path);
         recovery_prompt_active_ = false;
         recovery_prompt_checked_ = false;
@@ -186,7 +192,7 @@ fire_and_forget MainWindow::MaybeOfferRecoveryAsync() {
         co_return;
     }
 
-    if (choice != NativeDialogChoice::Primary) {
+    if (decision.choice != velocitycopy::ui::DecisionChoice::Primary) {
         app->ReturnRecoveryFile(path);
         recovery_prompt_active_ = false;
         co_return;

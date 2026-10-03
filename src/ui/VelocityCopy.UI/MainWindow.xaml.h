@@ -13,9 +13,11 @@
 #include "velocitycopy/shell_session.hpp"
 #include "velocitycopy/transfer_router.hpp"
 #include "velocitycopy/ui_snapshot.hpp"
+#include "DecisionSurface.h"
 
 #include <chrono>
 #include <condition_variable>
+#include <atomic>
 #include <cstdint>
 #include <deque>
 #include <memory>
@@ -47,20 +49,7 @@ struct MainWindow : MainWindowT<MainWindow> {
     [[nodiscard]] bool IsVisibleForRouting() const noexcept;
     [[nodiscard]] HWND NativeOwner() const noexcept { return hwnd_; }
     void MoveNativeWindow(int x, int y) noexcept;
-    enum class NativeDialogChoice : std::uint8_t { Cancel, Primary, Secondary };
-    [[nodiscard]] const std::filesystem::path& ActiveDestination() const noexcept { return active_destination_; }
-    [[nodiscard]] velocitycopy::FileOperation ActiveOperation() const noexcept { return active_operation_; }
-    static NativeDialogChoice ShowNativeDecisionDialog(
-        HWND owner,
-        const std::wstring& title,
-        const std::wstring& message,
-        const std::wstring& primary_label,
-        const std::wstring& secondary_label,
-        bool include_cancel,
-        const std::wstring& cancel_label = {},
-        const std::wstring& verification_label = {},
-        bool* remember_choice = nullptr) noexcept;
-
+    winrt::Windows::Foundation::IAsyncOperation<std::uint32_t> RequestDecisionAsync(velocitycopy::ui::DecisionOptions options);
     void OnDragEnter(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
     void OnDragOver(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
     void OnDragLeave(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
@@ -208,7 +197,7 @@ private:
     void SetExecutionButtonsIdle();
     void SetExecutionButtonsStopped();
     void SetExecutionButtonsConflict();
-    void ShowRetryDecisionAsync();
+    winrt::fire_and_forget ShowRetryDecisionAsync();
     void ResumeParkedFailures();
     void ResolveParkedFailures();
     void StartDecisionSession(bool retry_source_removals);
@@ -249,6 +238,15 @@ private:
     Microsoft::UI::Xaml::Controls::MenuFlyoutItem stop_menu_item_{nullptr};
     Microsoft::UI::Xaml::Controls::MenuFlyoutItem about_menu_item_{nullptr};
     Microsoft::UI::Xaml::Window about_window_{nullptr};
+    struct PendingDecision {
+        PendingDecision() : turn(CreateEventW(nullptr, TRUE, FALSE, nullptr)) {}
+        ~PendingDecision() { if (turn) CloseHandle(turn); }
+        HANDLE turn{};
+        std::atomic_bool cancelled{false};
+    };
+    void CancelDecisionQueue() noexcept;
+    winrt::Windows::Foundation::IAsyncOperation<std::uint32_t> decision_operation_{nullptr};
+    std::deque<std::shared_ptr<PendingDecision>> decision_queue_;
     Microsoft::UI::Xaml::Thickness base_caption_content_padding_{};
     std::atomic_bool cancel_requested_{false};
     double progress_fraction_{};
