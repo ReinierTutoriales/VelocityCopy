@@ -39,11 +39,14 @@ int main() {
     const auto package_workflow = read_all(root / ".github/workflows/package.yml");
     const auto installer_exe = read_all(root / "tools/VelocityCopy-Test-Installer.nsi");
     const auto installer_smoke = read_all(root / "tools/Install-VelocityCopy-Test.ps1");
+    const auto startup_helper = read_all(root / "src/app/startup_helper.cpp");
+    const auto startup_profile_test = read_all(root / "tools/Test-StartupHelperProfiles.ps1");
     const auto docs = read_all(root / "docs/SYSTEM_INTEGRATION.md");
 
     if (app.empty() || shell.empty() || ipc.empty() ||
         window.empty() || tray.empty() || app_tray.empty() || persistence.empty() || recovery.empty() || conflict.empty() ||
-        ci_workflow.empty() || package_workflow.empty() || installer_exe.empty() || installer_smoke.empty() || docs.empty()) {
+        ci_workflow.empty() || package_workflow.empty() || installer_exe.empty() || installer_smoke.empty() ||
+        startup_helper.empty() || startup_profile_test.empty() || docs.empty()) {
         return fail(1, "required integration source missing");
     }
 
@@ -132,8 +135,18 @@ int main() {
         !contains(installer_exe, "/IM VelocityCopy.WinUI.exe /F") ||
         !contains(installer_smoke, "Launching VelocityCopy in startup/tray mode before uninstall smoke test") ||
         !contains(installer_smoke, "the install directory still exists") ||
+        contains(installer_exe, "WriteRegStr HKCU \"Software\\Microsoft\\Windows\\CurrentVersion\\Run\"") ||
+        !contains(installer_exe, "VelocityCopy.StartupHelper.exe") ||
+        !contains(startup_helper, "GetShellWindow") ||
+        !contains(startup_helper, "ProcessIdToSessionId") ||
+        !contains(startup_helper, "OpenProcessToken") ||
+        !contains(startup_helper, "DuplicateTokenEx") ||
+        !contains(startup_helper, "CreateProcessWithTokenW") ||
+        !contains(startup_profile_test, "CreateProcessWithLogonW") ||
+        !contains(startup_profile_test, "VCStartupA") ||
+        !contains(startup_profile_test, "VCStartupB") ||
         contains(installer_exe, "Add-AppxPackage")) {
-        return fail(10, "classic install/uninstall must stop the resident app and prove Program Files cleanup");
+        return fail(10, "classic install/uninstall must stop the resident app, configure startup with the interactive shell token, and prove two-profile isolation");
     }
 
     if (contains(app, "\\nbool is_startup_activation")) {
