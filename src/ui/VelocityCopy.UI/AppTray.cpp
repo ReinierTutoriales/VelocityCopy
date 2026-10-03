@@ -4,7 +4,6 @@
 #include "App.xaml.h"
 
 #include <shlobj_core.h>
-#include <shellscalingapi.h>
 
 namespace winrt::VelocityCopyUI::implementation {
 namespace {
@@ -138,19 +137,23 @@ bool AppTray::EnsureMenuSurface() noexcept {
 
         Window window;
         Grid anchor;
-        anchor.Width(32);
-        anchor.Height(32);
+        anchor.Width(1);
+        anchor.Height(1);
         window.Content(anchor);
 
         auto app_window = window.AppWindow();
         app_window.IsShownInSwitchers(false);
-        if (auto presenter = app_window.Presenter().try_as<Microsoft::UI::Windowing::OverlappedPresenter>()) {
-            presenter.SetBorderAndTitleBar(false, false);
-            presenter.IsResizable(false);
-            presenter.IsMinimizable(false);
-            presenter.IsMaximizable(false);
-        }
-        app_window.Resize(Windows::Graphics::SizeInt32{32, 32});
+        auto presenter = Microsoft::UI::Windowing::OverlappedPresenter::CreateForContextMenu();
+        presenter.SetBorderAndTitleBar(false, false);
+        app_window.SetPresenter(presenter);
+        app_window.Resize(Windows::Graphics::SizeInt32{1, 1});
+
+        window.Activated([this](auto const&, Microsoft::UI::Xaml::WindowActivatedEventArgs const& args) {
+            if (args.WindowActivationState() == Microsoft::UI::Xaml::WindowActivationState::Deactivated &&
+                menu_open_) {
+                HideMenuSurface();
+            }
+        });
 
         window.Closed([this](auto const&, auto const&) {
             menu_open_ = false;
@@ -180,35 +183,35 @@ void AppTray::HideMenuSurface() noexcept {
     } catch (...) {}
 }
 
-void AppTray::ShowMenu(POINT anchor) noexcept {
+void AppTray::ShowMenu(POINT fallback_anchor) noexcept {
     if (!hwnd_ || menu_open_ || !EnsureMenuSurface()) return;
     try {
         using namespace Microsoft::UI::Xaml;
         using namespace Microsoft::UI::Xaml::Controls;
 
-        if (anchor.x == -1 && anchor.y == -1) GetCursorPos(&anchor);
+        RECT icon_rect{};
+        NOTIFYICONIDENTIFIER identifier{sizeof(identifier)};
+        identifier.hWnd = hwnd_;
+        identifier.uID = kTrayIconId;
+        if (FAILED(Shell_NotifyIconGetRect(&identifier, &icon_rect))) {
+            if (fallback_anchor.x == -1 && fallback_anchor.y == -1 &&
+                !GetCursorPos(&fallback_anchor)) {
+                return;
+            }
+            icon_rect = RECT{fallback_anchor.x, fallback_anchor.y,
+                             fallback_anchor.x + 1, fallback_anchor.y + 1};
+        }
 
-        HMONITOR monitor = MonitorFromPoint(anchor, MONITOR_DEFAULTTONEAREST);
+        const POINT icon_center{
+            icon_rect.left + (icon_rect.right - icon_rect.left) / 2,
+            icon_rect.top + (icon_rect.bottom - icon_rect.top) / 2};
+        const HMONITOR monitor = MonitorFromPoint(icon_center, MONITOR_DEFAULTTONEAREST);
         MONITORINFO monitor_info{sizeof(monitor_info)};
         if (!GetMonitorInfoW(monitor, &monitor_info)) return;
-        constexpr LONG kAnchorDip = 32;
-        HWND menu_hwnd{};
-        auto native = menu_window_.as<::IWindowNative>();
-        if (FAILED(native->get_WindowHandle(&menu_hwnd)) || !menu_hwnd) return;
-        UINT dpi_x = USER_DEFAULT_SCREEN_DPI;
-        UINT dpi_y = USER_DEFAULT_SCREEN_DPI;
-        if (FAILED(GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &dpi_x, &dpi_y))) {
-            dpi_x = GetDpiForWindow(menu_hwnd);
-        }
-        const LONG anchor_px = MulDiv(kAnchorDip, static_cast<int>(dpi_x), USER_DEFAULT_SCREEN_DPI);
-        const LONG left = std::clamp(anchor.x - anchor_px / 2,
-            monitor_info.rcWork.left, monitor_info.rcWork.right - anchor_px);
-        const LONG top = std::clamp(anchor.y - anchor_px,
-            monitor_info.rcWork.top, monitor_info.rcWork.bottom - anchor_px);
 
         auto app_window = menu_window_.AppWindow();
-        app_window.Move(Windows::Graphics::PointInt32{left, top});
-        app_window.Resize(Windows::Graphics::SizeInt32{anchor_px, anchor_px});
+        app_window.Move(Windows::Graphics::PointInt32{icon_center.x, icon_center.y});
+        app_window.Resize(Windows::Graphics::SizeInt32{1, 1});
         menu_window_.Activate();
 
         std::wstring open_text = L"Open VelocityCopy", exit_text = L"Exit";
@@ -237,18 +240,24 @@ void AppTray::ShowMenu(POINT anchor) noexcept {
                 if (menu_window_) {
                     HWND menu_hwnd{};
                     auto native = menu_window_.as<::IWindowNative>();
-                    if (SUCCEEDED(native->get_WindowHandle(&menu_hwnd)) && menu_hwnd) ShowWindow(menu_hwnd, SW_HIDE);
+                    if (SUCCEEDED(native->get_WindowHandle(&menu_hwnd)) && menu_hwnd) {
+                        ShowWindow(menu_hwnd, SW_HIDE);
+                    }
                 }
             } catch (...) {}
         });
 
         Microsoft::UI::Xaml::Controls::Primitives::FlyoutShowOptions show_options;
         auto placement = Microsoft::UI::Xaml::Controls::Primitives::FlyoutPlacementMode::Top;
-        if (monitor_info.rcWork.left > monitor_info.rcMonitor.left) placement = Microsoft::UI::Xaml::Controls::Primitives::FlyoutPlacementMode::Right;
-        else if (monitor_info.rcWork.right < monitor_info.rcMonitor.right) placement = Microsoft::UI::Xaml::Controls::Primitives::FlyoutPlacementMode::Left;
-        else if (monitor_info.rcWork.top > monitor_info.rcMonitor.top) placement = Microsoft::UI::Xaml::Controls::Primitives::FlyoutPlacementMode::Bottom;
+        if (monitor_info.rcWork.left > monitor_info.rcMonitor.left) {
+            placement = Microsoft::UI::Xaml::Controls::Primitives::FlyoutPlacementMode::Right;
+        } else if (monitor_info.rcWork.right < monitor_info.rcMonitor.right) {
+            placement = Microsoft::UI::Xaml::Controls::Primitives::FlyoutPlacementMode::Left;
+        } else if (monitor_info.rcWork.top > monitor_info.rcMonitor.top) {
+            placement = Microsoft::UI::Xaml::Controls::Primitives::FlyoutPlacementMode::Bottom;
+        }
         show_options.Placement(placement);
-        show_options.Position(Windows::Foundation::Point{16.0f, 16.0f});
+        show_options.Position(Windows::Foundation::Point{0.0f, 0.0f});
 
         menu_open_ = true;
         menu_flyout_ = flyout;

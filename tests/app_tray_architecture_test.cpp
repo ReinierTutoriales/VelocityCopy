@@ -71,20 +71,20 @@ int main(){
  if(tray_h.find("Window menu_window_{nullptr}") == std::string::npos ||
     tray_h.find("MenuFlyout menu_flyout_{nullptr}") == std::string::npos ||
     tray.find("app_window.IsShownInSwitchers(false)") == std::string::npos ||
+    tray.find("OverlappedPresenter::CreateForContextMenu()") == std::string::npos ||
     tray.find("presenter.SetBorderAndTitleBar(false, false)") == std::string::npos ||
+    tray.find("app_window.SetPresenter(presenter)") == std::string::npos ||
+    tray.find("WindowActivationState::Deactivated") == std::string::npos ||
     tray.find("MenuFlyoutSeparator") == std::string::npos ||
     tray.find("flyout.Closed([this]") == std::string::npos) return 35;
- if(tray.find("MonitorFromPoint(anchor, MONITOR_DEFAULTTONEAREST)") == std::string::npos ||
+ if(tray.find("Shell_NotifyIconGetRect(&identifier, &icon_rect)") == std::string::npos ||
+    tray.find("NOTIFYICONIDENTIFIER identifier") == std::string::npos ||
+    tray.find("MonitorFromPoint(icon_center, MONITOR_DEFAULTTONEAREST)") == std::string::npos ||
     tray.find("monitor_info.rcWork") == std::string::npos ||
     tray.find("show_options.Placement(placement)") == std::string::npos ||
-    tray.find("show_options.Position(") == std::string::npos ||
-    tray.find("GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI") == std::string::npos ||
-    tray.find("dpi_x = GetDpiForWindow(menu_hwnd)") == std::string::npos ||
-    tray.find("MulDiv(kAnchorDip") == std::string::npos ||
-    tray.find("monitor_info.rcMonitor") == std::string::npos ||
-    tray.find("Primitives::FlyoutPlacementMode::Right") == std::string::npos ||
-    tray.find("Primitives::FlyoutPlacementMode::Left") == std::string::npos ||
-    tray.find("Primitives::FlyoutPlacementMode::Bottom") == std::string::npos ||
+    tray.find("GetDpiForMonitor") != std::string::npos ||
+    tray.find("kAnchorDip") != std::string::npos ||
+    tray.find("anchor.Width(32)") != std::string::npos ||
     tray.find("SetForegroundWindow(hwnd_)") != std::string::npos) return 36;
  if(tray.find("(v4_ && notification == WM_CONTEXTMENU)") == std::string::npos ||
     tray.find("(!v4_ && notification == WM_RBUTTONUP)") == std::string::npos) return 37;
