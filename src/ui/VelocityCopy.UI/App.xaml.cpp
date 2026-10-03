@@ -578,7 +578,7 @@ void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
                 auto request = server->receive();
                 if (!request) {
                     if (stop_token.stop_requested() || server->stopping()) {
-                        co_return;
+                        return;
                     }
                     // A malformed/aborted client must not permanently stop Explorer integration.
                     continue;
@@ -589,7 +589,7 @@ void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
                         deliver(value);
                     })) {
                     server->stop();
-                    co_return;
+                    return;
                 }
             }
         });
