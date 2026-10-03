@@ -160,6 +160,7 @@ jobs:
             }
             Write-Host "Negative PRI case '$($case.Name)' rejected as expected: $($case.Reason)"
           }
+          $global:LASTEXITCODE = 0
 
       - name: Cache pinned NSIS
         id: cache-nsis
