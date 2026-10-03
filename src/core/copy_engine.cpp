@@ -184,7 +184,7 @@ struct DestinationPathGuard {
             created.push_back(*it);
             const HANDLE handle = CreateFileW(
                 it->c_str(), FILE_READ_ATTRIBUTES,
-                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                FILE_SHARE_READ | FILE_SHARE_WRITE,
                 nullptr, OPEN_EXISTING,
                 FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
             if (handle == INVALID_HANDLE_VALUE || name_surrogate_reparse(handle)) {
@@ -206,7 +206,7 @@ struct DestinationPathGuard {
         const auto root = probe.root_path();
         while (!probe.empty() && probe != root) {
             const HANDLE handle = CreateFileW(
-                probe.c_str(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                probe.c_str(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE,
                 nullptr, OPEN_EXISTING,
                 FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
             if (handle == INVALID_HANDLE_VALUE) {
