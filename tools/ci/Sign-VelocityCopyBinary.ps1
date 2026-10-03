@@ -28,8 +28,6 @@ function Invoke-BoundedSignTool {
     $start = [Diagnostics.ProcessStartInfo]::new()
     $start.FileName = $signtool.FullName
     $start.UseShellExecute = $false
-    $start.RedirectStandardOutput = $true
-    $start.RedirectStandardError = $true
     foreach ($argument in $Arguments) {
         [void]$start.ArgumentList.Add($argument)
     }
@@ -40,14 +38,12 @@ function Invoke-BoundedSignTool {
 
     if (-not $process.WaitForExit($ToolTimeoutSeconds * 1000)) {
         try { $process.Kill($true) } catch {}
-        $process.WaitForExit()
+        if (-not $process.WaitForExit(5000)) {
+            throw "signtool did not terminate after timeout"
+        }
         throw "signtool timed out after $ToolTimeoutSeconds seconds"
     }
 
-    $stdout = $process.StandardOutput.ReadToEnd()
-    $stderr = $process.StandardError.ReadToEnd()
-    if ($stdout) { Write-Host $stdout.TrimEnd() }
-    if ($stderr) { Write-Host $stderr.TrimEnd() }
     return $process.ExitCode
 }
 
