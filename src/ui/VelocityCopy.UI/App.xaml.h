@@ -41,7 +41,7 @@ private:
     void InitializeRecoveryFiles() noexcept;
     VelocityCopyUI::MainWindow CreateMainWindow();
     void StartNextPendingRequest();
-    void DeliverConvertedJob(velocitycopy::CopyJob job, velocitycopy::StorageKey destination_key, velocitycopy::StorageKey source_key);
+    winrt::Windows::Foundation::IAsyncAction DeliverConvertedJob(velocitycopy::CopyJob job, velocitycopy::StorageKey destination_key, velocitycopy::StorageKey source_key);
     winrt::fire_and_forget ResolveStorageKeysAsync(velocitycopy::CopyJob job);
     std::map<std::uint64_t, Microsoft::UI::Xaml::Window> windows_;
     std::vector<Microsoft::UI::Xaml::Window> retiring_windows_;
