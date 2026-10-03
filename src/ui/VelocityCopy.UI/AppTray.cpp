@@ -119,7 +119,8 @@ LRESULT AppTray::HandleMessage(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
                 notification == NIN_SELECT || notification == NIN_KEYSELECT) {
                 OpenPrimaryWindow(); return 0;
             }
-            if (notification == WM_RBUTTONUP || notification == WM_CONTEXTMENU) {
+            if ((v4_ && notification == WM_CONTEXTMENU) ||
+                (!v4_ && notification == WM_RBUTTONUP)) {
                 ShowMenu(anchor); return 0;
             }
         }
@@ -189,15 +190,20 @@ void AppTray::ShowMenu(POINT anchor) noexcept {
         HMONITOR monitor = MonitorFromPoint(anchor, MONITOR_DEFAULTTONEAREST);
         MONITORINFO monitor_info{sizeof(monitor_info)};
         if (!GetMonitorInfoW(monitor, &monitor_info)) return;
-        constexpr LONG kAnchorSize = 32;
-        const LONG left = std::clamp(anchor.x - kAnchorSize / 2,
-            monitor_info.rcWork.left, monitor_info.rcWork.right - kAnchorSize);
-        const LONG top = std::clamp(anchor.y - kAnchorSize,
-            monitor_info.rcWork.top, monitor_info.rcWork.bottom - kAnchorSize);
+        constexpr LONG kAnchorDip = 32;
+        HWND menu_hwnd{};
+        auto native = menu_window_.as<::IWindowNative>();
+        if (FAILED(native->get_WindowHandle(&menu_hwnd)) || !menu_hwnd) return;
+        const UINT dpi = GetDpiForWindow(menu_hwnd);
+        const LONG anchor_px = MulDiv(kAnchorDip, static_cast<int>(dpi), USER_DEFAULT_SCREEN_DPI);
+        const LONG left = std::clamp(anchor.x - anchor_px / 2,
+            monitor_info.rcWork.left, monitor_info.rcWork.right - anchor_px);
+        const LONG top = std::clamp(anchor.y - anchor_px,
+            monitor_info.rcWork.top, monitor_info.rcWork.bottom - anchor_px);
 
         auto app_window = menu_window_.AppWindow();
         app_window.Move(Windows::Graphics::PointInt32{left, top});
-        app_window.Resize(Windows::Graphics::SizeInt32{kAnchorSize, kAnchorSize});
+        app_window.Resize(Windows::Graphics::SizeInt32{anchor_px, anchor_px});
         menu_window_.Activate();
 
         std::wstring open_text = L"Open VelocityCopy", exit_text = L"Exit";
@@ -228,12 +234,16 @@ void AppTray::ShowMenu(POINT anchor) noexcept {
                     auto native = menu_window_.as<::IWindowNative>();
                     if (SUCCEEDED(native->get_WindowHandle(&menu_hwnd)) && menu_hwnd) ShowWindow(menu_hwnd, SW_HIDE);
                 }
-                if (hwnd_) SetForegroundWindow(hwnd_);
             } catch (...) {}
         });
 
         FlyoutShowOptions show_options;
-        show_options.Placement(FlyoutPlacementMode::Top);
+        show_options.ShouldConstrainToRootBounds(false);
+        FlyoutPlacementMode placement = FlyoutPlacementMode::Top;
+        if (monitor_info.rcWork.left > monitor_info.rcMonitor.left) placement = FlyoutPlacementMode::Right;
+        else if (monitor_info.rcWork.right < monitor_info.rcMonitor.right) placement = FlyoutPlacementMode::Left;
+        else if (monitor_info.rcWork.top > monitor_info.rcMonitor.top) placement = FlyoutPlacementMode::Bottom;
+        show_options.Placement(placement);
         show_options.Position(Windows::Foundation::Point{16.0f, 16.0f});
 
         menu_open_ = true;
