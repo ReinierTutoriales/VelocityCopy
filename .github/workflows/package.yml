@@ -22,12 +22,12 @@ jobs:
           - arch: x64
             cmake_arch: x64
             platform: x64
-            setup_name: VelocityCopy-Setup-x64.exe
+            setup_name: RepartoCopier-Setup-x64.exe
             smoke: true
           - arch: arm64
             cmake_arch: ARM64
             platform: ARM64
-            setup_name: VelocityCopy-Setup-ARM64.exe
+            setup_name: RepartoCopier-Setup-ARM64.exe
             smoke: false
 
     steps:
