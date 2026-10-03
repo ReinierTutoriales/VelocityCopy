@@ -175,13 +175,17 @@ struct DestinationPathGuard {
 
     bool create_missing_parents(std::error_code& error) noexcept {
         for (auto it = missing.rbegin(); it != missing.rend(); ++it) {
-            if (CreateDirectoryW(it->c_str(), nullptr) == 0 &&
-                GetLastError() != ERROR_ALREADY_EXISTS) {
-                error = std::error_code(GetLastError(), std::system_category());
-                rollback_created();
-                return false;
+            const BOOL created_now = CreateDirectoryW(it->c_str(), nullptr);
+            if (created_now == 0) {
+                const DWORD create_error = GetLastError();
+                if (create_error != ERROR_ALREADY_EXISTS) {
+                    error = std::error_code(create_error, std::system_category());
+                    rollback_created();
+                    return false;
+                }
+            } else {
+                created.push_back(*it);
             }
-            created.push_back(*it);
             const HANDLE handle = CreateFileW(
                 it->c_str(), FILE_READ_ATTRIBUTES,
                 FILE_SHARE_READ | FILE_SHARE_WRITE,
