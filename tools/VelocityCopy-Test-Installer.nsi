@@ -79,6 +79,19 @@ Function LaunchVelocityCopyAsUser
   Exec '"$WINDIR\explorer.exe" "$INSTDIR\VelocityCopy.WinUI.exe"'
 FunctionEnd
 
+!macro ConfigureInteractiveStartup ACTION
+  DetailPrint "Configuring VelocityCopy startup for the interactive desktop user..."
+  nsExec::ExecToStack '"$INSTDIR\VelocityCopy.StartupHelper.exe" --${ACTION} "$INSTDIR\VelocityCopy.WinUI.exe"'
+  Pop $0
+  Pop $1
+  ${If} $0 == 10
+    DetailPrint "No interactive Explorer session; startup registration was skipped."
+  ${ElseIf} $0 != 0
+    DetailPrint "Startup registration helper failed with exit code $0: $1"
+    Abort "VelocityCopy could not configure startup for the interactive user."
+  ${EndIf}
+!macroend
+
 !macro RemoveLegacyShell
   DeleteRegKey HKLM "Software\Classes\*\shell\VelocityCopy.Copy"
   DeleteRegKey HKLM "Software\Classes\*\shell\VelocityCopy.CopyTo"
@@ -154,8 +167,10 @@ Section "Install VelocityCopy" SEC_INSTALL
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "DisplayVersion" "${DISPLAY_VERSION}"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "DisplayIcon" "$INSTDIR\VelocityCopy.WinUI.exe,0"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "InstallLocation" "$INSTDIR"
-  ; Installer owns startup registration. Runtime must never create/repair this value.
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "VelocityCopy" '"$INSTDIR\VelocityCopy.WinUI.exe" --startup'
+  ; Never write HKCU from the elevated installer: alternate administrator
+  ; credentials would target the wrong profile. The helper impersonates the
+  ; same-session Explorer token before opening the interactive user's HKCU.
+  !insertmacro ConfigureInteractiveStartup install
 
   ; Retire old registrations during upgrades as well as uninstall.
   !insertmacro RemoveLegacyShell
@@ -176,7 +191,11 @@ Section "Uninstall"
   !insertmacro CloseRunningApp
   Delete "$SMPROGRAMS\VelocityCopy\VelocityCopy.lnk"
   RMDir "$SMPROGRAMS\VelocityCopy"
-  DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "VelocityCopy"
+  ${If} ${FileExists} "$INSTDIR\VelocityCopy.StartupHelper.exe"
+    !insertmacro ConfigureInteractiveStartup remove
+  ${Else}
+    DetailPrint "Startup helper is unavailable; no elevated HKCU fallback is used."
+  ${EndIf}
 
   !insertmacro RemoveLegacyShell
   DeleteRegKey HKLM "Software\Classes\Directory\shellex\DragDropHandlers\VelocityCopy"
