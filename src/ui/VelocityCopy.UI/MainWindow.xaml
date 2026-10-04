@@ -187,7 +187,8 @@
                                     <FontIcon x:Name="PauseIcon"
                                               FontFamily="Segoe Fluent Icons"
                                               Glyph="&#xE769;"
-                                              FontSize="{StaticResource ActionIconSize}" />
+                                              FontSize="{StaticResource ActionIconSize}"
+                                              Foreground="{ThemeResource AccentFillColorDefaultBrush}" />
                                 </Button>
                             </Grid>
 
@@ -204,7 +205,8 @@
                                     <FontIcon x:Name="CancelIcon"
                                               FontFamily="Segoe Fluent Icons"
                                               Glyph="&#xE71A;"
-                                              FontSize="{StaticResource ActionIconSize}" />
+                                              FontSize="{StaticResource ActionIconSize}"
+                                              Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
                                 </Button>
                             </Grid>
 
@@ -231,7 +233,8 @@
                                 <FontIcon x:Name="DetailsChevronIcon"
                                           FontFamily="Segoe Fluent Icons"
                                           Glyph="&#xE70D;"
-                                          FontSize="{StaticResource ActionIconSize}" />
+                                          FontSize="{StaticResource ActionIconSize}"
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                             </StackPanel>
                         </Button>
                     </Grid>
@@ -423,7 +426,8 @@
                                         </StackPanel>
                                         <TextBlock x:Name="PerformanceCurrentSpeedText"
                                                    Grid.Column="1"
-                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   Foreground="{ThemeResource AccentFillColorDefaultBrush}"
+                                                   FontWeight="SemiBold"
                                                    FontSize="{StaticResource CaptionFontSize}" />
                                     </Grid>
                                     <Grid Grid.Row="1"
@@ -551,7 +555,7 @@
                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                   Margin="{StaticResource SectionIconMargin}" />
                                         <TextBlock x:Uid="DetailsSpeedLabel" Grid.Row="4" Grid.Column="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
-                                        <TextBlock x:Name="DetailsSpeedText" Grid.Row="4" Grid.Column="2" FontSize="{StaticResource CaptionFontSize}" />
+                                        <TextBlock x:Name="DetailsSpeedText" Grid.Row="4" Grid.Column="2" FontWeight="SemiBold" FontSize="{StaticResource CaptionFontSize}" />
 
                                         <FontIcon Grid.Row="5" Glyph="&#xE823;" FontFamily="Segoe Fluent Icons"
                                                   FontSize="{StaticResource InformationIconSize}"

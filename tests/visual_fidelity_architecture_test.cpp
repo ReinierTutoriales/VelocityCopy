@@ -63,10 +63,19 @@ int main() {
         return fail(6, "queue rows must use document icons without fake per-item progress");
     }
 
+    // Action and live-performance emphasis use system semantic brushes rather than bespoke colors.
+    if (!contains(xaml, "x:Name=\"PauseIcon\"") ||
+        !contains(xaml, "SystemFillColorCriticalBrush") ||
+        !contains(xaml, "x:Name=\"DetailsChevronIcon\"") ||
+        !contains(xaml, "x:Name=\"PerformanceCurrentSpeedText\"") ||
+        !contains(xaml, "FontWeight=\"SemiBold\"")) {
+        return fail(7, "action and performance emphasis must use system semantic color hierarchy");
+    }
+
     // New fidelity work must remain theme-driven; no fixed RGB/hex palette is allowed.
     if (contains(xaml, "Color=\"#") || contains(xaml, "Background=\"#") ||
         contains(xaml, "Foreground=\"#") || contains(tokens, "Color=\"#")) {
-        return fail(7, "visual fidelity must use ThemeResource instead of fixed colors");
+        return fail(8, "visual fidelity must use ThemeResource instead of fixed colors");
     }
 
     return 0;
