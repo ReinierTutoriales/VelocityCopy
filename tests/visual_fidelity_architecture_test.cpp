@@ -1,6 +1,7 @@
 #include "architecture_support.hpp"
 
 #include <iostream>
+#include <regex>
 #include <string>
 
 #ifndef VELOCITYCOPY_SOURCE_DIR
@@ -147,6 +148,22 @@ int main() {
         !contains(tokens, "DecisionErrorIconStyle") ||
         !contains(tokens, "SystemFillColorCriticalBrush")) {
         return fail(17, "decision states must use documented Fluent warning/error icon semantics");
+    }
+
+    if (!std::regex_search(xaml, std::regex{R"(<FontIcon[^>]*x:Name="CurrentItemIcon"[^>]*AutomationProperties\.AccessibilityView="Raw"[^>]*/>)"})) {
+        return fail(18, "current-item status icon must remain decorative in UI Automation");
+    }
+    for (int row = 0; row < 6; ++row) {
+        const std::regex information_icon{
+            "<FontIcon[^>]*Grid.Row=\\\"" + std::to_string(row) +
+            "\\\"[^>]*InformationIconSize[^>]*AutomationProperties\\.AccessibilityView=\\\"Raw\\\"[^>]*/>"};
+        if (!std::regex_search(xaml, information_icon)) {
+            return fail(19, "information-row icons must remain decorative in UI Automation");
+        }
+    }
+    if (!contains(queue, "AutomationProperties::SetAccessibilityView(") ||
+        !contains(queue, "AccessibilityView::Raw")) {
+        return fail(20, "dynamic queue row icons must remain decorative in UI Automation");
     }
 
     // New fidelity work must remain theme-driven; no fixed RGB/hex palette is allowed.

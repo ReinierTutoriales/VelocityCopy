@@ -65,6 +65,9 @@ void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
         item_icon.Margin(velocitycopy::ui::token_thickness(L"QueueItemIconMargin", Thickness{0, 0, 8, 0}));
         item_icon.VerticalAlignment(VerticalAlignment::Center);
         item_icon.IsHitTestVisible(false);
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetAccessibilityView(
+            item_icon,
+            Microsoft::UI::Xaml::Automation::Peers::AccessibilityView::Raw);
 
         Grid name_line;
         name_line.ColumnDefinitions().Append(ColumnDefinition{});
