@@ -582,6 +582,7 @@ void MainWindow::ResetTransferSurface() {
     DetailsEtaText().Text(L"—");
     PerformanceCurrentSpeedText().Text(L"—");
     ErrorBar().IsOpen(false);
+    ErrorBar().Title(L"");
     ErrorBar().Message(L"");
 }
 
@@ -720,6 +721,17 @@ void MainWindow::UpdatePerformanceGraph() {
 void MainWindow::ShowNotice(InfoBarSeverity const severity, hstring const& message) {
     TransferProgress().ShowError(severity == InfoBarSeverity::Error);
     ErrorBar().Severity(severity);
+    try {
+        if (severity == InfoBarSeverity::Error) {
+            ErrorBar().Title(velocitycopy::localization::get_string(L"StatusFailed"));
+        } else if (severity == InfoBarSeverity::Warning) {
+            ErrorBar().Title(velocitycopy::localization::get_string(L"StatusCompletedWithIssues"));
+        } else {
+            ErrorBar().Title(L"");
+        }
+    } catch (...) {
+        ErrorBar().Title(L"");
+    }
     ErrorBar().Message(message);
     ErrorBar().IsOpen(true);
     ResizeWindowToContent();

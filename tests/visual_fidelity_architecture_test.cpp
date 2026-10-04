@@ -72,10 +72,20 @@ int main() {
         return fail(7, "action and performance emphasis must use system semantic color hierarchy");
     }
 
+    const auto window = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
+    const auto show_notice = body_of(window, "void MainWindow::ShowNotice(");
+    const auto reset_surface = body_of(window, "void MainWindow::ResetTransferSurface()");
+    if (window.empty() ||
+        !contains(show_notice, "ErrorBar().Title(velocitycopy::localization::get_string(L\"StatusFailed\"))") ||
+        !contains(show_notice, "ErrorBar().Title(velocitycopy::localization::get_string(L\"StatusCompletedWithIssues\"))") ||
+        !contains(reset_surface, "ErrorBar().Title(L\"\")")) {
+        return fail(8, "native InfoBar must expose localized semantic titles and reset them between sessions");
+    }
+
     // New fidelity work must remain theme-driven; no fixed RGB/hex palette is allowed.
     if (contains(xaml, "Color=\"#") || contains(xaml, "Background=\"#") ||
         contains(xaml, "Foreground=\"#") || contains(tokens, "Color=\"#")) {
-        return fail(8, "visual fidelity must use ThemeResource instead of fixed colors");
+        return fail(9, "visual fidelity must use ThemeResource instead of fixed colors");
     }
 
     return 0;
