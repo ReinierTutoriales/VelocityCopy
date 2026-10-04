@@ -16,9 +16,13 @@ void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
     auto append_visual = [&](const std::filesystem::path& source, const std::optional<std::uint64_t> id) {
         const bool narrow = expanded_layout_mode_ == ExpandedLayoutMode::Narrow;
         Grid row;
-        row.Margin(narrow
-            ? velocitycopy::ui::token_thickness(L"QueueNarrowItemMargin", Thickness{8, 4, 8, 4})
-            : velocitycopy::ui::token_thickness(L"QueueItemMargin", Thickness{8, 8, 8, 8}));
+        Thickness row_margin{};
+        if (narrow) {
+            row_margin = velocitycopy::ui::token_thickness(L"QueueNarrowItemMargin", Thickness{8, 4, 8, 4});
+        } else {
+            row_margin = velocitycopy::ui::token_thickness(L"QueueItemMargin", Thickness{8, 8, 8, 8});
+        }
+        row.Margin(row_margin);
         row.HorizontalAlignment(HorizontalAlignment::Stretch);
         if (id) {
             row.Tag(box_value(*id));
