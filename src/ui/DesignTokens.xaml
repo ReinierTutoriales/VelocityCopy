@@ -37,6 +37,7 @@
     <Thickness x:Key="TransferProgressMargin">0,8,0,0</Thickness>
     <x:Double x:Key="TransferProgressHeight">8</x:Double>
     <Thickness x:Key="ExpandedSectionPadding">12</Thickness>
+    <Thickness x:Key="SectionHeaderPadding">0,0,0,4</Thickness>
     <Thickness x:Key="ExpandedSectionMargin">4</Thickness>
     <x:Double x:Key="PerformanceGraphHeight">96</x:Double>
     <x:Double x:Key="PerformanceAxisLabelMinWidth">88</x:Double>

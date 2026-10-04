@@ -63,13 +63,19 @@ int main() {
         return fail(6, "queue rows must use document icons without fake per-item progress");
     }
 
+    if (!contains(tokens, "SectionHeaderPadding") ||
+        count_occurrences(xaml, "BorderThickness=\"0,0,0,1\"") < 3 ||
+        count_occurrences(xaml, "Padding=\"{StaticResource SectionHeaderPadding}\"") < 3) {
+        return fail(7, "expanded cards must separate headers from content with the shared themed divider");
+    }
+
     // Action and live-performance emphasis use system semantic brushes rather than bespoke colors.
     if (!contains(xaml, "x:Name=\"PauseIcon\"") ||
         !contains(xaml, "SystemFillColorCriticalBrush") ||
         !contains(xaml, "x:Name=\"DetailsChevronIcon\"") ||
         !contains(xaml, "x:Name=\"PerformanceCurrentSpeedText\"") ||
         !contains(xaml, "FontWeight=\"SemiBold\"")) {
-        return fail(7, "action and performance emphasis must use system semantic color hierarchy");
+        return fail(8, "action and performance emphasis must use system semantic color hierarchy");
     }
 
     const auto window = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
@@ -79,13 +85,13 @@ int main() {
         !contains(show_notice, "ErrorBar().Title(velocitycopy::localization::get_string(L\"StatusFailed\"))") ||
         !contains(show_notice, "ErrorBar().Title(velocitycopy::localization::get_string(L\"StatusCompletedWithIssues\"))") ||
         !contains(reset_surface, "ErrorBar().Title(L\"\")")) {
-        return fail(8, "native InfoBar must expose localized semantic titles and reset them between sessions");
+        return fail(9, "native InfoBar must expose localized semantic titles and reset them between sessions");
     }
 
     // New fidelity work must remain theme-driven; no fixed RGB/hex palette is allowed.
     if (contains(xaml, "Color=\"#") || contains(xaml, "Background=\"#") ||
         contains(xaml, "Foreground=\"#") || contains(tokens, "Color=\"#")) {
-        return fail(9, "visual fidelity must use ThemeResource instead of fixed colors");
+        return fail(10, "visual fidelity must use ThemeResource instead of fixed colors");
     }
 
     return 0;
