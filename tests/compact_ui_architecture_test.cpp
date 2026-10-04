@@ -123,6 +123,9 @@ int main() {
     // DesignTokens.xaml is the single width source; C++ reads it through the
     // UiTokens.h accessor with an identical fallback.
     if (!contains(tokens, "<x:Double x:Key=\"NormalWindowMinWidth\">380</x:Double>") ||
+        !contains(tokens, "<x:Double x:Key=\"ExpandedPreferredWidth\">880</x:Double>") ||
+        !contains(tokens, "<x:Double x:Key=\"ExpandedThreeColumnThreshold\">720</x:Double>") ||
+        !contains(tokens, "<x:Double x:Key=\"ExpandedWorkAreaMargin\">16</x:Double>") ||
         !contains(window, "token_int(L\"NormalWindowMinWidth\", 380)") ||
         contains(window, "token_int(L\"CompactWindowWidth\"") ||
         contains(tokens, "CompactWindowWidth") ||
@@ -306,7 +309,19 @@ int main() {
         return fail(39, "terminal issue notices must distinguish skip-only warnings and reserve layout space");
     }
 
-    const auto resize_to_content = body_of(window, "void MainWindow::ResizeWindowToContent()");
+    const auto resize_to_content = body_of(window, "void MainWindow::ResizeWindowToContent(");
+    const auto resize_window = body_of(window, "void MainWindow::ResizeWindow(");
+    if (!contains(resize_window, "client_width_epx") ||
+        !contains(resize_window, "client_height_epx") ||
+        !contains(resize_window, "MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST)") ||
+        !contains(resize_window, "monitor_info.rcWork") ||
+        !contains(resize_window, "ExpandedWorkAreaMargin") ||
+        !contains(resize_window, "if (!preserve_position)") ||
+        !contains(resize_window, "x + window_width > monitor_info.rcWork.right") ||
+        !contains(resize_window, "y + window_height > monitor_info.rcWork.bottom") ||
+        !contains(resize_window, "reposition ? 0 : SWP_NOMOVE")) {
+        return fail(42, "phase 3 resize must own width/height, preserve in-bounds position, suppress DPI repositioning, and correct only work-area overflow");
+    }
     const auto resize_window = body_of(window, "void MainWindow::ResizeWindow(");
     if (!contains(show_notice, "ErrorBar().Severity(severity)") ||
         !contains(show_notice, "ErrorBar().IsOpen(true)") ||
@@ -330,6 +345,7 @@ int main() {
         !contains(resize_to_content, "if (resize_in_progress_) return") ||
         !contains(window, "root.RasterizationScale()") ||
         !contains(window, "scale - window->last_rasterization_scale_") ||
+        !contains(window, "window->ResizeWindowToContent(true)") ||
         !contains(window, "ui_settings_ = Windows::UI::ViewManagement::UISettings()") ||
         !contains(window, "ui_settings_.TextScaleFactorChanged(auto_revoke") ||
         !contains(window, "scale - window->last_text_scale_factor_") ||

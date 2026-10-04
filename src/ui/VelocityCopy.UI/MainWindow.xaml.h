@@ -191,8 +191,8 @@ private:
     void ObservePerformanceSample(double bytes_per_second);
     void UpdatePerformanceGraph();
     [[nodiscard]] std::vector<std::uint64_t> SelectedPendingIds();
-    void ResizeWindow(int height_epx);
-    void ResizeWindowToContent();
+    void ResizeWindow(int width_epx, int height_epx, bool preserve_position = false);
+    void ResizeWindowToContent(bool preserve_position = false);
     void SetProgressFraction(double fraction);
     void ResetCurrentItemState() noexcept;
     void ResetInterruptedSessionState() noexcept;

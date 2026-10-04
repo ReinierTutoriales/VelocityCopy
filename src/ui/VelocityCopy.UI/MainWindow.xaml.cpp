@@ -146,7 +146,7 @@ MainWindow::MainWindow() {
                                     scale > 0.0 &&
                                     std::abs(scale - window->last_rasterization_scale_) > 0.0001) {
                                     window->last_rasterization_scale_ = scale;
-                                    window->ResizeWindowToContent();
+                                    window->ResizeWindowToContent(true);
                                 }
                             }
                         });
@@ -243,7 +243,7 @@ void MainWindow::OnAppWindowChanged(
     ApplyTitleBarInset();
 }
 
-void MainWindow::ResizeWindow(const int client_height_epx) {
+void MainWindow::ResizeWindow(const int client_width_epx, const int client_height_epx, const bool preserve_position) {
     if (resize_in_progress_) return;
     try {
         HWND hwnd{};
@@ -254,20 +254,50 @@ void MainWindow::ResizeWindow(const int client_height_epx) {
 
             RECT window_rect{};
             RECT client_rect{};
-            if (!GetWindowRect(hwnd, &window_rect) || !GetClientRect(hwnd, &client_rect)) return;
+            MONITORINFO monitor_info{sizeof(monitor_info)};
+            const HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+            if (!GetWindowRect(hwnd, &window_rect) || !GetClientRect(hwnd, &client_rect) ||
+                monitor == nullptr || !GetMonitorInfoW(monitor, &monitor_info)) return;
             const int frame_width =
                 (window_rect.right - window_rect.left) - (client_rect.right - client_rect.left);
             const int frame_height =
                 (window_rect.bottom - window_rect.top) - (client_rect.bottom - client_rect.top);
-            const int client_width = MulDiv(
-                velocitycopy::ui::token_int(L"NormalWindowMinWidth", 380),
+            const int safety_margin = MulDiv(
+                velocitycopy::ui::token_int(L"ExpandedWorkAreaMargin", 16),
                 static_cast<int>(dpi), 96);
-            const int client_height = MulDiv(client_height_epx, static_cast<int>(dpi), 96);
+            const int work_width = monitor_info.rcWork.right - monitor_info.rcWork.left;
+            const int work_height = monitor_info.rcWork.bottom - monitor_info.rcWork.top;
+            const int requested_client_width = MulDiv(client_width_epx, static_cast<int>(dpi), 96);
+            const int requested_client_height = MulDiv(client_height_epx, static_cast<int>(dpi), 96);
+            const int window_width = (std::min)(
+                requested_client_width + frame_width,
+                (std::max)(1, work_width - safety_margin * 2));
+            const int window_height = (std::min)(
+                requested_client_height + frame_height,
+                (std::max)(1, work_height - safety_margin * 2));
+            int x = window_rect.left;
+            int y = window_rect.top;
+            bool reposition = false;
+            if (!preserve_position) {
+                if (x < monitor_info.rcWork.left) {
+                    x = monitor_info.rcWork.left + safety_margin;
+                    reposition = true;
+                } else if (x + window_width > monitor_info.rcWork.right) {
+                    x = monitor_info.rcWork.right - safety_margin - window_width;
+                    reposition = true;
+                }
+                if (y < monitor_info.rcWork.top) {
+                    y = monitor_info.rcWork.top + safety_margin;
+                    reposition = true;
+                } else if (y + window_height > monitor_info.rcWork.bottom) {
+                    y = monitor_info.rcWork.bottom - safety_margin - window_height;
+                    reposition = true;
+                }
+            }
 
             resize_in_progress_ = true;
-            SetWindowPos(hwnd, nullptr, 0, 0,
-                         client_width + frame_width, client_height + frame_height,
-                         SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+            SetWindowPos(hwnd, nullptr, x, y, window_width, window_height,
+                         SWP_NOZORDER | SWP_NOACTIVATE | (reposition ? 0 : SWP_NOMOVE));
             resize_in_progress_ = false;
             ApplyTitleBarInset();
         }
@@ -275,8 +305,7 @@ void MainWindow::ResizeWindow(const int client_height_epx) {
         resize_in_progress_ = false;
     }
 }
-
-void MainWindow::ResizeWindowToContent() {
+void MainWindow::ResizeWindowToContent(const bool preserve_position) {
     if (resize_in_progress_) return;
     RootGrid().UpdateLayout();
     const auto measured_width = RootGrid().ActualWidth() > 0.0
@@ -292,13 +321,15 @@ void MainWindow::ResizeWindowToContent() {
         ErrorBar().Measure({measured_width, std::numeric_limits<float>::infinity()});
         notice_height = ErrorBar().DesiredSize().Height;
     }
-    if (DetailsPanel().Visibility() == Visibility::Visible) {
+    if (expanded_) {
         DetailsPanel().Measure({measured_width, std::numeric_limits<float>::infinity()});
         details_height = DetailsPanel().DesiredSize().Height;
     }
-    if (QueuePanel().Visibility() != Visibility::Visible) {
-        ResizeWindow(static_cast<int>(std::ceil(
-            normal_height + notice_height + details_height)));
+    if (!expanded_) {
+        ResizeWindow(
+            velocitycopy::ui::token_int(L"NormalWindowMinWidth", 380),
+            static_cast<int>(std::ceil(normal_height + notice_height + details_height)),
+            preserve_position);
         return;
     }
 
@@ -307,10 +338,13 @@ void MainWindow::ResizeWindowToContent() {
     const auto expanded_height = static_cast<int>(std::ceil(
         normal_height + notice_height + desired_queue_height));
     const auto notice_height_epx = static_cast<int>(std::ceil(notice_height));
-    ResizeWindow((std::clamp)(
-        expanded_height,
-        queue_min_height + notice_height_epx,
-        queue_max_height + notice_height_epx));
+    ResizeWindow(
+        velocitycopy::ui::token_int(L"NormalWindowMinWidth", 380),
+        (std::clamp)(
+            expanded_height,
+            queue_min_height + notice_height_epx,
+            queue_max_height + notice_height_epx),
+        preserve_position);
     RootGrid().UpdateLayout();
 }
 
