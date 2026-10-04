@@ -785,6 +785,7 @@ fire_and_forget MainWindow::ShowRetryDecisionAsync() {
             velocitycopy::localization::get_string(L"ActionCancel").c_str(),
             {},
             true,
+            velocitycopy::ui::DecisionTone::Error,
         }));
         if (tray_exit_requested_ || session_ending_) co_return;
         if (interrupted_session_ != InterruptedSessionState::Decision || !live_plan_) co_return;

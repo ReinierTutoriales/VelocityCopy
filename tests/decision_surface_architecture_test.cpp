@@ -34,5 +34,15 @@ int main() {
     c.find("monitor_info.rcWork") == std::string::npos) return 13;
  if(c.find("TaskDialog")!=std::string::npos || c.find("DarkMode_Explorer")!=std::string::npos || c.find("SetWindowTheme")!=std::string::npos) return 14;
  if(c.find("EnableWindow(")!=std::string::npos) return 15;
+ if(h.find("enum class DecisionTone") == std::string::npos ||
+    h.find("DecisionTone tone{DecisionTone::Neutral}") == std::string::npos ||
+    c.find("DecisionTone::Warning") == std::string::npos ||
+    c.find("DecisionTone::Error") == std::string::npos ||
+    c.find("status_icon.Glyph(options.tone == DecisionTone::Warning ? L\"\\xE7BA\" : L\"\\xEB90\")") == std::string::npos ||
+    c.find("token_double(L\"DecisionStatusIconSize\", 20)") == std::string::npos ||
+    c.find("DecisionWarningIconStyle") == std::string::npos ||
+    c.find("DecisionErrorIconStyle") == std::string::npos ||
+    tokens.find("SystemFillColorCautionBrush") == std::string::npos ||
+    tokens.find("SystemFillColorCriticalBrush") == std::string::npos) return 17;
  return 0;
 }

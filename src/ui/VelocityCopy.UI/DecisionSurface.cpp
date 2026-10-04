@@ -70,12 +70,37 @@ Windows::Foundation::IAsyncOperation<std::uint32_t> show_decision_async(Decision
     content.Spacing(token_double(L"DecisionContentSpacing", 12));
     content.Padding(token_thickness(L"DecisionContentPadding", Thickness{24, 20, 24, 20}));
 
+    Grid heading;
+    heading.ColumnSpacing(token_double(L"SpaceRelated", 8));
+    heading.ColumnDefinitions().Append(ColumnDefinition{});
+    heading.ColumnDefinitions().GetAt(0).Width(GridLength{0.0, GridUnitType::Auto});
+    heading.ColumnDefinitions().Append(ColumnDefinition{});
+    heading.ColumnDefinitions().GetAt(1).Width(GridLength{1.0, GridUnitType::Star});
+
+    if (options.tone != DecisionTone::Neutral) {
+        FontIcon status_icon;
+        status_icon.Glyph(options.tone == DecisionTone::Warning ? L"\xE7BA" : L"\xEB90");
+        status_icon.FontFamily(FontFamily{L"Segoe Fluent Icons"});
+        status_icon.FontSize(token_double(L"DecisionStatusIconSize", 20));
+        status_icon.VerticalAlignment(VerticalAlignment::Center);
+        status_icon.IsHitTestVisible(false);
+        apply_icon_style(
+            status_icon,
+            options.tone == DecisionTone::Warning
+                ? L"DecisionWarningIconStyle"
+                : L"DecisionErrorIconStyle");
+        heading.Children().Append(status_icon);
+    }
+
     TextBlock title;
     title.Text(hstring(options.title));
     title.FontSize(token_double(L"SubtitleFontSize", 20));
     title.FontWeight(Windows::UI::Text::FontWeights::SemiBold());
     title.TextWrapping(TextWrapping::Wrap);
-    content.Children().Append(title);
+    Grid::SetColumn(title, options.tone == DecisionTone::Neutral ? 0 : 1);
+    if (options.tone == DecisionTone::Neutral) Grid::SetColumnSpan(title, 2);
+    heading.Children().Append(title);
+    content.Children().Append(heading);
 
     TextBlock message;
     message.Text(hstring(options.message));

@@ -141,6 +141,14 @@ int main() {
         return fail(15, "performance graph must expose a subtle theme-aware midline guide");
     }
 
+    if (!contains(tokens, "DecisionStatusIconSize") ||
+        !contains(tokens, "DecisionWarningIconStyle") ||
+        !contains(tokens, "SystemFillColorCautionBrush") ||
+        !contains(tokens, "DecisionErrorIconStyle") ||
+        !contains(tokens, "SystemFillColorCriticalBrush")) {
+        return fail(17, "decision states must use documented Fluent warning/error icon semantics");
+    }
+
     // New fidelity work must remain theme-driven; no fixed RGB/hex palette is allowed.
     if (contains(xaml, "Color=\"#") || contains(xaml, "Background=\"#") ||
         contains(xaml, "Foreground=\"#") || contains(tokens, "Color=\"#")) {
