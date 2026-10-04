@@ -74,6 +74,7 @@ MainWindow::MainWindow() {
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(CancelButton(), cancel);
 
         const auto show_details = velocitycopy::localization::get_string(L"ActionShowDetails");
+        DetailsButtonText().Text(velocitycopy::localization::get_string(L"ActionDetails"));
         ToolTipService::SetToolTip(DetailsButton(), box_value(show_details));
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(DetailsButton(), show_details);
 

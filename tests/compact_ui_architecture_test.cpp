@@ -144,6 +144,7 @@ int main() {
         !contains(tokens, "<x:Double x:Key=\"TransferProgressHeight\">8</x:Double>") ||
         !contains(xaml, "x:Name=\"DetailsButtonText\"") ||
         !contains(xaml, "x:Name=\"DetailsChevronIcon\"") ||
+        !contains(window, "DetailsButtonText().Text(velocitycopy::localization::get_string(L\"ActionDetails\"))") ||
         !contains(window, "get_string(L\"ActionDetails\")") ||
         !contains(window, "DetailsButtonText().Text(details_button_label)") ||
         !contains(window, "DetailsChevronIcon().Glyph(expanded ? L\"\\uE70E\" : L\"\\uE70D\")") ||
