@@ -31,7 +31,7 @@ int main(){
  const auto accessor=read_source(root/"src/ui/VelocityCopy.UI/UiTokens.h");
  const auto xaml=read_source(root/"src/ui/VelocityCopy.UI/MainWindow.xaml");
  if(tokens.empty()||accessor.empty()||xaml.empty()) return fail(1,"required UI token source missing");
- for(const auto* key:{"NormalWindowMinWidth","CaptionRowHeight","QueueExpandedMinHeight","QueueExpandedMaxHeight","ActionButtonSize","ActionIconSize","CaptionFontSize","BodyFontSize","SubtitleFontSize","AboutWindowWidth","AboutWindowHeight"})
+ for(const auto* key:{"NormalWindowMinWidth","CaptionRowHeight","QueueExpandedMinHeight","QueueExpandedMaxHeight","ActionButtonSize","ActionIconSize","CaptionFontSize","BodyFontSize","SubtitleFontSize","PerformanceGraphHeight","AboutWindowWidth","AboutWindowHeight"})
   if(!contains(tokens,std::string("x:Key=\"")+key+"\"")) return fail(2,"required token missing");
  if(!contains(accessor,"Application::Current().Resources().Lookup")||!contains(accessor,"token_double")||!contains(accessor,"token_thickness")||!contains(read_source(root/"src/ui/VelocityCopy.UI/MainWindow.xaml.cpp"),"token_double(L\"CaptionRowHeight\", 32)")) return fail(3,"XAML/C++ token bridge incomplete");
  for(const auto* name:{"MainWindow.xaml.cpp","MainWindow.Queue.cpp","MainWindow.Conflict.cpp","MainWindow.Execution.cpp","MainWindow.QueuePersistence.cpp"}){
@@ -63,7 +63,41 @@ int main(){
   if (matched != total) return fail(7, "token read not in the verifiable token_x(L\"Key\", fallback) form");
   checked += matched;
  }
+
  if (checked == 0) return fail(8, "no C++ token reads found");
+
+ // Contract 9: StaticResource consumers must be type-compatible with the
+ // declared XAML token. XAML compilation does not reliably reject a boxed
+ // resource of the wrong type (for example x:Double -> CornerRadius), so this
+ // architecture gate closes that runtime-only failure class.
+ std::map<std::string,std::string> token_types;
+ static const std::regex typed_token{R"re(<(x:Double|Thickness|GridLength|CornerRadius) x:Key="(\w+)">)re"};
+ for(std::sregex_iterator it(tokens.begin(),tokens.end(),typed_token),end;it!=end;++it)
+  token_types[(*it)[2].str()]=(*it)[1].str();
+ auto static_resources_are_typed=[&](const std::string& markup) {
+  static const std::regex use{R"re((Margin|Padding|CornerRadius|Width|Height|MinWidth|MinHeight|MaxWidth|MaxHeight|FontSize|Spacing|ColumnSpacing|RowSpacing)="\{StaticResource (\w+)\}")re"};
+  for(std::sregex_iterator it(markup.begin(),markup.end(),use),end;it!=end;++it) {
+   const auto property=(*it)[1].str();
+   const auto key=(*it)[2].str();
+   const auto found=token_types.find(key);
+   if(found==token_types.end()) return false;
+   const auto& type=found->second;
+   if(property=="Margin"||property=="Padding") { if(type!="Thickness") return false; continue; }
+   if(property=="CornerRadius") { if(type!="CornerRadius") return false; continue; }
+   if(type!="x:Double" && type!="GridLength") return false;
+  }
+  return true;
+ };
+ for(const auto& entry_path:std::filesystem::directory_iterator(root/"src/ui/VelocityCopy.UI")) {
+  if(entry_path.path().extension()==".xaml" && !static_resources_are_typed(read_source(entry_path.path())))
+   return fail(9,"StaticResource token type is incompatible with its consuming XAML property");
+ }
+ auto bad_corner=xaml;
+ const auto corner_anchor=std::string{"CornerRadius=\"{ThemeResource ControlCornerRadius}\""};
+ const auto corner_pos=bad_corner.find(corner_anchor);
+ if(corner_pos==std::string::npos) return fail(10,"performance graph CornerRadius contract anchor missing");
+ bad_corner.replace(corner_pos,corner_anchor.size(),"CornerRadius=\"{StaticResource PerformanceGraphHeight}\"");
+ if(static_resources_are_typed(bad_corner)) return fail(10,"typed StaticResource contract failed to reject Double -> CornerRadius mutation");
 
  // Contracts 20-26 are data invariants and are mutation-tested in memory.
  auto validate_design_tokens = [](const std::string& text) {
