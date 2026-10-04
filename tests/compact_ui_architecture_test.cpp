@@ -357,13 +357,19 @@ int main() {
         !contains(xaml, "x:Name=\"PerformanceGraph\" AutomationProperties.AccessibilityView=\"Raw\"") ||
         !contains(details_click, "QueuePanel().Visibility(Visibility::Collapsed)") ||
         !contains(queue_click, "SetDetailsExpanded(false)") ||
-        !contains(observe_performance, "paused_ || stop_requested_") ||
+        !contains(observe_performance, "performance_sampling_state_ != PerformanceSamplingState::Copying") ||
         !contains(observe_performance, "now - last_performance_sample_ms_ < 500") ||
         !contains(observe_performance, "performance_speed_samples_.size() > 60") ||
         !contains(update_performance, "double peak = 1.0") ||
         !contains(update_performance, "sample <= 0.0 ? 1.0") ||
+        !contains(update_performance, "PerformanceGraphBrushSource().Background()") ||
+        contains(update_performance, "Application::Current().Resources().Lookup") ||
+        !contains(update_performance, "OutputDebugStringW") ||
         contains(update_performance, "executor_") ||
-        contains(update_performance, "presenter_")) {
+        contains(update_performance, "presenter_") ||
+        !contains(execution, "performance_sampling_state_ = PerformanceSamplingState::Cancelling") ||
+        !contains(execution, "performance_sampling_state_ = PerformanceSamplingState::Paused") ||
+        !contains(execution, "performance_sampling_state_ = PerformanceSamplingState::Copying")) {
         return fail(43, "phase 2 details must remain separate from Queue and keep bounded presentation-only performance history");
     }
 

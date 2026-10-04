@@ -31,6 +31,7 @@ namespace winrt::VelocityCopyUI::implementation {
 // mutually exclusive; stop_requested_ stays separate because it is a
 // transition in progress, not an interrupted state.
 enum class InterruptedSessionState : std::uint8_t { None, Stopped, Conflict, Decision };
+enum class PerformanceSamplingState : std::uint8_t { Idle, Planning, Copying, Paused, Stopped, Cancelling, Conflict };
 
 struct MainWindow : MainWindowT<MainWindow> {
     MainWindow();
@@ -269,6 +270,7 @@ private:
     std::uint64_t next_job_id_{1};
     std::uint64_t last_queue_completed_files_{};
     std::uint64_t current_file_id_{};
+    PerformanceSamplingState performance_sampling_state_{PerformanceSamplingState::Idle};
     std::uint64_t last_performance_sample_ms_{};
     std::deque<double> performance_speed_samples_;
     PendingResume pending_resume_{};

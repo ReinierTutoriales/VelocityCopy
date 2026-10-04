@@ -420,6 +420,7 @@ void MainWindow::SetDetailsExpanded(const bool expanded) {
         ToolTipService::SetToolTip(DetailsButton(), box_value(label));
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(DetailsButton(), label);
     } catch (...) {
+        OutputDebugStringW(L"VelocityCopy: SetDetailsExpanded failed\\n");
     }
     if (expanded) UpdatePerformanceGraph();
 }
@@ -450,11 +451,12 @@ void MainWindow::ResetPerformanceHistory() noexcept {
     try {
         PerformanceGraph().Children().Clear();
     } catch (...) {
+        OutputDebugStringW(L"VelocityCopy: ResetPerformanceHistory failed\\n");
     }
 }
 
 void MainWindow::ObservePerformanceSample(const double bytes_per_second) {
-    if (paused_ || stop_requested_) return;
+    if (performance_sampling_state_ != PerformanceSamplingState::Copying) return;
     const auto now = GetTickCount64();
     if (last_performance_sample_ms_ != 0 && now - last_performance_sample_ms_ < 500) return;
     last_performance_sample_ms_ = now;
@@ -478,9 +480,7 @@ void MainWindow::UpdatePerformanceGraph() {
         double peak = 1.0;
         for (const double sample : performance_speed_samples_) peak = (std::max)(peak, sample);
 
-        auto brush = Application::Current().Resources()
-            .Lookup(box_value(L"AccentFillColorDefaultBrush"))
-            .try_as<Microsoft::UI::Xaml::Media::Brush>();
+        auto brush = PerformanceGraphBrushSource().Background();
         const std::size_t count = performance_speed_samples_.size();
         const double slot = width / static_cast<double>(count);
         const double bar_width = (std::max)(1.0, slot - 1.0);
@@ -498,6 +498,7 @@ void MainWindow::UpdatePerformanceGraph() {
             ++index;
         }
     } catch (...) {
+        OutputDebugStringW(L"VelocityCopy: UpdatePerformanceGraph failed\\n");
     }
 }
 

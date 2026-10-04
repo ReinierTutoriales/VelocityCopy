@@ -109,13 +109,19 @@ App::App() {
     }
     UnhandledException([](IInspectable const&, Microsoft::UI::Xaml::UnhandledExceptionEventArgs const& e) {
         const auto message = e.Message();
-        OutputDebugStringW((L"VelocityCopy UnhandledException: " + std::wstring(message.c_str()) + L"\n").c_str());
+        const auto exception = static_cast<std::int32_t>(e.Exception());
+        const auto diagnostic = std::format(
+            L"VelocityCopy UnhandledException 0x{:08X}: {}\n",
+            static_cast<std::uint32_t>(exception),
+            message.c_str());
+        OutputDebugStringW(diagnostic.c_str());
         char* raw_path = nullptr;
         std::size_t path_size = 0;
         if (_dupenv_s(&raw_path, &path_size, "VELOCITYCOPY_DIAGNOSTIC_LOG") == 0 && raw_path != nullptr) {
             std::unique_ptr<char, decltype(&std::free)> path(raw_path, &std::free);
             std::ofstream log(path.get(), std::ios::app);
-            if (log) log << winrt::to_string(message) << '\n';
+            if (log) log << "0x" << std::hex << static_cast<std::uint32_t>(exception)
+                         << ": " << winrt::to_string(message) << '\n';
         }
     });
     InitializeComponent();

@@ -183,3 +183,8 @@ Only the **top caption-content row** reserves `AppWindowTitleBar.RightInset`. Th
 - Do not assign the same telemetry/name text repeatedly; compare against the currently displayed value before mutating XAML properties.
 - Keep core transfer state independent of concrete WinUI controls.
 - Reuse queue visuals where possible and preserve selection/focus by stable file IDs during live refresh.
+
+
+### Launch diagnostics
+
+Unhandled WinUI exceptions remain fatal. `App` registers an `UnhandledException` observer before `App::InitializeComponent()` only to record the HRESULT and message; it must never set `Handled=true`. `OutputDebugStringW` is always available for an attached debugger. File logging is opt-in: when `VELOCITYCOPY_DIAGNOSTIC_LOG` names a writable path, the same HRESULT/message is appended there. CI x64 launch smoke sets this variable and publishes the file with `if: always()`; absence of the file is a warning because it is diagnostic evidence that failure may have occurred before the `App` observer could run.
