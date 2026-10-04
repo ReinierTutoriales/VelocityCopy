@@ -475,6 +475,26 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
         if (CurrentItemText().Text() != filename) CurrentItemText().Text(filename);
     }
 
+    const auto transferred = FormatBytes(snapshot.transferred_bytes);
+    const auto total = FormatBytes(snapshot.total_bytes);
+    const hstring bytes_text(std::format(L"{} / {}", transferred.c_str(), total.c_str()));
+    if (TransferBytesText().Text() != bytes_text) TransferBytesText().Text(bytes_text);
+
+    const hstring files_text(std::format(
+        L"{} completed of {}", snapshot.completed_files, snapshot.total_files));
+    if (TransferFilesText().Text() != files_text) TransferFilesText().Text(files_text);
+
+    if (!snapshot.current_source.empty()) {
+        const hstring source(snapshot.current_source.wstring());
+        if (SourcePathText().Text() != source) SourcePathText().Text(source);
+        ToolTipService::SetToolTip(SourcePathText(), box_value(source));
+    }
+    if (!snapshot.current_destination.empty()) {
+        const hstring destination(snapshot.current_destination.wstring());
+        if (DestinationPathText().Text() != destination) DestinationPathText().Text(destination);
+        ToolTipService::SetToolTip(DestinationPathText(), box_value(destination));
+    }
+
     const auto speed = FormatSpeed(snapshot.bytes_per_second);
     if (SpeedText().Text() != speed) SpeedText().Text(speed);
     const auto eta = FormatEta(snapshot.eta_seconds);

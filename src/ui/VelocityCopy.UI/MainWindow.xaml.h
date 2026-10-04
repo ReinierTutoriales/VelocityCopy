@@ -209,6 +209,7 @@ private:
     static hstring FormatFailureReason(std::int32_t native_code);
     static hstring FormatSpeed(double bytes_per_second);
     static hstring FormatEta(double seconds);
+    static hstring FormatBytes(std::uint64_t bytes);
 
     std::wstring session_id_{velocitycopy::new_session_id()};
     std::uint64_t window_id_{};

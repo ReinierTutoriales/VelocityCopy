@@ -14,8 +14,7 @@
         </Grid.RowDefinitions>
 
         <Grid x:Name="TransferSurface"
-              Grid.Row="0"
-              Height="{StaticResource CompactSurfaceHeight}">
+              Grid.Row="0">
             <Grid>
                 <ProgressBar x:Name="TransferProgress"
                              Minimum="0"
@@ -36,7 +35,9 @@
                       Padding="{StaticResource TransferContentPadding}">
                     <Grid.RowDefinitions>
                         <RowDefinition x:Name="CaptionRowDefinition" Height="{StaticResource CaptionRowGridLength}" />
-                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
                     <Grid x:Name="CaptionContentGrid"
@@ -67,8 +68,58 @@
                                    FontSize="{StaticResource BodyFontSize}" />
                     </Grid>
 
-                    <Grid x:Name="BottomContentGrid"
+                    <Grid x:Name="TransferDetailGrid"
                           Grid.Row="1"
+                          Margin="{StaticResource TransferDetailMargin}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <TextBlock x:Name="TransferBytesText"
+                                   FontSize="{StaticResource BodyFontSize}"
+                                   FontWeight="SemiBold"
+                                   TextTrimming="CharacterEllipsis"
+                                   MaxLines="1" />
+                        <TextBlock x:Name="TransferFilesText"
+                                   Grid.Row="1"
+                                   Margin="{StaticResource TransferFilesMargin}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   FontSize="{StaticResource CaptionFontSize}"
+                                   TextTrimming="CharacterEllipsis"
+                                   MaxLines="1" />
+                    </Grid>
+
+                    <Grid x:Name="TransferPathGrid"
+                          Grid.Row="2"
+                          Margin="{StaticResource TransferPathMargin}"
+                          ColumnSpacing="{StaticResource SpaceRelated}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="SourcePathText"
+                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                   FontSize="{StaticResource CaptionFontSize}"
+                                   TextTrimming="CharacterEllipsis"
+                                   MaxLines="1" />
+                        <FontIcon Grid.Column="1"
+                                  Glyph="&#xE72A;"
+                                  FontFamily="Segoe Fluent Icons"
+                                  FontSize="{StaticResource PathArrowIconSize}"
+                                  Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                  IsHitTestVisible="False" />
+                        <TextBlock x:Name="DestinationPathText"
+                                   Grid.Column="2"
+                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                   FontSize="{StaticResource CaptionFontSize}"
+                                   TextTrimming="CharacterEllipsis"
+                                   MaxLines="1" />
+                    </Grid>
+
+                    <Grid x:Name="BottomContentGrid"
+                          Grid.Row="3"
+                          Margin="{StaticResource TransferBottomMargin}"
                           ColumnSpacing="{StaticResource SpaceRelated}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />

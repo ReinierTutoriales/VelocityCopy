@@ -382,6 +382,12 @@ fire_and_forget MainWindow::HandleDropAsync(DragEventArgs args) {
 void MainWindow::ResetTransferSurface() {
     TransferProgress().ShowPaused(false);
     TransferProgress().ShowError(false);
+    TransferBytesText().Text(L"");
+    TransferFilesText().Text(L"");
+    SourcePathText().Text(L"");
+    DestinationPathText().Text(L"");
+    ToolTipService::SetToolTip(SourcePathText(), nullptr);
+    ToolTipService::SetToolTip(DestinationPathText(), nullptr);
     ErrorBar().IsOpen(false);
     ErrorBar().Message(L"");
 }
@@ -457,6 +463,17 @@ hstring MainWindow::FormatSpeed(const double bytes_per_second) {
         return hstring(std::format(L"{:.1f} MiB/s", bytes_per_second / mib));
     }
     return hstring(std::format(L"{:.0f} KiB/s", bytes_per_second / kib));
+}
+
+hstring MainWindow::FormatBytes(const std::uint64_t bytes) {
+    constexpr double kib = 1024.0;
+    constexpr double mib = 1024.0 * 1024.0;
+    constexpr double gib = 1024.0 * 1024.0 * 1024.0;
+    const double value = static_cast<double>(bytes);
+    if (value >= gib) return hstring(std::format(L"{:.2f} GiB", value / gib));
+    if (value >= mib) return hstring(std::format(L"{:.1f} MiB", value / mib));
+    if (value >= kib) return hstring(std::format(L"{:.0f} KiB", value / kib));
+    return hstring(std::format(L"{} B", bytes));
 }
 
 hstring MainWindow::FormatEta(const double seconds) {
