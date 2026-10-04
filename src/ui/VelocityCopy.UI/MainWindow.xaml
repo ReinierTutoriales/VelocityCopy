@@ -144,20 +144,16 @@
                                     Spacing="{StaticResource SpaceTight}">
                             <TextBlock x:Name="SpeedText"
                                        Text="—"
-                                       Width="{StaticResource TelemetrySpeedWidth}" TextTrimming="CharacterEllipsis" MaxLines="1" Typography.NumeralAlignment="Tabular"
+                                       MinWidth="{StaticResource TelemetrySpeedMinWidth}"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                        FontSize="{StaticResource CaptionFontSize}" />
                             <TextBlock x:Name="ProgressPercentText"
                                        Text="0%"
-                                       Width="{StaticResource TelemetryPercentWidth}" TextTrimming="CharacterEllipsis" MaxLines="1" Typography.NumeralAlignment="Tabular"
+                                       MinWidth="{StaticResource TelemetryPercentMinWidth}"
                                        FontSize="{StaticResource CaptionFontSize}"
                                        FontWeight="SemiBold" />
                             <TextBlock x:Name="EtaText"
                                        Text="—"
-                                       Width="{StaticResource TelemetryEtaWidth}"
-                                       TextTrimming="CharacterEllipsis"
-                                       MaxLines="1"
-                                       Typography.NumeralAlignment="Tabular"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                        FontSize="{StaticResource CaptionFontSize}" />
                         </StackPanel>
