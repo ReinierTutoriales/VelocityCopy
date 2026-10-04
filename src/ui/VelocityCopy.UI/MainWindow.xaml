@@ -356,7 +356,7 @@
             </Grid>
 
             <Grid x:Name="DetailsViewport" Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2">
-                    <Grid x:Name="DetailsGrid">
+                <Grid x:Name="DetailsGrid">
                         <Grid.RowDefinitions>
                             <RowDefinition x:Name="DetailsRow0" Height="Auto" />
                             <RowDefinition x:Name="DetailsRow1" Height="0" />
@@ -494,7 +494,7 @@
                 </Grid>
                 </Border>
             </Grid>
-                    </Grid>
+                </Grid>
             </Grid>
         </Grid>
         </ScrollViewer>

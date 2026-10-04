@@ -94,14 +94,14 @@ int main() {
         return fail(3, "telemetry must not share the caption-constrained filename row");
     }
 
-    // UI_SPEC: the compact surface has exactly four primary actions (Pause/Resume,
-    // Cancel, Options, Details disclosure). Skip and Stop are Options menu commands
-    // only, with dynamic enablement; no visible or hidden XAML buttons.
+    // UI_SPEC: the compact surface has four actions total. Pause/Resume, Cancel
+    // and Options stay in the operational cluster; Details is isolated at the far
+    // right. Skip and Stop remain Options menu commands only.
     const auto refresh_menu = body_of(menu, "void MainWindow::RefreshExecutionMenuState(");
     const auto cluster_start = xaml.find("x:Name=\"PrimaryActionCluster\"");
     const auto cluster_end = cluster_start == std::string::npos ? std::string::npos
                                                                 : xaml.find("</StackPanel>", cluster_start);
-    const auto primary_action_count = cluster_end == std::string::npos
+    const auto clustered_action_count = cluster_end == std::string::npos
         ? 0
         : count_occurrences(xaml.substr(cluster_start, cluster_end - cluster_start), "<Button");
     if (contains(xaml, "SkipButton") || contains(xaml, "StopButton") ||
@@ -110,7 +110,8 @@ int main() {
         contains(window, "SkipButton()") || contains(window, "StopButton()") ||
         contains(header, "RefreshExecutionButtonState") ||
         contains(tokens, "SkipIconSize") || contains(tokens, "StopIconSize") ||
-        primary_action_count != 4 ||
+        clustered_action_count != 3 ||
+        count_occurrences(xaml, "x:Name=\"DetailsButton\"") != 1 ||
         !contains(menu, "skip_menu_item_.Click({this, &MainWindow::OnMenuSkipClick})") ||
         !contains(menu, "stop_menu_item_.Click({this, &MainWindow::OnMenuStopClick})") ||
         !contains(refresh_menu, "skip_menu_item_.IsEnabled(velocitycopy::can_skip_current_file(") ||
