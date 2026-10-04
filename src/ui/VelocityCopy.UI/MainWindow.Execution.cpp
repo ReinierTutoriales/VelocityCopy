@@ -230,7 +230,7 @@ void MainWindow::StartTransfer(velocitycopy::CopyJob job, velocitycopy::StorageK
     QueueCountText().Text(L"0");
     QueueButton().IsEnabled(true);
     QueuePanel().Visibility(Visibility::Collapsed);
-    ResizeWindow(velocitycopy::ui::token_int(L"CompactSurfaceHeight", 72));
+    ResizeWindowToContent();
     SetProgressFraction(0.0);
     SetExecutionButtonsPlanning();
     CurrentItemText().Text(job.display_name.empty() ? hstring(L"…") : hstring(job.display_name));
@@ -443,7 +443,7 @@ void MainWindow::CancelCurrentSession() {
         QueueButton().IsEnabled(false);
         QueuePanel().Visibility(Visibility::Collapsed);
         QueueChevron().Glyph(L"\xE70D");
-        ResizeWindow(velocitycopy::ui::token_int(L"CompactSurfaceHeight", 72));
+        ResizeWindowToContent();
         SetExecutionButtonsIdle();
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
@@ -592,7 +592,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         QueueButton().IsEnabled(false);
         QueuePanel().Visibility(Visibility::Collapsed);
         QueueChevron().Glyph(L"\xE70D");
-        ResizeWindow(velocitycopy::ui::token_int(L"CompactSurfaceHeight", 72));
+        ResizeWindowToContent();
         SetExecutionButtonsIdle();
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
@@ -618,7 +618,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         QueueButton().IsEnabled(false);
         QueuePanel().Visibility(Visibility::Collapsed);
         QueueChevron().Glyph(L"\xE70D");
-        ResizeWindow(velocitycopy::ui::token_int(L"CompactSurfaceHeight", 72));
+        ResizeWindowToContent();
         SetExecutionButtonsIdle();
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
@@ -666,7 +666,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     QueueButton().IsEnabled(false);
     QueuePanel().Visibility(Visibility::Collapsed);
     QueueChevron().Glyph(L"\xE70D");
-    ResizeWindow(velocitycopy::ui::token_int(L"CompactSurfaceHeight", 72));
+    ResizeWindowToContent();
     SetExecutionButtonsIdle();
     SpeedText().Text(L"—");
     EtaText().Text(L"—");
@@ -835,7 +835,7 @@ void MainWindow::FinalizeStoppedSessionIfEmpty() {
     QueueButton().IsEnabled(false);
     QueuePanel().Visibility(Visibility::Collapsed);
     QueueChevron().Glyph(L"\xE70D");
-    ResizeWindow(velocitycopy::ui::token_int(L"CompactSurfaceHeight", 72));
+    ResizeWindowToContent();
     SetExecutionButtonsIdle();
     SetProgressFraction(1.0);
     if (queued_sessions_.empty()) DestroyCompletedWindow();

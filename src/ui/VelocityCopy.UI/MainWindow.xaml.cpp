@@ -92,10 +92,14 @@ MainWindow::MainWindow() {
     const auto list_margin = velocitycopy::ui::token_thickness(L"QueueListMargin", Thickness{0, 4, 0, 0});
     const auto commands_margin = velocitycopy::ui::token_thickness(L"QueueCommandsMargin", Thickness{0, 8, 0, 0});
     const auto queue_ceiling = velocitycopy::ui::token_double(L"QueueExpandedMaxHeight", 340);
-    const auto compact_height = velocitycopy::ui::token_double(L"CompactSurfaceHeight", 72);
+    const auto transfer_padding = velocitycopy::ui::token_thickness(L"TransferContentPadding", Thickness{8, 0, 8, 8});
+    const auto normal_surface_fallback =
+        velocitycopy::ui::token_double(L"CaptionRowHeight", 32) +
+        velocitycopy::ui::token_double(L"ActionButtonSize", 32) +
+        transfer_padding.Top + transfer_padding.Bottom;
     const auto header_height = velocitycopy::ui::token_double(L"QueueHeaderMinHeight", 28);
     const auto command_height = velocitycopy::ui::token_double(L"ActionButtonSize", 32);
-    QueueList().MaxHeight((std::max)(0.0, queue_ceiling - compact_height -
+    QueueList().MaxHeight((std::max)(0.0, queue_ceiling - normal_surface_fallback -
         queue_padding.Top - queue_padding.Bottom - header_height - list_margin.Top - list_margin.Bottom -
         commands_margin.Top - commands_margin.Bottom - command_height));
 
@@ -120,7 +124,48 @@ MainWindow::MainWindow() {
 
     InitializeTrayIntegration();
     ApplyTitleBarInset();
-    ResizeWindow(velocitycopy::ui::token_int(L"CompactSurfaceHeight", 72));
+
+    RootGrid().Loaded([weak = get_weak()](IInspectable const&, RoutedEventArgs const&) {
+        if (auto self = weak.get()) {
+            try {
+                const auto root = self->RootGrid().XamlRoot();
+                if (root) {
+                    self->last_rasterization_scale_ = root.RasterizationScale();
+                    self->xaml_root_changed_revoker_ = root.Changed(auto_revoke,
+                        [weak](Microsoft::UI::Xaml::XamlRoot const& changed_root, IInspectable const&) {
+                            if (auto window = weak.get()) {
+                                const double scale = changed_root.RasterizationScale();
+                                if (!window->resize_in_progress_ &&
+                                    scale > 0.0 &&
+                                    std::abs(scale - window->last_rasterization_scale_) > 0.0001) {
+                                    window->last_rasterization_scale_ = scale;
+                                    window->ResizeWindowToContent();
+                                }
+                            }
+                        });
+                }
+
+                Windows::UI::ViewManagement::UISettings settings;
+                self->last_text_scale_factor_ = settings.TextScaleFactor();
+                self->text_scale_changed_revoker_ = settings.TextScaleFactorChanged(auto_revoke,
+                    [weak](Windows::UI::ViewManagement::UISettings const& sender, IInspectable const&) {
+                        if (auto window = weak.get()) {
+                            const double scale = sender.TextScaleFactor();
+                            if (std::abs(scale - window->last_text_scale_factor_) <= 0.0001) return;
+                            window->last_text_scale_factor_ = scale;
+                            (void)window->dispatcher_.TryEnqueue([weak]() {
+                                if (auto ui_window = weak.get(); ui_window && !ui_window->resize_in_progress_) {
+                                    ui_window->ResizeWindowToContent();
+                                }
+                            });
+                        }
+                    });
+            } catch (...) {
+            }
+            self->ResizeWindowToContent();
+        }
+    });
+    ResizeWindowToContent();
     PositionInitialWindow();
 }
 
@@ -191,28 +236,46 @@ void MainWindow::OnAppWindowChanged(
     ApplyTitleBarInset();
 }
 
-void MainWindow::ResizeWindow(const int height_epx) {
+void MainWindow::ResizeWindow(const int client_height_epx) {
+    if (resize_in_progress_) return;
     try {
         HWND hwnd{};
         auto window_native = this->m_inner.as<::IWindowNative>();
         if (SUCCEEDED(window_native->get_WindowHandle(&hwnd)) && hwnd != nullptr) {
             const auto dpi = GetDpiForWindow(hwnd);
             if (dpi == 0) return;
-            const int width = MulDiv(velocitycopy::ui::token_int(L"CompactWindowWidth", 380), static_cast<int>(dpi), 96);
-            const int height = MulDiv(height_epx, static_cast<int>(dpi), 96);
-            SetWindowPos(hwnd, nullptr, 0, 0, width, height,
+
+            RECT window_rect{};
+            RECT client_rect{};
+            if (!GetWindowRect(hwnd, &window_rect) || !GetClientRect(hwnd, &client_rect)) return;
+            const int frame_width =
+                (window_rect.right - window_rect.left) - (client_rect.right - client_rect.left);
+            const int frame_height =
+                (window_rect.bottom - window_rect.top) - (client_rect.bottom - client_rect.top);
+            const int client_width = MulDiv(
+                velocitycopy::ui::token_int(L"NormalWindowMinWidth", 380),
+                static_cast<int>(dpi), 96);
+            const int client_height = MulDiv(client_height_epx, static_cast<int>(dpi), 96);
+
+            resize_in_progress_ = true;
+            SetWindowPos(hwnd, nullptr, 0, 0,
+                         client_width + frame_width, client_height + frame_height,
                          SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+            resize_in_progress_ = false;
             ApplyTitleBarInset();
         }
     } catch (...) {
+        resize_in_progress_ = false;
     }
 }
 
 void MainWindow::ResizeWindowToContent() {
+    if (resize_in_progress_) return;
     const auto measured_width = RootGrid().ActualWidth() > 0.0
         ? static_cast<float>(RootGrid().ActualWidth())
-        : static_cast<float>(velocitycopy::ui::token_int(L"CompactWindowWidth", 380));
-    const auto compact_height = velocitycopy::ui::token_double(L"CompactSurfaceHeight", 72.0);
+        : static_cast<float>(velocitycopy::ui::token_int(L"NormalWindowMinWidth", 380));
+    TransferSurface().Measure({measured_width, std::numeric_limits<float>::infinity()});
+    const auto normal_height = static_cast<double>(TransferSurface().DesiredSize().Height);
     const auto queue_min_height = velocitycopy::ui::token_int(L"QueueExpandedMinHeight", 176);
     const auto queue_max_height = velocitycopy::ui::token_int(L"QueueExpandedMaxHeight", 340);
     double notice_height = 0.0;
@@ -222,14 +285,14 @@ void MainWindow::ResizeWindowToContent() {
     }
     if (QueuePanel().Visibility() != Visibility::Visible) {
         ResizeWindow(static_cast<int>(std::ceil(
-            compact_height + notice_height)));
+            normal_height + notice_height)));
         return;
     }
 
     QueuePanel().Measure({measured_width, std::numeric_limits<float>::infinity()});
     const auto desired_queue_height = static_cast<double>(QueuePanel().DesiredSize().Height);
     const auto expanded_height = static_cast<int>(std::ceil(
-        velocitycopy::ui::token_double(L"CompactSurfaceHeight", 72.0) + notice_height + desired_queue_height));
+        normal_height + notice_height + desired_queue_height));
     const auto notice_height_epx = static_cast<int>(std::ceil(notice_height));
     ResizeWindow((std::clamp)(
         expanded_height,

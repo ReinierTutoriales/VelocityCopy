@@ -188,7 +188,7 @@ void MainWindow::FinalizeConflictSessionIfEmpty() {
     QueueButton().IsEnabled(false);
     QueuePanel().Visibility(Visibility::Collapsed);
     QueueChevron().Glyph(L"\xE70D");
-    ResizeWindow(velocitycopy::ui::token_int(L"CompactSurfaceHeight", 72));
+    ResizeWindowToContent();
     SetExecutionButtonsIdle();
     SpeedText().Text(L"—");
     EtaText().Text(L"—");
