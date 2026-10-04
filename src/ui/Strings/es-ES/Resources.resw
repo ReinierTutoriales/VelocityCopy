@@ -65,4 +65,25 @@
   <data name="ActionResolveFailures" xml:space="preserve"><value>Resolver errores</value></data>
   <data name="ActionSkipAll" xml:space="preserve"><value>Omitir todos</value></data>
   <data name="TransferCompletedFormat" xml:space="preserve"><value>{0} completados de {1}</value></data>
+
+
+  <data name="ActionShowDetails" xml:space="preserve"><value>Mostrar detalles</value></data>
+
+  <data name="ActionHideDetails" xml:space="preserve"><value>Ocultar detalles</value></data>
+
+  <data name="DetailsInformationTitle.Text" xml:space="preserve"><value>Información</value></data>
+
+  <data name="DetailsPerformanceTitle.Text" xml:space="preserve"><value>Rendimiento</value></data>
+
+  <data name="DetailsSourceLabel.Text" xml:space="preserve"><value>Origen</value></data>
+
+  <data name="DetailsDestinationLabel.Text" xml:space="preserve"><value>Destino</value></data>
+
+  <data name="DetailsBytesLabel.Text" xml:space="preserve"><value>Datos</value></data>
+
+  <data name="DetailsFilesLabel.Text" xml:space="preserve"><value>Archivos</value></data>
+
+  <data name="DetailsSpeedLabel.Text" xml:space="preserve"><value>Velocidad</value></data>
+
+  <data name="DetailsEtaLabel.Text" xml:space="preserve"><value>Tiempo restante</value></data>
 </root>

@@ -55,6 +55,7 @@ int main() {
         !contains(xaml, "x:Name=\"PauseButton\"") ||
         !contains(xaml, "x:Name=\"CancelButton\"") ||
         !contains(xaml, "x:Name=\"OptionsButton\"") ||
+        !contains(xaml, "x:Name=\"DetailsButton\"") ||
         !contains(xaml, "x:Name=\"QueueButton\"")) {
         return fail(2, "collapsed surface must separate telemetry from the right-aligned primary actions");
     }
@@ -83,7 +84,7 @@ int main() {
         contains(window, "SkipButton()") || contains(window, "StopButton()") ||
         contains(header, "RefreshExecutionButtonState") ||
         contains(tokens, "SkipIconSize") || contains(tokens, "StopIconSize") ||
-        primary_action_count != 4 ||
+        primary_action_count != 5 ||
         !contains(menu, "skip_menu_item_.Click({this, &MainWindow::OnMenuSkipClick})") ||
         !contains(menu, "stop_menu_item_.Click({this, &MainWindow::OnMenuStopClick})") ||
         !contains(refresh_menu, "skip_menu_item_.IsEnabled(velocitycopy::can_skip_current_file(") ||
@@ -344,6 +345,26 @@ int main() {
         !contains(show_error, "ShowNotice(InfoBarSeverity::Error, message)") ||
         count_occurrences(window, "ErrorBar().Severity(") != 1) {
         return fail(41, "notice severity must be explicit per message and ordinary errors must always use Error severity");
+    }
+
+
+    const auto queue_click = body_of(queue, "void MainWindow::OnQueueClick(");
+    const auto details_click = body_of(window, "void MainWindow::OnDetailsClick(");
+    const auto observe_performance = body_of(window, "void MainWindow::ObservePerformanceSample(");
+    const auto update_performance = body_of(window, "void MainWindow::UpdatePerformanceGraph()");
+    if (!contains(xaml, "x:Name=\"DetailsPanel\"") ||
+        !contains(xaml, "x:Name=\"PerformanceGraph\"") ||
+        !contains(xaml, "x:Name=\"PerformanceGraph\" AutomationProperties.AccessibilityView=\"Raw\"") ||
+        !contains(details_click, "QueuePanel().Visibility(Visibility::Collapsed)") ||
+        !contains(queue_click, "SetDetailsExpanded(false)") ||
+        !contains(observe_performance, "paused_ || stop_requested_") ||
+        !contains(observe_performance, "now - last_performance_sample_ms_ < 500") ||
+        !contains(observe_performance, "performance_speed_samples_.size() > 60") ||
+        !contains(update_performance, "double peak = 1.0") ||
+        !contains(update_performance, "sample <= 0.0 ? 1.0") ||
+        contains(update_performance, "executor_") ||
+        contains(update_performance, "presenter_")) {
+        return fail(43, "phase 2 details must remain separate from Queue and keep bounded presentation-only performance history");
     }
 
     return 0;
