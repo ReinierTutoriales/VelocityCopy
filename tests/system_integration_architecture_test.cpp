@@ -39,6 +39,8 @@ int main() {
     const auto package_workflow = read_all(root / ".github/workflows/package.yml");
     const auto installer_exe = read_all(root / "tools/VelocityCopy-Test-Installer.nsi");
     const auto installer_smoke = read_all(root / "tools/Install-VelocityCopy-Test.ps1");
+    const auto signing_script = read_all(root / "tools/ci/Sign-VelocityCopyBinary.ps1");
+    const auto signing_test = read_all(root / "tools/ci/Test-AuthenticodePipeline.ps1");
     const auto startup_helper = read_all(root / "src/app/startup_helper.cpp");
     const auto startup_profile_test = read_all(root / "tools/Test-StartupHelperProfiles.ps1");
     const auto docs = read_all(root / "docs/SYSTEM_INTEGRATION.md");
@@ -46,6 +48,7 @@ int main() {
     if (app.empty() || shell.empty() || ipc.empty() ||
         window.empty() || tray.empty() || app_tray.empty() || persistence.empty() || recovery.empty() || conflict.empty() ||
         ci_workflow.empty() || package_workflow.empty() || installer_exe.empty() || installer_smoke.empty() ||
+        signing_script.empty() || signing_test.empty() ||
         startup_helper.empty() || startup_profile_test.empty() || docs.empty()) {
         return fail(1, "required integration source missing");
     }
@@ -113,10 +116,35 @@ int main() {
         !contains(package_workflow, "nsis-3.11.zip") ||
         !contains(package_workflow, "Smoke install classic x64 installer") ||
         !contains(package_workflow, "Smoke uninstall classic x64 installer") ||
+        !contains(package_workflow, "Exercise Authenticode pipeline with ephemeral certificate") ||
+        !contains(package_workflow, "Sign stable-tag payload") ||
+        !contains(package_workflow, "Sign stable-tag installer") ||
+        !contains(package_workflow, "VELOCITYCOPY_SIGNING_PFX_BASE64") ||
+        !contains(signing_script, "signtool") ||
+        !contains(signing_script, "TimeStamperCertificate") ||
+        !contains(signing_script, "SkipTimestamp") ||
+        !contains(signing_test, "New-SelfSignedCertificate") ||
+        !contains(signing_test, "-SkipTimestamp") ||
         contains(package_workflow, "choco ") ||
         contains(package_workflow, "Add-AppxPackage") ||
         contains(package_workflow, "VelocityCopy.msixbundle")) {
         return fail(9, "packaging must run on main without Chocolatey and stay classic for x64 and ARM64");
+    }
+
+    const auto occurrences = [](const std::string& text, const std::string& value) {
+        std::size_t count = 0;
+        for (auto at = text.find(value); at != std::string::npos; at = text.find(value, at + value.size())) ++count;
+        return count;
+    };
+    // Signing scripts report failure by exception. A child `pwsh -File` turns
+    // that into an exit code nobody checks, and inside a loop a later success
+    // resets $LASTEXITCODE: an unsigned binary would pass. They must run
+    // in-process so the exception fails the step.
+    if (contains(package_workflow, "pwsh -NoProfile -File tools/ci/Sign-VelocityCopyBinary.ps1") ||
+        contains(package_workflow, "pwsh -NoProfile -File tools/ci/Test-AuthenticodePipeline.ps1") ||
+        occurrences(package_workflow, "& ./tools/ci/Sign-VelocityCopyBinary.ps1") != 2 ||
+        occurrences(package_workflow, "& ./tools/ci/Test-AuthenticodePipeline.ps1") != 2) {
+        return fail(18, "signing scripts must run in-process so a failure inside a loop cannot be masked");
     }
 
     if (!contains(installer_exe, "RequestExecutionLevel admin") ||
