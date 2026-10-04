@@ -310,6 +310,9 @@
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                FontSize="{StaticResource CaptionFontSize}" />
                 </Grid>
+                <Border x:Name="PerformanceGraphBrushSource"
+                        Background="{ThemeResource AccentFillColorDefaultBrush}"
+                        Visibility="Collapsed" />
                 <Border Grid.Row="1"
                         Margin="{StaticResource PerformanceGraphMargin}"
                         Height="{StaticResource PerformanceGraphHeight}"

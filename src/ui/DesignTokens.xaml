@@ -24,8 +24,8 @@
     <Thickness x:Key="DetailsSectionMargin">0,8,0,0</Thickness>
     <Thickness x:Key="DetailsPerformanceMargin">0,12,0,0</Thickness>
     <Thickness x:Key="PerformanceGraphMargin">0,8,0,0</Thickness>
-    <x:Double x:Key="PerformanceGraphHeight">96</x:Double><x:Double x:Key="PerformanceGraphRadius">4</x:Double>
-    <x:Double x:Key="DecisionWindowWidth">440</x:Double>
+    <x:Double x:Key="PerformanceGraphHeight">96</x:Double>
+<x:Double x:Key="DecisionWindowWidth">440</x:Double>
     <Thickness x:Key="DecisionContentPadding">24,20,24,20</Thickness><x:Double x:Key="DecisionContentSpacing">12</x:Double><x:Double x:Key="DecisionActionSpacing">8</x:Double>
     <x:Double x:Key="AboutWindowWidth">388</x:Double><x:Double x:Key="AboutWindowHeight">288</x:Double>
     <x:Double x:Key="AboutTitleBarHeight">32</x:Double><Thickness x:Key="AboutTitleBarPadding">12,0,112,0</Thickness>

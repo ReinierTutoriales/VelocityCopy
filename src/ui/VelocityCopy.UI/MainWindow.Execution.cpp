@@ -26,6 +26,7 @@ void MainWindow::ResetInterruptedSessionState() noexcept {
 }
 
 void MainWindow::SetExecutionButtonsPlanning() {
+    performance_sampling_state_ = PerformanceSamplingState::Planning;
     TransferProgress().ShowPaused(false);
     TransferProgress().ShowError(false);
     RefreshEfficiencyMode();
@@ -39,6 +40,7 @@ void MainWindow::SetExecutionButtonsPlanning() {
 }
 
 void MainWindow::SetExecutionButtonsRunning() {
+    performance_sampling_state_ = PerformanceSamplingState::Copying;
     TransferProgress().ShowPaused(false);
     TransferProgress().ShowError(false);
     RefreshEfficiencyMode();
@@ -55,6 +57,7 @@ void MainWindow::SetExecutionButtonsRunning() {
 }
 
 void MainWindow::SetExecutionButtonsIdle() {
+    performance_sampling_state_ = PerformanceSamplingState::Idle;
     TransferProgress().ShowPaused(false);
     PauseButton().IsEnabled(false);
     CancelButton().IsEnabled(false);
@@ -72,6 +75,7 @@ void MainWindow::SetExecutionButtonsIdle() {
 }
 
 void MainWindow::SetExecutionButtonsStopped() {
+    performance_sampling_state_ = PerformanceSamplingState::Stopped;
     TransferProgress().ShowPaused(true);
     TransferProgress().ShowError(false);
     PauseButton().IsEnabled(true);
@@ -88,6 +92,7 @@ void MainWindow::SetExecutionButtonsStopped() {
 }
 
 void MainWindow::SetExecutionButtonsConflict() {
+    performance_sampling_state_ = PerformanceSamplingState::Conflict;
     TransferProgress().ShowPaused(false);
     TransferProgress().ShowError(false);
     SpeedText().Text(L"—");
@@ -361,9 +366,11 @@ void MainWindow::OnPauseClick(IInspectable const&, RoutedEventArgs const&) {
     if (paused_) {
         execution_control_->resume();
         paused_ = false;
+        performance_sampling_state_ = PerformanceSamplingState::Copying;
     } else {
         execution_control_->request_pause();
         paused_ = true;
+        performance_sampling_state_ = PerformanceSamplingState::Paused;
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
     }
@@ -398,6 +405,7 @@ void MainWindow::OnStopClick(IInspectable const&, RoutedEventArgs const&) {
     if (!execution_control_ || interrupted_session_ != InterruptedSessionState::None || stop_requested_) return;
     pending_resume_ = {};
     stop_requested_ = true;
+    performance_sampling_state_ = PerformanceSamplingState::Stopped;
     current_file_skippable_ = false;
     execution_control_->request_stop();
     PauseButton().IsEnabled(false);
@@ -413,6 +421,7 @@ void MainWindow::OnCancelClick(IInspectable const&, RoutedEventArgs const&) {
 void MainWindow::CancelCurrentSession() {
     CancelDecisionQueue();
     cancel_requested_.store(true, std::memory_order_relaxed);
+    performance_sampling_state_ = PerformanceSamplingState::Cancelling;
     pending_resume_ = {};
     SpeedText().Text(L"—");
     EtaText().Text(L"—");
