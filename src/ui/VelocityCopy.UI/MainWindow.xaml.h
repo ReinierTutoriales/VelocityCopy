@@ -59,6 +59,7 @@ struct MainWindow : MainWindowT<MainWindow> {
     void OnSkipClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnStopClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnCancelClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
+    void OnDetailsClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnQueueClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnSaveQueueClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnLoadQueueClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
@@ -184,6 +185,10 @@ private:
     void RefreshQueueCommandState();
     void RefreshExecutionMenuState();
     void RefreshQueueEditCommandState();
+    void SetDetailsExpanded(bool expanded);
+    void ResetPerformanceHistory() noexcept;
+    void ObservePerformanceSample(double bytes_per_second);
+    void UpdatePerformanceGraph();
     [[nodiscard]] std::vector<std::uint64_t> SelectedPendingIds();
     void ResizeWindow(int height_epx);
     void ResizeWindowToContent();
@@ -264,6 +269,8 @@ private:
     std::uint64_t next_job_id_{1};
     std::uint64_t last_queue_completed_files_{};
     std::uint64_t current_file_id_{};
+    std::uint64_t last_performance_sample_ms_{};
+    std::deque<double> performance_speed_samples_;
     PendingResume pending_resume_{};
     HWND hwnd_{};
     bool tray_exit_requested_{};

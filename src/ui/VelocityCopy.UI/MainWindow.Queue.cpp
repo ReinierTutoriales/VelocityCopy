@@ -233,6 +233,7 @@ void MainWindow::OnQueueKeyDown(IInspectable const&, KeyRoutedEventArgs const& a
 
 void MainWindow::OnQueueClick(IInspectable const&, RoutedEventArgs const&) {
     const bool expanding = QueuePanel().Visibility() != Visibility::Visible;
+    if (expanding) SetDetailsExpanded(false);
     QueuePanel().Visibility(expanding ? Visibility::Visible : Visibility::Collapsed);
     QueueChevron().Glyph(expanding ? L"\xE70E" : L"\xE70D");
 
