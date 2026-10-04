@@ -86,6 +86,24 @@ The layout may change, but the existing state transitions and command enablement
 
 This table is a preservation contract, not permission to normalize states that currently differ. If implementation and this table disagree during the phase-1 audit, preserve the current behavior and correct the table before changing behavior.
 
+## Phase 2 expanded Information + Performance
+
+Phase 2 adds an expanded **Details** surface to the same HWND. It is presentation-only: it does not alter copy planning, execution, conflict semantics or queue semantics.
+
+- Details has its own disclosure/action and must not reuse the Queue disclosure or `OnQueueClick`.
+- Details and Queue are mutually exclusive expanded surfaces. Opening Details collapses Queue; opening Queue collapses Details. This keeps one bounded expansion below the normal transfer surface and preserves Queue as a separate feature.
+- The normal Phase-1 transfer surface remains visible and authoritative while Details is expanded.
+- Details contains two sections: **Information** and **Performance**. It contains no queue list or queue editing controls.
+- Information may repeat or expand only data already available to presentation: full current source, full current destination, transferred/total bytes, completed/total files, aggregate percentage, current speed and ETA. Current-file byte size and a current-file ordinal remain unavailable and must not be inferred.
+- Long paths in Details wrap or trim predictably and expose the complete path through tooltip/accessibility text; they must not force horizontal window growth.
+- Performance visualizes `UiSnapshot.bytes_per_second`. The core exposes a smoothed instantaneous speed, not a time series, so Phase 2 owns a bounded speed-sample history entirely in `MainWindow`.
+- Presentation sampling is rate-limited independently of snapshot delivery. Keep at most 60 samples at approximately 500 ms spacing (about 30 seconds). Reset history for a new transfer; pause/stop may preserve the existing trace while live sampling stops naturally with snapshots.
+- The graph is descriptive only. It must not feed progress, ETA, execution policy or any core decision back into the transfer engine.
+- The graph scale is derived from the visible history with a non-zero floor; a zero-speed history renders as a baseline rather than NaN/invalid geometry.
+- Details height is content-driven through the existing `ResizeWindowToContent()` client-size contract and participates in DPI/text-scale remeasurement.
+- No continuous animation is introduced. The graph changes only when a rate-limited presentation sample is accepted.
+- Queue remains separately available with its existing planning/edit/reorder semantics. Phase 2 does not redesign Queue.
+
 ## Drag/drop contract
 
 Whole-window drag/drop is **append-only**.
