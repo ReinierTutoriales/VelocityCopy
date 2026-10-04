@@ -187,7 +187,6 @@ void MainWindow::FinalizeConflictSessionIfEmpty() {
     RefreshQueue();
 
     SetExpanded(false);
-    ResizeWindowToContent();
     SetExecutionButtonsIdle();
     SpeedText().Text(L"—");
     EtaText().Text(L"—");

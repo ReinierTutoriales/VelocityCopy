@@ -235,7 +235,6 @@ void MainWindow::StartTransfer(velocitycopy::CopyJob job, velocitycopy::StorageK
     QueueCountText().Text(L"0");
 
     SetExpanded(false);
-    ResizeWindowToContent();
     SetProgressFraction(0.0);
     SetExecutionButtonsPlanning();
     CurrentItemText().Text(job.display_name.empty() ? hstring(L"…") : hstring(job.display_name));
@@ -451,7 +450,6 @@ void MainWindow::CancelCurrentSession() {
         QueueCountText().Text(L"0");
 
         SetExpanded(false);
-    ResizeWindowToContent();
         SetExecutionButtonsIdle();
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
@@ -644,7 +642,6 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         RefreshQueue();
 
         SetExpanded(false);
-    ResizeWindowToContent();
         SetExecutionButtonsIdle();
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
@@ -669,7 +666,6 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         RefreshQueue();
 
         SetExpanded(false);
-    ResizeWindowToContent();
         SetExecutionButtonsIdle();
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
@@ -716,7 +712,6 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     RefreshQueue();
 
     SetExpanded(false);
-    ResizeWindowToContent();
     SetExecutionButtonsIdle();
     SpeedText().Text(L"—");
     EtaText().Text(L"—");
@@ -884,7 +879,6 @@ void MainWindow::FinalizeStoppedSessionIfEmpty() {
     RefreshQueue();
 
     SetExpanded(false);
-    ResizeWindowToContent();
     SetExecutionButtonsIdle();
     SetProgressFraction(1.0);
     if (queued_sessions_.empty()) DestroyCompletedWindow();

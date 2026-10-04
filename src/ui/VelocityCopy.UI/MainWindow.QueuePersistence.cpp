@@ -391,7 +391,6 @@ bool MainWindow::StartCopyPlan(
     QueueList().Items().Clear();
     QueueCountText().Text(L"0");
     SetExpanded(false);
-    ResizeWindowToContent();
     SetProgressFraction(0.0);
 
     live_plan_ = live;

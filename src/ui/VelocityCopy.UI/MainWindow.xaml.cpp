@@ -383,7 +383,6 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
             DetailsScrollViewer().VerticalScrollBarVisibility(ScrollBarVisibility::Disabled);
             ExpandedViewport().VerticalScrollMode(ScrollMode::Auto);
             ExpandedViewport().VerticalScrollBarVisibility(ScrollBarVisibility::Auto);
-            ExpandedViewport().IsTabStop(true);
             ExpandedRegion().ColumnSpacing(0.0);
             PerformancePanel().Margin(velocitycopy::ui::token_thickness(L"DetailsPerformanceMargin", Thickness{0.0,12.0,0.0,0.0}));
         }
@@ -452,6 +451,7 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
             constrained_height ? ScrollMode::Auto : ScrollMode::Disabled);
         ExpandedViewport().VerticalScrollBarVisibility(
             constrained_height ? ScrollBarVisibility::Auto : ScrollBarVisibility::Disabled);
+        ExpandedViewport().IsTabStop(constrained_height);
         expanded_region_height = constrained_height
             ? expanded_height_cap
             : queue_height + details_height + padding_height;
@@ -564,8 +564,6 @@ void MainWindow::ResetTransferSurface() {
 
 void MainWindow::SetExpanded(const bool expanded) {
     expanded_ = expanded;
-    // Transitional Phase 2 presentation: one logical expanded state, one visible panel.
-    // Phase 3 XAML will replace this with the integrated expanded surface.
     ExpandedRegion().Visibility(expanded ? Visibility::Visible : Visibility::Collapsed);
     try {
         const auto details_label = velocitycopy::localization::get_string(
@@ -579,10 +577,10 @@ void MainWindow::SetExpanded(const bool expanded) {
         RefreshQueue();
         UpdatePerformanceGraph();
     }
+    ResizeWindowToContent();
 }
 void MainWindow::OnDetailsClick(IInspectable const&, RoutedEventArgs const&) {
     SetExpanded(!expanded_);
-    ResizeWindowToContent();
     if (expanded_) {
         RootGrid().UpdateLayout();
         UpdatePerformanceGraph();

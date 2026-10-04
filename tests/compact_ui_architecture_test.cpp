@@ -371,10 +371,10 @@ int main() {
         !contains(narrow_branch, "Grid::SetColumn(DetailsViewport(), 0)") ||
         !contains(narrow_branch, "ExpandedViewport().VerticalScrollMode(ScrollMode::Auto)") ||
         !contains(narrow_branch, "ExpandedViewport().VerticalScrollBarVisibility(ScrollBarVisibility::Auto)") ||
-        !contains(narrow_branch, "ExpandedViewport().IsTabStop(true)") ||
         !contains(resize_to_content, "DetailsExpandedMinHeight") ||
         !contains(resize_to_content, "const double required_content_height = queue_min_height + details_min_height;") ||
         !contains(resize_to_content, "const bool constrained_height = content_cap < required_content_height;") ||
+        !contains(resize_to_content, "ExpandedViewport().IsTabStop(constrained_height)") ||
         !contains(resize_to_content, "const double queue_height = queue_min_height;") ||
         !contains(resize_to_content, "? details_min_height") ||
         !contains(resize_to_content, "expanded_region_height = constrained_height") ||
@@ -482,11 +482,18 @@ int main() {
     }
 
 
+    const auto set_expanded = body_of(window, "void MainWindow::SetExpanded(");
     const auto details_click = body_of(window, "void MainWindow::OnDetailsClick(");
     const auto observe_performance = body_of(window, "void MainWindow::ObservePerformanceSample(");
     const auto update_performance = body_of(window, "void MainWindow::UpdatePerformanceGraph()");
     if (!contains(xaml, "x:Name=\"PerformanceGraph\"") ||
         !contains(details_click, "SetExpanded(!expanded_)") ||
+        contains(details_click, "ResizeWindowToContent();") ||
+        !contains(set_expanded, "ResizeWindowToContent();") ||
+        contains(set_expanded, "Transitional Phase 2") ||
+        contains(execution, "SetExpanded(false);\n    ResizeWindowToContent();") ||
+        contains(queue_persistence, "SetExpanded(false);\n    ResizeWindowToContent();") ||
+        contains(conflict, "SetExpanded(false);\n    ResizeWindowToContent();") ||
         contains(xaml, "x:Name=\"QueueButton\"") ||
         stray_queue_button_reference ||
         !contains(xaml, "x:Name=\"ExpandedRegion\"") ||
