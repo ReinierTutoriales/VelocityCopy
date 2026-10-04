@@ -207,10 +207,8 @@ int main() {
         !contains(tokens, "<x:Double x:Key=\"TelemetrySpeedMinWidth\">64</x:Double>") ||
         !contains(tokens, "<x:Double x:Key=\"TelemetryPercentMinWidth\">36</x:Double>") ||
         !contains(tokens, "<Thickness x:Key=\"TransferContentPadding\">8,0,8,8</Thickness>") ||
-        !contains(tokens, "<Thickness x:Key=\"QueuePanelPadding\">8,8,8,12</Thickness>") ||
         !contains(xaml, "Height=\"{StaticResource CaptionRowHeight}\"") ||
         !contains(xaml, "<RowDefinition x:Name=\"CaptionRowDefinition\" Height=\"{StaticResource CaptionRowGridLength}\" />") ||
-        !contains(xaml, "Padding=\"{StaticResource QueuePanelPadding}\"") ||
         contains(xaml, "ComfortableState") || contains(tokens, "QueueMaxHeightComfortable")) {
         return fail(12, "compact resources must be live, shared and free of unreachable width states");
     }
@@ -364,8 +362,6 @@ int main() {
         !contains(three_column_branch, "ExpandedViewport().IsTabStop(false)") ||
         !contains(narrow_branch, "ExpandedRegion().ColumnSpacing(0.0)") ||
         !contains(narrow_branch, "PerformancePanel().Margin(") ||
-        !contains(narrow_branch, "token_thickness(L\"DetailsPerformanceMargin\"") ||
-        !contains(xaml, "x:Name=\"DetailsScrollViewer\"") ||
         !contains(xaml, "x:Name=\"ExpandedViewport\"") ||
         !contains(xaml, "Height=\"{StaticResource TransferProgressHeight}\"") ||
         !contains(xaml, "Margin=\"{StaticResource TransferProgressMargin}\"") ||
@@ -376,6 +372,7 @@ int main() {
         !contains(narrow_branch, "Grid::SetColumn(DetailsViewport(), 0)") ||
         !contains(narrow_branch, "ExpandedViewport().VerticalScrollMode(ScrollMode::Auto)") ||
         !contains(narrow_branch, "ExpandedViewport().VerticalScrollBarVisibility(ScrollBarVisibility::Auto)") ||
+        !contains(resize_to_content, "ExpandedViewport().MaxHeight(expanded_height_cap)") ||
         !contains(resize_to_content, "DetailsExpandedMinHeight") ||
         !contains(resize_to_content, "const double required_content_height = queue_min_height + details_min_height;") ||
         !contains(resize_to_content, "const bool constrained_height = content_cap < required_content_height;") ||

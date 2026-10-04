@@ -24,10 +24,9 @@
     <Thickness x:Key="TransferDetailMargin">0,8,0,0</Thickness><Thickness x:Key="TransferFilesMargin">0,4,0,0</Thickness>
     <Thickness x:Key="TransferPathMargin">0,8,0,0</Thickness><Thickness x:Key="TransferBottomMargin">0,8,0,0</Thickness>
     <Thickness x:Key="TransferContentPadding">8,0,8,8</Thickness><Thickness x:Key="CaptionContentPadding">0</Thickness>
-    <Thickness x:Key="BrandToContentMargin">0,0,8,0</Thickness><Thickness x:Key="QueuePanelPadding">8,8,8,12</Thickness>
+    <Thickness x:Key="BrandToContentMargin">0,0,8,0</Thickness>
     <Thickness x:Key="DetailsPanelPadding">8,12,8,12</Thickness>
     <Thickness x:Key="DetailsSectionMargin">0,8,0,0</Thickness>
-    <Thickness x:Key="DetailsPerformanceMargin">0,12,0,0</Thickness>
     <Thickness x:Key="PerformanceGraphMargin">0,8,0,0</Thickness>
     <Thickness x:Key="TransferProgressMargin">0,8,0,0</Thickness>
     <x:Double x:Key="TransferProgressHeight">4</x:Double>

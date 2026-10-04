@@ -350,8 +350,6 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
             Grid::SetColumn(InformationPanel(), 1);
             DetailsGrid().ColumnSpacing(
                 velocitycopy::ui::token_double(L"ExpandedColumnSpacing", 8));
-            DetailsScrollViewer().VerticalScrollMode(ScrollMode::Disabled);
-            DetailsScrollViewer().VerticalScrollBarVisibility(ScrollBarVisibility::Disabled);
             ExpandedViewport().VerticalScrollMode(ScrollMode::Disabled);
             ExpandedViewport().VerticalScrollBarVisibility(ScrollBarVisibility::Disabled);
             ExpandedViewport().IsTabStop(false);
@@ -380,8 +378,6 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
             Grid::SetRow(InformationPanel(), 1);
             Grid::SetColumn(InformationPanel(), 0);
             DetailsGrid().ColumnSpacing(0.0);
-            DetailsScrollViewer().VerticalScrollMode(ScrollMode::Disabled);
-            DetailsScrollViewer().VerticalScrollBarVisibility(ScrollBarVisibility::Disabled);
             ExpandedViewport().VerticalScrollMode(ScrollMode::Auto);
             ExpandedViewport().VerticalScrollBarVisibility(ScrollBarVisibility::Auto);
             ExpandedRegion().ColumnSpacing(0.0);
@@ -414,6 +410,7 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
         (std::max)(queue_min_height, work_height_epx - work_margin * 2.0 - normal_height - notice_height);
     const double expanded_height_cap = (std::max)(
         1.0, (std::min)(expanded_max_height, available_expanded_height));
+    ExpandedViewport().MaxHeight(expanded_height_cap);
     const auto expanded_padding = ExpandedRegion().Padding();
     const double expanded_column_spacing =
         velocitycopy::ui::token_double(L"ExpandedColumnSpacing", 8);

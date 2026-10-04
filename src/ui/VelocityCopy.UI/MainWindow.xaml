@@ -352,11 +352,6 @@
             </Grid>
 
             <Grid x:Name="DetailsViewport" Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2">
-                <ScrollViewer x:Name="DetailsScrollViewer"
-                              VerticalScrollBarVisibility="Disabled"
-                              VerticalScrollMode="Disabled"
-                              HorizontalScrollBarVisibility="Disabled"
-                              HorizontalScrollMode="Disabled">
                     <Grid x:Name="DetailsGrid">
                         <Grid.RowDefinitions>
                             <RowDefinition x:Name="DetailsRow0" Height="Auto" />
@@ -496,7 +491,6 @@
                 </Border>
             </Grid>
                     </Grid>
-                </ScrollViewer>
             </Grid>
         </Grid>
         </ScrollViewer>
