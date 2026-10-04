@@ -357,7 +357,8 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
             ExpandedViewport().IsTabStop(false);
             ExpandedRegion().ColumnSpacing(
                 velocitycopy::ui::token_double(L"ExpandedColumnSpacing", 8));
-            PerformancePanel().Margin(Thickness{});
+            PerformancePanel().Margin(
+                velocitycopy::ui::token_thickness(L"ExpandedSectionMargin", Thickness{4.0}));
         } else {
             ExpandedRow0().Height(GridLength{1.0, GridUnitType::Star});
             ExpandedRow1().Height(GridLength{1.0, GridUnitType::Star});
@@ -384,7 +385,8 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
             ExpandedViewport().VerticalScrollMode(ScrollMode::Auto);
             ExpandedViewport().VerticalScrollBarVisibility(ScrollBarVisibility::Auto);
             ExpandedRegion().ColumnSpacing(0.0);
-            PerformancePanel().Margin(velocitycopy::ui::token_thickness(L"DetailsPerformanceMargin", Thickness{0.0,12.0,0.0,0.0}));
+            PerformancePanel().Margin(
+                velocitycopy::ui::token_thickness(L"ExpandedSectionMargin", Thickness{4.0}));
         }
     }
 

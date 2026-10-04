@@ -31,7 +31,7 @@ int main(){
  const auto accessor=read_source(root/"src/ui/VelocityCopy.UI/UiTokens.h");
  const auto xaml=read_source(root/"src/ui/VelocityCopy.UI/MainWindow.xaml");
  if(tokens.empty()||accessor.empty()||xaml.empty()) return fail(1,"required UI token source missing");
- for(const auto* key:{"NormalWindowMinWidth","CaptionRowHeight","QueueExpandedMinHeight","DetailsExpandedMinHeight","QueueExpandedMaxHeight","ActionButtonSize","ActionIconSize","CaptionFontSize","BodyFontSize","SubtitleFontSize","PerformanceGraphHeight","PerformanceAxisLabelMinWidth","AboutWindowWidth","AboutWindowHeight"})
+ for(const auto* key:{"NormalWindowMinWidth","CaptionRowHeight","QueueExpandedMinHeight","DetailsExpandedMinHeight","QueueExpandedMaxHeight","ActionButtonSize","ActionIconSize","CaptionFontSize","BodyFontSize","SubtitleFontSize","TransferProgressHeight","PerformanceGraphHeight","PerformanceAxisLabelMinWidth","AboutWindowWidth","AboutWindowHeight"})
   if(!contains(tokens,std::string("x:Key=\"")+key+"\"")) return fail(2,"required token missing");
  if(!contains(accessor,"Application::Current().Resources().Lookup")||!contains(accessor,"token_double")||!contains(accessor,"token_thickness")||!contains(read_source(root/"src/ui/VelocityCopy.UI/MainWindow.xaml.cpp"),"token_double(L\"CaptionRowHeight\", 32)")) return fail(3,"XAML/C++ token bridge incomplete");
  for(const auto* name:{"MainWindow.xaml.cpp","MainWindow.Queue.cpp","MainWindow.Conflict.cpp","MainWindow.Execution.cpp","MainWindow.QueuePersistence.cpp"}){

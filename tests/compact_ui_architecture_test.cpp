@@ -356,7 +356,7 @@ int main() {
         !contains(resize_to_content, "expanded_padding.Top + expanded_padding.Bottom") ||
         !contains(three_column_branch, "ExpandedRegion().ColumnSpacing(") ||
         !contains(three_column_branch, "ExpandedColumnSpacing") ||
-        !contains(three_column_branch, "PerformancePanel().Margin(Thickness{})") ||
+        !contains(three_column_branch, "token_thickness(L\"ExpandedSectionMargin\"") ||
         !contains(three_column_branch, "Grid::SetRow(DetailsViewport(), 0)") ||
         !contains(three_column_branch, "Grid::SetColumn(DetailsViewport(), 1)") ||
         !contains(three_column_branch, "ExpandedViewport().VerticalScrollMode(ScrollMode::Disabled)") ||
@@ -367,6 +367,11 @@ int main() {
         !contains(narrow_branch, "token_thickness(L\"DetailsPerformanceMargin\"") ||
         !contains(xaml, "x:Name=\"DetailsScrollViewer\"") ||
         !contains(xaml, "x:Name=\"ExpandedViewport\"") ||
+        !contains(xaml, "Height=\"{StaticResource TransferProgressHeight}\"") ||
+        !contains(xaml, "Margin=\"{StaticResource TransferProgressMargin}\"") ||
+        !contains(xaml, "Background=\"{ThemeResource CardBackgroundFillColorDefaultBrush}\"") ||
+        count_occurrences(xaml, "BorderBrush=\"{ThemeResource CardStrokeColorDefaultBrush}\"") < 4 ||
+        count_occurrences(xaml, "CornerRadius=\"{ThemeResource ControlCornerRadius}\"") < 4 ||
         !contains(narrow_branch, "Grid::SetRow(DetailsViewport(), 1)") ||
         !contains(narrow_branch, "Grid::SetColumn(DetailsViewport(), 0)") ||
         !contains(narrow_branch, "ExpandedViewport().VerticalScrollMode(ScrollMode::Auto)") ||

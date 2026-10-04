@@ -17,14 +17,6 @@
         <Grid x:Name="TransferSurface"
               Grid.Row="0">
             <Grid>
-                <ProgressBar x:Name="TransferProgress"
-                             Minimum="0"
-                             Maximum="100"
-                             Value="0"
-                             VerticalAlignment="Bottom"
-                             HorizontalAlignment="Stretch"
-                             IsHitTestVisible="False" />
-
                 <Grid x:Name="TitleBarDragRegion"
                       Height="{StaticResource CaptionRowHeight}"
                       VerticalAlignment="Top"
@@ -36,6 +28,7 @@
                       Padding="{StaticResource TransferContentPadding}">
                     <Grid.RowDefinitions>
                         <RowDefinition x:Name="CaptionRowDefinition" Height="{StaticResource CaptionRowGridLength}" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
@@ -90,8 +83,18 @@
                                    MaxLines="1" />
                     </Grid>
 
+                    <ProgressBar x:Name="TransferProgress"
+                                 Grid.Row="2"
+                                 Minimum="0"
+                                 Maximum="100"
+                                 Value="0"
+                                 Height="{StaticResource TransferProgressHeight}"
+                                 Margin="{StaticResource TransferProgressMargin}"
+                                 HorizontalAlignment="Stretch"
+                                 IsHitTestVisible="False" />
+
                     <Grid x:Name="TransferPathGrid"
-                          Grid.Row="2"
+                          Grid.Row="3"
                           Margin="{StaticResource TransferPathMargin}"
                           ColumnSpacing="{StaticResource SpaceRelated}">
                         <Grid.ColumnDefinitions>
@@ -119,7 +122,7 @@
                     </Grid>
 
                     <Grid x:Name="BottomContentGrid"
-                          Grid.Row="3"
+                          Grid.Row="4"
                           Margin="{StaticResource TransferBottomMargin}"
                           ColumnSpacing="{StaticResource SpaceRelated}">
                         <Grid.ColumnDefinitions>
@@ -249,7 +252,13 @@
                 <ColumnDefinition x:Name="ExpandedColumn2" Width="*" />
             </Grid.ColumnDefinitions>
 
-            <Grid x:Name="QueuePanel" Grid.Row="0" Grid.Column="0" Padding="{StaticResource QueuePanelPadding}">
+            <Grid x:Name="QueuePanel" Grid.Row="0" Grid.Column="0" Margin="{StaticResource ExpandedSectionMargin}">
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{ThemeResource ControlCornerRadius}"
+                    Padding="{StaticResource ExpandedSectionPadding}">
+            <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
@@ -338,7 +347,8 @@
                     </Button>
                 </Grid>
             </Grid>
-
+            </Grid>
+            </Border>
             </Grid>
 
             <Grid x:Name="DetailsViewport" Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2">
@@ -357,7 +367,13 @@
                             <ColumnDefinition x:Name="DetailsColumn1" Width="*" />
                         </Grid.ColumnDefinitions>
 
-            <Grid x:Name="PerformancePanel" Grid.Row="0" Grid.Column="0">
+            <Grid x:Name="PerformancePanel" Grid.Row="0" Grid.Column="0" Margin="{StaticResource ExpandedSectionMargin}">
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="{ThemeResource ControlCornerRadius}"
+                        Padding="{StaticResource ExpandedSectionPadding}">
+                <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -422,9 +438,17 @@
                         </Canvas>
                     </Border>
                 </Grid>
+                </Grid>
+                </Border>
             </Grid>
 
-            <Grid x:Name="InformationPanel" Grid.Row="0" Grid.Column="1">
+            <Grid x:Name="InformationPanel" Grid.Row="0" Grid.Column="1" Margin="{StaticResource ExpandedSectionMargin}">
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="{ThemeResource ControlCornerRadius}"
+                        Padding="{StaticResource ExpandedSectionPadding}">
+                <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -468,8 +492,8 @@
                 <TextBlock x:Uid="DetailsEtaLabel" Grid.Row="5" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
                 <TextBlock x:Name="DetailsEtaText" Grid.Row="5" Grid.Column="1" FontSize="{StaticResource CaptionFontSize}" />
             </Grid>
-
-
+                </Grid>
+                </Border>
             </Grid>
                     </Grid>
                 </ScrollViewer>
