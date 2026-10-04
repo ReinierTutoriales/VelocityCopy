@@ -352,8 +352,7 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
             Grid::SetRow(InformationPanel(), 2);
             Grid::SetColumn(InformationPanel(), 0);
             ExpandedRegion().ColumnSpacing(0.0);
-            PerformancePanel().Margin(velocitycopy::ui::token_thickness(
-                L"DetailsPerformanceMargin", Thickness{0.0, 12.0, 0.0, 0.0}));
+            PerformancePanel().Margin(velocitycopy::ui::token_thickness(L"DetailsPerformanceMargin", Thickness{0.0,12.0,0.0,0.0}));
         }
     }
 

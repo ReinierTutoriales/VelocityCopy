@@ -142,7 +142,7 @@ int main() {
         !contains(tokens, "<x:Double x:Key=\"ExpandedPreferredWidth\">880</x:Double>") ||
         !contains(tokens, "<x:Double x:Key=\"ExpandedThreeColumnThreshold\">720</x:Double>") ||
         !contains(tokens, "<x:Double x:Key=\"ExpandedWorkAreaMargin\">16</x:Double>") ||
-        !contains(window, "token_int(L\"NormalWindowMinWidth\", 380)") ||
+        !contains(window, "token_double(L\"NormalWindowMinWidth\", 380)") ||
         contains(window, "token_int(L\"CompactWindowWidth\"") ||
         contains(tokens, "CompactWindowWidth") ||
         contains(tokens, "CompactSurfaceHeight") ||
