@@ -63,13 +63,28 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon x:Name="CurrentItemIcon"
+                                  Grid.RowSpan="2"
+                                  Glyph="&#xE8A5;"
+                                  FontFamily="Segoe Fluent Icons"
+                                  FontSize="{StaticResource TransferItemIconSize}"
+                                  Foreground="{ThemeResource AccentFillColorDefaultBrush}"
+                                  Margin="{StaticResource TransferItemIconMargin}"
+                                  VerticalAlignment="Center"
+                                  IsHitTestVisible="False" />
                         <TextBlock x:Name="TransferBytesText"
+                                   Grid.Column="1"
                                    FontSize="{StaticResource BodyFontSize}"
                                    FontWeight="SemiBold"
                                    TextTrimming="CharacterEllipsis"
                                    MaxLines="1" />
                         <TextBlock x:Name="TransferFilesText"
                                    Grid.Row="1"
+                                   Grid.Column="1"
                                    Margin="{StaticResource TransferFilesMargin}"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                    FontSize="{StaticResource CaptionFontSize}"
@@ -144,6 +159,7 @@
                             <TextBlock x:Name="ProgressPercentText"
                                        Text="0%"
                                        MinWidth="{StaticResource TelemetryPercentMinWidth}"
+                                       Foreground="{ThemeResource AccentFillColorDefaultBrush}"
                                        FontSize="{StaticResource CaptionFontSize}"
                                        FontWeight="SemiBold" />
                             <TextBlock x:Name="EtaText"
@@ -268,13 +284,22 @@
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock x:Name="QueueTitle"
-                                           x:Uid="QueueTitle"
-                                           VerticalAlignment="Center"
-                                           TextTrimming="CharacterEllipsis"
-                                           MaxLines="1"
-                                           FontWeight="SemiBold"
-                                           FontSize="{StaticResource BodyFontSize}" />
+                                <StackPanel Orientation="Horizontal"
+                                            VerticalAlignment="Center">
+                                    <FontIcon Glyph="&#xE8A5;"
+                                              FontFamily="Segoe Fluent Icons"
+                                              FontSize="{StaticResource SectionIconSize}"
+                                              Foreground="{ThemeResource AccentFillColorDefaultBrush}"
+                                              Margin="{StaticResource SectionIconMargin}"
+                                              IsHitTestVisible="False" />
+                                    <TextBlock x:Name="QueueTitle"
+                                               x:Uid="QueueTitle"
+                                               VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"
+                                               MaxLines="1"
+                                               FontWeight="SemiBold"
+                                               FontSize="{StaticResource BodyFontSize}" />
+                                </StackPanel>
                                 <TextBlock x:Name="QueueCountText"
                                            Grid.Column="1"
                                            Margin="0,0,8,0"
@@ -385,9 +410,17 @@
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock x:Uid="DetailsPerformanceTitle"
-                                                   FontWeight="SemiBold"
-                                                   FontSize="{StaticResource BodyFontSize}" />
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <FontIcon Glyph="&#xE9D2;"
+                                                      FontFamily="Segoe Fluent Icons"
+                                                      FontSize="{StaticResource SectionIconSize}"
+                                                      Foreground="{ThemeResource AccentFillColorDefaultBrush}"
+                                                      Margin="{StaticResource SectionIconMargin}"
+                                                      IsHitTestVisible="False" />
+                                            <TextBlock x:Uid="DetailsPerformanceTitle"
+                                                       FontWeight="SemiBold"
+                                                       FontSize="{StaticResource BodyFontSize}" />
+                                        </StackPanel>
                                         <TextBlock x:Name="PerformanceCurrentSpeedText"
                                                    Grid.Column="1"
                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
@@ -455,15 +488,24 @@
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
-                                    <TextBlock x:Name="DetailsInformationTitle"
-                                               x:Uid="DetailsInformationTitle"
-                                               FontWeight="SemiBold"
-                                               FontSize="{StaticResource BodyFontSize}" />
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <FontIcon Glyph="&#xE946;"
+                                                  FontFamily="Segoe Fluent Icons"
+                                                  FontSize="{StaticResource SectionIconSize}"
+                                                  Foreground="{ThemeResource AccentFillColorDefaultBrush}"
+                                                  Margin="{StaticResource SectionIconMargin}"
+                                                  IsHitTestVisible="False" />
+                                        <TextBlock x:Name="DetailsInformationTitle"
+                                                   x:Uid="DetailsInformationTitle"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="{StaticResource BodyFontSize}" />
+                                    </StackPanel>
 
                                     <Grid Grid.Row="1"
                                           Margin="{StaticResource DetailsSectionMargin}"
                                           ColumnSpacing="{StaticResource SpaceRelated}">
                                         <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
@@ -476,23 +518,47 @@
                                             <RowDefinition Height="Auto" />
                                         </Grid.RowDefinitions>
 
-                                        <TextBlock x:Uid="DetailsSourceLabel" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
-                                        <TextBlock x:Name="DetailsSourceText" Grid.Column="1" TextWrapping="Wrap" MaxLines="2" FontSize="{StaticResource CaptionFontSize}" />
+                                        <FontIcon Grid.Row="0" Glyph="&#xE8B7;" FontFamily="Segoe Fluent Icons"
+                                                  FontSize="{StaticResource InformationIconSize}"
+                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                  Margin="{StaticResource SectionIconMargin}" />
+                                        <TextBlock x:Uid="DetailsSourceLabel" Grid.Column="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
+                                        <TextBlock x:Name="DetailsSourceText" Grid.Column="2" TextWrapping="Wrap" MaxLines="2" FontSize="{StaticResource CaptionFontSize}" />
 
-                                        <TextBlock x:Uid="DetailsDestinationLabel" Grid.Row="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
-                                        <TextBlock x:Name="DetailsDestinationText" Grid.Row="1" Grid.Column="1" TextWrapping="Wrap" MaxLines="2" FontSize="{StaticResource CaptionFontSize}" />
+                                        <FontIcon Grid.Row="1" Glyph="&#xE8B7;" FontFamily="Segoe Fluent Icons"
+                                                  FontSize="{StaticResource InformationIconSize}"
+                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                  Margin="{StaticResource SectionIconMargin}" />
+                                        <TextBlock x:Uid="DetailsDestinationLabel" Grid.Row="1" Grid.Column="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
+                                        <TextBlock x:Name="DetailsDestinationText" Grid.Row="1" Grid.Column="2" TextWrapping="Wrap" MaxLines="2" FontSize="{StaticResource CaptionFontSize}" />
 
-                                        <TextBlock x:Uid="DetailsBytesLabel" Grid.Row="2" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
-                                        <TextBlock x:Name="DetailsBytesText" Grid.Row="2" Grid.Column="1" FontSize="{StaticResource CaptionFontSize}" />
+                                        <FontIcon Grid.Row="2" Glyph="&#xE8A5;" FontFamily="Segoe Fluent Icons"
+                                                  FontSize="{StaticResource InformationIconSize}"
+                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                  Margin="{StaticResource SectionIconMargin}" />
+                                        <TextBlock x:Uid="DetailsBytesLabel" Grid.Row="2" Grid.Column="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
+                                        <TextBlock x:Name="DetailsBytesText" Grid.Row="2" Grid.Column="2" FontSize="{StaticResource CaptionFontSize}" />
 
-                                        <TextBlock x:Uid="DetailsFilesLabel" Grid.Row="3" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
-                                        <TextBlock x:Name="DetailsFilesText" Grid.Row="3" Grid.Column="1" FontSize="{StaticResource CaptionFontSize}" />
+                                        <FontIcon Grid.Row="3" Glyph="&#xE8A5;" FontFamily="Segoe Fluent Icons"
+                                                  FontSize="{StaticResource InformationIconSize}"
+                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                  Margin="{StaticResource SectionIconMargin}" />
+                                        <TextBlock x:Uid="DetailsFilesLabel" Grid.Row="3" Grid.Column="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
+                                        <TextBlock x:Name="DetailsFilesText" Grid.Row="3" Grid.Column="2" FontSize="{StaticResource CaptionFontSize}" />
 
-                                        <TextBlock x:Uid="DetailsSpeedLabel" Grid.Row="4" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
-                                        <TextBlock x:Name="DetailsSpeedText" Grid.Row="4" Grid.Column="1" FontSize="{StaticResource CaptionFontSize}" />
+                                        <FontIcon Grid.Row="4" Glyph="&#xE9D2;" FontFamily="Segoe Fluent Icons"
+                                                  FontSize="{StaticResource InformationIconSize}"
+                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                  Margin="{StaticResource SectionIconMargin}" />
+                                        <TextBlock x:Uid="DetailsSpeedLabel" Grid.Row="4" Grid.Column="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
+                                        <TextBlock x:Name="DetailsSpeedText" Grid.Row="4" Grid.Column="2" FontSize="{StaticResource CaptionFontSize}" />
 
-                                        <TextBlock x:Uid="DetailsEtaLabel" Grid.Row="5" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
-                                        <TextBlock x:Name="DetailsEtaText" Grid.Row="5" Grid.Column="1" FontSize="{StaticResource CaptionFontSize}" />
+                                        <FontIcon Grid.Row="5" Glyph="&#xE823;" FontFamily="Segoe Fluent Icons"
+                                                  FontSize="{StaticResource InformationIconSize}"
+                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                  Margin="{StaticResource SectionIconMargin}" />
+                                        <TextBlock x:Uid="DetailsEtaLabel" Grid.Row="5" Grid.Column="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
+                                        <TextBlock x:Name="DetailsEtaText" Grid.Row="5" Grid.Column="2" FontSize="{StaticResource CaptionFontSize}" />
                                     </Grid>
                                 </Grid>
                             </Border>

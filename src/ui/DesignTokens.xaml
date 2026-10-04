@@ -20,6 +20,10 @@
     <Thickness x:Key="QueueCommandGapMargin">0,0,4,0</Thickness>
     <x:Double x:Key="CaptionFontSize">12</x:Double><x:Double x:Key="BodyFontSize">14</x:Double><x:Double x:Key="SubtitleFontSize">20</x:Double>
     <x:Double x:Key="ActionIconSize">16</x:Double>
+    <x:Double x:Key="TransferItemIconSize">20</x:Double><x:Double x:Key="SectionIconSize">14</x:Double>
+    <x:Double x:Key="QueueItemIconSize">14</x:Double><x:Double x:Key="InformationIconSize">12</x:Double>
+    <Thickness x:Key="TransferItemIconMargin">0,1,8,0</Thickness><Thickness x:Key="SectionIconMargin">0,0,6,0</Thickness>
+    <Thickness x:Key="QueueItemIconMargin">0,0,8,0</Thickness>
     <x:Double x:Key="ActionButtonSize">32</x:Double><x:Double x:Key="BrandMarkSize">20</x:Double>
     <x:Double x:Key="TelemetrySpeedMinWidth">64</x:Double><x:Double x:Key="TelemetryPercentMinWidth">36</x:Double>
     <x:Double x:Key="PathArrowIconSize">12</x:Double>

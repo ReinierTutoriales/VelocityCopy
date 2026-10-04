@@ -57,6 +57,24 @@ void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
         name.FontWeight(Windows::UI::Text::FontWeights::SemiBold());
         name.FontSize(velocitycopy::ui::token_double(L"BodyFontSize", 14));
 
+        FontIcon item_icon;
+        item_icon.Glyph(L"\xE8A5");
+        item_icon.FontFamily(Microsoft::UI::Xaml::Media::FontFamily{L"Segoe Fluent Icons"});
+        item_icon.FontSize(velocitycopy::ui::token_double(L"QueueItemIconSize", 14));
+        item_icon.Margin(velocitycopy::ui::token_thickness(
+            L"QueueItemIconMargin", Thickness{0, 0, 8, 0}));
+        item_icon.VerticalAlignment(VerticalAlignment::Center);
+        item_icon.IsHitTestVisible(false);
+
+        Grid name_line;
+        name_line.ColumnDefinitions().Append(ColumnDefinition{});
+        name_line.ColumnDefinitions().GetAt(0).Width(GridLength{0.0, GridUnitType::Auto});
+        name_line.ColumnDefinitions().Append(ColumnDefinition{});
+        name_line.ColumnDefinitions().GetAt(1).Width(GridLength{1.0, GridUnitType::Star});
+        Grid::SetColumn(name, 1);
+        name_line.Children().Append(item_icon);
+        name_line.Children().Append(name);
+
         TextBlock location;
         location.Text(hstring(source.parent_path().wstring()));
         location.TextTrimming(TextTrimming::CharacterEllipsis);
@@ -81,7 +99,7 @@ void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
             Grid::SetRow(location, 1);
         }
 
-        row.Children().Append(name);
+        row.Children().Append(name_line);
         row.Children().Append(location);
 
         const auto full_path = source.wstring();
