@@ -277,6 +277,8 @@ int main() {
     // on an enabled transparent host so Pause/Cancel remain discoverable while idle.
     if (!contains(xaml, "x:Name=\"PauseButtonHost\"") ||
         !contains(xaml, "x:Name=\"CancelButtonHost\"") ||
+        !contains(xaml, "x:Name=\"PrimaryActionCluster\"") ||
+        !contains(xaml, "x:Name=\"DetailsButton\"\n                                Grid.Column=\"3\"") ||
         !contains(window, "ToolTipService::SetToolTip(PauseButtonHost()") ||
         !contains(window, "ToolTipService::SetToolTip(CancelButtonHost()") ||
         contains(window, "ToolTipService::SetToolTip(PauseButton()") ||
