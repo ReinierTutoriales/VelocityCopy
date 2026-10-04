@@ -154,6 +154,9 @@ int main() {
         !contains(tokens, "<x:Double x:Key=\"ExpandedThreeColumnThreshold\">720</x:Double>") ||
         !contains(tokens, "<x:Double x:Key=\"ExpandedWorkAreaMargin\">16</x:Double>") ||
         !contains(window, "token_double(L\"NormalWindowMinWidth\", 380)") ||
+        !contains(window, "const double effective_width = target_width / text_scale;") ||
+        !contains(window, "expanded_layout_mode_ = effective_width >= three_column_threshold") ||
+        !contains(window, "TransferSurface().InvalidateMeasure();") ||
         contains(window, "token_int(L\"CompactWindowWidth\"") ||
         contains(tokens, "CompactWindowWidth") ||
         contains(tokens, "CompactSurfaceHeight") ||

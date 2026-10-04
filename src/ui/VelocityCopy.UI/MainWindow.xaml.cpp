@@ -325,7 +325,9 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
         : normal_width;
 
     if (expanded_) {
-        expanded_layout_mode_ = target_width >= three_column_threshold
+        const double text_scale = (std::max)(1.0, last_text_scale_factor_);
+        const double effective_width = target_width / text_scale;
+        expanded_layout_mode_ = effective_width >= three_column_threshold
             ? ExpandedLayoutMode::ThreeColumn
             : ExpandedLayoutMode::Narrow;
         if (expanded_layout_mode_ == ExpandedLayoutMode::ThreeColumn) {
@@ -387,6 +389,7 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
     }
 
     const float measure_width = static_cast<float>(target_width);
+    TransferSurface().InvalidateMeasure();
     TransferSurface().Measure({measure_width, std::numeric_limits<float>::infinity()});
     const double normal_height = TransferSurface().DesiredSize().Height;
     double notice_height = 0.0;
