@@ -131,6 +131,22 @@ int main() {
         return fail(9, "packaging must run on main without Chocolatey and stay classic for x64 and ARM64");
     }
 
+    const auto occurrences = [](const std::string& text, const std::string& value) {
+        std::size_t count = 0;
+        for (auto at = text.find(value); at != std::string::npos; at = text.find(value, at + value.size())) ++count;
+        return count;
+    };
+    // Signing scripts report failure by exception. A child `pwsh -File` turns
+    // that into an exit code nobody checks, and inside a loop a later success
+    // resets $LASTEXITCODE: an unsigned binary would pass. They must run
+    // in-process so the exception fails the step.
+    if (contains(package_workflow, "pwsh -NoProfile -File tools/ci/Sign-VelocityCopyBinary.ps1") ||
+        contains(package_workflow, "pwsh -NoProfile -File tools/ci/Test-AuthenticodePipeline.ps1") ||
+        occurrences(package_workflow, "& ./tools/ci/Sign-VelocityCopyBinary.ps1") != 2 ||
+        occurrences(package_workflow, "& ./tools/ci/Test-AuthenticodePipeline.ps1") != 2) {
+        return fail(18, "signing scripts must run in-process so a failure inside a loop cannot be masked");
+    }
+
     if (!contains(installer_exe, "RequestExecutionLevel admin") ||
         !contains(installer_exe, "PAYLOAD_DIR") ||
         !contains(installer_exe, "PAYLOAD_ARCH") ||
