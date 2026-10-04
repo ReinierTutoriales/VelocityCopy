@@ -383,7 +383,9 @@ int main() {
         !contains(narrow_branch, "ExpandedRegion().ColumnSpacing(0.0)") ||
         !contains(narrow_branch, "PerformancePanel().Margin(") ||
         !contains(xaml, "x:Name=\"ExpandedViewport\"") ||
-        !contains(xaml, "Height=\"{StaticResource TransferProgressHeight}\"") ||
+        !contains(xaml, "MinHeight=\"{StaticResource TransferProgressHeight}\"") ||
+        !contains(xaml, "<x:Double x:Key=\"ProgressBarTrackHeight\">8</x:Double>") ||
+        contains(xaml, "<ControlTemplate TargetType=\"ProgressBar\"") ||
         !contains(xaml, "Margin=\"{StaticResource TransferProgressMargin}\"") ||
         !contains(xaml, "Background=\"{ThemeResource CardBackgroundFillColorDefaultBrush}\"") ||
         count_occurrences(xaml, "BorderBrush=\"{ThemeResource CardStrokeColorDefaultBrush}\"") < 4 ||

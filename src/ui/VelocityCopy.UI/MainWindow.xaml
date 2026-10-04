@@ -88,10 +88,14 @@
                                  Minimum="0"
                                  Maximum="100"
                                  Value="0"
-                                 Height="{StaticResource TransferProgressHeight}"
+                                 MinHeight="{StaticResource TransferProgressHeight}"
                                  Margin="{StaticResource TransferProgressMargin}"
                                  HorizontalAlignment="Stretch"
-                                 IsHitTestVisible="False" />
+                                 IsHitTestVisible="False">
+                        <ProgressBar.Resources>
+                            <x:Double x:Key="ProgressBarTrackHeight">8</x:Double>
+                        </ProgressBar.Resources>
+                    </ProgressBar>
 
                     <Grid x:Name="TransferPathGrid"
                           Grid.Row="3"
