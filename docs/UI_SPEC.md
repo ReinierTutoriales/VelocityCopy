@@ -188,3 +188,25 @@ Only the **top caption-content row** reserves `AppWindowTitleBar.RightInset`. Th
 ### Launch diagnostics
 
 Unhandled WinUI exceptions remain fatal. `App` registers an `UnhandledException` observer before `App::InitializeComponent()` only to record the HRESULT and message; it must never set `Handled=true`. `OutputDebugStringW` is always available for an attached debugger. File logging is opt-in: when `VELOCITYCOPY_DIAGNOSTIC_LOG` names a writable path, the same HRESULT/message is appended there. CI x64 launch smoke sets this variable and publishes the file with `if: always()`; absence of the file is a warning because it is diagnostic evidence that failure may have occurred before the `App` observer could run.
+
+
+## Phase 3 expanded-view contract
+
+Phase 3 supersedes the Phase 2 presentation rule that Queue and Details are mutually exclusive. It does not change transfer planning, execution, conflict, recovery, or queue semantics.
+
+- The normal surface remains 380 epx wide and keeps the Phase 1/2 transfer presentation.
+- A single **Details / Hide details** disclosure owns expanded presentation state. Expanded presentation shows Queue, Performance, and Information together in the same HWND. Queue no longer has an independent disclosure state.
+- `ExpandedPreferredWidth` is 880 epx. Effective expanded width is the lesser of 880 epx and the current monitor work-area width in effective pixels minus the window safety margin.
+- `ExpandedThreeColumnThreshold` is 720 epx. At or above that effective width the expanded region is `Queue | Performance | Information`. Below it, the UI uses a narrow composition with Queue beside or above the stacked Performance/Information region. C++ selects the layout mode before resizing and applies the matching VisualState; Phase 3 does not use `AdaptiveTrigger` for this transition.
+- User pointer resizing remains disabled. Programmatic expansion/collapse uses a width-and-height resize contract and performs one final HWND placement after the layout mode and target dimensions are known.
+- Expanded height is content-driven from the normal surface plus the expanded region. Performance and Information contribute their measured content height. Queue consumes the available expanded-row height through its ScrollViewer/virtualized list and does not dictate unbounded window height.
+- Expanded height has a tokenized upper bound and is additionally clamped to the monitor work-area height.
+- Programmatic resizing is confined to the current monitor `rcWork`. Expansion preserves the left/top position when possible and shifts left and/or up only as far as necessary to keep the complete HWND inside the work area. Collapse keeps the resulting position; it does not restore pre-expansion coordinates.
+- `SetExpanded(bool)` is the sole writer of expanded presentation visibility/state. Terminal, conflict, persistence, and queue paths request presentation changes through that state instead of independently collapsing Queue or Details controls.
+- Expansion is available for a single transfer. Queue presents the accepted/current session or an empty state as appropriate; expanded geometry must not depend on there being multiple jobs.
+- Phase 3 initially displays only data with an authoritative existing source: source, destination, transferred/total bytes, aggregate percentage, completed/total files, current speed, and ETA.
+- Current-file byte size and active-transfer count remain unavailable and must not be inferred.
+- Destination filesystem type may be added later from a real `GetVolumeInformationW` query, in a separate change.
+- Average speed is deferred until its active-time semantics are explicitly specified; Phase 3 must not synthesize it from wall-clock duration.
+- The Phase 2 performance sampling contract remains authoritative. A later presentation-only change may replace bars with a line/area graph and clean Y-axis labels without changing sample cadence, source, pause/cancel/terminal gating, or feeding graph data back into execution.
+- Per-job queue progress is a separate presentation change. The active job may use authoritative aggregate progress; waiting jobs are labelled as waiting. It must not invent per-file or per-job progress unavailable from the current execution model.
