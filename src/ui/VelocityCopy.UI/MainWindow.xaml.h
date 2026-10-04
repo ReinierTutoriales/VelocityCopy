@@ -195,6 +195,7 @@ private:
     [[nodiscard]] std::vector<std::uint64_t> SelectedPendingIds();
     void ResizeWindow(int width_epx, int height_epx, bool preserve_position = false);
     void ResizeWindowToContent(bool preserve_position = false);
+    void LogTelemetryGeometry();
     void SetProgressFraction(double fraction);
     void ResetCurrentItemState() noexcept;
     void ResetInterruptedSessionState() noexcept;
