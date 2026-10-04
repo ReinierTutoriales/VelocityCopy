@@ -247,7 +247,7 @@ void MainWindow::OnQueueClick(IInspectable const&, RoutedEventArgs const&) {
         RefreshQueue();
         ResizeWindowToContent();
     } else {
-        ResizeWindow(velocitycopy::ui::token_int(L"CompactSurfaceHeight", 72));
+        ResizeWindowToContent();
     }
 }
 
