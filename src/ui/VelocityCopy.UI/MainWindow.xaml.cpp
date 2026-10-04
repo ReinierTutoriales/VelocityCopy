@@ -335,6 +335,8 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
             Grid::SetColumn(PerformancePanel(), 1);
             Grid::SetRow(InformationPanel(), 0);
             Grid::SetColumn(InformationPanel(), 2);
+            ExpandedRegion().ColumnSpacing(
+                velocitycopy::ui::token_double(L"ExpandedColumnSpacing", 8));
             PerformancePanel().Margin(Thickness{});
         } else {
             ExpandedRow0().Height(GridLength{1.0, GridUnitType::Star});
@@ -349,7 +351,9 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
             Grid::SetColumn(PerformancePanel(), 0);
             Grid::SetRow(InformationPanel(), 2);
             Grid::SetColumn(InformationPanel(), 0);
-            PerformancePanel().Margin(Thickness{0.0, 12.0, 0.0, 0.0});
+            ExpandedRegion().ColumnSpacing(0.0);
+            PerformancePanel().Margin(velocitycopy::ui::token_thickness(
+                L"DetailsPerformanceMargin", Thickness{0.0, 12.0, 0.0, 0.0}));
         }
     }
 

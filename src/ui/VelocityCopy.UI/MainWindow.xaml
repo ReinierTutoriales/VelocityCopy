@@ -333,7 +333,7 @@
                     </Button>
                 </Grid>
             </Grid>
-        
+
             </Grid>
 
             <Grid x:Name="PerformancePanel" Grid.Row="0" Grid.Column="1">

@@ -85,7 +85,7 @@ int main() {
     }
 
     // UI_SPEC: the compact surface has exactly four primary actions (Pause/Resume,
-    // Cancel, Options, queue disclosure). Skip and Stop are Options menu commands
+    // Cancel, Options, Details disclosure). Skip and Stop are Options menu commands
     // only, with dynamic enablement; no visible or hidden XAML buttons.
     const auto refresh_menu = body_of(menu, "void MainWindow::RefreshExecutionMenuState(");
     const auto cluster_start = xaml.find("x:Name=\"PrimaryActionCluster\"");
@@ -100,7 +100,7 @@ int main() {
         contains(window, "SkipButton()") || contains(window, "StopButton()") ||
         contains(header, "RefreshExecutionButtonState") ||
         contains(tokens, "SkipIconSize") || contains(tokens, "StopIconSize") ||
-        primary_action_count != 5 ||
+        primary_action_count != 4 ||
         !contains(menu, "skip_menu_item_.Click({this, &MainWindow::OnMenuSkipClick})") ||
         !contains(menu, "stop_menu_item_.Click({this, &MainWindow::OnMenuStopClick})") ||
         !contains(refresh_menu, "skip_menu_item_.IsEnabled(velocitycopy::can_skip_current_file(") ||
@@ -336,8 +336,11 @@ int main() {
         !contains(resize_to_content, "ExpandedRegion().Padding()") ||
         !contains(resize_to_content, "ExpandedColumnSpacing") ||
         !contains(resize_to_content, "expanded_padding.Top + expanded_padding.Bottom") ||
+        !contains(resize_to_content, "ExpandedRegion().ColumnSpacing(") ||
+        !contains(resize_to_content, "ExpandedRegion().ColumnSpacing(0.0)") ||
         !contains(resize_to_content, "PerformancePanel().Margin(Thickness{})") ||
-        !contains(resize_to_content, "PerformancePanel().Margin(Thickness{0.0, 12.0, 0.0, 0.0})") ||
+        !contains(resize_to_content, "token_thickness(") ||
+        !contains(resize_to_content, "DetailsPerformanceMargin") ||
         contains(resize_to_content, "QueuePanel().Measure(") ||
         !contains(resize_to_content, "Grid::SetRow(QueuePanel()") ||
         !contains(resize_to_content, "Grid::SetColumn(InformationPanel()") ||
