@@ -360,6 +360,13 @@ int main() {
         !contains(narrow_branch, "ExpandedRegion().ColumnSpacing(0.0)") ||
         !contains(narrow_branch, "PerformancePanel().Margin(") ||
         !contains(narrow_branch, "token_thickness(L\"DetailsPerformanceMargin\"") ||
+        !contains(xaml, "x:Name=\"DetailsScrollViewer\"") ||
+        !contains(narrow_branch, "DetailsScrollViewer().VerticalScrollMode(ScrollMode::Enabled)") ||
+        !contains(narrow_branch, "DetailsScrollViewer().VerticalScrollBarVisibility(ScrollBarVisibility::Auto)") ||
+        !contains(resize_to_content, "const double queue_height = queue_min_height;") ||
+        !contains(resize_to_content, "const double details_height = (std::max)(1.0, content_cap - queue_height);") ||
+        contains(resize_to_content, "fixed_content_height") ||
+        contains(resize_to_content, "(std::min)(queue_min_height, content_cap - fixed_content_height)") ||
         contains(resize_to_content, "QueuePanel().Measure(") ||
         !contains(resize_to_content, "Grid::SetRow(QueuePanel()") ||
         !contains(resize_to_content, "Grid::SetColumn(InformationPanel()") ||

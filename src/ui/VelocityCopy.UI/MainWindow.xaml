@@ -336,7 +336,23 @@
 
             </Grid>
 
-            <Grid x:Name="PerformancePanel" Grid.Row="0" Grid.Column="1">
+            <Grid x:Name="DetailsViewport" Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2">
+                <ScrollViewer x:Name="DetailsScrollViewer"
+                              VerticalScrollBarVisibility="Disabled"
+                              VerticalScrollMode="Disabled"
+                              HorizontalScrollBarVisibility="Disabled"
+                              HorizontalScrollMode="Disabled">
+                    <Grid x:Name="DetailsGrid">
+                        <Grid.RowDefinitions>
+                            <RowDefinition x:Name="DetailsRow0" Height="Auto" />
+                            <RowDefinition x:Name="DetailsRow1" Height="0" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition x:Name="DetailsColumn0" Width="*" />
+                            <ColumnDefinition x:Name="DetailsColumn1" Width="*" />
+                        </Grid.ColumnDefinitions>
+
+            <Grid x:Name="PerformancePanel" Grid.Row="0" Grid.Column="0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -403,7 +419,7 @@
                 </Grid>
             </Grid>
 
-            <Grid x:Name="InformationPanel" Grid.Row="0" Grid.Column="2">
+            <Grid x:Name="InformationPanel" Grid.Row="0" Grid.Column="1">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -449,6 +465,9 @@
             </Grid>
 
 
+            </Grid>
+                    </Grid>
+                </ScrollViewer>
             </Grid>
         </Grid>
 

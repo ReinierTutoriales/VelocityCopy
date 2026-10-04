@@ -333,30 +333,51 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
             ExpandedRow1().Height(GridLength{0.0, GridUnitType::Pixel});
             ExpandedRow2().Height(GridLength{0.0, GridUnitType::Pixel});
             ExpandedColumn0().Width(GridLength{1.0, GridUnitType::Star});
-            ExpandedColumn1().Width(GridLength{1.0, GridUnitType::Star});
-            ExpandedColumn2().Width(GridLength{1.0, GridUnitType::Star});
+            ExpandedColumn1().Width(GridLength{2.0, GridUnitType::Star});
+            ExpandedColumn2().Width(GridLength{0.0, GridUnitType::Pixel});
             Grid::SetRow(QueuePanel(), 0);
             Grid::SetColumn(QueuePanel(), 0);
+            Grid::SetRow(DetailsViewport(), 0);
+            Grid::SetColumn(DetailsViewport(), 1);
+            Grid::SetColumnSpan(DetailsViewport(), 1);
+            DetailsRow0().Height(GridLength{1.0, GridUnitType::Star});
+            DetailsRow1().Height(GridLength{0.0, GridUnitType::Pixel});
+            DetailsColumn0().Width(GridLength{1.0, GridUnitType::Star});
+            DetailsColumn1().Width(GridLength{1.0, GridUnitType::Star});
             Grid::SetRow(PerformancePanel(), 0);
-            Grid::SetColumn(PerformancePanel(), 1);
+            Grid::SetColumn(PerformancePanel(), 0);
             Grid::SetRow(InformationPanel(), 0);
-            Grid::SetColumn(InformationPanel(), 2);
+            Grid::SetColumn(InformationPanel(), 1);
+            DetailsGrid().ColumnSpacing(
+                velocitycopy::ui::token_double(L"ExpandedColumnSpacing", 8));
+            DetailsScrollViewer().VerticalScrollMode(ScrollMode::Disabled);
+            DetailsScrollViewer().VerticalScrollBarVisibility(ScrollBarVisibility::Disabled);
             ExpandedRegion().ColumnSpacing(
                 velocitycopy::ui::token_double(L"ExpandedColumnSpacing", 8));
             PerformancePanel().Margin(Thickness{});
         } else {
             ExpandedRow0().Height(GridLength{1.0, GridUnitType::Star});
-            ExpandedRow1().Height(GridLength{1.0, GridUnitType::Auto});
-            ExpandedRow2().Height(GridLength{1.0, GridUnitType::Auto});
+            ExpandedRow1().Height(GridLength{1.0, GridUnitType::Star});
+            ExpandedRow2().Height(GridLength{0.0, GridUnitType::Pixel});
             ExpandedColumn0().Width(GridLength{1.0, GridUnitType::Star});
             ExpandedColumn1().Width(GridLength{0.0, GridUnitType::Pixel});
             ExpandedColumn2().Width(GridLength{0.0, GridUnitType::Pixel});
             Grid::SetRow(QueuePanel(), 0);
             Grid::SetColumn(QueuePanel(), 0);
-            Grid::SetRow(PerformancePanel(), 1);
+            Grid::SetRow(DetailsViewport(), 1);
+            Grid::SetColumn(DetailsViewport(), 0);
+            Grid::SetColumnSpan(DetailsViewport(), 1);
+            DetailsRow0().Height(GridLength{1.0, GridUnitType::Auto});
+            DetailsRow1().Height(GridLength{1.0, GridUnitType::Auto});
+            DetailsColumn0().Width(GridLength{1.0, GridUnitType::Star});
+            DetailsColumn1().Width(GridLength{0.0, GridUnitType::Pixel});
+            Grid::SetRow(PerformancePanel(), 0);
             Grid::SetColumn(PerformancePanel(), 0);
-            Grid::SetRow(InformationPanel(), 2);
+            Grid::SetRow(InformationPanel(), 1);
             Grid::SetColumn(InformationPanel(), 0);
+            DetailsGrid().ColumnSpacing(0.0);
+            DetailsScrollViewer().VerticalScrollMode(ScrollMode::Enabled);
+            DetailsScrollViewer().VerticalScrollBarVisibility(ScrollBarVisibility::Auto);
             ExpandedRegion().ColumnSpacing(0.0);
             PerformancePanel().Margin(velocitycopy::ui::token_thickness(L"DetailsPerformanceMargin", Thickness{0.0,12.0,0.0,0.0}));
         }
@@ -412,12 +433,11 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
     } else {
         const double padding_height = expanded_padding.Top + expanded_padding.Bottom;
         const double content_cap = (std::max)(1.0, expanded_height_cap - padding_height);
-        const double fixed_content_height = performance_height + information_height;
-        const double queue_height = (std::max)(
-            1.0, (std::min)(queue_min_height, content_cap - fixed_content_height));
+        const double queue_height = queue_min_height;
+        const double details_height = (std::max)(1.0, content_cap - queue_height);
         ExpandedRow0().Height(GridLength{queue_height, GridUnitType::Pixel});
-        expanded_region_height =
-            (std::min)(expanded_height_cap, queue_height + fixed_content_height + padding_height);
+        ExpandedRow1().Height(GridLength{details_height, GridUnitType::Pixel});
+        expanded_region_height = queue_height + details_height + padding_height;
     }
 
     ResizeWindow(
