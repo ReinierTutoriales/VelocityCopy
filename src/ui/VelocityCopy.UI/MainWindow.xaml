@@ -315,7 +315,7 @@
                         Height="{StaticResource PerformanceGraphHeight}"
                         BorderThickness="1"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                        CornerRadius="{StaticResource PerformanceGraphRadius}">
+                        CornerRadius="{ThemeResource ControlCornerRadius}">
                     <Canvas x:Name="PerformanceGraph" AutomationProperties.AccessibilityView="Raw" />
                 </Border>
             </Grid>
