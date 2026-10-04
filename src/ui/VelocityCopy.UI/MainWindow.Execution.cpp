@@ -480,8 +480,16 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
     const hstring bytes_text(std::format(L"{} / {}", transferred.c_str(), total.c_str()));
     if (TransferBytesText().Text() != bytes_text) TransferBytesText().Text(bytes_text);
 
-    const hstring files_text(std::format(
-        L"{} completed of {}", snapshot.completed_files, snapshot.total_files));
+    hstring files_text;
+    try {
+        const auto pattern = velocitycopy::localization::get_string(L"TransferCompletedFormat");
+        files_text = hstring(std::vformat(
+            std::wstring_view{pattern.c_str(), pattern.size()},
+            std::make_wformat_args(snapshot.completed_files, snapshot.total_files)));
+    } catch (...) {
+        files_text = hstring(std::format(
+            L"{} completed of {}", snapshot.completed_files, snapshot.total_files));
+    }
     if (TransferFilesText().Text() != files_text) TransferFilesText().Text(files_text);
 
     if (!snapshot.current_source.empty()) {
