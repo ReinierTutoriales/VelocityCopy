@@ -334,6 +334,9 @@ int main() {
     }
 
     const auto resize_to_content = body_of(window, "void MainWindow::ResizeWindowToContent(");
+    const auto collapsed_if = resize_to_content.find("if (!expanded_)");
+    const auto collapsed_open = collapsed_if == std::string::npos ? std::string::npos : resize_to_content.find('{', collapsed_if);
+    const auto collapsed_branch = brace_body_at(resize_to_content, collapsed_open);
     const auto mode_if = resize_to_content.find("if (expanded_layout_mode_ == ExpandedLayoutMode::ThreeColumn)");
     const auto mode_open = mode_if == std::string::npos ? std::string::npos : resize_to_content.find('{', mode_if);
     const auto three_column_branch = brace_body_at(resize_to_content, mode_open);
@@ -386,7 +389,7 @@ int main() {
         !contains(window, "ErrorBar().Closed(") ||
         !contains(window, "self->ResizeWindowToContent();") ||
         !contains(resize_to_content, "QueueExpandedMinHeight") ||
-        !contains(resize_to_content, "normal_height + notice_height") ||
+        !contains(collapsed_branch, "normal_height + notice_height") ||
         !contains(resize_to_content, "normal_height + notice_height + expanded_region_height") ||
         !contains(resize_to_content, "work_height_epx - work_margin * 2.0 - normal_height - notice_height") ||
         count_occurrences(execution, "ResizeWindow(velocitycopy::ui::token_int(L\"CompactSurfaceHeight\"") != 0) {
