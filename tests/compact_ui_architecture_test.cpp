@@ -71,7 +71,7 @@ int main() {
         !contains(queue, "ToolTipService::SetToolTip(row") ||
         !contains(queue, "AutomationProperties::SetName(row") ||
         !contains(queue, "RefreshQueue(const bool force_visual_rebuild)") ||
-        !contains(queue, "unchanged && !force_visual_rebuild") ||
+        !contains(queue, "unchanged && !rebuild_visuals") ||
         !contains(window, "RefreshQueue(true)") ||
         !contains(window, "previous_layout_mode != expanded_layout_mode_")) {
         return fail(47, "queue rows must compact in Narrow without replacing native ListViewItem behavior and must rebuild when layout mode changes");

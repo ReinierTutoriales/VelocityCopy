@@ -10,7 +10,29 @@ using namespace Microsoft::UI::Xaml::Input;
 
 namespace winrt::VelocityCopyUI::implementation {
 
+bool MainWindow::ApplyQueueItemStyle(const bool narrow) {
+    if (narrow == queue_item_style_narrow_) return false;
+    try {
+        if (narrow) {
+            QueueList().ItemContainerStyle(
+                QueueList().Resources().Lookup(box_value(L"QueueNarrowListViewItemStyle")).as<Style>());
+        } else {
+            // ThreeColumn keeps the native ListViewItem container (DefaultListViewItemStyle).
+            QueueList().ClearValue(ItemsControl::ItemContainerStyleProperty());
+        }
+        queue_item_style_narrow_ = narrow;
+        return true;
+    } catch (...) {
+        OutputDebugStringW(L"VelocityCopy: ApplyQueueItemStyle failed\n");
+        return false;
+    }
+}
+
 void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
+    // A container style only applies to containers created after it is set, so a style change
+    // is handled exactly like a forced visual rebuild.
+    const bool style_changed = ApplyQueueItemStyle(expanded_layout_mode_ == ExpandedLayoutMode::Narrow);
+    const bool rebuild_visuals = force_visual_rebuild || style_changed;
     auto items = QueueList().Items();
 
     auto append_visual = [&](const std::filesystem::path& source, const std::optional<std::uint64_t> id) {
@@ -112,7 +134,7 @@ void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
             [](const velocitycopy::PlannedFile& left, const velocitycopy::PlannedFile& right) {
                 return left.id == right.id && left.source == right.source && left.destination == right.destination && left.size == right.size;
             });
-    if (unchanged && !force_visual_rebuild) {
+    if (unchanged && !rebuild_visuals) {
         QueueCountText().Text(hstring(std::format(L"{}", view.pending_count)));
         RefreshQueueCommandState();
         RefreshQueueEditCommandState();
@@ -148,7 +170,7 @@ void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
     }
 
     const auto retained_count = previous_snapshot.size() - completed_prefix;
-    const bool can_trim_prefix = completed_prefix > 0 && completed_prefix < previous_snapshot.size() &&
+    const bool can_trim_prefix = !rebuild_visuals && completed_prefix > 0 && completed_prefix < previous_snapshot.size() &&
         queue_snapshot_.size() >= retained_count &&
         std::equal(previous_snapshot.begin() + completed_prefix, previous_snapshot.end(), queue_snapshot_.begin(),
             [](const velocitycopy::PlannedFile& left, const velocitycopy::PlannedFile& right) {

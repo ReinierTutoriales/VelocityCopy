@@ -271,6 +271,8 @@
                                 <TextBlock x:Name="QueueTitle"
                                            x:Uid="QueueTitle"
                                            VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"
+                                           MaxLines="1"
                                            FontWeight="SemiBold"
                                            FontSize="{StaticResource BodyFontSize}" />
                                 <TextBlock x:Name="QueueCountText"
@@ -341,14 +343,16 @@
                                       AllowDrop="True"
                                       DragItemsCompleted="OnQueueDragItemsCompleted"
                                       HorizontalContentAlignment="Stretch">
-                                <ListView.ItemContainerStyle>
-                                    <Style TargetType="ListViewItem"
+                                <!-- Not the list's ItemContainerStyle: RefreshQueue() applies this compact style only in
+                                     Narrow mode. ThreeColumn keeps the native ListViewItem container. -->
+                                <ListView.Resources>
+                                    <Style x:Key="QueueNarrowListViewItemStyle"
+                                           TargetType="ListViewItem"
                                            BasedOn="{StaticResource DefaultListViewItemStyle}">
-                                        <Setter Property="MinHeight" Value="{StaticResource QueueItemContainerMinHeight}" />
-                                        <Setter Property="Padding" Value="{StaticResource QueueItemContainerPadding}" />
-                                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                        <Setter Property="MinHeight" Value="{StaticResource QueueNarrowItemContainerMinHeight}" />
+                                        <Setter Property="Padding" Value="{StaticResource QueueNarrowItemContainerPadding}" />
                                     </Style>
-                                </ListView.ItemContainerStyle>
+                                </ListView.Resources>
                             </ListView>
                         </Grid>
                     </Border>

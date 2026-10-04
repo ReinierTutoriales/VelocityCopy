@@ -184,6 +184,9 @@ private:
         bool retry_source_removals = false);
     void PublishLivePlan(std::shared_ptr<velocitycopy::LiveCopyPlan> plan);
     void RefreshQueue(bool force_visual_rebuild = false);
+    // Applies the compact container style in Narrow mode only; returns true when the style changed
+    // (existing containers keep their old style, so the visuals must be rebuilt).
+    bool ApplyQueueItemStyle(bool narrow);
     void RefreshQueueCommandState();
     void RefreshExecutionMenuState();
     void RefreshQueueEditCommandState();
@@ -271,6 +274,7 @@ private:
     std::wstring last_geometry_line_;
     bool geometry_probe_run_marked_{};
     bool geometry_probe_speed_active_{};
+    bool queue_item_style_narrow_{};
     bool telemetry_reserves_applied_{};
     double telemetry_reserve_text_scale_{};
     double telemetry_reserve_raster_{};
