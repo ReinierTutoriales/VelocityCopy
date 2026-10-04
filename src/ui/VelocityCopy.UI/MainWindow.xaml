@@ -184,11 +184,16 @@
                                         HorizontalAlignment="Stretch"
                                         VerticalAlignment="Stretch"
                                         Padding="0">
+                                    <Button.Resources>
+                                        <StaticResource x:Key="ButtonForeground" ResourceKey="AccentFillColorDefaultBrush" />
+                                        <StaticResource x:Key="ButtonForegroundPointerOver" ResourceKey="AccentFillColorSecondaryBrush" />
+                                        <StaticResource x:Key="ButtonForegroundPressed" ResourceKey="AccentFillColorTertiaryBrush" />
+                                        <StaticResource x:Key="ButtonForegroundDisabled" ResourceKey="TextFillColorDisabledBrush" />
+                                    </Button.Resources>
                                     <FontIcon x:Name="PauseIcon"
                                               FontFamily="Segoe Fluent Icons"
                                               Glyph="&#xE769;"
-                                              FontSize="{StaticResource ActionIconSize}"
-                                              Foreground="{ThemeResource AccentFillColorDefaultBrush}" />
+                                              FontSize="{StaticResource ActionIconSize}" />
                                 </Button>
                             </Grid>
 
@@ -202,11 +207,16 @@
                                         HorizontalAlignment="Stretch"
                                         VerticalAlignment="Stretch"
                                         Padding="0">
+                                    <Button.Resources>
+                                        <StaticResource x:Key="ButtonForeground" ResourceKey="SystemFillColorCriticalBrush" />
+                                        <StaticResource x:Key="ButtonForegroundPointerOver" ResourceKey="SystemFillColorCriticalBrush" />
+                                        <StaticResource x:Key="ButtonForegroundPressed" ResourceKey="SystemFillColorCriticalBrush" />
+                                        <StaticResource x:Key="ButtonForegroundDisabled" ResourceKey="TextFillColorDisabledBrush" />
+                                    </Button.Resources>
                                     <FontIcon x:Name="CancelIcon"
                                               FontFamily="Segoe Fluent Icons"
                                               Glyph="&#xE71A;"
-                                              FontSize="{StaticResource ActionIconSize}"
-                                              Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+                                              FontSize="{StaticResource ActionIconSize}" />
                                 </Button>
                             </Grid>
 
@@ -214,11 +224,16 @@
                                     Width="{StaticResource ActionButtonSize}"
                                     Height="{StaticResource ActionButtonSize}"
                                     Padding="0">
+                                <Button.Resources>
+                                    <StaticResource x:Key="ButtonForeground" ResourceKey="TextFillColorSecondaryBrush" />
+                                    <StaticResource x:Key="ButtonForegroundPointerOver" ResourceKey="TextFillColorPrimaryBrush" />
+                                    <StaticResource x:Key="ButtonForegroundPressed" ResourceKey="TextFillColorSecondaryBrush" />
+                                    <StaticResource x:Key="ButtonForegroundDisabled" ResourceKey="TextFillColorDisabledBrush" />
+                                </Button.Resources>
                                 <FontIcon x:Name="OptionsIcon"
                                           FontFamily="Segoe Fluent Icons"
                                           Glyph="&#xE712;"
-                                          FontSize="{StaticResource ActionIconSize}"
-                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                          FontSize="{StaticResource ActionIconSize}" />
                             </Button>
                         </StackPanel>
 
@@ -227,6 +242,12 @@
                                 Click="OnDetailsClick"
                                 Height="{StaticResource ActionButtonSize}"
                                 HorizontalAlignment="Right">
+                            <Button.Resources>
+                                <StaticResource x:Key="ButtonForeground" ResourceKey="TextFillColorSecondaryBrush" />
+                                <StaticResource x:Key="ButtonForegroundPointerOver" ResourceKey="TextFillColorPrimaryBrush" />
+                                <StaticResource x:Key="ButtonForegroundPressed" ResourceKey="TextFillColorSecondaryBrush" />
+                                <StaticResource x:Key="ButtonForegroundDisabled" ResourceKey="TextFillColorDisabledBrush" />
+                            </Button.Resources>
                             <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpaceRelated}">
                                 <TextBlock x:Name="DetailsButtonText"
                                            VerticalAlignment="Center"
@@ -234,8 +255,7 @@
                                 <FontIcon x:Name="DetailsChevronIcon"
                                           FontFamily="Segoe Fluent Icons"
                                           Glyph="&#xE70D;"
-                                          FontSize="{StaticResource ActionIconSize}"
-                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                          FontSize="{StaticResource ActionIconSize}" />
                             </StackPanel>
                         </Button>
                     </Grid>
@@ -334,7 +354,13 @@
                                                     HorizontalAlignment="Stretch"
                                                     VerticalAlignment="Stretch"
                                                     Padding="0">
-                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74A;" FontSize="{StaticResource ActionIconSize}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            <Button.Resources>
+                                                <StaticResource x:Key="ButtonForeground" ResourceKey="TextFillColorSecondaryBrush" />
+                                                <StaticResource x:Key="ButtonForegroundPointerOver" ResourceKey="TextFillColorPrimaryBrush" />
+                                                <StaticResource x:Key="ButtonForegroundPressed" ResourceKey="TextFillColorSecondaryBrush" />
+                                                <StaticResource x:Key="ButtonForegroundDisabled" ResourceKey="TextFillColorDisabledBrush" />
+                                            </Button.Resources>
+                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74A;" FontSize="{StaticResource ActionIconSize}" />
                                             </Button>
                                         </Grid>
                                         <Grid x:Name="QueueMoveDownButtonHost"
@@ -348,7 +374,13 @@
                                                     HorizontalAlignment="Stretch"
                                                     VerticalAlignment="Stretch"
                                                     Padding="0">
-                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74B;" FontSize="{StaticResource ActionIconSize}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            <Button.Resources>
+                                                <StaticResource x:Key="ButtonForeground" ResourceKey="TextFillColorSecondaryBrush" />
+                                                <StaticResource x:Key="ButtonForegroundPointerOver" ResourceKey="TextFillColorPrimaryBrush" />
+                                                <StaticResource x:Key="ButtonForegroundPressed" ResourceKey="TextFillColorSecondaryBrush" />
+                                                <StaticResource x:Key="ButtonForegroundDisabled" ResourceKey="TextFillColorDisabledBrush" />
+                                            </Button.Resources>
+                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74B;" FontSize="{StaticResource ActionIconSize}" />
                                             </Button>
                                         </Grid>
                                         <Grid x:Name="QueueRemoveButtonHost"
@@ -361,7 +393,13 @@
                                                     HorizontalAlignment="Stretch"
                                                     VerticalAlignment="Stretch"
                                                     Padding="0">
-                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE738;" FontSize="{StaticResource ActionIconSize}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            <Button.Resources>
+                                                <StaticResource x:Key="ButtonForeground" ResourceKey="TextFillColorSecondaryBrush" />
+                                                <StaticResource x:Key="ButtonForegroundPointerOver" ResourceKey="TextFillColorPrimaryBrush" />
+                                                <StaticResource x:Key="ButtonForegroundPressed" ResourceKey="TextFillColorSecondaryBrush" />
+                                                <StaticResource x:Key="ButtonForegroundDisabled" ResourceKey="TextFillColorDisabledBrush" />
+                                            </Button.Resources>
+                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE738;" FontSize="{StaticResource ActionIconSize}" />
                                             </Button>
                                         </Grid>
                                     </Grid>

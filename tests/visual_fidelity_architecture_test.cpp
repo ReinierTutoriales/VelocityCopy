@@ -84,16 +84,31 @@ int main() {
         return fail(8, "queue count must read as a neutral themed badge");
     }
 
-    // Action and live-performance emphasis use system semantic brushes rather than bespoke colors.
-    if (!contains(xaml, "x:Name=\"PauseIcon\"") ||
-        !contains(xaml, "SystemFillColorCriticalBrush") ||
-        !contains(xaml, "x:Name=\"DetailsChevronIcon\"") ||
+    // Button icon colors use WinUI lightweight-styling resources so disabled, hover and pressed
+    // states remain owned by the native Button template instead of being bypassed on FontIcon children.
+    if (!contains(xaml, "x:Key=\"ButtonForeground\" ResourceKey=\"AccentFillColorDefaultBrush\"") ||
+        !contains(xaml, "x:Key=\"ButtonForeground\" ResourceKey=\"SystemFillColorCriticalBrush\"") ||
+        !contains(xaml, "x:Key=\"ButtonForegroundDisabled\" ResourceKey=\"TextFillColorDisabledBrush\"") ||
+        count_occurrences(xaml, "x:Key=\"ButtonForeground\" ResourceKey=\"TextFillColorSecondaryBrush\"") < 5 ||
+        contains(xaml, "x:Name=\"PauseIcon\"\n                                              FontFamily=\"Segoe Fluent Icons\"\n                                              Glyph=\"&#xE769;\"\n                                              FontSize=\"{StaticResource ActionIconSize}\"\n                                              Foreground=") ||
+        contains(xaml, "x:Name=\"CancelIcon\"\n                                              FontFamily=\"Segoe Fluent Icons\"\n                                              Glyph=\"&#xE71A;\"\n                                              FontSize=\"{StaticResource ActionIconSize}\"\n                                              Foreground=") ||
         !contains(xaml, "x:Name=\"PerformanceCurrentSpeedText\"") ||
         !contains(xaml, "FontWeight=\"SemiBold\"")) {
-        return fail(10, "action and performance emphasis must use system semantic color hierarchy");
+        return fail(10, "action hierarchy must use native Button lightweight styling and preserve disabled states");
     }
 
     const auto execution = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Execution.cpp");
+    const auto running_state = body_of(execution, "void MainWindow::SetExecutionButtonsRunning()");
+    const auto paused_state = body_of(execution, "void MainWindow::SetExecutionButtonsStopped()");
+    const auto conflict_state = body_of(execution, "void MainWindow::SetExecutionButtonsConflict()");
+    if (!contains(running_state, "TransferProgress().ShowPaused(false)") ||
+        !contains(running_state, "TransferProgress().ShowError(false)") ||
+        !contains(paused_state, "TransferProgress().ShowPaused(true)") ||
+        !contains(paused_state, "TransferProgress().ShowError(false)") ||
+        !contains(conflict_state, "TransferProgress().ShowPaused(false)") ||
+        !contains(conflict_state, "TransferProgress().ShowError(false)")) {
+        return fail(16, "running, paused and conflict states must map only to truthful native ProgressBar visual states");
+    }
     if (execution.empty() ||
         !contains(xaml, "x:Name=\"DetailsSourceText\" Grid.Column=\"2\" TextWrapping=\"NoWrap\" TextTrimming=\"CharacterEllipsis\" MaxLines=\"1\"") ||
         !contains(xaml, "x:Name=\"DetailsDestinationText\" Grid.Row=\"1\" Grid.Column=\"2\" TextWrapping=\"NoWrap\" TextTrimming=\"CharacterEllipsis\" MaxLines=\"1\"") ||
@@ -106,6 +121,8 @@ int main() {
     const auto show_notice = body_of(window, "void MainWindow::ShowNotice(");
     const auto reset_surface = body_of(window, "void MainWindow::ResetTransferSurface()");
     if (window.empty() ||
+        !contains(show_notice, "TransferProgress().ShowError(severity == InfoBarSeverity::Error)") ||
+        !contains(show_notice, "ErrorBar().Severity(severity)") ||
         !contains(show_notice, "ErrorBar().Title(velocitycopy::localization::get_string(L\"StatusFailed\"))") ||
         !contains(show_notice, "ErrorBar().Title(velocitycopy::localization::get_string(L\"StatusCompletedWithIssues\"))") ||
         !contains(reset_surface, "ErrorBar().Title(L\"\")")) {
@@ -113,8 +130,9 @@ int main() {
     }
 
     if (!contains(xaml, "x:Name=\"OptionsIcon\"") ||
-        count_occurrences(xaml, "Foreground=\"{ThemeResource TextFillColorSecondaryBrush}\"") < 8) {
-        return fail(14, "secondary commands and supporting iconography must stay visually subordinate");
+        !contains(xaml, "x:Name=\"DetailsChevronIcon\"") ||
+        count_occurrences(xaml, "x:Key=\"ButtonForegroundPointerOver\" ResourceKey=\"TextFillColorPrimaryBrush\"") < 5) {
+        return fail(14, "secondary commands must stay subordinate while retaining native interaction states");
     }
 
     if (!contains(xaml, "x:Name=\"PerformanceGraphMidline\"") ||
