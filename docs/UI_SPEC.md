@@ -31,7 +31,7 @@ Composition:
 4. one native WinUI `ProgressBar` expresses aggregate transfer progress
 5. native Windows caption buttons remain visible at the top-right
 
-Skip and Stop live in Options rather than consuming permanent width. Telemetry and actions occupy separate grid columns so long speed/ETA strings cannot overlap Pause/Cancel. The action cluster is right-aligned, not artificially centered across the same row as telemetry.
+Skip and Stop live in Options rather than consuming permanent width. Telemetry and actions occupy separate grid columns so long speed/ETA strings cannot overlap Pause/Cancel. The operational action cluster is left-aligned beside telemetry, while the single Details / Hide details disclosure is isolated at the far right of the command row.
 
 Telemetry formatting is compact and stable:
 - use KiB/s below 1 MiB/s, MiB/s through the normal range, and GiB/s at or above 1 GiB/s;
