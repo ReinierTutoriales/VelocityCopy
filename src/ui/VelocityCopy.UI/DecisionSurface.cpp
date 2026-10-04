@@ -84,6 +84,9 @@ Windows::Foundation::IAsyncOperation<std::uint32_t> show_decision_async(Decision
         status_icon.FontSize(token_double(L"DecisionStatusIconSize", 20));
         status_icon.VerticalAlignment(VerticalAlignment::Center);
         status_icon.IsHitTestVisible(false);
+        AutomationProperties::SetAccessibilityView(
+            status_icon,
+            Microsoft::UI::Xaml::Automation::Peers::AccessibilityView::Raw);
         apply_icon_style(
             status_icon,
             options.tone == DecisionTone::Warning

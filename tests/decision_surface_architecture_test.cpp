@@ -42,6 +42,8 @@ int main() {
     c.find("token_double(L\"DecisionStatusIconSize\", 20)") == std::string::npos ||
     c.find("DecisionWarningIconStyle") == std::string::npos ||
     c.find("DecisionErrorIconStyle") == std::string::npos ||
+    c.find("AutomationProperties::SetAccessibilityView(") == std::string::npos ||
+    c.find("AccessibilityView::Raw") == std::string::npos ||
     tokens.find("SystemFillColorCautionBrush") == std::string::npos ||
     tokens.find("SystemFillColorCriticalBrush") == std::string::npos) return 17;
  return 0;
