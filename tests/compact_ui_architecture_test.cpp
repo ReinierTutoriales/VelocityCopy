@@ -315,8 +315,12 @@ int main() {
         !contains(resize_to_content, "if (resize_in_progress_) return") ||
         !contains(window, "root.RasterizationScale()") ||
         !contains(window, "scale - window->last_rasterization_scale_") ||
-        !contains(window, "TextScaleFactorChanged(auto_revoke") ||
-        !contains(window, "scale - window->last_text_scale_factor_")) {
+        !contains(window, "ui_settings_ = Windows::UI::ViewManagement::UISettings()") ||
+        !contains(window, "ui_settings_.TextScaleFactorChanged(auto_revoke") ||
+        !contains(window, "scale - window->last_text_scale_factor_") ||
+        !contains(resize_to_content, "RootGrid().UpdateLayout()") ||
+        !contains(resize_to_content, "TransferSurface().Measure({measured_width, std::numeric_limits<float>::infinity()})") ||
+        !contains(resize_to_content, "TransferSurface().DesiredSize().Height")) {
         return fail(42, "content sizing must compensate the native frame and guard DPI/text-scale remeasurement from self-resize loops");
     }
 
