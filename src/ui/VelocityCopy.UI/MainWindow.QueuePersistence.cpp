@@ -398,7 +398,7 @@ bool MainWindow::StartCopyPlan(
     QueueList().Items().Clear();
     QueueCountText().Text(L"0");
     QueuePanel().Visibility(Visibility::Collapsed);
-    ResizeWindow(velocitycopy::ui::token_int(L"CompactSurfaceHeight", 72));
+    ResizeWindowToContent();
     SetProgressFraction(0.0);
 
     live_plan_ = live;
