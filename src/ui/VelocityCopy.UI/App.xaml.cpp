@@ -14,6 +14,8 @@
 #include <chrono>
 #include <cstdlib>
 #include <optional>
+#include <fstream>
+#include <memory>
 
 namespace winrt::VelocityCopyUI::implementation {
 namespace {
@@ -105,6 +107,17 @@ App::App() {
         show_activation_error(L"VelocityCopy resources could not be loaded. Reinstall the application.");
         throw winrt::hresult_error(HRESULT_FROM_WIN32(ERROR_RESOURCE_DATA_NOT_FOUND));
     }
+    UnhandledException([](IInspectable const&, Microsoft::UI::Xaml::UnhandledExceptionEventArgs const& e) {
+        const auto message = e.Message();
+        OutputDebugStringW((L"VelocityCopy UnhandledException: " + std::wstring(message.c_str()) + L"\n").c_str());
+        char* raw_path = nullptr;
+        std::size_t path_size = 0;
+        if (_dupenv_s(&raw_path, &path_size, "VELOCITYCOPY_DIAGNOSTIC_LOG") == 0 && raw_path != nullptr) {
+            std::unique_ptr<char, decltype(&std::free)> path(raw_path, &std::free);
+            std::ofstream log(path.get(), std::ios::app);
+            if (log) log << winrt::to_string(message) << '\n';
+        }
+    });
     InitializeComponent();
     DispatcherShutdownMode(Microsoft::UI::Xaml::DispatcherShutdownMode::OnExplicitShutdown);
 }

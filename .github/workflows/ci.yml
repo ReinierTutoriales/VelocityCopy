@@ -83,12 +83,24 @@ jobs:
         run: |
           $exe = Get-ChildItem src/ui/VelocityCopy.UI -Recurse -File -Filter VelocityCopy.WinUI.exe | Select-Object -First 1
           if (-not $exe) { throw "Built x64 executable was not found" }
+          $env:VELOCITYCOPY_DIAGNOSTIC_LOG = Join-Path $env:RUNNER_TEMP "velocitycopy-unhandled.log"
+          Remove-Item $env:VELOCITYCOPY_DIAGNOSTIC_LOG -ErrorAction SilentlyContinue
           $app = Start-Process $exe.FullName -WorkingDirectory $exe.Directory.FullName -PassThru
           Start-Sleep -Seconds 5
           $app.Refresh()
           if ($app.HasExited) {
+            if (Test-Path $env:VELOCITYCOPY_DIAGNOSTIC_LOG) { Write-Host "VelocityCopy diagnostic log:"; Get-Content $env:VELOCITYCOPY_DIAGNOSTIC_LOG }
             $exitCode = $app.ExitCode
             $hexCode = ('0x{0:X8}' -f ([BitConverter]::ToUInt32([BitConverter]::GetBytes([int32]$exitCode), 0)))
             throw "Built VelocityCopy output exits during CI launch smoke: $exitCode ($hexCode)"
           }
           Stop-Process -Id $app.Id -Force
+
+      - name: Upload launch diagnostic log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: VelocityCopy-launch-diagnostic-ci-x64-${{ github.run_id }}
+          path: ${{ runner.temp }}/velocitycopy-unhandled.log
+          if-no-files-found: warn
+          retention-days: 7
