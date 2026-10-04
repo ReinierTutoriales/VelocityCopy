@@ -15,14 +15,15 @@
 
         <Grid x:Name="TransferSurface"
               Grid.Row="0"
-              Height="{StaticResource CompactSurfaceHeight}"
-              SizeChanged="OnTransferSurfaceSizeChanged">
+              Height="{StaticResource CompactSurfaceHeight}">
             <Grid>
-                <Border x:Name="ProgressFill"
-                        Width="0"
-                        HorizontalAlignment="Left"
-                        Background="{ThemeResource AccentFillColorDefaultBrush}"
-                        Opacity="{StaticResource ProgressFillOpacity}" />
+                <ProgressBar x:Name="TransferProgress"
+                             Minimum="0"
+                             Maximum="100"
+                             Value="0"
+                             VerticalAlignment="Bottom"
+                             HorizontalAlignment="Stretch"
+                             IsHitTestVisible="False" />
 
                 <Grid x:Name="TitleBarDragRegion"
                       Height="{StaticResource CaptionRowHeight}"

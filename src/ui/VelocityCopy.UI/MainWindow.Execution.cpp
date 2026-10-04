@@ -26,6 +26,8 @@ void MainWindow::ResetInterruptedSessionState() noexcept {
 }
 
 void MainWindow::SetExecutionButtonsPlanning() {
+    TransferProgress().ShowPaused(false);
+    TransferProgress().ShowError(false);
     RefreshEfficiencyMode();
     SpeedText().Text(L"—");
     EtaText().Text(L"—");
@@ -37,6 +39,8 @@ void MainWindow::SetExecutionButtonsPlanning() {
 }
 
 void MainWindow::SetExecutionButtonsRunning() {
+    TransferProgress().ShowPaused(false);
+    TransferProgress().ShowError(false);
     RefreshEfficiencyMode();
     PauseButton().IsEnabled(true);
     CancelButton().IsEnabled(true);
@@ -51,6 +55,7 @@ void MainWindow::SetExecutionButtonsRunning() {
 }
 
 void MainWindow::SetExecutionButtonsIdle() {
+    TransferProgress().ShowPaused(false);
     PauseButton().IsEnabled(false);
     CancelButton().IsEnabled(false);
     QueueButton().IsEnabled(true);
@@ -67,6 +72,8 @@ void MainWindow::SetExecutionButtonsIdle() {
 }
 
 void MainWindow::SetExecutionButtonsStopped() {
+    TransferProgress().ShowPaused(true);
+    TransferProgress().ShowError(false);
     PauseButton().IsEnabled(true);
     CancelButton().IsEnabled(true);
     ResetCurrentItemState();
@@ -81,6 +88,8 @@ void MainWindow::SetExecutionButtonsStopped() {
 }
 
 void MainWindow::SetExecutionButtonsConflict() {
+    TransferProgress().ShowPaused(false);
+    TransferProgress().ShowError(false);
     SpeedText().Text(L"—");
     EtaText().Text(L"—");
     PauseIcon().Glyph(L"\xE769");
@@ -358,6 +367,8 @@ void MainWindow::OnPauseClick(IInspectable const&, RoutedEventArgs const&) {
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
     }
+    TransferProgress().ShowPaused(paused_);
+    TransferProgress().ShowError(false);
     PauseIcon().Glyph(paused_ ? L"\xE768" : L"\xE769");
     try {
         const auto label = velocitycopy::localization::get_string(paused_ ? L"ActionResume" : L"ActionPause");
