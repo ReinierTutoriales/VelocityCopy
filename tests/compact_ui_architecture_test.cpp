@@ -42,6 +42,12 @@ int main() {
     if (!contains(xaml, "x:Name=\"TransferSurface\"") ||
         !contains(xaml, "x:Name=\"TransferProgress\"") ||
         !contains(xaml, "x:Name=\"BrandLogo\"") ||
+        !contains(xaml, "x:Name=\"TransferDetailGrid\"") ||
+        !contains(xaml, "x:Name=\"TransferBytesText\"") ||
+        !contains(xaml, "x:Name=\"TransferFilesText\"") ||
+        !contains(xaml, "x:Name=\"TransferPathGrid\"") ||
+        !contains(xaml, "x:Name=\"SourcePathText\"") ||
+        !contains(xaml, "x:Name=\"DestinationPathText\"") ||
         !contains(xaml, "x:Name=\"BottomContentGrid\"") ||
         !contains(xaml, "x:Name=\"TelemetryStrip\"") ||
         !contains(xaml, "x:Name=\"PrimaryActionCluster\"") ||
@@ -119,6 +125,8 @@ int main() {
         !contains(window, "token_int(L\"NormalWindowMinWidth\", 380)") ||
         contains(window, "token_int(L\"CompactWindowWidth\"") ||
         contains(tokens, "CompactWindowWidth") ||
+        contains(tokens, "CompactSurfaceHeight") ||
+        contains(xaml, "Height=\"{StaticResource CompactSurfaceHeight}\"") ||
         contains(window, "token_int(L\"CompactSurfaceHeight\"")) {
         return fail(6, "normal geometry must use one width token and measured content height");
     }
@@ -189,8 +197,8 @@ int main() {
     // stay on the Windows scale. Visual validation remains a separate gate.
     if (!contains(window, "title_bar.Height() * 96.0 / static_cast<double>(dpi)") ||
         !contains(window, "CaptionRowDefinition().Height") ||
-        !contains(tokens, "<x:Double x:Key=\"CompactSurfaceHeight\">72</x:Double>") ||
-        !contains(tokens, "Transitional only: MainWindow.xaml still consumes this fixed height") ||
+        contains(tokens, "CompactSurfaceHeight") ||
+        contains(tokens, "ProgressFillOpacity") ||
         !contains(tokens, "<x:Double x:Key=\"ActionButtonSize\">32</x:Double>") ||
         contains(tokens, "SurfaceActionButtonSize") || contains(tokens, "QueueCommandButtonSize") ||
         !contains(tokens, "<x:Double x:Key=\"ActionIconSize\">16</x:Double>") ||
@@ -208,7 +216,13 @@ int main() {
 
     if (!contains(execution, "if (SpeedText().Text() != speed)") ||
         !contains(execution, "if (EtaText().Text() != eta)") ||
-        !contains(execution, "if (CurrentItemText().Text() != filename)")) {
+        !contains(execution, "if (CurrentItemText().Text() != filename)") ||
+        !contains(execution, "TransferBytesText().Text(bytes_text)") ||
+        !contains(execution, "completed of {}") ||
+        !contains(execution, "SourcePathText().Text(source)") ||
+        !contains(execution, "DestinationPathText().Text(destination)") ||
+        !contains(execution, "ToolTipService::SetToolTip(SourcePathText()") ||
+        !contains(execution, "ToolTipService::SetToolTip(DestinationPathText()")) {
         return fail(13, "telemetry must avoid redundant text/layout invalidation");
     }
 
