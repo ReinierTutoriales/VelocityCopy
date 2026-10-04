@@ -64,4 +64,5 @@
   <data name="ActionRetryAll" xml:space="preserve"><value>Retry all</value></data>
   <data name="ActionResolveFailures" xml:space="preserve"><value>Resolve failures</value></data>
   <data name="ActionSkipAll" xml:space="preserve"><value>Skip all</value></data>
+  <data name="TransferCompletedFormat" xml:space="preserve"><value>{0} completed of {1}</value></data>
 </root>
