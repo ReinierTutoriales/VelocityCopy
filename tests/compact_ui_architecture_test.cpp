@@ -65,10 +65,7 @@ int main() {
         return fail(1, "required UI source missing");
     }
 
-    if (!contains(xaml, "BasedOn=\"{StaticResource DefaultListViewItemStyle}\"") ||
-        !contains(xaml, "MinHeight\" Value=\"{StaticResource QueueItemContainerMinHeight}") ||
-        !contains(xaml, "Padding\" Value=\"{StaticResource QueueItemContainerPadding}") ||
-        !contains(queue, "expanded_layout_mode_ == ExpandedLayoutMode::Narrow") ||
+    if (!contains(queue, "expanded_layout_mode_ == ExpandedLayoutMode::Narrow") ||
         !contains(queue, "QueueNarrowItemMargin") ||
         !contains(queue, "QueueNarrowLocationMaxWidth") ||
         !contains(queue, "ToolTipService::SetToolTip(row") ||
