@@ -65,6 +65,21 @@ int main() {
         return fail(1, "required UI source missing");
     }
 
+    if (!contains(xaml, "BasedOn=\"{StaticResource DefaultListViewItemStyle}\"") ||
+        !contains(xaml, "MinHeight\" Value=\"{StaticResource QueueItemContainerMinHeight}") ||
+        !contains(xaml, "Padding\" Value=\"{StaticResource QueueItemContainerPadding}") ||
+        !contains(queue, "expanded_layout_mode_ == ExpandedLayoutMode::Narrow") ||
+        !contains(queue, "QueueNarrowItemMargin") ||
+        !contains(queue, "QueueNarrowLocationMaxWidth") ||
+        !contains(queue, "ToolTipService::SetToolTip(row") ||
+        !contains(queue, "AutomationProperties::SetName(row") ||
+        !contains(queue, "RefreshQueue(const bool force_visual_rebuild)") ||
+        !contains(queue, "unchanged && !force_visual_rebuild") ||
+        !contains(window, "RefreshQueue(true)") ||
+        !contains(window, "previous_layout_mode != expanded_layout_mode_")) {
+        return fail(47, "queue rows must compact in Narrow without replacing native ListViewItem behavior and must rebuild when layout mode changes");
+    }
+
     if (!contains(xaml, "x:Name=\"TransferSurface\"") ||
         !contains(xaml, "x:Name=\"TransferProgress\"") ||
         !contains(xaml, "x:Name=\"BrandLogo\"") ||

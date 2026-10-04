@@ -330,9 +330,13 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
 
     if (expanded_) {
         const double effective_width = target_width / text_scale;
+        const auto previous_layout_mode = expanded_layout_mode_;
         expanded_layout_mode_ = effective_width >= three_column_threshold
             ? ExpandedLayoutMode::ThreeColumn
             : ExpandedLayoutMode::Narrow;
+        if (previous_layout_mode != expanded_layout_mode_) {
+            RefreshQueue(true);
+        }
         if (expanded_layout_mode_ == ExpandedLayoutMode::ThreeColumn) {
             ExpandedRow0().Height(GridLength{1.0, GridUnitType::Star});
             ExpandedRow1().Height(GridLength{0.0, GridUnitType::Pixel});

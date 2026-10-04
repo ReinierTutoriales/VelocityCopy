@@ -10,13 +10,15 @@ using namespace Microsoft::UI::Xaml::Input;
 
 namespace winrt::VelocityCopyUI::implementation {
 
-void MainWindow::RefreshQueue() {
+void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
     auto items = QueueList().Items();
 
     auto append_visual = [&](const std::filesystem::path& source, const std::optional<std::uint64_t> id) {
-        StackPanel row;
-        row.Spacing(velocitycopy::ui::token_double(L"QueueItemLineSpacing", 4));
-        row.Margin(velocitycopy::ui::token_thickness(L"QueueItemMargin", Thickness{8, 8, 8, 8}));
+        const bool narrow = expanded_layout_mode_ == ExpandedLayoutMode::Narrow;
+        Grid row;
+        row.Margin(narrow
+            ? velocitycopy::ui::token_thickness(L"QueueNarrowItemMargin", Thickness{8, 4, 8, 4})
+            : velocitycopy::ui::token_thickness(L"QueueItemMargin", Thickness{8, 8, 8, 8}));
         row.HorizontalAlignment(HorizontalAlignment::Stretch);
         if (id) {
             row.Tag(box_value(*id));
@@ -36,9 +38,30 @@ void MainWindow::RefreshQueue() {
         velocitycopy::ui::apply_text_style(location, L"SecondaryTextStyle");
         location.FontSize(velocitycopy::ui::token_double(L"CaptionFontSize", 12));
 
+        if (narrow) {
+            row.ColumnDefinitions().Append(ColumnDefinition{});
+            row.ColumnDefinitions().GetAt(0).Width(GridLength{1.0, GridUnitType::Star});
+            row.ColumnDefinitions().Append(ColumnDefinition{});
+            row.ColumnDefinitions().GetAt(1).Width(GridLength{0.0, GridUnitType::Auto});
+            location.MaxWidth(velocitycopy::ui::token_double(L"QueueNarrowLocationMaxWidth", 160));
+            location.Margin(Thickness{8, 0, 0, 0});
+            Grid::SetColumn(location, 1);
+        } else {
+            row.RowDefinitions().Append(RowDefinition{});
+            row.RowDefinitions().GetAt(0).Height(GridLength{0.0, GridUnitType::Auto});
+            row.RowDefinitions().Append(RowDefinition{});
+            row.RowDefinitions().GetAt(1).Height(GridLength{0.0, GridUnitType::Auto});
+            row.RowSpacing(velocitycopy::ui::token_double(L"QueueItemLineSpacing", 4));
+            Grid::SetRow(location, 1);
+        }
+
         row.Children().Append(name);
         row.Children().Append(location);
 
+        const auto full_path = source.wstring();
+        if (!full_path.empty()) {
+            ToolTipService::SetToolTip(row, box_value(hstring(full_path)));
+        }
         std::wstring accessible_name = source.filename().wstring();
         const auto parent = source.parent_path().wstring();
         if (!parent.empty()) {
@@ -85,7 +108,7 @@ void MainWindow::RefreshQueue() {
             [](const velocitycopy::PlannedFile& left, const velocitycopy::PlannedFile& right) {
                 return left.id == right.id && left.source == right.source && left.destination == right.destination && left.size == right.size;
             });
-    if (unchanged) {
+    if (unchanged && !force_visual_rebuild) {
         QueueCountText().Text(hstring(std::format(L"{}", view.pending_count)));
         RefreshQueueCommandState();
         RefreshQueueEditCommandState();

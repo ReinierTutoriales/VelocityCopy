@@ -183,7 +183,7 @@ private:
         velocitycopy::ConflictPolicy conflict_policy = velocitycopy::ConflictPolicy::Prompt,
         bool retry_source_removals = false);
     void PublishLivePlan(std::shared_ptr<velocitycopy::LiveCopyPlan> plan);
-    void RefreshQueue();
+    void RefreshQueue(bool force_visual_rebuild = false);
     void RefreshQueueCommandState();
     void RefreshExecutionMenuState();
     void RefreshQueueEditCommandState();

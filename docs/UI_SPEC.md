@@ -137,7 +137,7 @@ The queue is collapsed by default and expands in the same HWND.
 - During initial planning the list is read-only and represents accepted top-level sources; editing/reordering becomes available only after the live plan exists.
 - Measure `QueuePanel` independently with unconstrained vertical space, use `DesiredSize`, then resize the HWND.
 - Keep the expanded height bounded (roughly 176–340 epx).
-- Queue rows use a compact two-line hierarchy: filename first, source location secondary.
+- Queue rows preserve a compact two-line hierarchy in ThreeColumn mode (filename first, source location secondary). In Narrow mode the same authoritative fields share one line so the fixed 176 epx queue minimum exposes at least two useful rows at 150% Text Size; filename consumes the flexible column, source location is bounded and secondary, and the full source path remains available through tooltip/UI Automation. The Queue-specific `ListViewItem` style may reduce the native container minimum/padding without replacing its template, selection, focus or reorder states.
 - Virtualized list, drag/drop reordering, keyboard selection, move up/down/remove controls.
 - Removing a queue entry never deletes the source file.
 - Queue uses the Phase-3 subtle section surface; individual rows keep the native ListView item/selection surface rather than nesting an additional card shell.

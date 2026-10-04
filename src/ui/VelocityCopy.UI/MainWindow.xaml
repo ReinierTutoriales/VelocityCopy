@@ -299,7 +299,16 @@
                       CanReorderItems="True"
                       AllowDrop="True"
                       DragItemsCompleted="OnQueueDragItemsCompleted"
-                      HorizontalContentAlignment="Stretch" />
+                      HorizontalContentAlignment="Stretch">
+                <ListView.ItemContainerStyle>
+                    <Style TargetType="ListViewItem"
+                           BasedOn="{StaticResource DefaultListViewItemStyle}">
+                        <Setter Property="MinHeight" Value="{StaticResource QueueItemContainerMinHeight}" />
+                        <Setter Property="Padding" Value="{StaticResource QueueItemContainerPadding}" />
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    </Style>
+                </ListView.ItemContainerStyle>
+            </ListView>
 
             <Grid Grid.Row="2" Margin="{StaticResource QueueCommandsMargin}">
                 <Grid.ColumnDefinitions>
