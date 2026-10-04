@@ -308,8 +308,7 @@
                             Click="OnQueueMoveUpClick"
                             HorizontalAlignment="Stretch"
                             VerticalAlignment="Stretch"
-                            Padding="0"
-                            BorderThickness="0">
+                            Padding="0">
                         <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74A;" FontSize="{StaticResource ActionIconSize}" />
                     </Button>
                 </Grid>
@@ -323,8 +322,7 @@
                             Click="OnQueueMoveDownClick"
                             HorizontalAlignment="Stretch"
                             VerticalAlignment="Stretch"
-                            Padding="0"
-                            BorderThickness="0">
+                            Padding="0">
                         <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74B;" FontSize="{StaticResource ActionIconSize}" />
                     </Button>
                 </Grid>
@@ -337,8 +335,7 @@
                             Click="OnQueueRemoveClick"
                             HorizontalAlignment="Stretch"
                             VerticalAlignment="Stretch"
-                            Padding="0"
-                            BorderThickness="0">
+                            Padding="0">
                         <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE738;" FontSize="{StaticResource ActionIconSize}" />
                     </Button>
                 </Grid>
