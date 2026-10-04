@@ -544,14 +544,14 @@
                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                   Margin="{StaticResource SectionIconMargin}" />
                                         <TextBlock x:Uid="DetailsSourceLabel" Grid.Column="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
-                                        <TextBlock x:Name="DetailsSourceText" Grid.Column="2" TextWrapping="Wrap" MaxLines="2" FontSize="{StaticResource CaptionFontSize}" />
+                                        <TextBlock x:Name="DetailsSourceText" Grid.Column="2" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxLines="1" FontSize="{StaticResource CaptionFontSize}" />
 
                                         <FontIcon Grid.Row="1" Glyph="&#xE8B7;" FontFamily="Segoe Fluent Icons"
                                                   FontSize="{StaticResource InformationIconSize}"
                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                   Margin="{StaticResource SectionIconMargin}" />
                                         <TextBlock x:Uid="DetailsDestinationLabel" Grid.Row="1" Grid.Column="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
-                                        <TextBlock x:Name="DetailsDestinationText" Grid.Row="1" Grid.Column="2" TextWrapping="Wrap" MaxLines="2" FontSize="{StaticResource CaptionFontSize}" />
+                                        <TextBlock x:Name="DetailsDestinationText" Grid.Row="1" Grid.Column="2" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxLines="1" FontSize="{StaticResource CaptionFontSize}" />
 
                                         <FontIcon Grid.Row="2" Glyph="&#xE8A5;" FontFamily="Segoe Fluent Icons"
                                                   FontSize="{StaticResource InformationIconSize}"

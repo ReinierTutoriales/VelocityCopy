@@ -83,7 +83,16 @@ int main() {
         !contains(xaml, "x:Name=\"DetailsChevronIcon\"") ||
         !contains(xaml, "x:Name=\"PerformanceCurrentSpeedText\"") ||
         !contains(xaml, "FontWeight=\"SemiBold\"")) {
-        return fail(9, "action and performance emphasis must use system semantic color hierarchy");
+        return fail(10, "action and performance emphasis must use system semantic color hierarchy");
+    }
+
+    const auto execution = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Execution.cpp");
+    if (execution.empty() ||
+        !contains(xaml, "x:Name=\"DetailsSourceText\" Grid.Column=\"2\" TextWrapping=\"NoWrap\" TextTrimming=\"CharacterEllipsis\" MaxLines=\"1\"") ||
+        !contains(xaml, "x:Name=\"DetailsDestinationText\" Grid.Row=\"1\" Grid.Column=\"2\" TextWrapping=\"NoWrap\" TextTrimming=\"CharacterEllipsis\" MaxLines=\"1\"") ||
+        !contains(execution, "ToolTipService::SetToolTip(DetailsSourceText(), box_value(source))") ||
+        !contains(execution, "ToolTipService::SetToolTip(DetailsDestinationText(), box_value(destination))")) {
+        return fail(9, "information paths must stay single-line with ellipsis and preserve full paths in tooltips");
     }
 
     const auto window = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
@@ -93,13 +102,13 @@ int main() {
         !contains(show_notice, "ErrorBar().Title(velocitycopy::localization::get_string(L\"StatusFailed\"))") ||
         !contains(show_notice, "ErrorBar().Title(velocitycopy::localization::get_string(L\"StatusCompletedWithIssues\"))") ||
         !contains(reset_surface, "ErrorBar().Title(L\"\")")) {
-        return fail(10, "native InfoBar must expose localized semantic titles and reset them between sessions");
+        return fail(11, "native InfoBar must expose localized semantic titles and reset them between sessions");
     }
 
     // New fidelity work must remain theme-driven; no fixed RGB/hex palette is allowed.
     if (contains(xaml, "Color=\"#") || contains(xaml, "Background=\"#") ||
         contains(xaml, "Foreground=\"#") || contains(tokens, "Color=\"#")) {
-        return fail(11, "visual fidelity must use ThemeResource instead of fixed colors");
+        return fail(12, "visual fidelity must use ThemeResource instead of fixed colors");
     }
 
     return 0;
