@@ -478,17 +478,26 @@
                                                 BorderThickness="1"
                                                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                                                 CornerRadius="{ThemeResource ControlCornerRadius}">
-                                            <Canvas x:Name="PerformanceGraph">
-                                                <Polygon x:Name="PerformanceGraphArea"
-                                                         AutomationProperties.AccessibilityView="Raw"
-                                                         Fill="{ThemeResource AccentFillColorDefaultBrush}"
-                                                         Opacity="0.16" />
-                                                <Polyline x:Name="PerformanceGraphLine"
-                                                          AutomationProperties.AccessibilityView="Raw"
-                                                          Stroke="{ThemeResource AccentFillColorDefaultBrush}"
-                                                          StrokeThickness="1.5"
-                                                          StrokeLineJoin="Round" />
-                                            </Canvas>
+                                            <Grid>
+                                                <Border x:Name="PerformanceGraphMidline"
+                                                        Height="1"
+                                                        VerticalAlignment="Center"
+                                                        Background="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                        Opacity="0.55"
+                                                        IsHitTestVisible="False"
+                                                        AutomationProperties.AccessibilityView="Raw" />
+                                                <Canvas x:Name="PerformanceGraph">
+                                                    <Polygon x:Name="PerformanceGraphArea"
+                                                             AutomationProperties.AccessibilityView="Raw"
+                                                             Fill="{ThemeResource AccentFillColorDefaultBrush}"
+                                                             Opacity="0.16" />
+                                                    <Polyline x:Name="PerformanceGraphLine"
+                                                              AutomationProperties.AccessibilityView="Raw"
+                                                              Stroke="{ThemeResource AccentFillColorDefaultBrush}"
+                                                              StrokeThickness="1.5"
+                                                              StrokeLineJoin="Round" />
+                                                </Canvas>
+                                            </Grid>
                                         </Border>
                                     </Grid>
                                 </Grid>

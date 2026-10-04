@@ -117,6 +117,12 @@ int main() {
         return fail(14, "secondary commands and supporting iconography must stay visually subordinate");
     }
 
+    if (!contains(xaml, "x:Name=\"PerformanceGraphMidline\"") ||
+        !contains(xaml, "Background=\"{ThemeResource CardStrokeColorDefaultBrush}\"") ||
+        !contains(xaml, "Opacity=\"0.55\"")) {
+        return fail(15, "performance graph must expose a subtle theme-aware midline guide");
+    }
+
     // New fidelity work must remain theme-driven; no fixed RGB/hex palette is allowed.
     if (contains(xaml, "Color=\"#") || contains(xaml, "Background=\"#") ||
         contains(xaml, "Foreground=\"#") || contains(tokens, "Color=\"#")) {
