@@ -232,23 +232,11 @@ void MainWindow::OnQueueKeyDown(IInspectable const&, KeyRoutedEventArgs const& a
 }
 
 void MainWindow::OnQueueClick(IInspectable const&, RoutedEventArgs const&) {
-    const bool expanding = QueuePanel().Visibility() != Visibility::Visible;
-    if (expanding) SetDetailsExpanded(false);
-    QueuePanel().Visibility(expanding ? Visibility::Visible : Visibility::Collapsed);
-    QueueChevron().Glyph(expanding ? L"\xE70E" : L"\xE70D");
-
-    try {
-        const auto label = velocitycopy::localization::get_string(expanding ? L"ActionHideQueue" : L"ActionShowQueue");
-        ToolTipService::SetToolTip(QueueButton(), box_value(label));
-        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(QueueButton(), label);
-    } catch (...) {
-    }
-
-    if (expanding) {
-        RefreshQueue();
-        ResizeWindowToContent();
-    } else {
-        ResizeWindowToContent();
+    SetExpanded(!expanded_);
+    ResizeWindowToContent();
+    if (expanded_) {
+        RootGrid().UpdateLayout();
+        UpdatePerformanceGraph();
     }
 }
 

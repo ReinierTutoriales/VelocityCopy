@@ -28,11 +28,26 @@ int main() {
     const auto execution = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Execution.cpp");
     const auto queue = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Queue.cpp");
     const auto menu = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.QueuePersistence.cpp");
+    const auto queue_persistence = menu;
     const auto window = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
     const auto tokens = read_source(root / "src/ui/DesignTokens.xaml");
     const auto spec = read_source(root / "docs/UI_SPEC.md");
     const auto conflict = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Conflict.cpp");
     const auto about = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.About.cpp");
+    bool stray_expanded_visibility_writer = false;
+    const auto ui_dir = root / "src/ui/VelocityCopy.UI";
+    for (const auto& entry : std::filesystem::directory_iterator(ui_dir)) {
+        if (!entry.is_regular_file()) continue;
+        const auto name = entry.path().filename().string();
+        if (!name.starts_with("MainWindow") || entry.path().extension() != ".cpp" ||
+            name == "MainWindow.xaml.cpp") continue;
+        const auto source = read_source(entry.path());
+        if (contains(source, "QueuePanel().Visibility(") ||
+            contains(source, "DetailsPanel().Visibility(")) {
+            stray_expanded_visibility_writer = true;
+            break;
+        }
+    }
 
     if (xaml.empty() || header.empty() || execution.empty() || queue.empty() ||
         menu.empty() || window.empty() || tokens.empty() || spec.empty() || conflict.empty() || about.empty()) {
@@ -322,7 +337,6 @@ int main() {
         !contains(resize_window, "reposition ? 0 : SWP_NOMOVE")) {
         return fail(42, "phase 3 resize must own width/height, preserve in-bounds position, suppress DPI repositioning, and correct only work-area overflow");
     }
-    const auto resize_window = body_of(window, "void MainWindow::ResizeWindow(");
     if (!contains(show_notice, "ErrorBar().Severity(severity)") ||
         !contains(show_notice, "ErrorBar().IsOpen(true)") ||
         count_occurrences(show_notice, "ResizeWindowToContent();") != 2 ||
@@ -371,8 +385,12 @@ int main() {
     if (!contains(xaml, "x:Name=\"DetailsPanel\"") ||
         !contains(xaml, "x:Name=\"PerformanceGraph\"") ||
         !contains(xaml, "x:Name=\"PerformanceGraph\" AutomationProperties.AccessibilityView=\"Raw\"") ||
-        !contains(details_click, "QueuePanel().Visibility(Visibility::Collapsed)") ||
-        !contains(queue_click, "SetDetailsExpanded(false)") ||
+        !contains(details_click, "SetExpanded(!expanded_)") ||
+        !contains(queue_click, "SetExpanded(!expanded_)") ||
+        count_occurrences(window, "QueuePanel().Visibility(") != 1 ||
+        count_occurrences(window, "DetailsPanel().Visibility(") != 1 ||
+        !contains(window, "void MainWindow::SetExpanded(") ||
+        stray_expanded_visibility_writer ||
         !contains(observe_performance, "performance_sampling_state_ != PerformanceSamplingState::Copying") ||
         !contains(observe_performance, "now - last_performance_sample_ms_ < 500") ||
         !contains(observe_performance, "performance_speed_samples_.size() > 60") ||

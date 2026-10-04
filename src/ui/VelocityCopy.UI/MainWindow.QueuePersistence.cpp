@@ -397,7 +397,7 @@ bool MainWindow::StartCopyPlan(
     queue_snapshot_.clear();
     QueueList().Items().Clear();
     QueueCountText().Text(L"0");
-    QueuePanel().Visibility(Visibility::Collapsed);
+    SetExpanded(false);
     ResizeWindowToContent();
     SetProgressFraction(0.0);
 

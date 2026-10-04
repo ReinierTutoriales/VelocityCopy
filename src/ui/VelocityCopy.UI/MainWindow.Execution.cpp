@@ -234,7 +234,7 @@ void MainWindow::StartTransfer(velocitycopy::CopyJob job, velocitycopy::StorageK
     QueueList().Items().Clear();
     QueueCountText().Text(L"0");
     QueueButton().IsEnabled(true);
-    QueuePanel().Visibility(Visibility::Collapsed);
+    SetExpanded(false);
     ResizeWindowToContent();
     SetProgressFraction(0.0);
     SetExecutionButtonsPlanning();
@@ -450,9 +450,8 @@ void MainWindow::CancelCurrentSession() {
         QueueList().Items().Clear();
         QueueCountText().Text(L"0");
         QueueButton().IsEnabled(false);
-        QueuePanel().Visibility(Visibility::Collapsed);
-        QueueChevron().Glyph(L"\xE70D");
-        ResizeWindowToContent();
+        SetExpanded(false);
+    ResizeWindowToContent();
         SetExecutionButtonsIdle();
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
@@ -534,7 +533,7 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
     }
     ObservePerformanceSample(snapshot.bytes_per_second);
 
-    if (QueuePanel().Visibility() == Visibility::Visible && snapshot.completed_files != last_queue_completed_files_) {
+    if (expanded_ && snapshot.completed_files != last_queue_completed_files_) {
         last_queue_completed_files_ = snapshot.completed_files;
         RefreshQueue();
     }
@@ -644,9 +643,8 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         active_destination_.clear();
         RefreshQueue();
         QueueButton().IsEnabled(false);
-        QueuePanel().Visibility(Visibility::Collapsed);
-        QueueChevron().Glyph(L"\xE70D");
-        ResizeWindowToContent();
+        SetExpanded(false);
+    ResizeWindowToContent();
         SetExecutionButtonsIdle();
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
@@ -670,9 +668,8 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         active_destination_.clear();
         RefreshQueue();
         QueueButton().IsEnabled(false);
-        QueuePanel().Visibility(Visibility::Collapsed);
-        QueueChevron().Glyph(L"\xE70D");
-        ResizeWindowToContent();
+        SetExpanded(false);
+    ResizeWindowToContent();
         SetExecutionButtonsIdle();
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
@@ -718,8 +715,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     active_destination_.clear();
     RefreshQueue();
     QueueButton().IsEnabled(false);
-    QueuePanel().Visibility(Visibility::Collapsed);
-    QueueChevron().Glyph(L"\xE70D");
+    SetExpanded(false);
     ResizeWindowToContent();
     SetExecutionButtonsIdle();
     SpeedText().Text(L"—");
@@ -887,8 +883,7 @@ void MainWindow::FinalizeStoppedSessionIfEmpty() {
     active_destination_.clear();
     RefreshQueue();
     QueueButton().IsEnabled(false);
-    QueuePanel().Visibility(Visibility::Collapsed);
-    QueueChevron().Glyph(L"\xE70D");
+    SetExpanded(false);
     ResizeWindowToContent();
     SetExecutionButtonsIdle();
     SetProgressFraction(1.0);

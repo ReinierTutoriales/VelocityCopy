@@ -32,6 +32,7 @@ namespace winrt::VelocityCopyUI::implementation {
 // transition in progress, not an interrupted state.
 enum class InterruptedSessionState : std::uint8_t { None, Stopped, Conflict, Decision };
 enum class PerformanceSamplingState : std::uint8_t { Idle, Planning, Copying, Paused, Stopped, Cancelling, Conflict };
+enum class ExpandedLayoutMode : std::uint8_t { ThreeColumn, Narrow };
 
 struct MainWindow : MainWindowT<MainWindow> {
     MainWindow();
@@ -186,7 +187,7 @@ private:
     void RefreshQueueCommandState();
     void RefreshExecutionMenuState();
     void RefreshQueueEditCommandState();
-    void SetDetailsExpanded(bool expanded);
+    void SetExpanded(bool expanded);
     void ResetPerformanceHistory() noexcept;
     void ObservePerformanceSample(double bytes_per_second);
     void UpdatePerformanceGraph();
@@ -258,6 +259,8 @@ private:
     double last_rasterization_scale_{};
     double last_text_scale_factor_{};
     bool resize_in_progress_{};
+    bool expanded_{};
+    ExpandedLayoutMode expanded_layout_mode_{ExpandedLayoutMode::ThreeColumn};
     Microsoft::UI::Xaml::XamlRoot::Changed_revoker xaml_root_changed_revoker_{};
     Windows::UI::ViewManagement::UISettings ui_settings_{nullptr};
     Windows::UI::ViewManagement::UISettings::TextScaleFactorChanged_revoker text_scale_changed_revoker_{};

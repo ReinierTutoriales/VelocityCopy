@@ -186,8 +186,7 @@ void MainWindow::FinalizeConflictSessionIfEmpty() {
     active_destination_.clear();
     RefreshQueue();
     QueueButton().IsEnabled(false);
-    QueuePanel().Visibility(Visibility::Collapsed);
-    QueueChevron().Glyph(L"\xE70D");
+    SetExpanded(false);
     ResizeWindowToContent();
     SetExecutionButtonsIdle();
     SpeedText().Text(L"—");

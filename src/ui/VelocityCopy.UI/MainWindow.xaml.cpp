@@ -305,6 +305,7 @@ void MainWindow::ResizeWindow(const int client_width_epx, const int client_heigh
         resize_in_progress_ = false;
     }
 }
+
 void MainWindow::ResizeWindowToContent(const bool preserve_position) {
     if (resize_in_progress_) return;
     RootGrid().UpdateLayout();
@@ -446,34 +447,34 @@ void MainWindow::ResetTransferSurface() {
     ErrorBar().Message(L"");
 }
 
-void MainWindow::SetDetailsExpanded(const bool expanded) {
+void MainWindow::SetExpanded(const bool expanded) {
+    expanded_ = expanded;
+    // Transitional Phase 2 presentation: one logical expanded state, one visible panel.
+    // Phase 3 XAML will replace this with the integrated expanded surface.
     DetailsPanel().Visibility(expanded ? Visibility::Visible : Visibility::Collapsed);
+    QueuePanel().Visibility(Visibility::Collapsed);
+    QueueChevron().Glyph(expanded ? L"\xE70E" : L"\xE70D");
     try {
-        const auto label = velocitycopy::localization::get_string(
+        const auto details_label = velocitycopy::localization::get_string(
             expanded ? L"ActionHideDetails" : L"ActionShowDetails");
-        ToolTipService::SetToolTip(DetailsButton(), box_value(label));
-        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(DetailsButton(), label);
+        ToolTipService::SetToolTip(DetailsButton(), box_value(details_label));
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(DetailsButton(), details_label);
+        const auto queue_label = velocitycopy::localization::get_string(
+            expanded ? L"ActionHideQueue" : L"ActionShowQueue");
+        ToolTipService::SetToolTip(QueueButton(), box_value(queue_label));
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(QueueButton(), queue_label);
     } catch (...) {
-        OutputDebugStringW(L"VelocityCopy: SetDetailsExpanded failed\\n");
+        OutputDebugStringW(L"VelocityCopy: SetExpanded failed\\n");
     }
-    if (expanded) UpdatePerformanceGraph();
+    if (expanded) {
+        RefreshQueue();
+        UpdatePerformanceGraph();
+    }
 }
-
 void MainWindow::OnDetailsClick(IInspectable const&, RoutedEventArgs const&) {
-    const bool expanding = DetailsPanel().Visibility() != Visibility::Visible;
-    if (expanding && QueuePanel().Visibility() == Visibility::Visible) {
-        QueuePanel().Visibility(Visibility::Collapsed);
-        QueueChevron().Glyph(L"\xE70D");
-        try {
-            const auto label = velocitycopy::localization::get_string(L"ActionShowQueue");
-            ToolTipService::SetToolTip(QueueButton(), box_value(label));
-            Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(QueueButton(), label);
-        } catch (...) {
-        }
-    }
-    SetDetailsExpanded(expanding);
+    SetExpanded(!expanded_);
     ResizeWindowToContent();
-    if (expanding) {
+    if (expanded_) {
         RootGrid().UpdateLayout();
         UpdatePerformanceGraph();
     }
@@ -497,7 +498,7 @@ void MainWindow::ObservePerformanceSample(const double bytes_per_second) {
     performance_speed_samples_.push_back(
         std::isfinite(bytes_per_second) && bytes_per_second > 0.0 ? bytes_per_second : 0.0);
     while (performance_speed_samples_.size() > 60) performance_speed_samples_.pop_front();
-    if (DetailsPanel().Visibility() == Visibility::Visible) UpdatePerformanceGraph();
+    if (expanded_) UpdatePerformanceGraph();
 }
 
 void MainWindow::UpdatePerformanceGraph() {
