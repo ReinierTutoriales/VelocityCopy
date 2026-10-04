@@ -86,6 +86,28 @@ The layout may change, but the existing state transitions and command enablement
 
 This table is a preservation contract, not permission to normalize states that currently differ. If implementation and this table disagree during the phase-1 audit, preserve the current behavior and correct the table before changing behavior.
 
+## Phase 2 expanded Information + Performance
+
+Phase 2 adds an expanded **Details** surface to the same HWND. It is presentation-only: it does not alter copy planning, execution, conflict semantics or queue semantics.
+
+- Details has its own disclosure/action and must not reuse the Queue disclosure or `OnQueueClick`.
+- Details and Queue are mutually exclusive expanded surfaces. Opening Details collapses Queue; opening Queue collapses Details. This keeps one bounded expansion below the normal transfer surface and preserves Queue as a separate feature.
+- The normal Phase-1 transfer surface remains visible and authoritative while Details is expanded.
+- Details contains two sections: **Information** and **Performance**. It contains no queue list or queue editing controls.
+- Information may repeat or expand only data already available to presentation: full current source, full current destination, transferred/total bytes, completed/total files, aggregate percentage, current speed and ETA. Current-file byte size and a current-file ordinal remain unavailable and must not be inferred.
+- Long paths in Details wrap or trim predictably and expose the complete path through tooltip/accessibility text; they must not force horizontal window growth.
+- Performance visualizes `UiSnapshot.bytes_per_second`. The core exposes a smoothed instantaneous speed, not a time series, so Phase 2 owns a bounded speed-sample history entirely in `MainWindow`.
+- Presentation sampling is rate-limited independently of snapshot delivery. Keep at most 60 samples at approximately 500 ms spacing (about 30 seconds). Sampling continues while Details is collapsed so opening the panel reveals recent history instead of an empty graph.
+- The sample source is the already-smoothed `UiSnapshot.bytes_per_second`. Phase 2 deliberately graphs that presentation signal directly; it does not compute a second moving average. The numeric current-speed value therefore matches the newest accepted graph sample subject to the 500 ms graph sampling cadence.
+- Paused/stopped execution **freezes** graph sampling: do not append zeroes and do not synthesize gaps. The trace represents active transfer samples, not wall-clock duration. Existing samples remain visible while paused. Consequently the X axis represents up to about 30 seconds of **active transfer sampling**, not the last 30 seconds of wall-clock time. UI copy must not label it "last 30 seconds"; any label must be neutral or explicitly describe active-transfer time.
+- Sampling stops immediately when execution enters **Cancelling**, before terminal Cancelled cleanup, so teardown does not appear as a throughput drop. Completed, terminal Error and Cancelled states likewise accept no further graph samples. Starting a new job/session in the same window clears the history and resets its sampling clock before accepting samples for that job.
+- The graph is descriptive only. It must not feed progress, ETA, execution policy or any core decision back into the transfer engine.
+- Phase 2 deliberately uses per-window auto-scaling against the maximum of the visible ~30-second sample history, with a non-zero floor. A single large peak may temporarily flatten subsequent smaller values; that tradeoff is accepted for this phase instead of introducing a hidden fixed throughput scale. A zero-speed history renders as a baseline rather than NaN/invalid geometry.
+- Accessibility is carried by the localized numeric Performance fields. The graph itself is decorative/non-interactive: its XAML container sets `AutomationProperties.AccessibilityView="Raw"`, removing it from the UI Automation Control and Content views used for normal Narrator traversal. It has no focus target, exposes no per-bar/sample automation elements, and redraws must not cause Narrator announcements. Architecture tests must require this concrete accessibility setting.
+- Details height is content-driven through the existing `ResizeWindowToContent()` client-size contract and participates in DPI/text-scale remeasurement.
+- No continuous animation is introduced. The graph changes only when a rate-limited presentation sample is accepted.
+- Queue remains separately available with its existing planning/edit/reorder semantics. Phase 2 does not redesign Queue.
+
 ## Drag/drop contract
 
 Whole-window drag/drop is **append-only**.
