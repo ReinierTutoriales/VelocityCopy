@@ -228,8 +228,13 @@
                  Severity="Error"
                  IsClosable="True" />
 
+        <ScrollViewer x:Name="ExpandedViewport"
+                      Grid.Row="2"
+                      VerticalScrollBarVisibility="Disabled"
+                      VerticalScrollMode="Disabled"
+                      HorizontalScrollBarVisibility="Disabled"
+                      HorizontalScrollMode="Disabled">
         <Grid x:Name="ExpandedRegion"
-              Grid.Row="2"
               Visibility="Collapsed"
               Padding="{StaticResource DetailsPanelPadding}"
               ColumnSpacing="{StaticResource ExpandedColumnSpacing}">
@@ -470,6 +475,7 @@
                 </ScrollViewer>
             </Grid>
         </Grid>
+        </ScrollViewer>
 
     </Grid>
 </Window>

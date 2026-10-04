@@ -9,6 +9,7 @@
     <x:Double x:Key="CaptionRowHeight">32</x:Double>
     <GridLength x:Key="CaptionRowGridLength">32</GridLength>
     <x:Double x:Key="QueueExpandedMinHeight">176</x:Double>
+    <x:Double x:Key="DetailsExpandedMinHeight">128</x:Double>
     <x:Double x:Key="QueueExpandedMaxHeight">340</x:Double>
     <x:Double x:Key="QueueHeaderMinHeight">28</x:Double>
     <x:Double x:Key="SpaceTight">4</x:Double><x:Double x:Key="SpaceRelated">8</x:Double>

@@ -352,6 +352,9 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
                 velocitycopy::ui::token_double(L"ExpandedColumnSpacing", 8));
             DetailsScrollViewer().VerticalScrollMode(ScrollMode::Disabled);
             DetailsScrollViewer().VerticalScrollBarVisibility(ScrollBarVisibility::Disabled);
+            ExpandedViewport().VerticalScrollMode(ScrollMode::Disabled);
+            ExpandedViewport().VerticalScrollBarVisibility(ScrollBarVisibility::Disabled);
+            ExpandedViewport().IsTabStop(false);
             ExpandedRegion().ColumnSpacing(
                 velocitycopy::ui::token_double(L"ExpandedColumnSpacing", 8));
             PerformancePanel().Margin(Thickness{});
@@ -376,8 +379,11 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
             Grid::SetRow(InformationPanel(), 1);
             Grid::SetColumn(InformationPanel(), 0);
             DetailsGrid().ColumnSpacing(0.0);
-            DetailsScrollViewer().VerticalScrollMode(ScrollMode::Enabled);
-            DetailsScrollViewer().VerticalScrollBarVisibility(ScrollBarVisibility::Auto);
+            DetailsScrollViewer().VerticalScrollMode(ScrollMode::Disabled);
+            DetailsScrollViewer().VerticalScrollBarVisibility(ScrollBarVisibility::Disabled);
+            ExpandedViewport().VerticalScrollMode(ScrollMode::Auto);
+            ExpandedViewport().VerticalScrollBarVisibility(ScrollBarVisibility::Auto);
+            ExpandedViewport().IsTabStop(true);
             ExpandedRegion().ColumnSpacing(0.0);
             PerformancePanel().Margin(velocitycopy::ui::token_thickness(L"DetailsPerformanceMargin", Thickness{0.0,12.0,0.0,0.0}));
         }
@@ -401,6 +407,7 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
     }
 
     const double queue_min_height = velocitycopy::ui::token_double(L"QueueExpandedMinHeight", 176);
+    const double details_min_height = velocitycopy::ui::token_double(L"DetailsExpandedMinHeight", 128);
     const double expanded_max_height = velocitycopy::ui::token_double(L"QueueExpandedMaxHeight", 340);
     const double available_expanded_height =
         (std::max)(queue_min_height, work_height_epx - work_margin * 2.0 - normal_height - notice_height);
@@ -433,11 +440,21 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
     } else {
         const double padding_height = expanded_padding.Top + expanded_padding.Bottom;
         const double content_cap = (std::max)(1.0, expanded_height_cap - padding_height);
+        const double required_content_height = queue_min_height + details_min_height;
+        const bool constrained_height = content_cap < required_content_height;
         const double queue_height = queue_min_height;
-        const double details_height = (std::max)(1.0, content_cap - queue_height);
+        const double details_height = constrained_height
+            ? details_min_height
+            : (std::max)(details_min_height, content_cap - queue_height);
         ExpandedRow0().Height(GridLength{queue_height, GridUnitType::Pixel});
         ExpandedRow1().Height(GridLength{details_height, GridUnitType::Pixel});
-        expanded_region_height = queue_height + details_height + padding_height;
+        ExpandedViewport().VerticalScrollMode(
+            constrained_height ? ScrollMode::Auto : ScrollMode::Disabled);
+        ExpandedViewport().VerticalScrollBarVisibility(
+            constrained_height ? ScrollBarVisibility::Auto : ScrollBarVisibility::Disabled);
+        expanded_region_height = constrained_height
+            ? expanded_height_cap
+            : queue_height + details_height + padding_height;
     }
 
     ResizeWindow(

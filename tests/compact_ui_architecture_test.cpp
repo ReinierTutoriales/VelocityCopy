@@ -357,14 +357,28 @@ int main() {
         !contains(three_column_branch, "ExpandedRegion().ColumnSpacing(") ||
         !contains(three_column_branch, "ExpandedColumnSpacing") ||
         !contains(three_column_branch, "PerformancePanel().Margin(Thickness{})") ||
+        !contains(three_column_branch, "Grid::SetRow(DetailsViewport(), 0)") ||
+        !contains(three_column_branch, "Grid::SetColumn(DetailsViewport(), 1)") ||
+        !contains(three_column_branch, "ExpandedViewport().VerticalScrollMode(ScrollMode::Disabled)") ||
+        !contains(three_column_branch, "ExpandedViewport().VerticalScrollBarVisibility(ScrollBarVisibility::Disabled)") ||
+        !contains(three_column_branch, "ExpandedViewport().IsTabStop(false)") ||
         !contains(narrow_branch, "ExpandedRegion().ColumnSpacing(0.0)") ||
         !contains(narrow_branch, "PerformancePanel().Margin(") ||
         !contains(narrow_branch, "token_thickness(L\"DetailsPerformanceMargin\"") ||
         !contains(xaml, "x:Name=\"DetailsScrollViewer\"") ||
-        !contains(narrow_branch, "DetailsScrollViewer().VerticalScrollMode(ScrollMode::Enabled)") ||
-        !contains(narrow_branch, "DetailsScrollViewer().VerticalScrollBarVisibility(ScrollBarVisibility::Auto)") ||
+        !contains(xaml, "x:Name=\"ExpandedViewport\"") ||
+        !contains(narrow_branch, "Grid::SetRow(DetailsViewport(), 1)") ||
+        !contains(narrow_branch, "Grid::SetColumn(DetailsViewport(), 0)") ||
+        !contains(narrow_branch, "ExpandedViewport().VerticalScrollMode(ScrollMode::Auto)") ||
+        !contains(narrow_branch, "ExpandedViewport().VerticalScrollBarVisibility(ScrollBarVisibility::Auto)") ||
+        !contains(narrow_branch, "ExpandedViewport().IsTabStop(true)") ||
+        !contains(resize_to_content, "DetailsExpandedMinHeight") ||
+        !contains(resize_to_content, "const double required_content_height = queue_min_height + details_min_height;") ||
+        !contains(resize_to_content, "const bool constrained_height = content_cap < required_content_height;") ||
         !contains(resize_to_content, "const double queue_height = queue_min_height;") ||
-        !contains(resize_to_content, "const double details_height = (std::max)(1.0, content_cap - queue_height);") ||
+        !contains(resize_to_content, "? details_min_height") ||
+        !contains(resize_to_content, "expanded_region_height = constrained_height") ||
+        !contains(resize_to_content, "? expanded_height_cap") ||
         contains(resize_to_content, "fixed_content_height") ||
         contains(resize_to_content, "(std::min)(queue_min_height, content_cap - fixed_content_height)") ||
         contains(resize_to_content, "QueuePanel().Measure(") ||
