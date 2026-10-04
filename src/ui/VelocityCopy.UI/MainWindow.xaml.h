@@ -24,6 +24,7 @@
 #include <mutex>
 #include <utility>
 #include <variant>
+#include <winrt/Windows.UI.ViewManagement.h>
 
 namespace winrt::VelocityCopyUI::implementation {
 // A session interrupted by Stop or by a destination conflict. The two are
@@ -208,6 +209,7 @@ private:
     static hstring FormatFailureReason(std::int32_t native_code);
     static hstring FormatSpeed(double bytes_per_second);
     static hstring FormatEta(double seconds);
+    static hstring FormatBytes(std::uint64_t bytes);
 
     std::wstring session_id_{velocitycopy::new_session_id()};
     std::uint64_t window_id_{};
@@ -247,6 +249,12 @@ private:
     Microsoft::UI::Xaml::Thickness base_caption_content_padding_{};
     std::atomic_bool cancel_requested_{false};
     double progress_fraction_{};
+    double last_rasterization_scale_{};
+    double last_text_scale_factor_{};
+    bool resize_in_progress_{};
+    Microsoft::UI::Xaml::XamlRoot::Changed_revoker xaml_root_changed_revoker_{};
+    Windows::UI::ViewManagement::UISettings ui_settings_{nullptr};
+    Windows::UI::ViewManagement::UISettings::TextScaleFactorChanged_revoker text_scale_changed_revoker_{};
     bool paused_{};
     InterruptedSessionState interrupted_session_{InterruptedSessionState::None};
     bool stop_requested_{};

@@ -42,6 +42,12 @@ int main() {
     if (!contains(xaml, "x:Name=\"TransferSurface\"") ||
         !contains(xaml, "x:Name=\"TransferProgress\"") ||
         !contains(xaml, "x:Name=\"BrandLogo\"") ||
+        !contains(xaml, "x:Name=\"TransferDetailGrid\"") ||
+        !contains(xaml, "x:Name=\"TransferBytesText\"") ||
+        !contains(xaml, "x:Name=\"TransferFilesText\"") ||
+        !contains(xaml, "x:Name=\"TransferPathGrid\"") ||
+        !contains(xaml, "x:Name=\"SourcePathText\"") ||
+        !contains(xaml, "x:Name=\"DestinationPathText\"") ||
         !contains(xaml, "x:Name=\"BottomContentGrid\"") ||
         !contains(xaml, "x:Name=\"TelemetryStrip\"") ||
         !contains(xaml, "x:Name=\"PrimaryActionCluster\"") ||
@@ -115,12 +121,14 @@ int main() {
 
     // DesignTokens.xaml is the single width source; C++ reads it through the
     // UiTokens.h accessor with an identical fallback.
-    if (!contains(tokens, "<x:Double x:Key=\"CompactWindowWidth\">380</x:Double>") ||
-        !contains(window, "token_int(L\"CompactWindowWidth\", 380)") ||
-        contains(window, "kCompactWindowWidthEpx") ||
-        contains(tokens, "WindowCompactWidth") || contains(tokens, "WindowMinWidth") ||
-        contains(tokens, "WindowComfortableBreakpoint")) {
-        return fail(6, "compact geometry must have one runtime width source instead of dead resource mirrors");
+    if (!contains(tokens, "<x:Double x:Key=\"NormalWindowMinWidth\">380</x:Double>") ||
+        !contains(window, "token_int(L\"NormalWindowMinWidth\", 380)") ||
+        contains(window, "token_int(L\"CompactWindowWidth\"") ||
+        contains(tokens, "CompactWindowWidth") ||
+        contains(tokens, "CompactSurfaceHeight") ||
+        contains(xaml, "Height=\"{StaticResource CompactSurfaceHeight}\"") ||
+        contains(window, "token_int(L\"CompactSurfaceHeight\"")) {
+        return fail(6, "normal geometry must use one width token and measured content height");
     }
 
     if (!contains(window, "presenter.IsMinimizable(true)") ||
@@ -189,7 +197,8 @@ int main() {
     // stay on the Windows scale. Visual validation remains a separate gate.
     if (!contains(window, "title_bar.Height() * 96.0 / static_cast<double>(dpi)") ||
         !contains(window, "CaptionRowDefinition().Height") ||
-        !contains(tokens, "<x:Double x:Key=\"CompactSurfaceHeight\">72</x:Double>") ||
+        contains(tokens, "CompactSurfaceHeight") ||
+        contains(tokens, "ProgressFillOpacity") ||
         !contains(tokens, "<x:Double x:Key=\"ActionButtonSize\">32</x:Double>") ||
         contains(tokens, "SurfaceActionButtonSize") || contains(tokens, "QueueCommandButtonSize") ||
         !contains(tokens, "<x:Double x:Key=\"ActionIconSize\">16</x:Double>") ||
@@ -201,13 +210,19 @@ int main() {
         contains(tokens, "QueueCountOpacity") || contains(tokens, "QueueItemLocationOpacity") ||
         contains(tokens, "QueueMaxHeightCompact") ||
         !contains(xaml, "TextFillColorSecondaryBrush") || !contains(xaml, "TextFillColorTertiaryBrush") ||
-        !contains(window, "queue_ceiling - compact_height")) {
+        !contains(window, "queue_ceiling - normal_surface_fallback")) {
         return fail(17, "step 3a design-system invariants must remain normalized and runtime-aware");
     }
 
     if (!contains(execution, "if (SpeedText().Text() != speed)") ||
         !contains(execution, "if (EtaText().Text() != eta)") ||
-        !contains(execution, "if (CurrentItemText().Text() != filename)")) {
+        !contains(execution, "if (CurrentItemText().Text() != filename)") ||
+        !contains(execution, "TransferBytesText().Text(bytes_text)") ||
+        !contains(execution, "completed of {}") ||
+        !contains(execution, "SourcePathText().Text(source)") ||
+        !contains(execution, "DestinationPathText().Text(destination)") ||
+        !contains(execution, "ToolTipService::SetToolTip(SourcePathText()") ||
+        !contains(execution, "ToolTipService::SetToolTip(DestinationPathText()")) {
         return fail(13, "telemetry must avoid redundant text/layout invalidation");
     }
 
@@ -224,7 +239,7 @@ int main() {
         return fail(16, "every new transfer session must clear the previous error surface");
     }
 
-    if (!contains(spec, "380 × 72 epx") ||
+    if (!contains(spec, "Superseded phase-0 baseline") ||
         !contains(spec, "native Windows caption cluster visible") ||
         !contains(spec, "telemetry on the left") ||
         !contains(spec, "actions on the right")) {
@@ -255,7 +270,7 @@ int main() {
 
     // Auxiliary decision/about surfaces must remain real top-level windows. They
     // may be modal-owned for activation, but must never be positioned as content
-    // inside or relative to the 72 epx compact transfer surface.
+    // inside or relative to the transfer surface.
     if (contains(conflict, "TDF_POSITION_RELATIVE_TO_WINDOW") ||
         contains(about, "GWLP_HWNDPARENT") ||
         contains(about, "GetWindowRect(hwnd_") ||
@@ -291,6 +306,7 @@ int main() {
     }
 
     const auto resize_to_content = body_of(window, "void MainWindow::ResizeWindowToContent()");
+    const auto resize_window = body_of(window, "void MainWindow::ResizeWindow(");
     if (!contains(show_notice, "ErrorBar().Severity(severity)") ||
         !contains(show_notice, "ErrorBar().IsOpen(true)") ||
         count_occurrences(show_notice, "ResizeWindowToContent();") != 2 ||
@@ -301,8 +317,25 @@ int main() {
         !contains(window, "self->ResizeWindowToContent();") ||
         !contains(resize_to_content, "QueueExpandedMinHeight") ||
         !contains(resize_to_content, "+ notice_height_epx") ||
-        count_occurrences(execution, "ResizeWindowToContent();") != 0) {
-        return fail(40, "notice row must resize on every show/close and remain additional to queue height limits");
+        count_occurrences(execution, "ResizeWindow(velocitycopy::ui::token_int(L\"CompactSurfaceHeight\"") != 0) {
+        return fail(40, "notice and terminal paths must resize from measured content");
+    }
+
+    if (!contains(resize_window, "GetWindowRect(hwnd, &window_rect)") ||
+        !contains(resize_window, "GetClientRect(hwnd, &client_rect)") ||
+        !contains(resize_window, "client_width + frame_width") ||
+        !contains(resize_window, "client_height + frame_height") ||
+        !contains(resize_window, "resize_in_progress_ = true") ||
+        !contains(resize_to_content, "if (resize_in_progress_) return") ||
+        !contains(window, "root.RasterizationScale()") ||
+        !contains(window, "scale - window->last_rasterization_scale_") ||
+        !contains(window, "ui_settings_ = Windows::UI::ViewManagement::UISettings()") ||
+        !contains(window, "ui_settings_.TextScaleFactorChanged(auto_revoke") ||
+        !contains(window, "scale - window->last_text_scale_factor_") ||
+        !contains(resize_to_content, "RootGrid().UpdateLayout()") ||
+        !contains(resize_to_content, "TransferSurface().Measure({measured_width, std::numeric_limits<float>::infinity()})") ||
+        !contains(resize_to_content, "TransferSurface().DesiredSize().Height")) {
+        return fail(42, "content sizing must compensate the native frame and guard DPI/text-scale remeasurement from self-resize loops");
     }
 
     if (contains(finish_copy, "ErrorBar().Severity(") ||

@@ -31,9 +31,9 @@ int main(){
  const auto accessor=read_source(root/"src/ui/VelocityCopy.UI/UiTokens.h");
  const auto xaml=read_source(root/"src/ui/VelocityCopy.UI/MainWindow.xaml");
  if(tokens.empty()||accessor.empty()||xaml.empty()) return fail(1,"required UI token source missing");
- for(const auto* key:{"CompactSurfaceHeight","CompactWindowWidth","CaptionRowHeight","QueueExpandedMinHeight","QueueExpandedMaxHeight","ActionButtonSize","ActionIconSize","CaptionFontSize","BodyFontSize","SubtitleFontSize","AboutWindowWidth","AboutWindowHeight"})
+ for(const auto* key:{"NormalWindowMinWidth","CaptionRowHeight","QueueExpandedMinHeight","QueueExpandedMaxHeight","ActionButtonSize","ActionIconSize","CaptionFontSize","BodyFontSize","SubtitleFontSize","AboutWindowWidth","AboutWindowHeight"})
   if(!contains(tokens,std::string("x:Key=\"")+key+"\"")) return fail(2,"required token missing");
- if(!contains(accessor,"Application::Current().Resources().Lookup")||!contains(accessor,"token_double")||!contains(accessor,"token_thickness")||!contains(xaml,"Height=\"{StaticResource CompactSurfaceHeight}\"")||!contains(read_source(root/"src/ui/VelocityCopy.UI/MainWindow.xaml.cpp"),"token_double(L\"CaptionRowHeight\", 32)")) return fail(3,"XAML/C++ token bridge incomplete");
+ if(!contains(accessor,"Application::Current().Resources().Lookup")||!contains(accessor,"token_double")||!contains(accessor,"token_thickness")||!contains(read_source(root/"src/ui/VelocityCopy.UI/MainWindow.xaml.cpp"),"token_double(L\"CaptionRowHeight\", 32)")) return fail(3,"XAML/C++ token bridge incomplete");
  for(const auto* name:{"MainWindow.xaml.cpp","MainWindow.Queue.cpp","MainWindow.Conflict.cpp","MainWindow.Execution.cpp","MainWindow.QueuePersistence.cpp"}){
   const auto source=read_source(root/"src/ui/VelocityCopy.UI"/name);
   if(contains(source,"ResizeWindow(72)")||contains(source,"ResizeWindow(72.0)")) return fail(4,"compact height literal escaped tokenization");
@@ -74,13 +74,12 @@ int main(){
   for(const char* retired:{"SurfaceActionButtonSize","QueueCommandButtonSize","ActionRowHeight","BodyStrongFontSize","SkipIconSize","StopIconSize","CancelIconSize","DisclosureIconSize","QueueItemNameFontSize","QueueItemLocationFontSize"}) if(contains(text,retired)) return false;
   const auto icon=scalar("ActionIconSize"); if(icon!=16&&icon!=20&&icon!=24&&icon!=32) return false;
   auto pad=values.find("TransferContentPadding"); if(pad==values.end()||pad->second.size()!=4) return false;
-  if(scalar("CompactSurfaceHeight")!=scalar("CaptionRowHeight")+scalar("ActionButtonSize")+pad->second[1]+pad->second[3]) return false;
   for(const auto& [key,vals]:values) if(key.ends_with("FontSize")) for(double v:vals) if(v!=12&&v!=14&&v!=20) return false;
   for(const auto& [key,vals]:values) {
    if(key.find("Opacity")!=std::string::npos||key.find("Radius")!=std::string::npos||key.find("FontSize")!=std::string::npos) continue;
    for(double v:vals) if(std::fmod(v,4.0)!=0.0) return false;
   }
-  for(const auto& [key,vals]:values) if(key.ends_with("Opacity")&&key!="ProgressFillOpacity") return false;
+  for(const auto& [key,vals]:values) if(key.ends_with("Opacity")) return false;
   if(scalar("CaptionRowGridLength")!=scalar("CaptionRowHeight")) return false;
   static const std::regex text_style{R"re(<Style x:Key="[^"]+" TargetType="TextBlock">[\s\S]*?<Setter Property="Foreground" Value="\{ThemeResource TextFillColor[^}]+\}"\s*/>[\s\S]*?</Style>)re"};
   return contains(text,"SecondaryTextStyle")&&contains(text,"TertiaryTextStyle")&&count_occurrences(text,"TargetType=\"TextBlock\"")==static_cast<std::size_t>(std::distance(std::sregex_iterator(text.begin(),text.end(),text_style),std::sregex_iterator{}));
@@ -90,13 +89,12 @@ int main(){
  const std::vector<std::pair<std::string,std::string>> mutations={
   {"<x:Double x:Key=\"ActionIconSize\">16</x:Double>","<x:Double x:Key=\"ActionIconSize\">13</x:Double>"},
   {"<x:Double x:Key=\"ActionButtonSize\">32</x:Double>","<x:Double x:Key=\"ActionButtonSize\">32</x:Double><x:Double x:Key=\"QueueCommandButtonSize\">32</x:Double>"},
-  {"<x:Double x:Key=\"CompactSurfaceHeight\">72</x:Double>","<x:Double x:Key=\"CompactSurfaceHeight\">70</x:Double>"},
   {"<Thickness x:Key=\"QueueListMargin\">0,4,0,0</Thickness>","<Thickness x:Key=\"QueueListMargin\">0,7,0,0</Thickness>"},
   {"<x:Double x:Key=\"ActionButtonSize\">32</x:Double>","<x:Double x:Key=\"ActionButtonSize\">30</x:Double>"},
-  {"<x:Double x:Key=\"ProgressFillOpacity\">0.12</x:Double>","<x:Double x:Key=\"ProgressFillOpacity\">0.12</x:Double><x:Double x:Key=\"QueueCountOpacity\">0.58</x:Double>"},
+  {"<x:Double x:Key=\"ActionIconSize\">16</x:Double>","<x:Double x:Key=\"ActionIconSize\">16</x:Double><x:Double x:Key=\"QueueCountOpacity\">0.58</x:Double>"},
   {"<x:Double x:Key=\"BodyFontSize\">14</x:Double>","<x:Double x:Key=\"BodyFontSize\">14</x:Double><x:Double x:Key=\"BodyStrongFontSize\">14</x:Double>"},
   {"<x:Double x:Key=\"BodyFontSize\">14</x:Double>","<x:Double x:Key=\"BodyFontSize\">14</x:Double><x:Double x:Key=\"ExperimentalFontSize\">10.5</x:Double>"},
-  {"<x:Double x:Key=\"ProgressFillOpacity\">0.12</x:Double>","<x:Double x:Key=\"ProgressFillOpacity\">0.12</x:Double><x:Double x:Key=\"AboutVersionOpacity\">0.6</x:Double>"},
+  {"<x:Double x:Key=\"ActionIconSize\">16</x:Double>","<x:Double x:Key=\"ActionIconSize\">16</x:Double><x:Double x:Key=\"AboutVersionOpacity\">0.6</x:Double>"},
   {"<x:Double x:Key=\"ActionButtonSize\">32</x:Double>","<x:Double x:Key=\"ActionButtonSize\">32</x:Double><x:Double x:Key=\"ActionRowHeight\">32</x:Double>"},
   {"<x:Double x:Key=\"ActionIconSize\">16</x:Double>","<x:Double x:Key=\"ActionIconSize\">16</x:Double><x:Double x:Key=\"CancelIconSize\">12</x:Double>"},
   {"Value=\"{ThemeResource TextFillColorSecondaryBrush}\"","Value=\"Red\""}
