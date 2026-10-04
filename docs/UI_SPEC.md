@@ -8,8 +8,10 @@ VelocityCopy is a compact Windows 11 copy/move utility. The window itself is the
 
 - The normal transfer view uses a canonical width token in effective pixels (epx). The geometry commit may retain 380 epx as the minimum/canonical width if the normal layout fits its accessibility and truncation requirements; width is a rule, not a width/height pair.
 - Normal-view height is determined by measured content through `ResizeWindowToContent()`; it is not a second fixed design constant.
-- Expanded content is measured independently and bounded by its own minimum/maximum rules.
-- Runtime conversion from epx to physical HWND pixels uses `GetDpiForWindow(hwnd)` and `MulDiv(epx, dpi, 96)`, matching the current native resize path. XAML layout remains expressed in epx.
+- Superseded phase-0 wording: "Expanded queue target: ~300 epx, bounded by measured queue content." Phase 1 does **not** redesign the expanded queue view; it preserves the current approximately-300-epx, content-bounded behavior until phase 2. Its existing minimum/maximum tokens remain authoritative during phase 1 except for any mechanical adjustment required to keep the same visible queue capacity after the normal surface becomes content-driven.
+- XAML measures content in effective pixels (epx). The native resize helper ultimately supplies **outer HWND dimensions** to `SetWindowPos`; those dimensions include the non-client frame/invisible resize border. The current code converts requested epx directly with `GetDpiForWindow(hwnd)` + `MulDiv(epx, dpi, 96)` and does **not** compensate the client/non-client delta with `GetClientRect` or `AdjustWindowRectExForDpi`.
+- The geometry commit must make the content-driven contract explicit: measure the required XAML/client content, then derive an outer HWND size that preserves that measured client extent at the current DPI. It must not assume that measured client height can be passed unchanged as outer-window height.
+- The current `AppWindow.Changed` handler reapplies the title-bar inset only; it does not re-run `ResizeWindowToContent()`. Content-driven geometry therefore requires the geometry commit to add a DPI/scale re-measure trigger (for example `WM_DPICHANGED` or an appropriate XAML-root scale change) and to resize from freshly measured content after the effective DPI changes.
 - Outer content gutter: **8 epx**
 - Related-control spacing: **8 epx**
 - Tight inline spacing: **4 epx**
@@ -43,7 +45,10 @@ Telemetry formatting is compact and stable:
 
 - Exactly one aggregate transfer `ProgressBar` is present in the normal transfer surface; do not add per-file progress controls.
 - `UiSnapshot.fraction` remains the logical source of aggregate progress. `ApplySnapshot()` feeds `SetProgressFraction()`, which sets `ProgressBar.Value`; rendered width is never transfer state.
-- Paused/stopped presentation uses `ShowPaused`; error presentation uses `ShowError`. These visual states must not change execution semantics or button enablement.
+- `ShowPaused` and `ShowError` are mutually exclusive. Error has precedence: whenever `ShowError=true`, `ShowPaused` must be false. A non-error paused/stopped state may set `ShowPaused=true`.
+- The current snapshot contract has no explicit "totals unknown" discriminator. When `total_bytes != 0`, fraction is byte-based; when `total_bytes == 0` but `total_files != 0`, `ProgressPresenter` deliberately falls back to completed-files / total-files. Phase 1 therefore does **not** introduce `IsIndeterminate` by guessing from zero bytes. If a future planning state needs indeterminate progress, it first requires an explicit presentation-state signal.
+- A clean completed state sets aggregate progress to 100% (`ProgressBar.Value = 100`, equivalent logical fraction `1.0`) with both `ShowPaused=false` and `ShowError=false`.
+- These visual states must not change execution semantics or button enablement.
 - No continuous animation when no progress is occurring.
 - Real progress below one percent must not be rounded back to a misleading `0%`. Show sub-percent progress with enough precision to make forward movement visible (`<0.1%`, then one decimal below 10%).
 
@@ -56,7 +61,7 @@ Phase 1 may lay out only data already available to the presentation layer. It mu
 | Current file name | `UiSnapshot.current_source.filename()` | Included |
 | Aggregate progress | `UiSnapshot.fraction` | Included |
 | Transferred / total bytes | `UiSnapshot.transferred_bytes` / `total_bytes` | Available; may be presented without core changes |
-| Completed / total files | `UiSnapshot.completed_files` / `total_files` | Available; label as completed count, not as an invented current-file ordinal |
+| Completed / total files | `UiSnapshot.completed_files` / `total_files` | Available; when shown, use explicit completed-count wording such as **"4,321 completed of 12,481"** (localized equivalent). Do not use "Copying 4,321 of 12,481" or other wording that implies a current-file ordinal |
 | Current source path | `UiSnapshot.current_source` | Available; use `TextTrimming="CharacterEllipsis"` and expose the full path by tooltip when shown |
 | Current destination path | `UiSnapshot.current_destination` (plus the window's authoritative `active_destination_`) | Available; same trimming/tooltip rule when shown |
 | Speed | `UiSnapshot.bytes_per_second` | Included |
@@ -72,11 +77,11 @@ The layout may change, but the existing state transitions and command enablement
 | State | Progress | Pause/Resume | Cancel | Options | Queue disclosure | Existing status/decision surface |
 | --- | --- | --- | --- | --- | --- | --- |
 | Copying | normal native progress | Pause enabled | enabled | visible | visible | current item + speed/ETA |
-| Paused / stopped | `ShowPaused=true` | Resume enabled | enabled | visible | visible when existing queue state permits | speed/ETA are `—` while paused/stopped |
+| Paused / stopped | `ShowPaused=true`, `ShowError=false` | Resume enabled | enabled | visible | visible when existing queue state permits | speed/ETA are `—` while paused/stopped |
 | Cancelling | no new stale snapshot repaint | no new capability is introduced | existing cancel transition remains authoritative | unchanged unless current code disables it | unchanged until terminal cleanup | terminal Cancelled status follows existing completion path |
-| Error | `ShowError=true` when the error notice is shown | idle/disabled after terminal failure | idle/disabled after terminal failure | visible | disabled after terminal failure | existing Error `InfoBar`; no new Retry action in phase 1 |
-| Conflict | normal progress visual; no invented error state | disabled for destination conflict; existing recovery-decision variant may repurpose the button exactly as today | enabled | visible | enabled only when remaining/pending work exists | existing owned conflict/recovery decision surface |
-| Completed | value 100% for final successful session | disabled | disabled | visible | disabled | existing completed/completed-with-issues status; no new completion toast in phase 1 |
+| Error | `ShowError=true`, `ShowPaused=false` when the error notice is shown | idle/disabled after terminal failure | idle/disabled after terminal failure | visible | disabled after terminal failure | existing Error `InfoBar`; no new Retry action in phase 1 |
+| Conflict | normal progress visual; `ShowPaused=false`, `ShowError=false` | disabled for destination conflict; existing recovery-decision variant may repurpose the button exactly as today | enabled | visible | enabled only when remaining/pending work exists | existing owned conflict/recovery decision surface |
+| Completed | logical fraction `1.0` / `Value=100`; `ShowPaused=false`, `ShowError=false` | disabled | disabled | visible | disabled | existing completed/completed-with-issues status; no new completion toast in phase 1 |
 
 This table is a preservation contract, not permission to normalize states that currently differ. If implementation and this table disagree during the phase-1 audit, preserve the current behavior and correct the table before changing behavior.
 
