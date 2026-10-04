@@ -742,7 +742,10 @@ void MainWindow::UpdatePerformanceGraph() {
     }
 }
 
-void MainWindow::ShowNotice(InfoBarSeverity const severity, hstring const& message) {
+void MainWindow::ShowNotice(
+    InfoBarSeverity const severity,
+    hstring const& title,
+    hstring const& message) {
     TransferProgress().ShowError(severity == InfoBarSeverity::Error);
     if (severity == InfoBarSeverity::Error) {
         ApplyTransferVisualState(TransferVisualState::Error);
@@ -750,17 +753,7 @@ void MainWindow::ShowNotice(InfoBarSeverity const severity, hstring const& messa
         ApplyTransferVisualState(TransferVisualState::Warning);
     }
     ErrorBar().Severity(severity);
-    try {
-        if (severity == InfoBarSeverity::Error) {
-            ErrorBar().Title(velocitycopy::localization::get_string(L"StatusFailed"));
-        } else if (severity == InfoBarSeverity::Warning) {
-            ErrorBar().Title(velocitycopy::localization::get_string(L"StatusCompletedWithIssues"));
-        } else {
-            ErrorBar().Title(L"");
-        }
-    } catch (...) {
-        ErrorBar().Title(L"");
-    }
+    ErrorBar().Title(title);
     ErrorBar().Message(message);
     ErrorBar().IsOpen(true);
     ResizeWindowToContent();
@@ -774,7 +767,12 @@ void MainWindow::ShowNotice(InfoBarSeverity const severity, hstring const& messa
 }
 
 void MainWindow::ShowError(hstring const& message) {
-    ShowNotice(InfoBarSeverity::Error, message);
+    hstring title;
+    try {
+        title = velocitycopy::localization::get_string(L"StatusFailed");
+    } catch (...) {
+    }
+    ShowNotice(InfoBarSeverity::Error, title, message);
 }
 
 hstring MainWindow::FormatFailureReason(const std::int32_t native_code) {

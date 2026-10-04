@@ -121,14 +121,19 @@ int main() {
 
     const auto window = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
     const auto show_notice = body_of(window, "void MainWindow::ShowNotice(");
+    const auto show_error = body_of(window, "void MainWindow::ShowError(");
     const auto reset_surface = body_of(window, "void MainWindow::ResetTransferSurface()");
+    const auto finish_copy = body_of(execution, "void MainWindow::FinishCopy(");
     if (window.empty() ||
         !contains(show_notice, "TransferProgress().ShowError(severity == InfoBarSeverity::Error)") ||
         !contains(show_notice, "ErrorBar().Severity(severity)") ||
-        !contains(show_notice, "ErrorBar().Title(velocitycopy::localization::get_string(L\"StatusFailed\"))") ||
-        !contains(show_notice, "ErrorBar().Title(velocitycopy::localization::get_string(L\"StatusCompletedWithIssues\"))") ||
+        !contains(show_notice, "ErrorBar().Title(title)") ||
+        !contains(show_error, "get_string(L\"StatusFailed\")") ||
+        !contains(show_error, "ShowNotice(InfoBarSeverity::Error, title, message)") ||
+        !contains(finish_copy, "get_string(L\"StatusCompletedWithIssues\")") ||
+        !contains(finish_copy, "completed_with_issues_title") ||
         !contains(reset_surface, "ErrorBar().Title(L\"\")")) {
-        return fail(11, "native InfoBar must expose localized semantic titles and reset them between sessions");
+        return fail(11, "InfoBar title and severity must represent the actual terminal state independently");
     }
 
     if (!contains(xaml, "x:Name=\"OptionsIcon\"") ||

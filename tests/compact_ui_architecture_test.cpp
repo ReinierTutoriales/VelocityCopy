@@ -491,7 +491,7 @@ int main() {
         count_occurrences(show_notice, "ResizeWindowToContent();") != 2 ||
         !contains(show_notice, "dispatcher_.TryEnqueue") ||
         !contains(show_notice, "self->ErrorBar().IsOpen()") ||
-        !contains(show_error, "ShowNotice(InfoBarSeverity::Error, message)") ||
+        !contains(show_error, "ShowNotice(InfoBarSeverity::Error, title, message)") ||
         !contains(window, "ErrorBar().Closed(") ||
         !contains(window, "self->ResizeWindowToContent();") ||
         !contains(resize_to_content, "QueueExpandedMinHeight") ||

@@ -734,10 +734,13 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
                 const auto failed_label = velocitycopy::localization::get_string(L"OutcomeFailed");
                 const auto skipped_label = velocitycopy::localization::get_string(L"OutcomeSkipped");
                 const auto retained_label = velocitycopy::localization::get_string(L"OutcomeSourceRetained");
+                const auto completed_with_issues_title =
+                    velocitycopy::localization::get_string(L"StatusCompletedWithIssues");
                 ShowNotice(
                     result.outcomes.failed == 0 && result.outcomes.copied_source_retained == 0
                         ? InfoBarSeverity::Warning
                         : InfoBarSeverity::Error,
+                    completed_with_issues_title,
                     hstring(std::format(
                     L"{}: {}, {}: {}, {}: {}",
                     failed_label.c_str(),

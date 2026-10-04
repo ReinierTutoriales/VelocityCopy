@@ -222,7 +222,7 @@ private:
     void FinishCopy(const velocitycopy::JobResult& result);
     void ApplyTransferVisualState(TransferVisualState state) noexcept;
     void ResetTransferSurface();
-    void ShowNotice(Microsoft::UI::Xaml::Controls::InfoBarSeverity severity, hstring const& message);
+    void ShowNotice(Microsoft::UI::Xaml::Controls::InfoBarSeverity severity, hstring const& title, hstring const& message);
     void ShowError(hstring const& message = {});
     static hstring FormatFailureReason(std::int32_t native_code);
     static hstring FormatSpeed(double bytes_per_second);
