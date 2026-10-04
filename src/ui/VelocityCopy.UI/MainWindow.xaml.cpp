@@ -57,6 +57,9 @@ MainWindow::MainWindow() {
     ErrorBar().Closed([weak = get_weak()](InfoBar const&, InfoBarClosedEventArgs const&) {
         if (auto self = weak.get()) self->ResizeWindowToContent();
     });
+    PerformanceGraph().SizeChanged([weak = get_weak()](IInspectable const&, SizeChangedEventArgs const&) {
+        if (auto self = weak.get()) self->UpdatePerformanceGraph();
+    });
     ConfigureQueuePersistenceMenu();
     try {
         const auto pause = velocitycopy::localization::get_string(L"ActionPause");
@@ -65,6 +68,10 @@ MainWindow::MainWindow() {
         ToolTipService::SetToolTip(CancelButtonHost(), box_value(cancel));
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), pause);
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(CancelButton(), cancel);
+
+        const auto show_details = velocitycopy::localization::get_string(L"ActionShowDetails");
+        ToolTipService::SetToolTip(DetailsButton(), box_value(show_details));
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(DetailsButton(), show_details);
 
         const auto move_up = velocitycopy::localization::get_string(L"ActionMoveUp");
         const auto move_down = velocitycopy::localization::get_string(L"ActionMoveDown");
@@ -280,13 +287,18 @@ void MainWindow::ResizeWindowToContent() {
     const auto queue_min_height = velocitycopy::ui::token_int(L"QueueExpandedMinHeight", 176);
     const auto queue_max_height = velocitycopy::ui::token_int(L"QueueExpandedMaxHeight", 340);
     double notice_height = 0.0;
+    double details_height = 0.0;
     if (ErrorBar().IsOpen()) {
         ErrorBar().Measure({measured_width, std::numeric_limits<float>::infinity()});
         notice_height = ErrorBar().DesiredSize().Height;
     }
+    if (DetailsPanel().Visibility() == Visibility::Visible) {
+        DetailsPanel().Measure({measured_width, std::numeric_limits<float>::infinity()});
+        details_height = DetailsPanel().DesiredSize().Height;
+    }
     if (QueuePanel().Visibility() != Visibility::Visible) {
         ResizeWindow(static_cast<int>(std::ceil(
-            normal_height + notice_height)));
+            normal_height + notice_height + details_height)));
         return;
     }
 
@@ -380,6 +392,7 @@ fire_and_forget MainWindow::HandleDropAsync(DragEventArgs args) {
 }
 
 void MainWindow::ResetTransferSurface() {
+    ResetPerformanceHistory();
     TransferProgress().ShowPaused(false);
     TransferProgress().ShowError(false);
     TransferBytesText().Text(L"");
@@ -388,8 +401,103 @@ void MainWindow::ResetTransferSurface() {
     DestinationPathText().Text(L"");
     ToolTipService::SetToolTip(SourcePathText(), nullptr);
     ToolTipService::SetToolTip(DestinationPathText(), nullptr);
+    DetailsSourceText().Text(L"");
+    DetailsDestinationText().Text(L"");
+    DetailsBytesText().Text(L"");
+    DetailsFilesText().Text(L"");
+    DetailsSpeedText().Text(L"—");
+    DetailsEtaText().Text(L"—");
+    PerformanceCurrentSpeedText().Text(L"—");
     ErrorBar().IsOpen(false);
     ErrorBar().Message(L"");
+}
+
+void MainWindow::SetDetailsExpanded(const bool expanded) {
+    DetailsPanel().Visibility(expanded ? Visibility::Visible : Visibility::Collapsed);
+    try {
+        const auto label = velocitycopy::localization::get_string(
+            expanded ? L"ActionHideDetails" : L"ActionShowDetails");
+        ToolTipService::SetToolTip(DetailsButton(), box_value(label));
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(DetailsButton(), label);
+    } catch (...) {
+    }
+    if (expanded) UpdatePerformanceGraph();
+}
+
+void MainWindow::OnDetailsClick(IInspectable const&, RoutedEventArgs const&) {
+    const bool expanding = DetailsPanel().Visibility() != Visibility::Visible;
+    if (expanding && QueuePanel().Visibility() == Visibility::Visible) {
+        QueuePanel().Visibility(Visibility::Collapsed);
+        QueueChevron().Glyph(L"\xE70D");
+        try {
+            const auto label = velocitycopy::localization::get_string(L"ActionShowQueue");
+            ToolTipService::SetToolTip(QueueButton(), box_value(label));
+            Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(QueueButton(), label);
+        } catch (...) {
+        }
+    }
+    SetDetailsExpanded(expanding);
+    ResizeWindowToContent();
+    if (expanding) {
+        RootGrid().UpdateLayout();
+        UpdatePerformanceGraph();
+    }
+}
+
+void MainWindow::ResetPerformanceHistory() noexcept {
+    last_performance_sample_ms_ = 0;
+    performance_speed_samples_.clear();
+    try {
+        PerformanceGraph().Children().Clear();
+    } catch (...) {
+    }
+}
+
+void MainWindow::ObservePerformanceSample(const double bytes_per_second) {
+    const auto now = GetTickCount64();
+    if (last_performance_sample_ms_ != 0 && now - last_performance_sample_ms_ < 500) return;
+    last_performance_sample_ms_ = now;
+    performance_speed_samples_.push_back(
+        std::isfinite(bytes_per_second) && bytes_per_second > 0.0 ? bytes_per_second : 0.0);
+    while (performance_speed_samples_.size() > 60) performance_speed_samples_.pop_front();
+    if (DetailsPanel().Visibility() == Visibility::Visible) UpdatePerformanceGraph();
+}
+
+void MainWindow::UpdatePerformanceGraph() {
+    try {
+        auto canvas = PerformanceGraph();
+        const double width = canvas.ActualWidth();
+        const double height = canvas.ActualHeight();
+        if (width <= 0.0 || height <= 0.0) return;
+
+        auto children = canvas.Children();
+        children.Clear();
+        if (performance_speed_samples_.empty()) return;
+
+        double peak = 1.0;
+        for (const double sample : performance_speed_samples_) peak = (std::max)(peak, sample);
+
+        auto brush = Application::Current().Resources()
+            .Lookup(box_value(L"AccentFillColorDefaultBrush"))
+            .try_as<Microsoft::UI::Xaml::Media::Brush>();
+        const std::size_t count = performance_speed_samples_.size();
+        const double slot = width / static_cast<double>(count);
+        const double bar_width = (std::max)(1.0, slot - 1.0);
+        std::size_t index = 0;
+        for (const double sample : performance_speed_samples_) {
+            const double normalized = (std::clamp)(sample / peak, 0.0, 1.0);
+            const double bar_height = sample <= 0.0 ? 1.0 : (std::max)(1.0, normalized * height);
+            Border bar;
+            bar.Width(bar_width);
+            bar.Height(bar_height);
+            if (brush) bar.Background(brush);
+            Canvas::SetLeft(bar, static_cast<double>(index) * slot);
+            Canvas::SetTop(bar, height - bar_height);
+            children.Append(bar);
+            ++index;
+        }
+    } catch (...) {
+    }
 }
 
 void MainWindow::ShowNotice(InfoBarSeverity const severity, hstring const& message) {

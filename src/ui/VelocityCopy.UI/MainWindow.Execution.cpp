@@ -480,8 +480,16 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
     const hstring bytes_text(std::format(L"{} / {}", transferred.c_str(), total.c_str()));
     if (TransferBytesText().Text() != bytes_text) TransferBytesText().Text(bytes_text);
 
-    const hstring files_text(std::format(
-        L"{} completed of {}", snapshot.completed_files, snapshot.total_files));
+    hstring files_text;
+    try {
+        const auto pattern = velocitycopy::localization::get_string(L"TransferCompletedFormat");
+        files_text = hstring(std::vformat(
+            std::wstring_view{pattern.c_str(), pattern.size()},
+            std::make_wformat_args(snapshot.completed_files, snapshot.total_files)));
+    } catch (...) {
+        files_text = hstring(std::format(
+            L"{} completed of {}", snapshot.completed_files, snapshot.total_files));
+    }
     if (TransferFilesText().Text() != files_text) TransferFilesText().Text(files_text);
 
     if (!snapshot.current_source.empty()) {
@@ -499,6 +507,23 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
     if (SpeedText().Text() != speed) SpeedText().Text(speed);
     const auto eta = FormatEta(snapshot.eta_seconds);
     if (EtaText().Text() != eta) EtaText().Text(eta);
+
+    if (DetailsBytesText().Text() != bytes_text) DetailsBytesText().Text(bytes_text);
+    if (DetailsFilesText().Text() != files_text) DetailsFilesText().Text(files_text);
+    if (DetailsSpeedText().Text() != speed) DetailsSpeedText().Text(speed);
+    if (DetailsEtaText().Text() != eta) DetailsEtaText().Text(eta);
+    if (PerformanceCurrentSpeedText().Text() != speed) PerformanceCurrentSpeedText().Text(speed);
+    if (!snapshot.current_source.empty()) {
+        const hstring source(snapshot.current_source.wstring());
+        if (DetailsSourceText().Text() != source) DetailsSourceText().Text(source);
+        ToolTipService::SetToolTip(DetailsSourceText(), box_value(source));
+    }
+    if (!snapshot.current_destination.empty()) {
+        const hstring destination(snapshot.current_destination.wstring());
+        if (DetailsDestinationText().Text() != destination) DetailsDestinationText().Text(destination);
+        ToolTipService::SetToolTip(DetailsDestinationText(), box_value(destination));
+    }
+    ObservePerformanceSample(snapshot.bytes_per_second);
 
     if (QueuePanel().Visibility() == Visibility::Visible && snapshot.completed_files != last_queue_completed_files_) {
         last_queue_completed_files_ = snapshot.completed_files;

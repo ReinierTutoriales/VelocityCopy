@@ -11,6 +11,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <Grid x:Name="TransferSurface"
@@ -204,6 +205,18 @@
                                           FontSize="{StaticResource ActionIconSize}" />
                             </Button>
 
+                            <Button x:Name="DetailsButton"
+                                    Click="OnDetailsClick"
+                                    Width="{StaticResource ActionButtonSize}"
+                                    Height="{StaticResource ActionButtonSize}"
+                                    Padding="0"
+                                    BorderThickness="0"
+                                    Background="Transparent">
+                                <FontIcon FontFamily="Segoe Fluent Icons"
+                                          Glyph="&#xE946;"
+                                          FontSize="{StaticResource ActionIconSize}" />
+                            </Button>
+
                             <Button x:Name="QueueButton"
                                     Click="OnQueueClick"
                                     IsEnabled="True"
@@ -229,8 +242,87 @@
                  Severity="Error"
                  IsClosable="True" />
 
-        <Grid x:Name="QueuePanel"
+        <Grid x:Name="DetailsPanel"
               Grid.Row="2"
+              Visibility="Collapsed"
+              Padding="{StaticResource DetailsPanelPadding}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock x:Name="DetailsInformationTitle"
+                       x:Uid="DetailsInformationTitle"
+                       FontWeight="SemiBold"
+                       FontSize="{StaticResource BodyFontSize}" />
+
+            <Grid Grid.Row="1"
+                  Margin="{StaticResource DetailsSectionMargin}"
+                  ColumnSpacing="{StaticResource SpaceRelated}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBlock x:Uid="DetailsSourceLabel" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
+                <TextBlock x:Name="DetailsSourceText" Grid.Column="1" TextWrapping="Wrap" MaxLines="2" FontSize="{StaticResource CaptionFontSize}" />
+
+                <TextBlock x:Uid="DetailsDestinationLabel" Grid.Row="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
+                <TextBlock x:Name="DetailsDestinationText" Grid.Row="1" Grid.Column="1" TextWrapping="Wrap" MaxLines="2" FontSize="{StaticResource CaptionFontSize}" />
+
+                <TextBlock x:Uid="DetailsBytesLabel" Grid.Row="2" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
+                <TextBlock x:Name="DetailsBytesText" Grid.Row="2" Grid.Column="1" FontSize="{StaticResource CaptionFontSize}" />
+
+                <TextBlock x:Uid="DetailsFilesLabel" Grid.Row="3" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
+                <TextBlock x:Name="DetailsFilesText" Grid.Row="3" Grid.Column="1" FontSize="{StaticResource CaptionFontSize}" />
+
+                <TextBlock x:Uid="DetailsSpeedLabel" Grid.Row="4" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
+                <TextBlock x:Name="DetailsSpeedText" Grid.Row="4" Grid.Column="1" FontSize="{StaticResource CaptionFontSize}" />
+
+                <TextBlock x:Uid="DetailsEtaLabel" Grid.Row="5" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
+                <TextBlock x:Name="DetailsEtaText" Grid.Row="5" Grid.Column="1" FontSize="{StaticResource CaptionFontSize}" />
+            </Grid>
+
+            <Grid Grid.Row="2" Margin="{StaticResource DetailsPerformanceMargin}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Uid="DetailsPerformanceTitle"
+                               FontWeight="SemiBold"
+                               FontSize="{StaticResource BodyFontSize}" />
+                    <TextBlock x:Name="PerformanceCurrentSpeedText"
+                               Grid.Column="1"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               FontSize="{StaticResource CaptionFontSize}" />
+                </Grid>
+                <Border Grid.Row="1"
+                        Margin="{StaticResource PerformanceGraphMargin}"
+                        Height="{StaticResource PerformanceGraphHeight}"
+                        BorderThickness="1"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        CornerRadius="{StaticResource PerformanceGraphRadius}">
+                    <Canvas x:Name="PerformanceGraph" />
+                </Border>
+            </Grid>
+        </Grid>
+
+        <Grid x:Name="QueuePanel"
+              Grid.Row="3"
               Visibility="Collapsed"
               Padding="{StaticResource QueuePanelPadding}">
             <Grid.RowDefinitions>
