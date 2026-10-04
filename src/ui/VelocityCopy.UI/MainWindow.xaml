@@ -306,12 +306,17 @@
                                                    FontWeight="SemiBold"
                                                    FontSize="{StaticResource BodyFontSize}" />
                                     </StackPanel>
-                                    <TextBlock x:Name="QueueCountText"
-                                               Grid.Column="1"
-                                               Margin="0,0,8,0"
-                                               VerticalAlignment="Center"
-                                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                               FontSize="{StaticResource CaptionFontSize}" />
+                                    <Border Grid.Column="1"
+                                            Margin="{StaticResource QueueCountBadgeMargin}"
+                                            Padding="{StaticResource QueueCountBadgePadding}"
+                                            VerticalAlignment="Center"
+                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="{ThemeResource ControlCornerRadius}">
+                                        <TextBlock x:Name="QueueCountText"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   FontSize="{StaticResource CaptionFontSize}" />
+                                    </Border>
                                     <Grid Grid.Column="2">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" />

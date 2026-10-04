@@ -69,13 +69,21 @@ int main() {
         return fail(7, "expanded cards must separate headers from content with the shared themed divider");
     }
 
+    if (!contains(tokens, "QueueCountBadgePadding") ||
+        !contains(tokens, "QueueCountBadgeMargin") ||
+        !contains(xaml, "x:Name=\"QueueCountText\"") ||
+        !contains(xaml, "Padding=\"{StaticResource QueueCountBadgePadding}\"") ||
+        !contains(xaml, "BorderBrush=\"{ThemeResource CardStrokeColorDefaultBrush}\"")) {
+        return fail(8, "queue count must read as a neutral themed badge");
+    }
+
     // Action and live-performance emphasis use system semantic brushes rather than bespoke colors.
     if (!contains(xaml, "x:Name=\"PauseIcon\"") ||
         !contains(xaml, "SystemFillColorCriticalBrush") ||
         !contains(xaml, "x:Name=\"DetailsChevronIcon\"") ||
         !contains(xaml, "x:Name=\"PerformanceCurrentSpeedText\"") ||
         !contains(xaml, "FontWeight=\"SemiBold\"")) {
-        return fail(8, "action and performance emphasis must use system semantic color hierarchy");
+        return fail(9, "action and performance emphasis must use system semantic color hierarchy");
     }
 
     const auto window = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
@@ -85,13 +93,13 @@ int main() {
         !contains(show_notice, "ErrorBar().Title(velocitycopy::localization::get_string(L\"StatusFailed\"))") ||
         !contains(show_notice, "ErrorBar().Title(velocitycopy::localization::get_string(L\"StatusCompletedWithIssues\"))") ||
         !contains(reset_surface, "ErrorBar().Title(L\"\")")) {
-        return fail(9, "native InfoBar must expose localized semantic titles and reset them between sessions");
+        return fail(10, "native InfoBar must expose localized semantic titles and reset them between sessions");
     }
 
     // New fidelity work must remain theme-driven; no fixed RGB/hex palette is allowed.
     if (contains(xaml, "Color=\"#") || contains(xaml, "Background=\"#") ||
         contains(xaml, "Foreground=\"#") || contains(tokens, "Color=\"#")) {
-        return fail(10, "visual fidelity must use ThemeResource instead of fixed colors");
+        return fail(11, "visual fidelity must use ThemeResource instead of fixed colors");
     }
 
     return 0;
