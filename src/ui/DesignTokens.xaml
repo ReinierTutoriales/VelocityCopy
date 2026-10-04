@@ -57,8 +57,9 @@
     <Thickness x:Key="AboutBodyMargin">0,0,0,16</Thickness>
     <Thickness x:Key="AboutMetadataMargin">0,0,0,8</Thickness>
     <Style x:Key="SecondaryTextStyle" TargetType="TextBlock"><Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" /></Style>
+    <Style x:Key="AccentIconStyle" TargetType="FontIcon"><Setter Property="Foreground" Value="{ThemeResource AccentFillColorDefaultBrush}" /></Style>
     <Style x:Key="SecondaryIconStyle" TargetType="FontIcon"><Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" /></Style>
-    <Style x:Key="DecisionWarningIconStyle" TargetType="FontIcon"><Setter Property="Foreground" Value="{ThemeResource SystemFillColorCautionBrush}" /></Style>
-    <Style x:Key="DecisionErrorIconStyle" TargetType="FontIcon"><Setter Property="Foreground" Value="{ThemeResource SystemFillColorCriticalBrush}" /></Style>
+    <Style x:Key="WarningIconStyle" TargetType="FontIcon"><Setter Property="Foreground" Value="{ThemeResource SystemFillColorCautionBrush}" /></Style>
+    <Style x:Key="ErrorIconStyle" TargetType="FontIcon"><Setter Property="Foreground" Value="{ThemeResource SystemFillColorCriticalBrush}" /></Style>
     <Style x:Key="TertiaryTextStyle" TargetType="TextBlock"><Setter Property="Foreground" Value="{ThemeResource TextFillColorTertiaryBrush}" /></Style>
 </ResourceDictionary>

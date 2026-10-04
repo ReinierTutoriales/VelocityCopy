@@ -564,8 +564,32 @@ fire_and_forget MainWindow::HandleDropAsync(DragEventArgs args) {
     }
 }
 
+void MainWindow::ApplyTransferVisualState(const TransferVisualState state) noexcept {
+    try {
+        auto icon = CurrentItemIcon();
+        switch (state) {
+        case TransferVisualState::Warning:
+            icon.Glyph(L"\xE7BA");
+            velocitycopy::ui::apply_icon_style(icon, L"WarningIconStyle");
+            break;
+        case TransferVisualState::Error:
+            icon.Glyph(L"\xEB90");
+            velocitycopy::ui::apply_icon_style(icon, L"ErrorIconStyle");
+            break;
+        case TransferVisualState::Active:
+        default:
+            icon.Glyph(L"\xE8A5");
+            velocitycopy::ui::apply_icon_style(icon, L"AccentIconStyle");
+            break;
+        }
+    } catch (...) {
+        OutputDebugStringW(L"VelocityCopy: ApplyTransferVisualState failed\n");
+    }
+}
+
 void MainWindow::ResetTransferSurface() {
     ResetPerformanceHistory();
+    ApplyTransferVisualState(TransferVisualState::Active);
     TransferProgress().ShowPaused(false);
     TransferProgress().ShowError(false);
     TransferBytesText().Text(L"");
@@ -720,6 +744,11 @@ void MainWindow::UpdatePerformanceGraph() {
 
 void MainWindow::ShowNotice(InfoBarSeverity const severity, hstring const& message) {
     TransferProgress().ShowError(severity == InfoBarSeverity::Error);
+    if (severity == InfoBarSeverity::Error) {
+        ApplyTransferVisualState(TransferVisualState::Error);
+    } else if (severity == InfoBarSeverity::Warning) {
+        ApplyTransferVisualState(TransferVisualState::Warning);
+    }
     ErrorBar().Severity(severity);
     try {
         if (severity == InfoBarSeverity::Error) {

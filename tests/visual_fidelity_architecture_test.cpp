@@ -30,7 +30,7 @@ int main() {
     // Active transfer identity: a Fluent document mark sits beside the essential data.
     if (!contains(xaml, "x:Name=\"CurrentItemIcon\"") ||
         !contains(xaml, "Glyph=\"&#xE8A5;\"") ||
-        !contains(xaml, "Foreground=\"{ThemeResource AccentFillColorDefaultBrush}\"") ||
+        !contains(xaml, "Style=\"{StaticResource AccentIconStyle}\"") ||
         !contains(tokens, "TransferItemIconSize") ||
         !contains(tokens, "TransferItemIconMargin")) {
         return fail(2, "active transfer must expose themed document iconography");
@@ -144,9 +144,9 @@ int main() {
     }
 
     if (!contains(tokens, "DecisionStatusIconSize") ||
-        !contains(tokens, "DecisionWarningIconStyle") ||
+        !contains(tokens, "WarningIconStyle") ||
         !contains(tokens, "SystemFillColorCautionBrush") ||
-        !contains(tokens, "DecisionErrorIconStyle") ||
+        !contains(tokens, "ErrorIconStyle") ||
         !contains(tokens, "SystemFillColorCriticalBrush")) {
         return fail(17, "decision states must use documented Fluent warning/error icon semantics");
     }
@@ -169,6 +169,22 @@ int main() {
 
     if (!contains(pch, "#include <winrt/Microsoft.UI.Xaml.Automation.Peers.h>")) {
         return fail(21, "UI Automation peer enums must be included explicitly rather than transitively");
+    }
+
+    const auto transfer_visual = body_of(window, "void MainWindow::ApplyTransferVisualState(");
+    if (!contains(transfer_visual, "L\"\\xE8A5\"") ||
+        !contains(transfer_visual, "L\"\\xE7BA\"") ||
+        !contains(transfer_visual, "L\"\\xEB90\"") ||
+        !contains(transfer_visual, "L\"AccentIconStyle\"") ||
+        !contains(transfer_visual, "L\"WarningIconStyle\"") ||
+        !contains(transfer_visual, "L\"ErrorIconStyle\"") ||
+        !contains(reset_surface, "ApplyTransferVisualState(TransferVisualState::Active)") ||
+        !contains(running_state, "ApplyTransferVisualState(TransferVisualState::Active)") ||
+        !contains(conflict_state, "ApplyTransferVisualState(TransferVisualState::Warning)") ||
+        !contains(show_notice, "ApplyTransferVisualState(TransferVisualState::Error)") ||
+        !contains(show_notice, "ApplyTransferVisualState(TransferVisualState::Warning)") ||
+        !contains(execution, "SetExecutionButtonsConflict();\n        ApplyTransferVisualState(TransferVisualState::Error);")) {
+        return fail(22, "document, conflict and failure visuals must map to real transfer states through one semantic helper");
     }
 
     // New fidelity work must remain theme-driven; no fixed RGB/hex palette is allowed.

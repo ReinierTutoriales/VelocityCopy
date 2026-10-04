@@ -33,6 +33,7 @@ namespace winrt::VelocityCopyUI::implementation {
 enum class InterruptedSessionState : std::uint8_t { None, Stopped, Conflict, Decision };
 enum class PerformanceSamplingState : std::uint8_t { Idle, Planning, Copying, Paused, Stopped, Cancelling, Conflict };
 enum class ExpandedLayoutMode : std::uint8_t { ThreeColumn, Narrow };
+enum class TransferVisualState : std::uint8_t { Active, Warning, Error };
 
 struct MainWindow : MainWindowT<MainWindow> {
     MainWindow();
@@ -219,6 +220,7 @@ private:
     void FinalizeConflictSessionIfEmpty();
     void ApplySnapshot(const velocitycopy::UiSnapshot& snapshot);
     void FinishCopy(const velocitycopy::JobResult& result);
+    void ApplyTransferVisualState(TransferVisualState state) noexcept;
     void ResetTransferSurface();
     void ShowNotice(Microsoft::UI::Xaml::Controls::InfoBarSeverity severity, hstring const& message);
     void ShowError(hstring const& message = {});

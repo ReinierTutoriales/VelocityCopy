@@ -72,7 +72,7 @@
                                   Glyph="&#xE8A5;"
                                   FontFamily="Segoe Fluent Icons"
                                   FontSize="{StaticResource TransferItemIconSize}"
-                                  Foreground="{ThemeResource AccentFillColorDefaultBrush}"
+                                  Style="{StaticResource AccentIconStyle}"
                                   Margin="{StaticResource TransferItemIconMargin}"
                                   VerticalAlignment="Center"
                                   IsHitTestVisible="False"

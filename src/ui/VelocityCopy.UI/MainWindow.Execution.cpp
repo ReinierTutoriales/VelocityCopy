@@ -27,6 +27,7 @@ void MainWindow::ResetInterruptedSessionState() noexcept {
 
 void MainWindow::SetExecutionButtonsPlanning() {
     performance_sampling_state_ = PerformanceSamplingState::Planning;
+    ApplyTransferVisualState(TransferVisualState::Active);
     TransferProgress().ShowPaused(false);
     TransferProgress().ShowError(false);
     RefreshEfficiencyMode();
@@ -41,6 +42,7 @@ void MainWindow::SetExecutionButtonsPlanning() {
 
 void MainWindow::SetExecutionButtonsRunning() {
     performance_sampling_state_ = PerformanceSamplingState::Copying;
+    ApplyTransferVisualState(TransferVisualState::Active);
     TransferProgress().ShowPaused(false);
     TransferProgress().ShowError(false);
     RefreshEfficiencyMode();
@@ -93,6 +95,7 @@ void MainWindow::SetExecutionButtonsStopped() {
 
 void MainWindow::SetExecutionButtonsConflict() {
     performance_sampling_state_ = PerformanceSamplingState::Conflict;
+    ApplyTransferVisualState(TransferVisualState::Warning);
     TransferProgress().ShowPaused(false);
     TransferProgress().ShowError(false);
     SpeedText().Text(L"—");
@@ -616,6 +619,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         active_destination_ = live_plan_->destination_root();
         active_operation_ = live_plan_->operation();
         SetExecutionButtonsConflict();
+        ApplyTransferVisualState(TransferVisualState::Error);
         PauseIcon().Glyph(L"\xE72C");
         PauseButton().IsEnabled(true);
         try {

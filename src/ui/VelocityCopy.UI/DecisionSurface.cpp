@@ -90,8 +90,8 @@ Windows::Foundation::IAsyncOperation<std::uint32_t> show_decision_async(Decision
         apply_icon_style(
             status_icon,
             options.tone == DecisionTone::Warning
-                ? L"DecisionWarningIconStyle"
-                : L"DecisionErrorIconStyle");
+                ? L"WarningIconStyle"
+                : L"ErrorIconStyle");
         heading.Children().Append(status_icon);
     }
 
