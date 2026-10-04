@@ -24,7 +24,8 @@ int main() {
     const auto queue = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Queue.cpp");
     const auto tokens = read_source(root / "src/ui/DesignTokens.xaml");
     const auto ui_tokens = read_source(root / "src/ui/VelocityCopy.UI/UiTokens.h");
-    if (xaml.empty() || queue.empty() || tokens.empty() || ui_tokens.empty()) return fail(1, "required UI source missing");
+    const auto pch = read_source(root / "src/ui/VelocityCopy.UI/pch.h");
+    if (xaml.empty() || queue.empty() || tokens.empty() || ui_tokens.empty() || pch.empty()) return fail(1, "required UI source missing");
 
     // Active transfer identity: a Fluent document mark sits beside the essential data.
     if (!contains(xaml, "x:Name=\"CurrentItemIcon\"") ||
@@ -164,6 +165,10 @@ int main() {
     if (!contains(queue, "AutomationProperties::SetAccessibilityView(") ||
         !contains(queue, "AccessibilityView::Raw")) {
         return fail(20, "dynamic queue row icons must remain decorative in UI Automation");
+    }
+
+    if (!contains(pch, "#include <winrt/Microsoft.UI.Xaml.Automation.Peers.h>")) {
+        return fail(21, "UI Automation peer enums must be included explicitly rather than transitively");
     }
 
     // New fidelity work must remain theme-driven; no fixed RGB/hex palette is allowed.
