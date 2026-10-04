@@ -354,17 +354,53 @@
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                FontSize="{StaticResource CaptionFontSize}" />
                 </Grid>
-                <Border x:Name="PerformanceGraphBrushSource"
-                        Background="{ThemeResource AccentFillColorDefaultBrush}"
-                        Visibility="Collapsed" />
-                <Border Grid.Row="1"
-                        Margin="{StaticResource PerformanceGraphMargin}"
-                        Height="{StaticResource PerformanceGraphHeight}"
-                        BorderThickness="1"
-                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                        CornerRadius="{ThemeResource ControlCornerRadius}">
-                    <Canvas x:Name="PerformanceGraph" AutomationProperties.AccessibilityView="Raw" />
-                </Border>
+                <Grid Grid.Row="1"
+                      Margin="{StaticResource PerformanceGraphMargin}"
+                      Height="{StaticResource PerformanceGraphHeight}"
+                      AutomationProperties.AccessibilityView="Raw">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition x:Name="PerformanceScaleColumn" Width="Auto" MinWidth="{StaticResource PerformanceAxisLabelMinWidth}" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid x:Name="PerformanceScaleLabels" Margin="0,0,8,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <TextBlock x:Name="PerformanceScaleMaxText"
+                                   AutomationProperties.AccessibilityView="Raw"
+                                   FontSize="{StaticResource CaptionFontSize}"
+                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                        <TextBlock x:Name="PerformanceScaleMidText"
+                                   AutomationProperties.AccessibilityView="Raw"
+                                   Grid.Row="1"
+                                   VerticalAlignment="Center"
+                                   FontSize="{StaticResource CaptionFontSize}"
+                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                        <TextBlock x:Name="PerformanceScaleZeroText"
+                                   AutomationProperties.AccessibilityView="Raw"
+                                   Grid.Row="2"
+                                   FontSize="{StaticResource CaptionFontSize}"
+                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                    </Grid>
+                    <Border Grid.Column="1"
+                            BorderThickness="1"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            CornerRadius="{ThemeResource ControlCornerRadius}">
+                        <Canvas x:Name="PerformanceGraph">
+                            <Polygon x:Name="PerformanceGraphArea"
+                                     AutomationProperties.AccessibilityView="Raw"
+                                     Fill="{ThemeResource AccentFillColorDefaultBrush}"
+                                     Opacity="0.16" />
+                            <Polyline x:Name="PerformanceGraphLine"
+                                      AutomationProperties.AccessibilityView="Raw"
+                                      Stroke="{ThemeResource AccentFillColorDefaultBrush}"
+                                      StrokeThickness="1.5"
+                                      StrokeLineJoin="Round" />
+                        </Canvas>
+                    </Border>
+                </Grid>
             </Grid>
 
             <Grid x:Name="InformationPanel" Grid.Row="0" Grid.Column="2">

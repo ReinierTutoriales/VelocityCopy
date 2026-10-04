@@ -3,6 +3,7 @@
 #include "App.xaml.h"
 #include "UiTokens.h"
 #include "Localization.h"
+#include "PerformanceGraphScale.h"
 #if __has_include("MainWindow.g.cpp")
 #include "MainWindow.g.cpp"
 #endif
@@ -12,8 +13,10 @@
 using namespace winrt;
 using namespace Windows::ApplicationModel::DataTransfer;
 using namespace Windows::Storage;
+using namespace Windows::Foundation;
 using namespace Microsoft::UI::Xaml;
 using namespace Microsoft::UI::Xaml::Controls;
+using namespace Microsoft::UI::Xaml::Media;
 
 namespace winrt::VelocityCopyUI::implementation {
 namespace {
@@ -31,6 +34,7 @@ bool accepts_active_transfer_drop(
     }
     return (args.AllowedOperations() & DataPackageOperation::Copy) == DataPackageOperation::Copy;
 }
+
 
 } // namespace
 
@@ -146,6 +150,7 @@ MainWindow::MainWindow() {
                             window->last_text_scale_factor_ = scale;
                             (void)window->dispatcher_.TryEnqueue([weak]() {
                                 if (auto ui_window = weak.get(); ui_window && !ui_window->resize_in_progress_) {
+                                    ui_window->UpdatePerformanceAxisWidth();
                                     ui_window->ResizeWindowToContent();
                                 }
                             });
@@ -153,6 +158,7 @@ MainWindow::MainWindow() {
                     });
             } catch (...) {
             }
+            self->UpdatePerformanceAxisWidth();
             self->ResizeWindowToContent();
         }
     });
@@ -550,7 +556,12 @@ void MainWindow::ResetPerformanceHistory() noexcept {
     last_performance_sample_ms_ = 0;
     performance_speed_samples_.clear();
     try {
-        PerformanceGraph().Children().Clear();
+        PerformanceGraphLine().Points(PointCollection{});
+        PerformanceGraphArea().Points(PointCollection{});
+        constexpr double mib = 1024.0 * 1024.0;
+        PerformanceScaleMaxText().Text(FormatPerformanceScaleSpeed(mib, mib));
+        PerformanceScaleMidText().Text(FormatPerformanceScaleSpeed(mib / 2.0, mib));
+        PerformanceScaleZeroText().Text(FormatPerformanceScaleSpeed(0.0, mib));
     } catch (...) {
         OutputDebugStringW(L"VelocityCopy: ResetPerformanceHistory failed\\n");
     }
@@ -567,6 +578,23 @@ void MainWindow::ObservePerformanceSample(const double bytes_per_second) {
     if (expanded_) UpdatePerformanceGraph();
 }
 
+void MainWindow::UpdatePerformanceAxisWidth() {
+    try {
+        auto label = PerformanceScaleMaxText();
+        const auto previous_text = label.Text();
+        label.Text(L"1000 MiB/s");
+        label.Measure({std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity()});
+        const double measured_width = label.DesiredSize().Width;
+        label.Text(previous_text);
+        const auto axis_margin = PerformanceScaleLabels().Margin();
+        const double required_width = measured_width + axis_margin.Left + axis_margin.Right;
+        const double token_min_width = velocitycopy::ui::token_double(L"PerformanceAxisLabelMinWidth", 88.0);
+        PerformanceScaleColumn().MinWidth((std::max)(token_min_width, required_width));
+    } catch (...) {
+        OutputDebugStringW(L"VelocityCopy: UpdatePerformanceAxisWidth failed\\n");
+    }
+}
+
 void MainWindow::UpdatePerformanceGraph() {
     try {
         auto canvas = PerformanceGraph();
@@ -574,30 +602,52 @@ void MainWindow::UpdatePerformanceGraph() {
         const double height = canvas.ActualHeight();
         if (width <= 0.0 || height <= 0.0) return;
 
-        auto children = canvas.Children();
-        children.Clear();
-        if (performance_speed_samples_.empty()) return;
+        if (performance_speed_samples_.size() < 2) {
+            PerformanceGraphLine().Points(PointCollection{});
+            PerformanceGraphArea().Points(PointCollection{});
+            constexpr double mib = 1024.0 * 1024.0;
+            PerformanceScaleMaxText().Text(FormatPerformanceScaleSpeed(mib, mib));
+            PerformanceScaleMidText().Text(FormatPerformanceScaleSpeed(mib / 2.0, mib));
+            PerformanceScaleZeroText().Text(FormatPerformanceScaleSpeed(0.0, mib));
+            return;
+        }
 
-        double peak = 1.0;
+        constexpr double sample_capacity = 60.0;
+        double peak = 0.0;
         for (const double sample : performance_speed_samples_) peak = (std::max)(peak, sample);
 
-        auto brush = PerformanceGraphBrushSource().Background();
-        const std::size_t count = performance_speed_samples_.size();
-        const double slot = width / static_cast<double>(count);
-        const double bar_width = (std::max)(1.0, slot - 1.0);
+        const auto scale = velocitycopy::ui::performance_scale(peak);
+        const double scale_max = scale.ceiling_bytes_per_second;
+        PerformanceScaleMaxText().Text(FormatPerformanceScaleSpeed(scale_max, scale.unit_bytes));
+        PerformanceScaleMidText().Text(FormatPerformanceScaleSpeed(scale_max / 2.0, scale.unit_bytes));
+        PerformanceScaleZeroText().Text(FormatPerformanceScaleSpeed(0.0, scale.unit_bytes));
+
+        const double stroke_thickness = PerformanceGraphLine().StrokeThickness();
+        const double stroke_inset = stroke_thickness / 2.0;
+        const double baseline = height - stroke_inset;
+        const double plot_height = (std::max)(1.0, height - stroke_thickness);
+        const double slot = width / (sample_capacity - 1.0);
+        const double first_x = (std::max)(
+            0.0, width - slot * static_cast<double>(performance_speed_samples_.size() - 1));
+
+        PointCollection line_points;
+        PointCollection area_points;
+        area_points.Append({static_cast<float>(first_x), static_cast<float>(baseline)});
         std::size_t index = 0;
         for (const double sample : performance_speed_samples_) {
-            const double normalized = (std::clamp)(sample / peak, 0.0, 1.0);
-            const double bar_height = sample <= 0.0 ? 1.0 : (std::max)(1.0, normalized * height);
-            Border bar;
-            bar.Width(bar_width);
-            bar.Height(bar_height);
-            if (brush) bar.Background(brush);
-            Canvas::SetLeft(bar, static_cast<double>(index) * slot);
-            Canvas::SetTop(bar, height - bar_height);
-            children.Append(bar);
+            const double x = first_x + static_cast<double>(index) * slot;
+            const double normalized = (std::clamp)(sample / scale_max, 0.0, 1.0);
+            const double y = baseline - normalized * plot_height;
+            const Point point{static_cast<float>(x), static_cast<float>(y)};
+            line_points.Append(point);
+            area_points.Append(point);
             ++index;
         }
+        const double last_x = first_x + static_cast<double>(performance_speed_samples_.size() - 1) * slot;
+        area_points.Append({static_cast<float>(last_x), static_cast<float>(baseline)});
+
+        PerformanceGraphLine().Points(line_points);
+        PerformanceGraphArea().Points(area_points);
     } catch (...) {
         OutputDebugStringW(L"VelocityCopy: UpdatePerformanceGraph failed\\n");
     }
@@ -659,21 +709,38 @@ hstring MainWindow::FormatFailureReason(const std::int32_t native_code) {
     return hstring(std::format(L"0x{:08X}", static_cast<std::uint32_t>(native_code)));
 }
 
-hstring MainWindow::FormatSpeed(const double bytes_per_second) {
-    if (bytes_per_second <= 0.0 || !std::isfinite(bytes_per_second)) {
-        return hstring(L"—");
-    }
+namespace {
 
+hstring format_speed_value(const double bytes_per_second) {
     constexpr double kib = 1024.0;
     constexpr double mib = 1024.0 * 1024.0;
     constexpr double gib = 1024.0 * 1024.0 * 1024.0;
-    if (bytes_per_second >= gib) {
-        return hstring(std::format(L"{:.2f} GiB/s", bytes_per_second / gib));
+    if (bytes_per_second <= 0.0 || !std::isfinite(bytes_per_second)) {
+        return hstring(L"—");
     }
-    if (bytes_per_second >= mib) {
-        return hstring(std::format(L"{:.1f} MiB/s", bytes_per_second / mib));
-    }
+    if (bytes_per_second >= gib) return hstring(std::format(L"{:.2f} GiB/s", bytes_per_second / gib));
+    if (bytes_per_second >= mib) return hstring(std::format(L"{:.1f} MiB/s", bytes_per_second / mib));
     return hstring(std::format(L"{:.0f} KiB/s", bytes_per_second / kib));
+}
+}
+
+hstring MainWindow::FormatSpeed(const double bytes_per_second) {
+    return format_speed_value(bytes_per_second);
+}
+
+hstring MainWindow::FormatPerformanceScaleSpeed(
+    const double bytes_per_second,
+    const double unit_bytes) {
+    constexpr double mib = 1024.0 * 1024.0;
+    constexpr double gib = 1024.0 * 1024.0 * 1024.0;
+    const double safe_unit = unit_bytes >= gib ? gib : mib;
+    const double value = std::isfinite(bytes_per_second) && bytes_per_second > 0.0
+        ? bytes_per_second / safe_unit
+        : 0.0;
+    auto text = std::format(L"{:.2f}", value);
+    while (text.size() > 1 && text.back() == L'0') text.pop_back();
+    if (!text.empty() && text.back() == L'.') text.pop_back();
+    return hstring(text + (safe_unit >= gib ? L" GiB/s" : L" MiB/s"));
 }
 
 hstring MainWindow::FormatBytes(const std::uint64_t bytes) {

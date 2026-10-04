@@ -191,6 +191,7 @@ private:
     void ResetPerformanceHistory() noexcept;
     void ObservePerformanceSample(double bytes_per_second);
     void UpdatePerformanceGraph();
+    void UpdatePerformanceAxisWidth();
     [[nodiscard]] std::vector<std::uint64_t> SelectedPendingIds();
     void ResizeWindow(int width_epx, int height_epx, bool preserve_position = false);
     void ResizeWindowToContent(bool preserve_position = false);
@@ -215,6 +216,7 @@ private:
     void ShowError(hstring const& message = {});
     static hstring FormatFailureReason(std::int32_t native_code);
     static hstring FormatSpeed(double bytes_per_second);
+    static hstring FormatPerformanceScaleSpeed(double bytes_per_second, double unit_bytes);
     static hstring FormatEta(double seconds);
     static hstring FormatBytes(std::uint64_t bytes);
 

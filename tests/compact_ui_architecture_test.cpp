@@ -1,5 +1,6 @@
 #include "architecture_support.hpp"
 
+#include <regex>
 #include <filesystem>
 #include <iostream>
 #include <string>
@@ -368,6 +369,43 @@ int main() {
         !contains(xaml, "<RowDefinition Height=\"*\" />")) {
         return fail(43, "expanded layout must select composition before target-width measurement, exclude Queue from infinite-height measurement, and remove the legacy queue MaxHeight");
     }
+    const auto performance_graph = body_of(window, "void MainWindow::UpdatePerformanceGraph()");
+    if (!contains(xaml, "x:Name=\"PerformanceGraphArea\"") ||
+        !contains(xaml, "x:Name=\"PerformanceGraphLine\"") ||
+        !contains(xaml, "Stroke=\"{ThemeResource AccentFillColorDefaultBrush}\"") ||
+        !contains(xaml, "Fill=\"{ThemeResource AccentFillColorDefaultBrush}\"") ||
+        !std::regex_search(xaml, std::regex{R"(<TextBlock[^>]*x:Name="PerformanceScaleMaxText"[^>]*AutomationProperties\.AccessibilityView="Raw"[^>]*/>)"}) ||
+        !std::regex_search(xaml, std::regex{R"(<TextBlock[^>]*x:Name="PerformanceScaleMidText"[^>]*AutomationProperties\.AccessibilityView="Raw"[^>]*/>)"}) ||
+        !std::regex_search(xaml, std::regex{R"(<TextBlock[^>]*x:Name="PerformanceScaleZeroText"[^>]*AutomationProperties\.AccessibilityView="Raw"[^>]*/>)"}) ||
+        !std::regex_search(xaml, std::regex{R"(<Polygon[^>]*x:Name="PerformanceGraphArea"[^>]*AutomationProperties\.AccessibilityView="Raw"[^>]*/>)"}) ||
+        !std::regex_search(xaml, std::regex{R"(<Polyline[^>]*x:Name="PerformanceGraphLine"[^>]*AutomationProperties\.AccessibilityView="Raw"[^>]*/>)"}) ||
+        contains(xaml, "PerformanceGraphBrushSource") ||
+        contains(performance_graph, "Border bar") ||
+        contains(performance_graph, "Children().") ||
+        !contains(performance_graph, "performance_speed_samples_.size() < 2") ||
+        !contains(performance_graph, "sample_capacity = 60.0") ||
+        !contains(performance_graph, "double peak = 0.0") ||
+        !contains(performance_graph, "velocitycopy::ui::performance_scale(peak)") ||
+        !contains(performance_graph, "scale.ceiling_bytes_per_second") ||
+        !contains(performance_graph, "FormatPerformanceScaleSpeed(scale_max, scale.unit_bytes)") ||
+        !contains(performance_graph, "FormatPerformanceScaleSpeed(scale_max / 2.0, scale.unit_bytes)") ||
+        !contains(performance_graph, "FormatPerformanceScaleSpeed(0.0, scale.unit_bytes)") ||
+        !contains(performance_graph, "PerformanceGraphLine().StrokeThickness()") ||
+        !contains(window, "UpdatePerformanceAxisWidth()") ||
+        !contains(window, "label.Text(L\"1000 MiB/s\")") ||
+        !contains(window, "label.DesiredSize().Width") ||
+        !contains(window, "PerformanceScaleLabels().Margin()") ||
+        !contains(window, "axis_margin.Left + axis_margin.Right") ||
+        !contains(window, "PerformanceScaleColumn().MinWidth(") ||
+        !contains(window, "token_double(L\"PerformanceAxisLabelMinWidth\"") ||
+        !contains(performance_graph, "for (const double sample : performance_speed_samples_)") ||
+        !contains(performance_graph, "performance_speed_samples_.size() - 1") ||
+        !contains(performance_graph, "width - slot * static_cast<double>") ||
+        !contains(performance_graph, "PerformanceGraphLine().Points(line_points)") ||
+        !contains(performance_graph, "PerformanceGraphArea().Points(area_points)")) {
+        return fail(44, "performance graph must use the phase 2 sample history as a declarative right-anchored line/area plot with a binary-unit nice Y scale");
+    }
+
     const auto resize_window = body_of(window, "void MainWindow::ResizeWindow(");
     if (!contains(resize_window, "client_width_epx") ||
         !contains(resize_window, "client_height_epx") ||
@@ -427,7 +465,6 @@ int main() {
     const auto observe_performance = body_of(window, "void MainWindow::ObservePerformanceSample(");
     const auto update_performance = body_of(window, "void MainWindow::UpdatePerformanceGraph()");
     if (!contains(xaml, "x:Name=\"PerformanceGraph\"") ||
-        !contains(xaml, "x:Name=\"PerformanceGraph\" AutomationProperties.AccessibilityView=\"Raw\"") ||
         !contains(details_click, "SetExpanded(!expanded_)") ||
         contains(xaml, "x:Name=\"QueueButton\"") ||
         stray_queue_button_reference ||
@@ -442,9 +479,6 @@ int main() {
         !contains(observe_performance, "performance_sampling_state_ != PerformanceSamplingState::Copying") ||
         !contains(observe_performance, "now - last_performance_sample_ms_ < 500") ||
         !contains(observe_performance, "performance_speed_samples_.size() > 60") ||
-        !contains(update_performance, "double peak = 1.0") ||
-        !contains(update_performance, "sample <= 0.0 ? 1.0") ||
-        !contains(update_performance, "PerformanceGraphBrushSource().Background()") ||
         contains(update_performance, "Application::Current().Resources().Lookup") ||
         !contains(update_performance, "OutputDebugStringW") ||
         contains(update_performance, "executor_") ||
@@ -452,7 +486,7 @@ int main() {
         !contains(execution, "performance_sampling_state_ = PerformanceSamplingState::Cancelling") ||
         !contains(execution, "performance_sampling_state_ = PerformanceSamplingState::Paused") ||
         !contains(execution, "performance_sampling_state_ = PerformanceSamplingState::Copying")) {
-        return fail(43, "phase 2 details must remain separate from Queue and keep bounded presentation-only performance history");
+        return fail(45, "phase 2 sampling and expanded presentation contracts must remain bounded, presentation-only, and separate from Queue execution semantics");
     }
 
     return 0;
