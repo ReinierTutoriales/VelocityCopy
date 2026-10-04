@@ -74,7 +74,7 @@ int main() {
         !contains(apply_body, "SpeedText().Text") ||
         !contains(apply_body, "EtaText().Text") ||
         !contains(window, "void MainWindow::SetProgressFraction") ||
-        !contains(window, "ProgressFill().Width") ||
+        !contains(window, "TransferProgress().Value(percent)") ||
         !contains(window, "ProgressPercentText().Text")) {
         return fail(7, "progress rendering must remain centralized behind the UI-thread snapshot consumer");
     }

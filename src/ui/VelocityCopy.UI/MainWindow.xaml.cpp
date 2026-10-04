@@ -191,12 +191,6 @@ void MainWindow::OnAppWindowChanged(
     ApplyTitleBarInset();
 }
 
-void MainWindow::OnTransferSurfaceSizeChanged(
-    IInspectable const&,
-    SizeChangedEventArgs const& args) {
-    ProgressFill().Width(args.NewSize().Width * progress_fraction_);
-}
-
 void MainWindow::ResizeWindow(const int height_epx) {
     try {
         HWND hwnd{};
@@ -246,9 +240,8 @@ void MainWindow::ResizeWindowToContent() {
 
 void MainWindow::SetProgressFraction(const double fraction) {
     progress_fraction_ = (std::clamp)(fraction, 0.0, 1.0);
-    ProgressFill().Width(TransferSurface().ActualWidth() * progress_fraction_);
-
     const double percent = progress_fraction_ * 100.0;
+    TransferProgress().Value(percent);
     if (progress_fraction_ > 0.0 && percent < 0.1) {
         ProgressPercentText().Text(L"<0.1%");
     } else if (percent > 0.0 && percent < 10.0) {
@@ -323,11 +316,14 @@ fire_and_forget MainWindow::HandleDropAsync(DragEventArgs args) {
 }
 
 void MainWindow::ResetTransferSurface() {
+    TransferProgress().ShowPaused(false);
+    TransferProgress().ShowError(false);
     ErrorBar().IsOpen(false);
     ErrorBar().Message(L"");
 }
 
 void MainWindow::ShowNotice(InfoBarSeverity const severity, hstring const& message) {
+    TransferProgress().ShowError(severity == InfoBarSeverity::Error);
     ErrorBar().Severity(severity);
     ErrorBar().Message(message);
     ErrorBar().IsOpen(true);
