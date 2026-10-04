@@ -16,7 +16,7 @@ void MainWindow::RefreshQueue() {
     auto append_visual = [&](const std::filesystem::path& source, const std::optional<std::uint64_t> id) {
         StackPanel row;
         row.Spacing(velocitycopy::ui::token_double(L"QueueItemLineSpacing", 4));
-        row.Margin(velocitycopy::ui::token_thickness(L"QueueItemPadding", Thickness{8, 4, 8, 4}));
+        row.Margin(velocitycopy::ui::token_thickness(L"QueueItemMargin", Thickness{8, 6, 8, 6}));
         row.HorizontalAlignment(HorizontalAlignment::Stretch);
         if (id) {
             row.Tag(box_value(*id));
