@@ -40,7 +40,7 @@ int main() {
     }
 
     if (!contains(xaml, "x:Name=\"TransferSurface\"") ||
-        !contains(xaml, "x:Name=\"ProgressFill\"") ||
+        !contains(xaml, "x:Name=\"TransferProgress\"") ||
         !contains(xaml, "x:Name=\"BrandLogo\"") ||
         !contains(xaml, "x:Name=\"BottomContentGrid\"") ||
         !contains(xaml, "x:Name=\"TelemetryStrip\"") ||
@@ -106,9 +106,11 @@ int main() {
         return fail(16, "action glyphs must be unambiguous and match their command semantics");
     }
 
-    if (contains(xaml, "<ProgressBar") ||
-        !contains(window, "ProgressFill().Width(TransferSurface().ActualWidth() * progress_fraction_)")) {
-        return fail(5, "window surface itself must remain the only progress indicator");
+    if (!contains(xaml, "<ProgressBar x:Name=\"TransferProgress\"") ||
+        contains(xaml, "x:Name=\"ProgressFill\"") ||
+        !contains(window, "TransferProgress().Value(percent)") ||
+        contains(window, "ProgressFill().Width(")) {
+        return fail(5, "compact surface must use one native progress indicator driven by the centralized progress fraction");
     }
 
     // DesignTokens.xaml is the single width source; C++ reads it through the
