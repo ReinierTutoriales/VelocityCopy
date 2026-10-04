@@ -361,7 +361,14 @@ int main() {
     }
     const auto show_notice = body_of(window, "void MainWindow::ShowNotice(");
     const auto show_error = body_of(window, "void MainWindow::ShowError(");
-    if (contains(xaml, "Grid.RowSpan=\"2\"") ||
+    // The notice row of RootGrid must never be covered by a spanning element. The only RowSpan="2" allowed
+    // is the transfer icon inside the transfer header's own two-row grid.
+    const auto row_span_count = count_occurrences(xaml, "Grid.RowSpan=\"2\"");
+    const auto icon_at = xaml.find("x:Name=\"CurrentItemIcon\"");
+    const auto icon_span_at = icon_at == std::string::npos ? std::string::npos : xaml.find("Grid.RowSpan=\"2\"", icon_at);
+    const bool row_span_only_on_icon = row_span_count == 0 ||
+        (row_span_count == 1 && icon_span_at != std::string::npos && icon_span_at - icon_at < 160);
+    if (!row_span_only_on_icon ||
         !contains(execution, "InfoBarSeverity::Warning") ||
         !contains(window, "notice_height") ||
         !contains(show_notice, "ResizeWindowToContent();")) {
