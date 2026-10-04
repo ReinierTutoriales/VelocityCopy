@@ -93,10 +93,10 @@ MainWindow::MainWindow() {
     const auto commands_margin = velocitycopy::ui::token_thickness(L"QueueCommandsMargin", Thickness{0, 8, 0, 0});
     const auto queue_ceiling = velocitycopy::ui::token_double(L"QueueExpandedMaxHeight", 340);
     const auto transfer_padding = velocitycopy::ui::token_thickness(L"TransferContentPadding", Thickness{8, 0, 8, 8});
+    const auto caption_height = velocitycopy::ui::token_double(L"CaptionRowHeight", 32);
+    const auto action_height = velocitycopy::ui::token_double(L"ActionButtonSize", 32);
     const auto normal_surface_fallback =
-        velocitycopy::ui::token_double(L"CaptionRowHeight", 32) +
-        velocitycopy::ui::token_double(L"ActionButtonSize", 32) +
-        transfer_padding.Top + transfer_padding.Bottom;
+        caption_height + action_height + transfer_padding.Top + transfer_padding.Bottom;
     const auto header_height = velocitycopy::ui::token_double(L"QueueHeaderMinHeight", 28);
     const auto command_height = velocitycopy::ui::token_double(L"ActionButtonSize", 32);
     QueueList().MaxHeight((std::max)(0.0, queue_ceiling - normal_surface_fallback -
@@ -145,9 +145,9 @@ MainWindow::MainWindow() {
                         });
                 }
 
-                Windows::UI::ViewManagement::UISettings settings;
-                self->last_text_scale_factor_ = settings.TextScaleFactor();
-                self->text_scale_changed_revoker_ = settings.TextScaleFactorChanged(auto_revoke,
+                self->ui_settings_ = Windows::UI::ViewManagement::UISettings();
+                self->last_text_scale_factor_ = self->ui_settings_.TextScaleFactor();
+                self->text_scale_changed_revoker_ = self->ui_settings_.TextScaleFactorChanged(auto_revoke,
                     [weak](Windows::UI::ViewManagement::UISettings const& sender, IInspectable const&) {
                         if (auto window = weak.get()) {
                             const double scale = sender.TextScaleFactor();
@@ -271,6 +271,7 @@ void MainWindow::ResizeWindow(const int client_height_epx) {
 
 void MainWindow::ResizeWindowToContent() {
     if (resize_in_progress_) return;
+    RootGrid().UpdateLayout();
     const auto measured_width = RootGrid().ActualWidth() > 0.0
         ? static_cast<float>(RootGrid().ActualWidth())
         : static_cast<float>(velocitycopy::ui::token_int(L"NormalWindowMinWidth", 380));
