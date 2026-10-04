@@ -116,8 +116,8 @@ int main(){
    for(double v:vals) if(std::fmod(v,4.0)!=0.0) return false;
   }
   if(scalar("TransferItemIconSize")!=20||scalar("DecisionStatusIconSize")!=20||
-     scalar("SectionIconSize")!=14||scalar("QueueItemIconSize")!=14||
-     scalar("InformationIconSize")!=12||scalar("PathArrowIconSize")!=12) return false;
+     scalar("SectionIconSize")!=16||scalar("QueueItemIconSize")!=16||
+     scalar("InformationIconSize")!=16||scalar("PathArrowIconSize")!=12) return false;
   for(const auto& [key,vals]:values) if(key.ends_with("Opacity")) return false;
   if(scalar("CaptionRowGridLength")!=scalar("CaptionRowHeight")) return false;
   static const std::regex text_style{R"re(<Style x:Key="[^"]+" TargetType="TextBlock">[\s\S]*?<Setter Property="Foreground" Value="\{ThemeResource TextFillColor[^}]+\}"\s*/>[\s\S]*?</Style>)re"};
@@ -127,7 +127,7 @@ int main(){
  auto mutate=[&](const std::string& from,const std::string& to){auto copy=tokens;auto pos=copy.find(from);if(pos==std::string::npos)return std::string{};copy.replace(pos,from.size(),to);return copy;};
  const std::vector<std::pair<std::string,std::string>> mutations={
   {"<x:Double x:Key=\"DecisionStatusIconSize\">20</x:Double>","<x:Double x:Key=\"DecisionStatusIconSize\">19</x:Double>"},
-  {"<x:Double x:Key=\"SectionIconSize\">14</x:Double>","<x:Double x:Key=\"SectionIconSize\">15</x:Double>"},
+  {"<x:Double x:Key=\"SectionIconSize\">16</x:Double>","<x:Double x:Key=\"SectionIconSize\">15</x:Double>"},
   {"<x:Double x:Key=\"ActionIconSize\">16</x:Double>","<x:Double x:Key=\"ActionIconSize\">13</x:Double>"},
   {"<x:Double x:Key=\"ActionButtonSize\">32</x:Double>","<x:Double x:Key=\"ActionButtonSize\">32</x:Double><x:Double x:Key=\"QueueCommandButtonSize\">32</x:Double>"},
   {"<Thickness x:Key=\"QueueListMargin\">0,4,0,0</Thickness>","<Thickness x:Key=\"QueueListMargin\">0,7,0,0</Thickness>"},
