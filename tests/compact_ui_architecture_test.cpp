@@ -14,6 +14,15 @@ bool contains(const std::string& text, const std::string& value) {
     return text.find(value) != std::string::npos;
 }
 
+std::string brace_body_at(const std::string& text, const std::size_t open) {
+    if (open == std::string::npos || open >= text.size() || text[open] != '{') return {};
+    int depth = 0;
+    for (std::size_t i = open; i < text.size(); ++i) {
+        if (text[i] == '{') ++depth;
+        else if (text[i] == '}' && --depth == 0) return text.substr(open + 1, i - open - 1);
+    }
+    return {};
+}
 
 int fail(const int code, const char* message) {
     std::cerr << "compact UI architecture contract " << code << ": " << message << '\n';
@@ -229,8 +238,7 @@ int main() {
         contains(tokens, "TelemetrySecondaryOpacity") || contains(tokens, "TelemetryEmphasisOpacity") ||
         contains(tokens, "QueueCountOpacity") || contains(tokens, "QueueItemLocationOpacity") ||
         contains(tokens, "QueueMaxHeightCompact") ||
-        !contains(xaml, "TextFillColorSecondaryBrush") || !contains(xaml, "TextFillColorTertiaryBrush") ||
-        !contains(window, "queue_ceiling - normal_surface_fallback")) {
+        !contains(xaml, "TextFillColorSecondaryBrush") || !contains(xaml, "TextFillColorTertiaryBrush")) {
         return fail(17, "step 3a design-system invariants must remain normalized and runtime-aware");
     }
 
@@ -326,6 +334,12 @@ int main() {
     }
 
     const auto resize_to_content = body_of(window, "void MainWindow::ResizeWindowToContent(");
+    const auto mode_if = resize_to_content.find("if (expanded_layout_mode_ == ExpandedLayoutMode::ThreeColumn)");
+    const auto mode_open = mode_if == std::string::npos ? std::string::npos : resize_to_content.find('{', mode_if);
+    const auto three_column_branch = brace_body_at(resize_to_content, mode_open);
+    const auto narrow_else = mode_open == std::string::npos ? std::string::npos : resize_to_content.find("else", mode_open + three_column_branch.size());
+    const auto narrow_open = narrow_else == std::string::npos ? std::string::npos : resize_to_content.find('{', narrow_else);
+    const auto narrow_branch = brace_body_at(resize_to_content, narrow_open);
     if (contains(resize_to_content, "RootGrid().ActualWidth()") ||
         !contains(resize_to_content, "work_width_epx") ||
         !contains(resize_to_content, "ExpandedPreferredWidth") ||
@@ -336,11 +350,12 @@ int main() {
         !contains(resize_to_content, "ExpandedRegion().Padding()") ||
         !contains(resize_to_content, "ExpandedColumnSpacing") ||
         !contains(resize_to_content, "expanded_padding.Top + expanded_padding.Bottom") ||
-        !contains(resize_to_content, "ExpandedRegion().ColumnSpacing(") ||
-        !contains(resize_to_content, "ExpandedRegion().ColumnSpacing(0.0)") ||
-        !contains(resize_to_content, "PerformancePanel().Margin(Thickness{})") ||
-        !contains(resize_to_content, "token_thickness(") ||
-        !contains(resize_to_content, "DetailsPerformanceMargin") ||
+        !contains(three_column_branch, "ExpandedRegion().ColumnSpacing(") ||
+        !contains(three_column_branch, "ExpandedColumnSpacing") ||
+        !contains(three_column_branch, "PerformancePanel().Margin(Thickness{})") ||
+        !contains(narrow_branch, "ExpandedRegion().ColumnSpacing(0.0)") ||
+        !contains(narrow_branch, "PerformancePanel().Margin(") ||
+        !contains(narrow_branch, "token_thickness(L\"DetailsPerformanceMargin\"") ||
         contains(resize_to_content, "QueuePanel().Measure(") ||
         !contains(resize_to_content, "Grid::SetRow(QueuePanel()") ||
         !contains(resize_to_content, "Grid::SetColumn(InformationPanel()") ||
@@ -371,7 +386,9 @@ int main() {
         !contains(window, "ErrorBar().Closed(") ||
         !contains(window, "self->ResizeWindowToContent();") ||
         !contains(resize_to_content, "QueueExpandedMinHeight") ||
-        !contains(resize_to_content, "+ notice_height_epx") ||
+        !contains(resize_to_content, "normal_height + notice_height") ||
+        !contains(resize_to_content, "normal_height + notice_height + expanded_region_height") ||
+        !contains(resize_to_content, "work_height_epx - work_margin * 2.0 - normal_height - notice_height") ||
         count_occurrences(execution, "ResizeWindow(velocitycopy::ui::token_int(L\"CompactSurfaceHeight\"") != 0) {
         return fail(40, "notice and terminal paths must resize from measured content");
     }

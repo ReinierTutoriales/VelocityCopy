@@ -51,8 +51,9 @@ int main(){
   const auto source = read_source(entry_path.path());
   const auto total = count_occurrences(source, "token_double(") + count_occurrences(source, "token_int(") +
                      count_occurrences(source, "token_thickness(");
+  const auto normalized = std::regex_replace(source, std::regex{R"(\s+)"}, " ");
   std::size_t matched = 0;
-  for (std::sregex_iterator it(source.begin(), source.end(), read), end; it != end; ++it, ++matched) {
+  for (std::sregex_iterator it(normalized.begin(), normalized.end(), read), end; it != end; ++it, ++matched) {
    const auto kind = (*it)[1].str();
    const auto key = (*it)[2].str();
    const auto found = dictionary.find(key);
