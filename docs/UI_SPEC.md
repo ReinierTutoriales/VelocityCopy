@@ -140,7 +140,7 @@ The queue is collapsed by default and expands in the same HWND.
 - Queue rows use a compact two-line hierarchy: filename first, source location secondary.
 - Virtualized list, drag/drop reordering, keyboard selection, move up/down/remove controls.
 - Removing a queue entry never deletes the source file.
-- No card background or second rounded shell around the queue.
+- Queue uses the Phase-3 subtle section surface; individual rows keep the native ListView item/selection surface rather than nesting an additional card shell.
 
 ## Transfer routing preference lifetime
 
@@ -171,7 +171,7 @@ Only the **top caption-content row** reserves `AppWindowTitleBar.RightInset`. Th
 - Use Segoe Fluent Icons for compact actions.
 - Use system theme/accent resources; do not hard-code decorative colors.
 - Preserve accessible names, tooltips and focus behavior.
-- Visual hierarchy comes from spacing, typography, opacity and native interaction states, not extra borders/cards.
+- Visual hierarchy comes from spacing, typography, opacity, native interaction states, and the Phase-3 theme-aware section surfaces; do not add a second outer copier card or decorative nested borders without a semantic purpose.
 
 ## Performance
 
