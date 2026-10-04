@@ -161,6 +161,9 @@ int main() {
         !contains(tokens, "<x:Double x:Key=\"ExpandedThreeColumnThreshold\">720</x:Double>") ||
         !contains(tokens, "<x:Double x:Key=\"ExpandedWorkAreaMargin\">16</x:Double>") ||
         !contains(window, "token_double(L\"NormalWindowMinWidth\", 380)") ||
+        !contains(window, "const double work_width_cap = (std::max)(normal_width, work_width_epx - work_margin * 2.0);") ||
+        !contains(window, "const double normal_target_width = (std::min)(normal_width * text_scale, work_width_cap);") ||
+        !contains(window, ": normal_target_width;") ||
         !contains(window, "const double effective_width = target_width / text_scale;") ||
         !contains(window, "expanded_layout_mode_ = effective_width >= three_column_threshold") ||
         !contains(window, "TransferSurface().InvalidateMeasure();") ||

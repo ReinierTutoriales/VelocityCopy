@@ -321,12 +321,14 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
     const double preferred_width = velocitycopy::ui::token_double(L"ExpandedPreferredWidth", 880);
     const double three_column_threshold =
         velocitycopy::ui::token_double(L"ExpandedThreeColumnThreshold", 720);
+    const double work_width_cap = (std::max)(normal_width, work_width_epx - work_margin * 2.0);
+    const double text_scale = (std::max)(1.0, last_text_scale_factor_);
+    const double normal_target_width = (std::min)(normal_width * text_scale, work_width_cap);
     const double target_width = expanded_
-        ? (std::max)(normal_width, (std::min)(preferred_width, work_width_epx - work_margin * 2.0))
-        : normal_width;
+        ? (std::max)(normal_width, (std::min)(preferred_width, work_width_cap))
+        : normal_target_width;
 
     if (expanded_) {
-        const double text_scale = (std::max)(1.0, last_text_scale_factor_);
         const double effective_width = target_width / text_scale;
         expanded_layout_mode_ = effective_width >= three_column_threshold
             ? ExpandedLayoutMode::ThreeColumn
