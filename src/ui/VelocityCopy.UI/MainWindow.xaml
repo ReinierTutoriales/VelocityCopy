@@ -70,7 +70,6 @@
                         <FontIcon x:Name="CurrentItemIcon"
                                   Grid.RowSpan="2"
                                   Glyph="&#xE8A5;"
-                                  FontFamily="Segoe Fluent Icons"
                                   FontSize="{StaticResource TransferItemIconSize}"
                                   Style="{StaticResource AccentIconStyle}"
                                   Margin="{StaticResource TransferItemIconMargin}"
@@ -316,7 +315,6 @@
                                     <StackPanel Orientation="Horizontal"
                                                 VerticalAlignment="Center">
                                         <FontIcon Glyph="&#xE8A5;"
-                                                  FontFamily="Segoe Fluent Icons"
                                                   FontSize="{StaticResource SectionIconSize}"
                                                   Foreground="{ThemeResource AccentFillColorDefaultBrush}"
                                                   Margin="{StaticResource SectionIconMargin}"
@@ -469,7 +467,6 @@
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                                 <FontIcon Glyph="&#xE9D2;"
-                                                          FontFamily="Segoe Fluent Icons"
                                                           FontSize="{StaticResource SectionIconSize}"
                                                           Foreground="{ThemeResource AccentFillColorDefaultBrush}"
                                                           Margin="{StaticResource SectionIconMargin}"
@@ -562,7 +559,6 @@
                                             Padding="{StaticResource SectionHeaderPadding}">
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                             <FontIcon Glyph="&#xE946;"
-                                                      FontFamily="Segoe Fluent Icons"
                                                       FontSize="{StaticResource SectionIconSize}"
                                                       Foreground="{ThemeResource AccentFillColorDefaultBrush}"
                                                       Margin="{StaticResource SectionIconMargin}"
@@ -592,7 +588,7 @@
                                             <RowDefinition Height="Auto" />
                                         </Grid.RowDefinitions>
 
-                                        <FontIcon Grid.Row="0" Glyph="&#xE8B7;" FontFamily="Segoe Fluent Icons"
+                                        <FontIcon Grid.Row="0" Glyph="&#xE8B7;"
                                                   FontSize="{StaticResource InformationIconSize}"
                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                   Margin="{StaticResource SectionIconMargin}"
@@ -601,7 +597,7 @@
                                         <TextBlock x:Uid="DetailsSourceLabel" Grid.Column="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
                                         <TextBlock x:Name="DetailsSourceText" Grid.Column="2" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxLines="1" FontSize="{StaticResource CaptionFontSize}" />
 
-                                        <FontIcon Grid.Row="1" Glyph="&#xE8B7;" FontFamily="Segoe Fluent Icons"
+                                        <FontIcon Grid.Row="1" Glyph="&#xE8B7;"
                                                   FontSize="{StaticResource InformationIconSize}"
                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                   Margin="{StaticResource SectionIconMargin}"
@@ -610,7 +606,7 @@
                                         <TextBlock x:Uid="DetailsDestinationLabel" Grid.Row="1" Grid.Column="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
                                         <TextBlock x:Name="DetailsDestinationText" Grid.Row="1" Grid.Column="2" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxLines="1" FontSize="{StaticResource CaptionFontSize}" />
 
-                                        <FontIcon Grid.Row="2" Glyph="&#xE8A5;" FontFamily="Segoe Fluent Icons"
+                                        <FontIcon Grid.Row="2" Glyph="&#xE8A5;"
                                                   FontSize="{StaticResource InformationIconSize}"
                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                   Margin="{StaticResource SectionIconMargin}"
@@ -619,7 +615,7 @@
                                         <TextBlock x:Uid="DetailsBytesLabel" Grid.Row="2" Grid.Column="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
                                         <TextBlock x:Name="DetailsBytesText" Grid.Row="2" Grid.Column="2" FontSize="{StaticResource CaptionFontSize}" />
 
-                                        <FontIcon Grid.Row="3" Glyph="&#xE8A5;" FontFamily="Segoe Fluent Icons"
+                                        <FontIcon Grid.Row="3" Glyph="&#xE8A5;"
                                                   FontSize="{StaticResource InformationIconSize}"
                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                   Margin="{StaticResource SectionIconMargin}"
@@ -628,7 +624,7 @@
                                         <TextBlock x:Uid="DetailsFilesLabel" Grid.Row="3" Grid.Column="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
                                         <TextBlock x:Name="DetailsFilesText" Grid.Row="3" Grid.Column="2" FontSize="{StaticResource CaptionFontSize}" />
 
-                                        <FontIcon Grid.Row="4" Glyph="&#xE9D2;" FontFamily="Segoe Fluent Icons"
+                                        <FontIcon Grid.Row="4" Glyph="&#xE9D2;"
                                                   FontSize="{StaticResource InformationIconSize}"
                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                   Margin="{StaticResource SectionIconMargin}"
@@ -637,7 +633,7 @@
                                         <TextBlock x:Uid="DetailsSpeedLabel" Grid.Row="4" Grid.Column="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
                                         <TextBlock x:Name="DetailsSpeedText" Grid.Row="4" Grid.Column="2" FontWeight="SemiBold" FontSize="{StaticResource CaptionFontSize}" />
 
-                                        <FontIcon Grid.Row="5" Glyph="&#xE823;" FontFamily="Segoe Fluent Icons"
+                                        <FontIcon Grid.Row="5" Glyph="&#xE823;"
                                                   FontSize="{StaticResource InformationIconSize}"
                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                   Margin="{StaticResource SectionIconMargin}"

@@ -80,7 +80,6 @@ Windows::Foundation::IAsyncOperation<std::uint32_t> show_decision_async(Decision
     if (options.tone != DecisionTone::Neutral) {
         FontIcon status_icon;
         status_icon.Glyph(options.tone == DecisionTone::Warning ? L"\xE7BA" : L"\xEB90");
-        status_icon.FontFamily(FontFamily{L"Segoe Fluent Icons"});
         status_icon.FontSize(token_double(L"DecisionStatusIconSize", 20));
         status_icon.VerticalAlignment(VerticalAlignment::Center);
         status_icon.IsHitTestVisible(false);

@@ -40,6 +40,7 @@ int main() {
     c.find("DecisionTone::Error") == std::string::npos ||
     c.find("status_icon.Glyph(options.tone == DecisionTone::Warning ? L\"\\xE7BA\" : L\"\\xEB90\")") == std::string::npos ||
     c.find("token_double(L\"DecisionStatusIconSize\", 20)") == std::string::npos ||
+    c.find("status_icon.FontFamily(") != std::string::npos ||
     c.find("WarningIconStyle") == std::string::npos ||
     c.find("ErrorIconStyle") == std::string::npos ||
     c.find("AutomationProperties::SetAccessibilityView(") == std::string::npos ||

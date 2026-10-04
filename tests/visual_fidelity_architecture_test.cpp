@@ -192,6 +192,13 @@ int main() {
         return fail(22, "document, conflict and failure visuals must map to real transfer states through one semantic helper");
     }
 
+    // New system glyphs rely on FontIcon's documented SymbolThemeFontFamily default.
+    // The eight remaining explicit Segoe Fluent declarations predate this visual branch.
+    if (count_occurrences(xaml, "FontFamily=\"Segoe Fluent Icons\"") != 8 ||
+        contains(queue, "item_icon.FontFamily(")) {
+        return fail(23, "new system icons must use FontIcon's SymbolThemeFontFamily fallback");
+    }
+
     // New fidelity work must remain theme-driven; no fixed RGB/hex palette is allowed.
     if (contains(xaml, "Color=\"#") || contains(xaml, "Background=\"#") ||
         contains(xaml, "Foreground=\"#") || contains(tokens, "Color=\"#")) {
