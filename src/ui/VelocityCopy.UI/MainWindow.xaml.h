@@ -197,6 +197,8 @@ private:
     void ResizeWindowToContent(bool preserve_position = false);
     void LogTelemetryGeometry();
     void ScheduleTelemetryGeometryProbe();
+    void ApplyTelemetryReserves();
+    [[nodiscard]] double RequiredNormalWindowWidth();
     void SetProgressFraction(double fraction);
     void ResetCurrentItemState() noexcept;
     void ResetInterruptedSessionState() noexcept;
@@ -267,6 +269,10 @@ private:
     Microsoft::UI::Dispatching::DispatcherQueueTimer geometry_probe_timer_{nullptr};
     std::wstring last_geometry_line_;
     bool geometry_probe_run_marked_{};
+    bool geometry_probe_speed_active_{};
+    bool telemetry_reserves_applied_{};
+    double telemetry_reserve_text_scale_{};
+    double telemetry_reserve_raster_{};
     bool expanded_{};
     ExpandedLayoutMode expanded_layout_mode_{ExpandedLayoutMode::ThreeColumn};
     Microsoft::UI::Xaml::XamlRoot::Changed_revoker xaml_root_changed_revoker_{};

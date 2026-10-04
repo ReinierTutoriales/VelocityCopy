@@ -174,7 +174,11 @@ int main() {
         !contains(tokens, "<x:Double x:Key=\"ExpandedWorkAreaMargin\">16</x:Double>") ||
         !contains(window, "token_double(L\"NormalWindowMinWidth\", 380)") ||
         !contains(window, "const double work_width_cap = (std::max)(normal_width, work_width_epx - work_margin * 2.0);") ||
-        !contains(window, "const double normal_target_width = (std::min)(normal_width * text_scale, work_width_cap);") ||
+        // 380 epx x TextScale is the scaled minimum, not the final width: the window grows only to
+        // fit the reserved bottom row (see telemetry_layout_architecture_test).
+        !contains(window, "const double scaled_normal_width = normal_width * text_scale;") ||
+        !contains(window, "velocitycopy::ui::layout::normal_target_width(") ||
+        !contains(window, "scaled_normal_width, required_normal_width, work_width_cap);") ||
         !contains(window, ": normal_target_width;") ||
         !contains(window, "const double effective_width = target_width / text_scale;") ||
         !contains(window, "expanded_layout_mode_ = effective_width >= three_column_threshold") ||

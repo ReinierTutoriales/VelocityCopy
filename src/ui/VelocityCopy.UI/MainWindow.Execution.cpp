@@ -384,6 +384,7 @@ void MainWindow::OnPauseClick(IInspectable const&, RoutedEventArgs const&) {
         // Localization failure must never mutate the execution state.
     }
     RefreshExecutionMenuState();
+    ScheduleTelemetryGeometryProbe();
 }
 
 void MainWindow::OnSkipClick(IInspectable const&, RoutedEventArgs const&) {
@@ -513,6 +514,10 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
     if (SpeedText().Text() != speed) SpeedText().Text(speed);
     const auto eta = FormatEta(snapshot.eta_seconds);
     if (EtaText().Text() != eta) EtaText().Text(eta);
+    if ((snapshot.bytes_per_second > 0.0) != geometry_probe_speed_active_) {
+        geometry_probe_speed_active_ = snapshot.bytes_per_second > 0.0;
+        ScheduleTelemetryGeometryProbe();
+    }
 
     if (DetailsBytesText().Text() != bytes_text) DetailsBytesText().Text(bytes_text);
     if (DetailsFilesText().Text() != files_text) DetailsFilesText().Text(files_text);

@@ -4,6 +4,7 @@
 #include "UiTokens.h"
 #include "Localization.h"
 #include "PerformanceGraphScale.h"
+#include "TelemetryLayout.h"
 #if __has_include("MainWindow.g.cpp")
 #include "MainWindow.g.cpp"
 #endif
@@ -326,7 +327,13 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
         velocitycopy::ui::token_double(L"ExpandedThreeColumnThreshold", 720);
     const double work_width_cap = (std::max)(normal_width, work_width_epx - work_margin * 2.0);
     const double text_scale = (std::max)(1.0, last_text_scale_factor_);
-    const double normal_target_width = (std::min)(normal_width * text_scale, work_width_cap);
+    // 380 epx scaled by Text Size is the minimum, not the final width: the window grows only
+    // when the reserved bottom row (telemetry cells + actions + Details) cannot fit.
+    ApplyTelemetryReserves();
+    const double scaled_normal_width = normal_width * text_scale;
+    const double required_normal_width = expanded_ ? 0.0 : RequiredNormalWindowWidth();
+    const double normal_target_width = velocitycopy::ui::layout::normal_target_width(
+        scaled_normal_width, required_normal_width, work_width_cap);
     const double target_width = expanded_
         ? (std::max)(normal_width, (std::min)(preferred_width, work_width_cap))
         : normal_target_width;

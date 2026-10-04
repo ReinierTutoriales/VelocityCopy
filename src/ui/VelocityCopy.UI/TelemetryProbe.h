@@ -8,29 +8,17 @@
 #include <string_view>
 #include <vector>
 
+#include "TelemetryLayout.h"
+
 namespace velocitycopy::ui::probe {
 
 // Column order of one log line. Keep in sync with MainWindow::LogTelemetryGeometry().
 inline constexpr std::wstring_view kLogColumns =
-    L"build | mode | hwnd_px | factor | raster | speed_max | pct_max | eta_max | declared_gaps | live_gaps | "
-    L"tele_worst | cluster | details_worst | util | holgura | paused | eta_unbounded | validation";
+    L"build | mode | hwnd_px | factor | raster | speed_max | pct_max | eta_max | reserves | declared_gaps | "
+    L"live_gaps | tele | cluster | details | avail | required | holgura | x_pause | x_stop | x_options | "
+    L"x_details | details_right | paused | eta_unbounded | validation";
 
-// The sample itself plus the sample with every digit replaced by 0..9.
-inline std::vector<std::wstring> digit_variants(const std::wstring_view text) {
-    std::vector<std::wstring> out;
-    out.emplace_back(text);
-    bool has_digit = false;
-    for (const wchar_t c : text) has_digit = has_digit || (c >= L'0' && c <= L'9');
-    if (!has_digit) return out;
-    for (wchar_t digit = L'0'; digit <= L'9'; ++digit) {
-        std::wstring variant(text);
-        for (auto& c : variant) {
-            if (c >= L'0' && c <= L'9') c = digit;
-        }
-        out.push_back(std::move(variant));
-    }
-    return out;
-}
+using layout::digit_variants;
 
 // Keeps a field on one log line and free of the column separator.
 inline std::wstring sanitize_field(const std::wstring_view value) {

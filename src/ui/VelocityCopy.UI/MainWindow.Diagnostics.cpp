@@ -115,6 +115,7 @@ void MainWindow::LogTelemetryGeometry() {
         constexpr double mib = 1024.0 * 1024.0;
         constexpr double gib = 1024.0 * mib;
 
+        // Hard worst case (diagnostic): wider than the operating domain the layout reserves.
         // Samples go through the real formatters, never through literal strings.
         std::vector<std::wstring> speed_samples;
         for (const double bytes_per_second : {0.0, 1023.0 * 1024.0, 1048575.0, 1073741823.0, 999.9 * mib,
@@ -125,7 +126,7 @@ void MainWindow::LogTelemetryGeometry() {
         for (const double fraction : {0.0, 0.0005, 0.013, 0.099, 0.5, 0.999, 1.0}) {
             pct_samples.emplace_back(FormatProgressPercent(fraction).c_str());
         }
-        // 99 h 59 m is a provisional cap used ONLY to measure; FormatEta() is unbounded.
+        // 99 h 59 m is the agreed operating cap; FormatEta() itself stays unbounded.
         std::vector<std::wstring> eta_samples;
         for (const double seconds : {0.0, 59.0, 3599.0, 3600.0, 99.0 * 3600.0 + 59.0 * 60.0}) {
             eta_samples.emplace_back(FormatEta(seconds).c_str());
@@ -140,60 +141,70 @@ void MainWindow::LogTelemetryGeometry() {
         const auto pct_max = widest(pct_block, pct_samples, detail, L"pct");
         const auto eta_max = widest(eta_block, eta_samples, detail, L"eta");
 
-        // Self-validation: the synthetic block must reproduce the real block's width.
+        // Self-validation. (a) the synthetic block reproduces the real cell's DesiredSize
+        // (floored by the runtime reserve); (b) informational: text-only delta vs ActualWidth.
         std::vector<std::wstring> failed;
         const auto validate = [&](TextBlock const& real, TextBlock const& synthetic, std::wstring_view name) {
-            const double expected = (std::max)(text_width(synthetic, real.Text().c_str()), real.MinWidth());
+            const double text = text_width(synthetic, real.Text().c_str());
+            const double expected = (std::max)(text, real.MinWidth());
             const double actual = real.DesiredSize().Width;
-            detail.push_back(std::format(L"# validate | {} | synthetic={:.1f} | real={:.1f}", name, expected, actual));
+            detail.push_back(std::format(
+                L"# validate | {} | synthetic={:.1f} | real={:.1f} | text_delta={:.1f}", name, expected, actual,
+                text - real.ActualWidth()));
             if (actual <= 0.0 || !probe::widths_match(expected, actual)) failed.emplace_back(name);
         };
         validate(SpeedText(), speed_block, L"speed");
         validate(ProgressPercentText(), pct_block, L"pct");
         validate(EtaText(), eta_block, L"eta");
 
-        const double speed_cell = (std::max)(speed_max.width, SpeedText().MinWidth());
-        const double pct_cell = (std::max)(pct_max.width, ProgressPercentText().MinWidth());
-        const double eta_cell = (std::max)(eta_max.width, EtaText().MinWidth());
+        // Runtime reserves actually applied to the cells (MinWidth == MaxWidth).
+        const double speed_cell = SpeedText().MinWidth();
+        const double pct_cell = ProgressPercentText().MinWidth();
+        const double eta_cell = EtaText().MinWidth();
         const double strip_spacing = TelemetryStrip().Spacing();
-        const double tele_worst = speed_cell + pct_cell + eta_cell + strip_spacing * 2.0;
+        const double tele = speed_cell + pct_cell + eta_cell + strip_spacing * 2.0;
 
-        const double cluster = PrimaryActionCluster().ActualWidth();
+        const double cluster = PrimaryActionCluster().DesiredSize().Width;
         const double cluster_spacing = PrimaryActionCluster().Spacing();
         const double column_spacing = BottomContentGrid().ColumnSpacing();
-        const double util = BottomContentGrid().ActualWidth();
+        // Natural width of Details in the CURRENT mode (its label only changes with the mode).
+        const double details = DetailsButton().DesiredSize().Width;
 
-        // Details: live width, with the label swapped for the widest of its two localized strings.
-        const auto details_block = make_probe_block(DetailsButtonText());
-        const double current_label = DetailsButtonText().DesiredSize().Width;
-        const double label_w = (std::max)(
-            text_width(details_block, velocitycopy::localization::get_string(L"ActionDetails").c_str()),
-            text_width(details_block, velocitycopy::localization::get_string(L"ActionHideDetails").c_str()));
-        const double details_live = DetailsButton().ActualWidth();
-        const double details_worst = (std::max)(details_live, details_live - current_label + label_w);
-
-        // Four columns -> three declared column gaps (the * spacer column also receives one).
+        // Real available width (window content minus chrome), not the grid's own ActualWidth,
+        // which is inflated when the row overflows.
+        const auto content_padding = TransferContentGrid().Padding();
+        const auto bottom_margin = BottomContentGrid().Margin();
+        const double avail = TransferContentGrid().ActualWidth() - content_padding.Left - content_padding.Right -
+                             bottom_margin.Left - bottom_margin.Right;
+        const double required = tele + cluster + details + column_spacing * 3.0;
+        const double holgura = avail - required;
         const double declared_total = strip_spacing * 2.0 + cluster_spacing * 2.0 + column_spacing * 3.0;
-        const double holgura = util - (tele_worst + cluster + details_worst + column_spacing * 3.0);
 
         std::wstring live_gaps;
+        std::vector<std::wstring> gate(5, L"?");
         try {
             const UIElement grid = BottomContentGrid();
+            const UIElement root = RootGrid();
             const double speed_x = left_of(SpeedText(), grid);
             const double pct_x = left_of(ProgressPercentText(), grid);
             const double eta_x = left_of(EtaText(), grid);
             const double strip_x = left_of(TelemetryStrip(), grid);
             const double cluster_x = left_of(PrimaryActionCluster(), grid);
             const double details_x = left_of(DetailsButton(), grid);
-            live_gaps = std::format(L"s>p={} p>e={} t>c={} c>d={} d>r={}",
-                fixed(pct_x - (speed_x + SpeedText().ActualWidth())),
-                fixed(eta_x - (pct_x + ProgressPercentText().ActualWidth())),
-                fixed(cluster_x - (strip_x + TelemetryStrip().ActualWidth())),
-                fixed(details_x - (cluster_x + cluster)),
-                fixed(util - (details_x + details_live)));
+            live_gaps = std::format(L"s>p={} p>e={} t>c={} c>d={}",
+                fixed(pct_x - (speed_x + SpeedText().DesiredSize().Width)),
+                fixed(eta_x - (pct_x + ProgressPercentText().DesiredSize().Width)),
+                fixed(cluster_x - (strip_x + TelemetryStrip().DesiredSize().Width)),
+                fixed(details_x - (cluster_x + cluster)));
+            // Gate invariants: X of the actions and distance from Details to the window edge.
+            const double details_root_x = left_of(DetailsButton(), root);
+            gate = {fixed(left_of(PauseButtonHost(), root)), fixed(left_of(CancelButtonHost(), root)),
+                    fixed(left_of(OptionsButton(), root)), fixed(details_root_x),
+                    fixed(RootGrid().ActualWidth() - (details_root_x + details))};
         } catch (...) {
             live_gaps = L"unavailable";
-            failed.emplace_back(L"live_gaps");
+            gate.assign(5, L"?");
+            failed.emplace_back(L"geometry");
         }
 
         RECT window_rect{};
@@ -220,11 +231,16 @@ void MainWindow::LogTelemetryGeometry() {
             build, mode, hwnd_px, std::format(L"{:.2f}", last_text_scale_factor_),
             std::format(L"{:.2f}", last_rasterization_scale_), fixed(speed_max.width), fixed(pct_max.width),
             fixed(eta_max.width),
+            std::format(L"speed={} pct={} eta={}", fixed(speed_cell), fixed(pct_cell), fixed(eta_cell)),
             std::format(L"strip={}x2 cluster={}x2 cols={}x3 total={}", fixed(strip_spacing), fixed(cluster_spacing),
                         fixed(column_spacing), fixed(declared_total)),
-            live_gaps, fixed(tele_worst), fixed(cluster), fixed(details_worst), fixed(util), fixed(holgura),
-            paused_ ? L"1" : L"0", eta_unbounded ? L"true" : L"false", validation};
-        const std::wstring line = probe::join_fields(fields);
+            live_gaps, fixed(tele), fixed(cluster), fixed(details), fixed(avail), fixed(required), fixed(holgura)};
+        auto all_fields = fields;
+        all_fields.insert(all_fields.end(), gate.begin(), gate.end());
+        all_fields.push_back(paused_ ? L"1" : L"0");
+        all_fields.push_back(eta_unbounded ? L"true" : L"false");
+        all_fields.push_back(validation);
+        const std::wstring line = probe::join_fields(all_fields);
 
         if (line == last_geometry_line_) return;
         last_geometry_line_ = line;
