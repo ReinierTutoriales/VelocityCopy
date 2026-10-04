@@ -56,5 +56,6 @@
     <Thickness x:Key="AboutBodyMargin">0,0,0,16</Thickness>
     <Thickness x:Key="AboutMetadataMargin">0,0,0,8</Thickness>
     <Style x:Key="SecondaryTextStyle" TargetType="TextBlock"><Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" /></Style>
+    <Style x:Key="SecondaryIconStyle" TargetType="FontIcon"><Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" /></Style>
     <Style x:Key="TertiaryTextStyle" TargetType="TextBlock"><Setter Property="Foreground" Value="{ThemeResource TextFillColorTertiaryBrush}" /></Style>
 </ResourceDictionary>

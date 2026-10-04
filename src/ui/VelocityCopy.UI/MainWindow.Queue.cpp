@@ -61,6 +61,7 @@ void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
         item_icon.Glyph(L"\xE8A5");
         item_icon.FontFamily(Microsoft::UI::Xaml::Media::FontFamily{L"Segoe Fluent Icons"});
         item_icon.FontSize(velocitycopy::ui::token_double(L"QueueItemIconSize", 14));
+        velocitycopy::ui::apply_icon_style(item_icon, L"SecondaryIconStyle");
         item_icon.Margin(velocitycopy::ui::token_thickness(
             L"QueueItemIconMargin", Thickness{0, 0, 8, 0}));
         item_icon.VerticalAlignment(VerticalAlignment::Center);

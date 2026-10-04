@@ -22,7 +22,8 @@ int main() {
     const auto xaml = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.xaml");
     const auto queue = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Queue.cpp");
     const auto tokens = read_source(root / "src/ui/DesignTokens.xaml");
-    if (xaml.empty() || queue.empty() || tokens.empty()) return fail(1, "required UI source missing");
+    const auto ui_tokens = read_source(root / "src/ui/VelocityCopy.UI/UiTokens.h");
+    if (xaml.empty() || queue.empty() || tokens.empty() || ui_tokens.empty()) return fail(1, "required UI source missing");
 
     // Active transfer identity: a Fluent document mark sits beside the essential data.
     if (!contains(xaml, "x:Name=\"CurrentItemIcon\"") ||
@@ -31,6 +32,12 @@ int main() {
         !contains(tokens, "TransferItemIconSize") ||
         !contains(tokens, "TransferItemIconMargin")) {
         return fail(2, "active transfer must expose themed document iconography");
+    }
+
+    if (!contains(tokens, "SecondaryIconStyle") ||
+        !contains(ui_tokens, "apply_icon_style") ||
+        !contains(queue, "apply_icon_style(item_icon, L\"SecondaryIconStyle\")")) {
+        return fail(13, "dynamic queue icons must inherit the shared theme-aware secondary icon style");
     }
 
     // Expanded cards share one Fluent visual hierarchy.
