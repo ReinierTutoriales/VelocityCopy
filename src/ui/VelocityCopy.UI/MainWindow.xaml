@@ -208,13 +208,18 @@
                         <Button x:Name="DetailsButton"
                                 Grid.Column="3"
                                 Click="OnDetailsClick"
-                                Width="{StaticResource ActionButtonSize}"
                                 Height="{StaticResource ActionButtonSize}"
-                                HorizontalAlignment="Right"
-                                Padding="0">
-                            <FontIcon FontFamily="Segoe Fluent Icons"
-                                      Glyph="&#xE946;"
-                                      FontSize="{StaticResource ActionIconSize}" />
+                                HorizontalAlignment="Right">
+                            <StackPanel Orientation="Horizontal"
+                                        Spacing="{StaticResource SpaceRelated}">
+                                <TextBlock x:Name="DetailsButtonText"
+                                           VerticalAlignment="Center"
+                                           FontSize="{StaticResource BodyFontSize}" />
+                                <FontIcon x:Name="DetailsChevronIcon"
+                                          FontFamily="Segoe Fluent Icons"
+                                          Glyph="&#xE70D;"
+                                          FontSize="{StaticResource ActionIconSize}" />
+                            </StackPanel>
                         </Button>
                     </Grid>
                 </Grid>
