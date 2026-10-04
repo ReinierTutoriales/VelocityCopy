@@ -144,7 +144,8 @@ int main() {
         !contains(tokens, "<x:Double x:Key=\"TransferProgressHeight\">8</x:Double>") ||
         !contains(xaml, "x:Name=\"DetailsButtonText\"") ||
         !contains(xaml, "x:Name=\"DetailsChevronIcon\"") ||
-        !contains(window, "DetailsButtonText().Text(details_label)") ||
+        !contains(window, "get_string(L\"ActionDetails\")") ||
+        !contains(window, "DetailsButtonText().Text(details_button_label)") ||
         !contains(window, "DetailsChevronIcon().Glyph(expanded ? L\"\\uE70E\" : L\"\\uE70D\")") ||
         contains(xaml, "x:Name=\"ProgressFill\"") ||
         !contains(window, "TransferProgress().Value(percent)") ||
@@ -361,7 +362,7 @@ int main() {
         !contains(resize_to_content, "work_width_epx") ||
         !contains(resize_to_content, "ExpandedPreferredWidth") ||
         !contains(resize_to_content, "ExpandedThreeColumnThreshold") ||
-        !contains(resize_to_content, "expanded_layout_mode_ = target_width >= three_column_threshold") ||
+        !contains(resize_to_content, "expanded_layout_mode_ = effective_width >= three_column_threshold") ||
         !contains(resize_to_content, "PerformancePanel().Measure(") ||
         !contains(resize_to_content, "InformationPanel().Measure(") ||
         !contains(resize_to_content, "ExpandedRegion().Padding()") ||

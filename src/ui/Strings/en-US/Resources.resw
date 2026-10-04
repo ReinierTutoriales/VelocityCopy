@@ -67,6 +67,7 @@
   <data name="TransferCompletedFormat" xml:space="preserve"><value>{0} completed of {1}</value></data>
 
 
+  <data name="ActionDetails" xml:space="preserve"><value>Details</value></data>
   <data name="ActionShowDetails" xml:space="preserve"><value>Show details</value></data>
 
   <data name="ActionHideDetails" xml:space="preserve"><value>Hide details</value></data>

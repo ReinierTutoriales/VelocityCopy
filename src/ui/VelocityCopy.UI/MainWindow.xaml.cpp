@@ -570,7 +570,10 @@ void MainWindow::SetExpanded(const bool expanded) {
     try {
         const auto details_label = velocitycopy::localization::get_string(
             expanded ? L"ActionHideDetails" : L"ActionShowDetails");
-        DetailsButtonText().Text(details_label);
+        const auto details_button_label = expanded
+            ? details_label
+            : velocitycopy::localization::get_string(L"ActionDetails");
+        DetailsButtonText().Text(details_button_label);
         DetailsChevronIcon().Glyph(expanded ? L"\uE70E" : L"\uE70D");
         ToolTipService::SetToolTip(DetailsButton(), box_value(details_label));
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(DetailsButton(), details_label);
