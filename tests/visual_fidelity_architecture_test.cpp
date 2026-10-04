@@ -112,6 +112,11 @@ int main() {
         return fail(11, "native InfoBar must expose localized semantic titles and reset them between sessions");
     }
 
+    if (!contains(xaml, "x:Name=\"OptionsIcon\"") ||
+        count_occurrences(xaml, "Foreground=\"{ThemeResource TextFillColorSecondaryBrush}\"") < 8) {
+        return fail(14, "secondary commands and supporting iconography must stay visually subordinate");
+    }
+
     // New fidelity work must remain theme-driven; no fixed RGB/hex palette is allowed.
     if (contains(xaml, "Color=\"#") || contains(xaml, "Background=\"#") ||
         contains(xaml, "Foreground=\"#") || contains(tokens, "Color=\"#")) {

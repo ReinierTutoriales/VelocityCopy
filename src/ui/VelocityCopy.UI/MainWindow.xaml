@@ -217,7 +217,8 @@
                                 <FontIcon x:Name="OptionsIcon"
                                           FontFamily="Segoe Fluent Icons"
                                           Glyph="&#xE712;"
-                                          FontSize="{StaticResource ActionIconSize}" />
+                                          FontSize="{StaticResource ActionIconSize}"
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                             </Button>
                         </StackPanel>
 
@@ -333,7 +334,7 @@
                                                     HorizontalAlignment="Stretch"
                                                     VerticalAlignment="Stretch"
                                                     Padding="0">
-                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74A;" FontSize="{StaticResource ActionIconSize}" />
+                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74A;" FontSize="{StaticResource ActionIconSize}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                             </Button>
                                         </Grid>
                                         <Grid x:Name="QueueMoveDownButtonHost"
@@ -347,7 +348,7 @@
                                                     HorizontalAlignment="Stretch"
                                                     VerticalAlignment="Stretch"
                                                     Padding="0">
-                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74B;" FontSize="{StaticResource ActionIconSize}" />
+                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74B;" FontSize="{StaticResource ActionIconSize}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                             </Button>
                                         </Grid>
                                         <Grid x:Name="QueueRemoveButtonHost"
@@ -360,7 +361,7 @@
                                                     HorizontalAlignment="Stretch"
                                                     VerticalAlignment="Stretch"
                                                     Padding="0">
-                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE738;" FontSize="{StaticResource ActionIconSize}" />
+                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE738;" FontSize="{StaticResource ActionIconSize}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                             </Button>
                                         </Grid>
                                     </Grid>
