@@ -111,9 +111,13 @@ int main(){
   auto pad=values.find("TransferContentPadding"); if(pad==values.end()||pad->second.size()!=4) return false;
   for(const auto& [key,vals]:values) if(key.ends_with("FontSize")) for(double v:vals) if(v!=12&&v!=14&&v!=20) return false;
   for(const auto& [key,vals]:values) {
-   if(key.find("Opacity")!=std::string::npos||key.find("Radius")!=std::string::npos||key.find("FontSize")!=std::string::npos) continue;
+   if(key.find("Opacity")!=std::string::npos||key.find("Radius")!=std::string::npos||
+      key.find("FontSize")!=std::string::npos||key.ends_with("IconSize")) continue;
    for(double v:vals) if(std::fmod(v,4.0)!=0.0) return false;
   }
+  if(scalar("TransferItemIconSize")!=20||scalar("SectionIconSize")!=14||
+     scalar("QueueItemIconSize")!=14||scalar("InformationIconSize")!=12||
+     scalar("PathArrowIconSize")!=12) return false;
   for(const auto& [key,vals]:values) if(key.ends_with("Opacity")) return false;
   if(scalar("CaptionRowGridLength")!=scalar("CaptionRowHeight")) return false;
   static const std::regex text_style{R"re(<Style x:Key="[^"]+" TargetType="TextBlock">[\s\S]*?<Setter Property="Foreground" Value="\{ThemeResource TextFillColor[^}]+\}"\s*/>[\s\S]*?</Style>)re"};
@@ -122,6 +126,7 @@ int main(){
  if(!validate_design_tokens(tokens)) return fail(20,"design token invariants failed");
  auto mutate=[&](const std::string& from,const std::string& to){auto copy=tokens;auto pos=copy.find(from);if(pos==std::string::npos)return std::string{};copy.replace(pos,from.size(),to);return copy;};
  const std::vector<std::pair<std::string,std::string>> mutations={
+  {"<x:Double x:Key=\"SectionIconSize\">14</x:Double>","<x:Double x:Key=\"SectionIconSize\">15</x:Double>"},
   {"<x:Double x:Key=\"ActionIconSize\">16</x:Double>","<x:Double x:Key=\"ActionIconSize\">13</x:Double>"},
   {"<x:Double x:Key=\"ActionButtonSize\">32</x:Double>","<x:Double x:Key=\"ActionButtonSize\">32</x:Double><x:Double x:Key=\"QueueCommandButtonSize\">32</x:Double>"},
   {"<Thickness x:Key=\"QueueListMargin\">0,4,0,0</Thickness>","<Thickness x:Key=\"QueueListMargin\">0,7,0,0</Thickness>"},
