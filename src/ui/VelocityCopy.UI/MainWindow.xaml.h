@@ -196,6 +196,7 @@ private:
     void ResizeWindow(int width_epx, int height_epx, bool preserve_position = false);
     void ResizeWindowToContent(bool preserve_position = false);
     void LogTelemetryGeometry();
+    void ScheduleTelemetryGeometryProbe();
     void SetProgressFraction(double fraction);
     void ResetCurrentItemState() noexcept;
     void ResetInterruptedSessionState() noexcept;
@@ -219,6 +220,7 @@ private:
     static hstring FormatSpeed(double bytes_per_second);
     static hstring FormatPerformanceScaleSpeed(double bytes_per_second, double unit_bytes);
     static hstring FormatEta(double seconds);
+    static hstring FormatProgressPercent(double fraction);
     static hstring FormatBytes(std::uint64_t bytes);
 
     std::wstring session_id_{velocitycopy::new_session_id()};
@@ -262,6 +264,9 @@ private:
     double last_rasterization_scale_{};
     double last_text_scale_factor_{};
     bool resize_in_progress_{};
+    Microsoft::UI::Dispatching::DispatcherQueueTimer geometry_probe_timer_{nullptr};
+    std::wstring last_geometry_line_;
+    bool geometry_probe_run_marked_{};
     bool expanded_{};
     ExpandedLayoutMode expanded_layout_mode_{ExpandedLayoutMode::ThreeColumn};
     Microsoft::UI::Xaml::XamlRoot::Changed_revoker xaml_root_changed_revoker_{};

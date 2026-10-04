@@ -136,6 +136,7 @@ MainWindow::MainWindow() {
                                     std::abs(scale - window->last_rasterization_scale_) > 0.0001) {
                                     window->last_rasterization_scale_ = scale;
                                     window->ResizeWindowToContent(true);
+                                    window->ScheduleTelemetryGeometryProbe();
                                 }
                             }
                         });
@@ -153,6 +154,7 @@ MainWindow::MainWindow() {
                                 if (auto ui_window = weak.get(); ui_window && !ui_window->resize_in_progress_) {
                                     ui_window->UpdatePerformanceAxisWidth();
                                     ui_window->ResizeWindowToContent();
+                                    ui_window->ScheduleTelemetryGeometryProbe();
                                 }
                             });
                         }
@@ -161,6 +163,7 @@ MainWindow::MainWindow() {
             }
             self->UpdatePerformanceAxisWidth();
             self->ResizeWindowToContent();
+            self->ScheduleTelemetryGeometryProbe();
         }
     });
     ResizeWindowToContent();
@@ -477,13 +480,15 @@ void MainWindow::SetProgressFraction(const double fraction) {
     progress_fraction_ = (std::clamp)(fraction, 0.0, 1.0);
     const double percent = progress_fraction_ * 100.0;
     TransferProgress().Value(percent);
-    if (progress_fraction_ > 0.0 && percent < 0.1) {
-        ProgressPercentText().Text(L"<0.1%");
-    } else if (percent > 0.0 && percent < 10.0) {
-        ProgressPercentText().Text(hstring(std::format(L"{:.1f}%", percent)));
-    } else {
-        ProgressPercentText().Text(hstring(std::format(L"{:.0f}%", percent)));
-    }
+    ProgressPercentText().Text(FormatProgressPercent(progress_fraction_));
+}
+
+hstring MainWindow::FormatProgressPercent(const double fraction) {
+    const double clamped = (std::clamp)(fraction, 0.0, 1.0);
+    const double percent = clamped * 100.0;
+    if (clamped > 0.0 && percent < 0.1) return hstring(L"<0.1%");
+    if (percent > 0.0 && percent < 10.0) return hstring(std::format(L"{:.1f}%", percent));
+    return hstring(std::format(L"{:.0f}%", percent));
 }
 
 void MainWindow::OnDragEnter(IInspectable const&, DragEventArgs const& args) {
@@ -592,6 +597,7 @@ void MainWindow::SetExpanded(const bool expanded) {
         UpdatePerformanceGraph();
     }
     ResizeWindowToContent();
+    ScheduleTelemetryGeometryProbe();
 }
 void MainWindow::OnDetailsClick(IInspectable const&, RoutedEventArgs const&) {
     SetExpanded(!expanded_);
