@@ -94,22 +94,6 @@ MainWindow::MainWindow() {
     SetTitleBar(TitleBarDragRegion());
     base_caption_content_padding_ = CaptionContentGrid().Padding();
 
-    // Derive the queue viewport from the single expanded-height ceiling.
-    const auto queue_padding = velocitycopy::ui::token_thickness(L"QueuePanelPadding", Thickness{8, 8, 8, 12});
-    const auto list_margin = velocitycopy::ui::token_thickness(L"QueueListMargin", Thickness{0, 4, 0, 0});
-    const auto commands_margin = velocitycopy::ui::token_thickness(L"QueueCommandsMargin", Thickness{0, 8, 0, 0});
-    const auto queue_ceiling = velocitycopy::ui::token_double(L"QueueExpandedMaxHeight", 340);
-    const auto transfer_padding = velocitycopy::ui::token_thickness(L"TransferContentPadding", Thickness{8, 0, 8, 8});
-    const auto caption_height = velocitycopy::ui::token_double(L"CaptionRowHeight", 32);
-    const auto action_height = velocitycopy::ui::token_double(L"ActionButtonSize", 32);
-    const auto normal_surface_fallback =
-        caption_height + action_height + transfer_padding.Top + transfer_padding.Bottom;
-    const auto header_height = velocitycopy::ui::token_double(L"QueueHeaderMinHeight", 28);
-    const auto command_height = velocitycopy::ui::token_double(L"ActionButtonSize", 32);
-    QueueList().MaxHeight((std::max)(0.0, queue_ceiling - normal_surface_fallback -
-        queue_padding.Top - queue_padding.Bottom - header_height - list_margin.Top - list_margin.Bottom -
-        commands_margin.Top - commands_margin.Bottom - command_height));
-
     try {
         auto app_window = AppWindow();
         if (auto presenter = app_window.Presenter().try_as<Microsoft::UI::Windowing::OverlappedPresenter>()) {
@@ -308,43 +292,128 @@ void MainWindow::ResizeWindow(const int client_width_epx, const int client_heigh
 
 void MainWindow::ResizeWindowToContent(const bool preserve_position) {
     if (resize_in_progress_) return;
-    RootGrid().UpdateLayout();
-    const auto measured_width = RootGrid().ActualWidth() > 0.0
-        ? static_cast<float>(RootGrid().ActualWidth())
-        : static_cast<float>(velocitycopy::ui::token_int(L"NormalWindowMinWidth", 380));
-    TransferSurface().Measure({measured_width, std::numeric_limits<float>::infinity()});
-    const auto normal_height = static_cast<double>(TransferSurface().DesiredSize().Height);
-    const auto queue_min_height = velocitycopy::ui::token_int(L"QueueExpandedMinHeight", 176);
-    const auto queue_max_height = velocitycopy::ui::token_int(L"QueueExpandedMaxHeight", 340);
+
+    HWND hwnd = hwnd_;
+    if (hwnd == nullptr) {
+        auto window_native = this->m_inner.as<::IWindowNative>();
+        if (FAILED(window_native->get_WindowHandle(&hwnd)) || hwnd == nullptr) return;
+    }
+    const auto dpi = GetDpiForWindow(hwnd);
+    if (dpi == 0) return;
+
+    MONITORINFO monitor_info{sizeof(monitor_info)};
+    const HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+    if (monitor == nullptr || !GetMonitorInfoW(monitor, &monitor_info)) return;
+
+    const double work_width_epx =
+        (monitor_info.rcWork.right - monitor_info.rcWork.left) * 96.0 / static_cast<double>(dpi);
+    const double work_height_epx =
+        (monitor_info.rcWork.bottom - monitor_info.rcWork.top) * 96.0 / static_cast<double>(dpi);
+    const double work_margin = velocitycopy::ui::token_double(L"ExpandedWorkAreaMargin", 16);
+    const double normal_width = velocitycopy::ui::token_double(L"NormalWindowMinWidth", 380);
+    const double preferred_width = velocitycopy::ui::token_double(L"ExpandedPreferredWidth", 880);
+    const double three_column_threshold =
+        velocitycopy::ui::token_double(L"ExpandedThreeColumnThreshold", 720);
+    const double target_width = expanded_
+        ? (std::max)(normal_width, (std::min)(preferred_width, work_width_epx - work_margin * 2.0))
+        : normal_width;
+
+    if (expanded_) {
+        expanded_layout_mode_ = target_width >= three_column_threshold
+            ? ExpandedLayoutMode::ThreeColumn
+            : ExpandedLayoutMode::Narrow;
+        if (expanded_layout_mode_ == ExpandedLayoutMode::ThreeColumn) {
+            ExpandedRow0().Height(GridLength{1.0, GridUnitType::Star});
+            ExpandedRow1().Height(GridLength{0.0, GridUnitType::Pixel});
+            ExpandedRow2().Height(GridLength{0.0, GridUnitType::Pixel});
+            ExpandedColumn0().Width(GridLength{1.0, GridUnitType::Star});
+            ExpandedColumn1().Width(GridLength{1.0, GridUnitType::Star});
+            ExpandedColumn2().Width(GridLength{1.0, GridUnitType::Star});
+            Grid::SetRow(QueuePanel(), 0);
+            Grid::SetColumn(QueuePanel(), 0);
+            Grid::SetRow(PerformancePanel(), 0);
+            Grid::SetColumn(PerformancePanel(), 1);
+            Grid::SetRow(InformationPanel(), 0);
+            Grid::SetColumn(InformationPanel(), 2);
+            PerformancePanel().Margin(Thickness{});
+        } else {
+            ExpandedRow0().Height(GridLength{1.0, GridUnitType::Star});
+            ExpandedRow1().Height(GridLength{1.0, GridUnitType::Auto});
+            ExpandedRow2().Height(GridLength{1.0, GridUnitType::Auto});
+            ExpandedColumn0().Width(GridLength{1.0, GridUnitType::Star});
+            ExpandedColumn1().Width(GridLength{0.0, GridUnitType::Pixel});
+            ExpandedColumn2().Width(GridLength{0.0, GridUnitType::Pixel});
+            Grid::SetRow(QueuePanel(), 0);
+            Grid::SetColumn(QueuePanel(), 0);
+            Grid::SetRow(PerformancePanel(), 1);
+            Grid::SetColumn(PerformancePanel(), 0);
+            Grid::SetRow(InformationPanel(), 2);
+            Grid::SetColumn(InformationPanel(), 0);
+            PerformancePanel().Margin(Thickness{0.0, 12.0, 0.0, 0.0});
+        }
+    }
+
+    const float measure_width = static_cast<float>(target_width);
+    TransferSurface().Measure({measure_width, std::numeric_limits<float>::infinity()});
+    const double normal_height = TransferSurface().DesiredSize().Height;
     double notice_height = 0.0;
-    double details_height = 0.0;
     if (ErrorBar().IsOpen()) {
-        ErrorBar().Measure({measured_width, std::numeric_limits<float>::infinity()});
+        ErrorBar().Measure({measure_width, std::numeric_limits<float>::infinity()});
         notice_height = ErrorBar().DesiredSize().Height;
     }
-    if (expanded_) {
-        DetailsPanel().Measure({measured_width, std::numeric_limits<float>::infinity()});
-        details_height = DetailsPanel().DesiredSize().Height;
-    }
+
     if (!expanded_) {
         ResizeWindow(
-            velocitycopy::ui::token_int(L"NormalWindowMinWidth", 380),
-            static_cast<int>(std::ceil(normal_height + notice_height + details_height)),
+            static_cast<int>(std::ceil(target_width)),
+            static_cast<int>(std::ceil(normal_height + notice_height)),
             preserve_position);
         return;
     }
 
-    QueuePanel().Measure({measured_width, std::numeric_limits<float>::infinity()});
-    const auto desired_queue_height = static_cast<double>(QueuePanel().DesiredSize().Height);
-    const auto expanded_height = static_cast<int>(std::ceil(
-        normal_height + notice_height + desired_queue_height));
-    const auto notice_height_epx = static_cast<int>(std::ceil(notice_height));
+    const double queue_min_height = velocitycopy::ui::token_double(L"QueueExpandedMinHeight", 176);
+    const double expanded_max_height = velocitycopy::ui::token_double(L"QueueExpandedMaxHeight", 340);
+    const double available_expanded_height =
+        (std::max)(queue_min_height, work_height_epx - work_margin * 2.0 - normal_height - notice_height);
+    const double expanded_height_cap = (std::max)(
+        1.0, (std::min)(expanded_max_height, available_expanded_height));
+    const auto expanded_padding = ExpandedRegion().Padding();
+    const double expanded_column_spacing =
+        velocitycopy::ui::token_double(L"ExpandedColumnSpacing", 8);
+    const double expanded_content_width = (std::max)(
+        1.0, target_width - expanded_padding.Left - expanded_padding.Right);
+    const double panel_width = expanded_layout_mode_ == ExpandedLayoutMode::ThreeColumn
+        ? (std::max)(1.0, (expanded_content_width - expanded_column_spacing * 2.0) / 3.0)
+        : expanded_content_width;
+
+    PerformancePanel().Measure({
+        static_cast<float>(panel_width), std::numeric_limits<float>::infinity()});
+    InformationPanel().Measure({
+        static_cast<float>(panel_width), std::numeric_limits<float>::infinity()});
+    const double performance_height = PerformancePanel().DesiredSize().Height;
+    const double information_height = InformationPanel().DesiredSize().Height;
+
+    double expanded_region_height = 0.0;
+    if (expanded_layout_mode_ == ExpandedLayoutMode::ThreeColumn) {
+        const double content_height = (std::min)(
+            (std::max)({performance_height, information_height, queue_min_height}),
+            (std::max)(1.0, expanded_height_cap - expanded_padding.Top - expanded_padding.Bottom));
+        ExpandedRow0().Height(GridLength{content_height, GridUnitType::Pixel});
+        expanded_region_height =
+            content_height + expanded_padding.Top + expanded_padding.Bottom;
+    } else {
+        const double padding_height = expanded_padding.Top + expanded_padding.Bottom;
+        const double content_cap = (std::max)(1.0, expanded_height_cap - padding_height);
+        const double fixed_content_height = performance_height + information_height;
+        const double queue_height = (std::max)(
+            1.0, (std::min)(queue_min_height, content_cap - fixed_content_height));
+        ExpandedRow0().Height(GridLength{queue_height, GridUnitType::Pixel});
+        expanded_region_height =
+            (std::min)(expanded_height_cap, queue_height + fixed_content_height + padding_height);
+    }
+
     ResizeWindow(
-        velocitycopy::ui::token_int(L"NormalWindowMinWidth", 380),
-        (std::clamp)(
-            expanded_height,
-            queue_min_height + notice_height_epx,
-            queue_max_height + notice_height_epx),
+        static_cast<int>(std::ceil(target_width)),
+        static_cast<int>(std::ceil(normal_height + notice_height + expanded_region_height)),
         preserve_position);
     RootGrid().UpdateLayout();
 }
@@ -451,18 +520,12 @@ void MainWindow::SetExpanded(const bool expanded) {
     expanded_ = expanded;
     // Transitional Phase 2 presentation: one logical expanded state, one visible panel.
     // Phase 3 XAML will replace this with the integrated expanded surface.
-    DetailsPanel().Visibility(expanded ? Visibility::Visible : Visibility::Collapsed);
-    QueuePanel().Visibility(Visibility::Collapsed);
-    QueueChevron().Glyph(expanded ? L"\xE70E" : L"\xE70D");
+    ExpandedRegion().Visibility(expanded ? Visibility::Visible : Visibility::Collapsed);
     try {
         const auto details_label = velocitycopy::localization::get_string(
             expanded ? L"ActionHideDetails" : L"ActionShowDetails");
         ToolTipService::SetToolTip(DetailsButton(), box_value(details_label));
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(DetailsButton(), details_label);
-        const auto queue_label = velocitycopy::localization::get_string(
-            expanded ? L"ActionHideQueue" : L"ActionShowQueue");
-        ToolTipService::SetToolTip(QueueButton(), box_value(queue_label));
-        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(QueueButton(), queue_label);
     } catch (...) {
         OutputDebugStringW(L"VelocityCopy: SetExpanded failed\\n");
     }

@@ -185,7 +185,7 @@ void MainWindow::FinalizeConflictSessionIfEmpty() {
     append_gate_.reset();
     active_destination_.clear();
     RefreshQueue();
-    QueueButton().IsEnabled(false);
+
     SetExpanded(false);
     ResizeWindowToContent();
     SetExecutionButtonsIdle();

@@ -35,6 +35,7 @@ int main() {
     const auto conflict = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Conflict.cpp");
     const auto about = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.About.cpp");
     bool stray_expanded_visibility_writer = false;
+    bool stray_queue_button_reference = false;
     const auto ui_dir = root / "src/ui/VelocityCopy.UI";
     for (const auto& entry : std::filesystem::directory_iterator(ui_dir)) {
         if (!entry.is_regular_file()) continue;
@@ -42,10 +43,10 @@ int main() {
         if (!name.starts_with("MainWindow") || entry.path().extension() != ".cpp" ||
             name == "MainWindow.xaml.cpp") continue;
         const auto source = read_source(entry.path());
+        if (contains(source, "QueueButton")) stray_queue_button_reference = true;
         if (contains(source, "QueuePanel().Visibility(") ||
             contains(source, "DetailsPanel().Visibility(")) {
             stray_expanded_visibility_writer = true;
-            break;
         }
     }
 
@@ -71,7 +72,7 @@ int main() {
         !contains(xaml, "x:Name=\"CancelButton\"") ||
         !contains(xaml, "x:Name=\"OptionsButton\"") ||
         !contains(xaml, "x:Name=\"DetailsButton\"") ||
-        !contains(xaml, "x:Name=\"QueueButton\"")) {
+        contains(xaml, "x:Name=\"QueueButton\"")) {
         return fail(2, "collapsed surface must separate telemetry from the right-aligned primary actions");
     }
 
@@ -119,7 +120,7 @@ int main() {
         const auto glyph = element.find("Glyph=\"");
         return glyph == std::string::npos ? std::string{} : element.substr(glyph + 7, 8);
     };
-    if (glyph_of("QueueButton") != "&#xE70D;" ||
+    if (
         glyph_of("QueueMoveUpButton") != "&#xE74A;" ||
         glyph_of("QueueMoveDownButton") != "&#xE74B;" ||
         glyph_of("QueueRemoveButton") != "&#xE738;" ||
@@ -325,6 +326,27 @@ int main() {
     }
 
     const auto resize_to_content = body_of(window, "void MainWindow::ResizeWindowToContent(");
+    if (contains(resize_to_content, "RootGrid().ActualWidth()") ||
+        !contains(resize_to_content, "work_width_epx") ||
+        !contains(resize_to_content, "ExpandedPreferredWidth") ||
+        !contains(resize_to_content, "ExpandedThreeColumnThreshold") ||
+        !contains(resize_to_content, "expanded_layout_mode_ = target_width >= three_column_threshold") ||
+        !contains(resize_to_content, "PerformancePanel().Measure(") ||
+        !contains(resize_to_content, "InformationPanel().Measure(") ||
+        !contains(resize_to_content, "ExpandedRegion().Padding()") ||
+        !contains(resize_to_content, "ExpandedColumnSpacing") ||
+        !contains(resize_to_content, "expanded_padding.Top + expanded_padding.Bottom") ||
+        !contains(resize_to_content, "PerformancePanel().Margin(Thickness{})") ||
+        !contains(resize_to_content, "PerformancePanel().Margin(Thickness{0.0, 12.0, 0.0, 0.0})") ||
+        contains(resize_to_content, "QueuePanel().Measure(") ||
+        !contains(resize_to_content, "Grid::SetRow(QueuePanel()") ||
+        !contains(resize_to_content, "Grid::SetColumn(InformationPanel()") ||
+        !contains(resize_to_content, "ResizeWindow(") ||
+        contains(window, "QueueList().MaxHeight(") ||
+        contains(window, "normal_surface_fallback") ||
+        !contains(xaml, "<RowDefinition Height=\"*\" />")) {
+        return fail(43, "expanded layout must select composition before target-width measurement, exclude Queue from infinite-height measurement, and remove the legacy queue MaxHeight");
+    }
     const auto resize_window = body_of(window, "void MainWindow::ResizeWindow(");
     if (!contains(resize_window, "client_width_epx") ||
         !contains(resize_window, "client_height_epx") ||
@@ -364,7 +386,7 @@ int main() {
         !contains(window, "ui_settings_.TextScaleFactorChanged(auto_revoke") ||
         !contains(window, "scale - window->last_text_scale_factor_") ||
         !contains(resize_to_content, "RootGrid().UpdateLayout()") ||
-        !contains(resize_to_content, "TransferSurface().Measure({measured_width, std::numeric_limits<float>::infinity()})") ||
+        !contains(resize_to_content, "TransferSurface().Measure({measure_width, std::numeric_limits<float>::infinity()})") ||
         !contains(resize_to_content, "TransferSurface().DesiredSize().Height")) {
         return fail(42, "content sizing must compensate the native frame and guard DPI/text-scale remeasurement from self-resize loops");
     }
@@ -378,17 +400,20 @@ int main() {
     }
 
 
-    const auto queue_click = body_of(queue, "void MainWindow::OnQueueClick(");
     const auto details_click = body_of(window, "void MainWindow::OnDetailsClick(");
     const auto observe_performance = body_of(window, "void MainWindow::ObservePerformanceSample(");
     const auto update_performance = body_of(window, "void MainWindow::UpdatePerformanceGraph()");
-    if (!contains(xaml, "x:Name=\"DetailsPanel\"") ||
-        !contains(xaml, "x:Name=\"PerformanceGraph\"") ||
+    if (!contains(xaml, "x:Name=\"PerformanceGraph\"") ||
         !contains(xaml, "x:Name=\"PerformanceGraph\" AutomationProperties.AccessibilityView=\"Raw\"") ||
         !contains(details_click, "SetExpanded(!expanded_)") ||
-        !contains(queue_click, "SetExpanded(!expanded_)") ||
-        count_occurrences(window, "QueuePanel().Visibility(") != 1 ||
-        count_occurrences(window, "DetailsPanel().Visibility(") != 1 ||
+        contains(xaml, "x:Name=\"QueueButton\"") ||
+        stray_queue_button_reference ||
+        !contains(xaml, "x:Name=\"ExpandedRegion\"") ||
+        !contains(xaml, "x:Name=\"PerformancePanel\"") ||
+        !contains(xaml, "x:Name=\"InformationPanel\"") ||
+        count_occurrences(window, "ExpandedRegion().Visibility(") != 1 ||
+        contains(window, "QueuePanel().Visibility(") ||
+        contains(window, "DetailsPanel().Visibility(") ||
         !contains(window, "void MainWindow::SetExpanded(") ||
         stray_expanded_visibility_writer ||
         !contains(observe_performance, "performance_sampling_state_ != PerformanceSamplingState::Copying") ||

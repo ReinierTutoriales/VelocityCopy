@@ -231,15 +231,6 @@ void MainWindow::OnQueueKeyDown(IInspectable const&, KeyRoutedEventArgs const& a
     }
 }
 
-void MainWindow::OnQueueClick(IInspectable const&, RoutedEventArgs const&) {
-    SetExpanded(!expanded_);
-    ResizeWindowToContent();
-    if (expanded_) {
-        RootGrid().UpdateLayout();
-        UpdatePerformanceGraph();
-    }
-}
-
 void MainWindow::OnQueueMoveUpClick(IInspectable const&, RoutedEventArgs const&) {
     if (!live_plan_) {
         return;

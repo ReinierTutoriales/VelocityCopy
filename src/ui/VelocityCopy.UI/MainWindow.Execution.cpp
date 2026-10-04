@@ -61,7 +61,7 @@ void MainWindow::SetExecutionButtonsIdle() {
     TransferProgress().ShowPaused(false);
     PauseButton().IsEnabled(false);
     CancelButton().IsEnabled(false);
-    QueueButton().IsEnabled(true);
+
     ResetCurrentItemState();
     pending_resume_ = {};
     PauseIcon().Glyph(L"\xE769");
@@ -233,7 +233,7 @@ void MainWindow::StartTransfer(velocitycopy::CopyJob job, velocitycopy::StorageK
     queue_snapshot_.clear();
     QueueList().Items().Clear();
     QueueCountText().Text(L"0");
-    QueueButton().IsEnabled(true);
+
     SetExpanded(false);
     ResizeWindowToContent();
     SetProgressFraction(0.0);
@@ -336,7 +336,7 @@ void MainWindow::StartNextQueuedSession() {
 
 void MainWindow::PublishLivePlan(std::shared_ptr<velocitycopy::LiveCopyPlan> plan) {
     live_plan_ = std::move(plan);
-    QueueButton().IsEnabled(true);
+
     RefreshQueue();
     if (!stop_requested_) SetExecutionButtonsRunning();
 
@@ -449,7 +449,7 @@ void MainWindow::CancelCurrentSession() {
         queue_snapshot_.clear();
         QueueList().Items().Clear();
         QueueCountText().Text(L"0");
-        QueueButton().IsEnabled(false);
+
         SetExpanded(false);
     ResizeWindowToContent();
         SetExecutionButtonsIdle();
@@ -563,7 +563,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         }
         SetExecutionButtonsStopped();
         RefreshQueue();
-        QueueButton().IsEnabled(live_plan_ && (live_plan_->remaining_files() != 0 || live_plan_->has_pending_directories()));
+
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
 
@@ -587,7 +587,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         active_operation_ = live_plan_->operation();
         SetExecutionButtonsConflict();
         RefreshQueue();
-        QueueButton().IsEnabled(live_plan_->remaining_files() != 0 || live_plan_->has_pending_directories());
+
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
 
@@ -621,7 +621,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
             Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), label);
         } catch (...) {}
         RefreshQueue();
-        QueueButton().IsEnabled(live_plan_->remaining_files() != 0 || live_plan_->has_pending_directories());
+
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
         ShowRetryDecisionAsync();
@@ -642,7 +642,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         live_plan_.reset();
         active_destination_.clear();
         RefreshQueue();
-        QueueButton().IsEnabled(false);
+
         SetExpanded(false);
     ResizeWindowToContent();
         SetExecutionButtonsIdle();
@@ -667,7 +667,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         live_plan_.reset();
         active_destination_.clear();
         RefreshQueue();
-        QueueButton().IsEnabled(false);
+
         SetExpanded(false);
     ResizeWindowToContent();
         SetExecutionButtonsIdle();
@@ -714,7 +714,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     live_plan_.reset();
     active_destination_.clear();
     RefreshQueue();
-    QueueButton().IsEnabled(false);
+
     SetExpanded(false);
     ResizeWindowToContent();
     SetExecutionButtonsIdle();
@@ -882,7 +882,7 @@ void MainWindow::FinalizeStoppedSessionIfEmpty() {
     append_gate_.reset();
     active_destination_.clear();
     RefreshQueue();
-    QueueButton().IsEnabled(false);
+
     SetExpanded(false);
     ResizeWindowToContent();
     SetExecutionButtonsIdle();

@@ -62,7 +62,7 @@ struct MainWindow : MainWindowT<MainWindow> {
     void OnStopClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnCancelClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnDetailsClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
-    void OnQueueClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
+
     void OnSaveQueueClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnLoadQueueClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnMenuSkipClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
