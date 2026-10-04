@@ -30,6 +30,7 @@ int main() {
     const auto shell = read_all(root / "src/shell/drop_handler.cpp");
     const auto ipc = read_all(root / "src/core/ipc_transport.cpp");
     const auto window = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
+    const auto window_xaml = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml");
     const auto tray = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Tray.cpp");
     const auto app_tray = read_all(root / "src/ui/VelocityCopy.UI/AppTray.cpp");
     const auto persistence = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.QueuePersistence.cpp");
@@ -46,7 +47,7 @@ int main() {
     const auto docs = read_all(root / "docs/SYSTEM_INTEGRATION.md");
 
     if (app.empty() || shell.empty() || ipc.empty() ||
-        window.empty() || tray.empty() || app_tray.empty() || persistence.empty() || recovery.empty() || conflict.empty() ||
+        window.empty() || window_xaml.empty() || tray.empty() || app_tray.empty() || persistence.empty() || recovery.empty() || conflict.empty() ||
         ci_workflow.empty() || package_workflow.empty() || installer_exe.empty() || installer_smoke.empty() ||
         signing_script.empty() || signing_test.empty() ||
         startup_helper.empty() || startup_profile_test.empty() || docs.empty()) {
@@ -145,6 +146,17 @@ int main() {
         occurrences(package_workflow, "& ./tools/ci/Sign-VelocityCopyBinary.ps1") != 2 ||
         occurrences(package_workflow, "& ./tools/ci/Test-AuthenticodePipeline.ps1") != 2) {
         return fail(18, "signing scripts must run in-process so a failure inside a loop cannot be masked");
+    }
+
+    if (!contains(window_xaml, "<ProgressBar x:Name=\"TransferProgress\"") ||
+        contains(window_xaml, "<Border x:Name=\"ProgressFill\"") ||
+        contains(window_xaml, "SizeChanged=\"OnTransferSurfaceSizeChanged\"") ||
+        contains(window, "ProgressFill().Width(") ||
+        contains(window, "OnTransferSurfaceSizeChanged(") ||
+        !contains(window, "TransferProgress().Value(percent)") ||
+        !contains(window, "TransferProgress().ShowError(") ||
+        !contains(window, "TransferProgress().ShowPaused(")) {
+        return fail(19, "transfer progress must use the native WinUI ProgressBar with native pause/error state");
     }
 
     if (!contains(installer_exe, "RequestExecutionLevel admin") ||
