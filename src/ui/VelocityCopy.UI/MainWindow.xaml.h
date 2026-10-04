@@ -252,6 +252,7 @@ private:
     double last_text_scale_factor_{};
     bool resize_in_progress_{};
     Microsoft::UI::Xaml::XamlRoot::Changed_revoker xaml_root_changed_revoker_{};
+    Windows::UI::ViewManagement::UISettings ui_settings_{nullptr};
     Windows::UI::ViewManagement::UISettings::TextScaleFactorChanged_revoker text_scale_changed_revoker_{};
     bool paused_{};
     InterruptedSessionState interrupted_session_{InterruptedSessionState::None};
