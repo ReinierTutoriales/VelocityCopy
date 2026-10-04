@@ -169,9 +169,7 @@
                                         IsEnabled="False"
                                         HorizontalAlignment="Stretch"
                                         VerticalAlignment="Stretch"
-                                        Padding="0"
-                                        BorderThickness="0"
-                                        Background="Transparent">
+                                        Padding="0">
                                     <FontIcon x:Name="PauseIcon"
                                               FontFamily="Segoe Fluent Icons"
                                               Glyph="&#xE769;"
@@ -188,9 +186,7 @@
                                         IsEnabled="False"
                                         HorizontalAlignment="Stretch"
                                         VerticalAlignment="Stretch"
-                                        Padding="0"
-                                        BorderThickness="0"
-                                        Background="Transparent">
+                                        Padding="0">
                                     <FontIcon x:Name="CancelIcon"
                                               FontFamily="Segoe Fluent Icons"
                                               Glyph="&#xE71A;"
@@ -201,9 +197,7 @@
                             <Button x:Name="OptionsButton"
                                     Width="{StaticResource ActionButtonSize}"
                                     Height="{StaticResource ActionButtonSize}"
-                                    Padding="0"
-                                    BorderThickness="0"
-                                    Background="Transparent">
+                                    Padding="0">
                                 <FontIcon x:Name="OptionsIcon"
                                           FontFamily="Segoe Fluent Icons"
                                           Glyph="&#xE712;"
@@ -217,9 +211,7 @@
                                 Width="{StaticResource ActionButtonSize}"
                                 Height="{StaticResource ActionButtonSize}"
                                 HorizontalAlignment="Right"
-                                Padding="0"
-                                BorderThickness="0"
-                                Background="Transparent">
+                                Padding="0">
                             <FontIcon FontFamily="Segoe Fluent Icons"
                                       Glyph="&#xE946;"
                                       FontSize="{StaticResource ActionIconSize}" />

@@ -280,6 +280,7 @@ int main() {
         !contains(xaml, "x:Name=\"CancelButtonHost\"") ||
         !contains(xaml, "x:Name=\"PrimaryActionCluster\"") ||
         !contains(xaml, "x:Name=\"DetailsButton\"\n                                Grid.Column=\"3\"") ||
+        contains(body_of(xaml, "<Button x:Name=\"OptionsButton\""), "Background=\"Transparent\"") ||
         !contains(window, "ToolTipService::SetToolTip(PauseButtonHost()") ||
         !contains(window, "ToolTipService::SetToolTip(CancelButtonHost()") ||
         contains(window, "ToolTipService::SetToolTip(PauseButton()") ||
