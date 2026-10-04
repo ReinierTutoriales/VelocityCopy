@@ -137,6 +137,7 @@ MainWindow::MainWindow() {
                                     std::abs(scale - window->last_rasterization_scale_) > 0.0001) {
                                     window->last_rasterization_scale_ = scale;
                                     window->ResizeWindowToContent(true);
+                                    window->ScheduleTelemetryReserveSettle();
                                     window->ScheduleTelemetryGeometryProbe();
                                 }
                             }
@@ -155,6 +156,7 @@ MainWindow::MainWindow() {
                                 if (auto ui_window = weak.get(); ui_window && !ui_window->resize_in_progress_) {
                                     ui_window->UpdatePerformanceAxisWidth();
                                     ui_window->ResizeWindowToContent();
+                                    ui_window->ScheduleTelemetryReserveSettle();
                                     ui_window->ScheduleTelemetryGeometryProbe();
                                 }
                             });

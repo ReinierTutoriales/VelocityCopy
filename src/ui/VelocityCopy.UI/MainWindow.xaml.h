@@ -197,7 +197,8 @@ private:
     void ResizeWindowToContent(bool preserve_position = false);
     void LogTelemetryGeometry();
     void ScheduleTelemetryGeometryProbe();
-    void ApplyTelemetryReserves();
+    bool ApplyTelemetryReserves();
+    void ScheduleTelemetryReserveSettle();
     [[nodiscard]] double RequiredNormalWindowWidth();
     void SetProgressFraction(double fraction);
     void ResetCurrentItemState() noexcept;
@@ -273,6 +274,8 @@ private:
     bool telemetry_reserves_applied_{};
     double telemetry_reserve_text_scale_{};
     double telemetry_reserve_raster_{};
+    double telemetry_reserve_canary_{};
+    Microsoft::UI::Dispatching::DispatcherQueueTimer telemetry_reserve_settle_timer_{nullptr};
     bool expanded_{};
     ExpandedLayoutMode expanded_layout_mode_{ExpandedLayoutMode::ThreeColumn};
     Microsoft::UI::Xaml::XamlRoot::Changed_revoker xaml_root_changed_revoker_{};

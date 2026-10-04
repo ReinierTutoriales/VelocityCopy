@@ -157,6 +157,16 @@ void MainWindow::LogTelemetryGeometry() {
         validate(ProgressPercentText(), pct_block, L"pct");
         validate(EtaText(), eta_block, L"eta");
 
+        // Stale-reserve detector: what the engine measures now for the canary vs what the reserves were built with.
+        {
+            const double canary_now = text_width(speed_block, velocitycopy::ui::layout::kReserveCanaryText);
+            detail.push_back(std::format(L"# reserve | canary_now={:.1f} | canary_applied={:.1f}", canary_now,
+                                         telemetry_reserve_canary_));
+            if (velocitycopy::ui::layout::canary_changed(telemetry_reserve_canary_, canary_now)) {
+                failed.emplace_back(L"stale-reserves");
+            }
+        }
+
         // Runtime reserves actually applied to the cells (MinWidth == MaxWidth).
         const double speed_cell = SpeedText().MinWidth();
         const double pct_cell = ProgressPercentText().MinWidth();

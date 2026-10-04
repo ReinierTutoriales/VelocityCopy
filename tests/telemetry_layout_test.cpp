@@ -34,6 +34,12 @@ int main() {
     // Boundary samples must straddle the unit thresholds (1024 KiB/s and 1024.0 MiB/s cases).
     if (!(1048575.0 < layout::kMiB) || !(1073741823.0 < layout::kGiB)) return fail(9, "boundary samples");
 
+    // The reserve cache follows what the engine measures: a 125% -> 150% change moves the canary and
+    // must invalidate it, while sub-pixel noise must not.
+    if (layout::canary_changed(83.0, 83.2)) return fail(11, "sub-pixel noise must not invalidate the reserves");
+    if (!layout::canary_changed(83.0, 100.0)) return fail(12, "a real scale change must invalidate the reserves");
+    if (layout::kReserveCanaryText == nullptr || layout::kReserveCanaryText[0] == L'\0') return fail(13, "canary text");
+
     if (layout::digit_variants(L"1.3%").size() != 11) return fail(10, "digit variants");
     return 0;
 }

@@ -49,7 +49,7 @@ int main() {
     if (contains(resize, "(std::min)(normal_width * text_scale, work_width_cap)")) return fail(7, "legacy final-width formula returned");
 
     // 3. Reserves: measured with the real formatters and digit variants, set as MinWidth/MaxWidth, never Width.
-    const auto reserves = body_of(layout_cpp, "void MainWindow::ApplyTelemetryReserves()");
+    const auto reserves = body_of(layout_cpp, "bool MainWindow::ApplyTelemetryReserves()");
     if (reserves.size() < 600) return fail(8, "ApplyTelemetryReserves is not implemented");
     for (const char* needle : {"FormatSpeed(", "FormatProgressPercent(", "FormatEta(", "kSpeedDomainBytesPerSecond",
                                "kPercentDomainFractions", "kEtaDomainSeconds", "SpeedText()", "ProgressPercentText()",
@@ -65,6 +65,20 @@ int main() {
         return fail(11, "fixed literal widths in the reserve code");
     }
 
+    // 3b. The reserve cache must follow what the text engine measures (canary), and a settle pass must
+    // re-run it after a live Text Size / DPI change: the OS notification can precede the engine.
+    if (!contains(reserves, "canary_changed(telemetry_reserve_canary_") || !contains(reserves, "kReserveCanaryText") ||
+        !contains(reserves, "telemetry_reserve_canary_ = canary")) {
+        return fail(19, "reserve cache is not keyed on the measured canary");
+    }
+    const auto settle = body_of(layout_cpp, "void MainWindow::ScheduleTelemetryReserveSettle()");
+    if (settle.size() < 300 || !contains(settle, "ApplyTelemetryReserves()") || !contains(settle, "ResizeWindowToContent()")) {
+        return fail(20, "settle pass is missing or does not re-apply the reserves and resize");
+    }
+    if (count_occurrences(window, "ScheduleTelemetryReserveSettle()") < 2) {
+        return fail(21, "settle pass is not scheduled after text-size and DPI changes");
+    }
+
     // 4. The required width measures the real row and adds the safety margin (no exact-limit fit).
     const auto required = body_of(layout_cpp, "double MainWindow::RequiredNormalWindowWidth()");
     if (!contains(required, "BottomContentGrid().Measure(") || !contains(required, "NormalWidthFitMargin") ||
@@ -78,7 +92,7 @@ int main() {
     }
 
     // 6. Wiring: declared, compiled, probe reports the corrected metrics.
-    if (!contains(header, "void ApplyTelemetryReserves();") || !contains(header, "double RequiredNormalWindowWidth();") ||
+    if (!contains(header, "bool ApplyTelemetryReserves();") || !contains(header, "double RequiredNormalWindowWidth();") ||
         !contains(project, "MainWindow.TelemetryLayout.cpp") || !contains(project, "TelemetryLayout.h")) {
         return fail(14, "layout code not wired into the project");
     }

@@ -3,6 +3,7 @@
 #include "TelemetryLayout.h"
 #include "UiTokens.h"
 
+#include <chrono>
 #include <cmath>
 #include <limits>
 #include <string>
@@ -55,14 +56,21 @@ void apply_reserve(TextBlock const& cell, const double width) {
 
 namespace winrt::VelocityCopyUI::implementation {
 
-void MainWindow::ApplyTelemetryReserves() {
+bool MainWindow::ApplyTelemetryReserves() {
     namespace layout = velocitycopy::ui::layout;
     try {
-        // Reserves only depend on the text engine inputs; recompute when those change.
+        // Cache validity follows what the text engine measures right now (canary), in addition to
+        // the OS scale inputs: the engine can lag a live Text Size change, so keying on the OS
+        // value alone froze reserves measured with the previous scale.
+        const auto speed_block = make_measure_block(SpeedText());
+        speed_block.Text(hstring(layout::kReserveCanaryText));
+        speed_block.Measure({std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity()});
+        const double canary = speed_block.DesiredSize().Width;
         if (telemetry_reserves_applied_ &&
+            !layout::canary_changed(telemetry_reserve_canary_, canary) &&
             std::abs(last_text_scale_factor_ - telemetry_reserve_text_scale_) <= 0.0001 &&
             std::abs(last_rasterization_scale_ - telemetry_reserve_raster_) <= 0.0001) {
-            return;
+            return false;
         }
 
         std::vector<std::wstring> speeds;
@@ -82,12 +90,40 @@ void MainWindow::ApplyTelemetryReserves() {
         apply_reserve(ProgressPercentText(), widest_width(make_measure_block(ProgressPercentText()), percents));
         apply_reserve(EtaText(), widest_width(make_measure_block(EtaText()), etas));
 
+        telemetry_reserve_canary_ = canary;
         telemetry_reserve_text_scale_ = last_text_scale_factor_;
         telemetry_reserve_raster_ = last_rasterization_scale_;
         telemetry_reserves_applied_ = true;
         BottomContentGrid().InvalidateMeasure();
+        return true;
     } catch (...) {
         OutputDebugStringW(L"VelocityCopy: ApplyTelemetryReserves failed\n");
+        return false;
+    }
+}
+
+void MainWindow::ScheduleTelemetryReserveSettle() {
+    // Second pass once the text engine has caught up with a live Text Size / DPI change.
+    try {
+        if (!dispatcher_) return;
+        if (!telemetry_reserve_settle_timer_) {
+            telemetry_reserve_settle_timer_ = dispatcher_.CreateTimer();
+            telemetry_reserve_settle_timer_.IsRepeating(false);
+            telemetry_reserve_settle_timer_.Interval(std::chrono::milliseconds(400));
+            telemetry_reserve_settle_timer_.Tick([weak = get_weak()](
+                Microsoft::UI::Dispatching::DispatcherQueueTimer const&, IInspectable const&) {
+                auto self = weak.get();
+                if (!self || self->resize_in_progress_) return;
+                if (self->ApplyTelemetryReserves()) {
+                    self->ResizeWindowToContent();
+                    self->ScheduleTelemetryGeometryProbe();
+                }
+            });
+        }
+        telemetry_reserve_settle_timer_.Stop();
+        telemetry_reserve_settle_timer_.Start();
+    } catch (...) {
+        OutputDebugStringW(L"VelocityCopy: ScheduleTelemetryReserveSettle failed\n");
     }
 }
 

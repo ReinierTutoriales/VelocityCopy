@@ -52,6 +52,15 @@ inline constexpr double kPercentDomainFractions[] = {0.0, 0.0005, 0.013, 0.099, 
 inline constexpr double kEtaDomainMaxSeconds = 99.0 * 3600.0 + 59.0 * 60.0;
 inline constexpr double kEtaDomainSeconds[] = {0.0, 59.0, 3599.0, 3600.0, kEtaDomainMaxSeconds};
 
+// Probe string for the text engine. The reserve cache is keyed on what the engine MEASURES for
+// this string, not on what the OS reports: after a live Text Size change the engine can still be
+// measuring with the previous scale when the change notification arrives.
+inline constexpr const wchar_t* kReserveCanaryText = L"8888.8 MiB/s";
+
+inline bool canary_changed(const double applied, const double current) {
+    return std::abs(applied - current) > 0.25;
+}
+
 // Window width (epx) needed so the bottom row fits its reserved cells:
 // content of the row at unconstrained width + horizontal chrome around it + a safety margin
 // that absorbs layout rounding and rasterization differences. Rounded up to a whole epx.
