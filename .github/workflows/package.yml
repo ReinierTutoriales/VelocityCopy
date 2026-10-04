@@ -185,7 +185,7 @@ jobs:
             foreach ($name in @("VelocityCopy.WinUI.exe", "VelocityCopy.Shell.dll", "VelocityCopy.StartupHelper.exe")) {
               $copy = Join-Path $fixture $name
               Copy-Item -LiteralPath (Join-Path $payload $name) -Destination $copy
-              pwsh -NoProfile -File tools/ci/Test-AuthenticodePipeline.ps1 -Path $copy
+              & ./tools/ci/Test-AuthenticodePipeline.ps1 -Path $copy
             }
           } finally {
             Remove-Item $fixture -Recurse -Force -ErrorAction SilentlyContinue
@@ -208,7 +208,7 @@ jobs:
             $payload = (Resolve-Path "artifacts/installer-payload-${{ matrix.arch }}").Path
             foreach ($name in @("VelocityCopy.WinUI.exe", "VelocityCopy.Shell.dll", "VelocityCopy.StartupHelper.exe")) {
               $binary = Join-Path $payload $name
-              pwsh -NoProfile -File tools/ci/Sign-VelocityCopyBinary.ps1 -Path $binary -PfxPath $pfx -PfxPassword $env:SIGNING_PFX_PASSWORD
+              & ./tools/ci/Sign-VelocityCopyBinary.ps1 -Path $binary -PfxPath $pfx -PfxPassword $env:SIGNING_PFX_PASSWORD
             }
           } finally {
             Remove-Item $pfx -Force -ErrorAction SilentlyContinue
@@ -302,7 +302,7 @@ jobs:
           $fixture = Join-Path $env:RUNNER_TEMP "VelocityCopy-Setup-SigningFixture.exe"
           Copy-Item -LiteralPath $setup -Destination $fixture -Force
           try {
-            pwsh -NoProfile -File tools/ci/Test-AuthenticodePipeline.ps1 -Path $fixture
+            & ./tools/ci/Test-AuthenticodePipeline.ps1 -Path $fixture
           } finally {
             Remove-Item $fixture -Force -ErrorAction SilentlyContinue
           }
@@ -322,7 +322,7 @@ jobs:
           $setup = (Resolve-Path "artifacts/installer/${{ matrix.setup_name }}").Path
           try {
             [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:SIGNING_PFX_BASE64))
-            pwsh -NoProfile -File tools/ci/Sign-VelocityCopyBinary.ps1 -Path $setup -PfxPath $pfx -PfxPassword $env:SIGNING_PFX_PASSWORD
+            & ./tools/ci/Sign-VelocityCopyBinary.ps1 -Path $setup -PfxPath $pfx -PfxPassword $env:SIGNING_PFX_PASSWORD
           } finally {
             Remove-Item $pfx -Force -ErrorAction SilentlyContinue
           }
