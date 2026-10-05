@@ -225,8 +225,14 @@ void MainWindow::ApplyTitleBarInset() noexcept {
         if (dpi == 0) return;
 
         const auto title_bar = AppWindow().TitleBar();
-        const double right_inset_epx =
+        const double reported_right_inset_epx =
             title_bar.RightInset() * 96.0 / static_cast<double>(dpi);
+        if (reported_right_inset_epx > 0.0) {
+            title_bar_right_inset_epx_ =
+                (std::max)(title_bar_right_inset_epx_, reported_right_inset_epx);
+        }
+        const double right_inset_epx =
+            (std::max)(reported_right_inset_epx, title_bar_right_inset_epx_);
         double title_height_epx = velocitycopy::ui::token_double(L"CaptionRowHeight", 32);
         if (title_bar.Height() > 0) {
             title_height_epx = title_bar.Height() * 96.0 / static_cast<double>(dpi);
@@ -244,8 +250,20 @@ void MainWindow::ApplyTitleBarInset() noexcept {
 
 void MainWindow::OnAppWindowChanged(
     Microsoft::UI::Windowing::AppWindow const&,
-    Microsoft::UI::Windowing::AppWindowChangedEventArgs const&) {
+    Microsoft::UI::Windowing::AppWindowChangedEventArgs const& args) {
     ApplyTitleBarInset();
+
+    // Minimize/restore is reported as a presenter change. Queue one more pass so
+    // the system caption cluster has settled before the filename receives its
+    // final right padding.
+    if (args.DidPresenterChange() || args.DidSizeChange()) {
+        auto weak = get_weak();
+        (void)dispatcher_.TryEnqueue([weak]() {
+            if (auto self = weak.get()) {
+                self->ApplyTitleBarInset();
+            }
+        });
+    }
 }
 
 void MainWindow::ResizeWindow(const int client_width_epx, const int client_height_epx, const bool preserve_position) {
@@ -358,6 +376,7 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
             RefreshQueue(true);
         }
         if (expanded_layout_mode_ == ExpandedLayoutMode::ThreeColumn) {
+            QueueSectionIcon().Visibility(Visibility::Collapsed);
             ExpandedRow0().Height(GridLength{1.0, GridUnitType::Star});
             ExpandedRow1().Height(GridLength{0.0, GridUnitType::Pixel});
             ExpandedRow2().Height(GridLength{0.0, GridUnitType::Pixel});
@@ -387,6 +406,7 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
             PerformancePanel().Margin(
                 velocitycopy::ui::token_thickness(L"ExpandedSectionMargin", Thickness{4.0}));
         } else {
+            QueueSectionIcon().Visibility(Visibility::Visible);
             ExpandedRow0().Height(GridLength{1.0, GridUnitType::Star});
             ExpandedRow1().Height(GridLength{1.0, GridUnitType::Star});
             ExpandedRow2().Height(GridLength{0.0, GridUnitType::Pixel});

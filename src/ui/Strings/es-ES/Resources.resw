@@ -65,6 +65,7 @@
   <data name="ActionResolveFailures" xml:space="preserve"><value>Resolver errores</value></data>
   <data name="ActionSkipAll" xml:space="preserve"><value>Omitir todos</value></data>
   <data name="TransferCompletedFormat" xml:space="preserve"><value>{0} completados de {1}</value></data>
+  <data name="TransferCompletedSingularFormat" xml:space="preserve"><value>{0} completado de {1}</value></data>
 
 
   <data name="ActionDetails" xml:space="preserve"><value>Detalles</value></data>

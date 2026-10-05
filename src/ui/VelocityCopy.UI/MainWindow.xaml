@@ -314,7 +314,8 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Orientation="Horizontal"
                                                 VerticalAlignment="Center">
-                                        <FontIcon Glyph="&#xE8A5;"
+                                        <FontIcon x:Name="QueueSectionIcon"
+                                                  Glyph="&#xE8A5;"
                                                   FontSize="{StaticResource SectionIconSize}"
                                                   Foreground="{ThemeResource AccentFillColorDefaultBrush}"
                                                   Margin="{StaticResource SectionIconMargin}"

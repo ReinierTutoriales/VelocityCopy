@@ -272,6 +272,7 @@ private:
     winrt::Windows::Foundation::IAsyncOperation<std::uint32_t> decision_operation_{nullptr};
     std::deque<std::shared_ptr<PendingDecision>> decision_queue_;
     Microsoft::UI::Xaml::Thickness base_caption_content_padding_{};
+    double title_bar_right_inset_epx_{};
     std::atomic_bool cancel_requested_{false};
     double progress_fraction_{};
     double last_rasterization_scale_{};

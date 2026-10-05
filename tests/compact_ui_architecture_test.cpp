@@ -44,6 +44,8 @@ int main() {
     const auto spec = read_source(root / "docs/UI_SPEC.md");
     const auto conflict = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Conflict.cpp");
     const auto about = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.About.cpp");
+    const auto strings_en = read_source(root / "src/ui/Strings/en-US/Resources.resw");
+    const auto strings_es = read_source(root / "src/ui/Strings/es-ES/Resources.resw");
     bool stray_expanded_visibility_writer = false;
     bool stray_queue_button_reference = false;
     const auto ui_dir = root / "src/ui/VelocityCopy.UI";
@@ -61,7 +63,8 @@ int main() {
     }
 
     if (xaml.empty() || header.empty() || execution.empty() || queue.empty() ||
-        menu.empty() || window.empty() || tokens.empty() || spec.empty() || conflict.empty() || about.empty()) {
+        menu.empty() || window.empty() || tokens.empty() || spec.empty() || conflict.empty() || about.empty() ||
+        strings_en.empty() || strings_es.empty()) {
         return fail(1, "required UI source missing");
     }
 
@@ -532,6 +535,27 @@ int main() {
         return fail(41, "notice severity must be explicit per message and ordinary errors must always use Error severity");
     }
 
+
+    if (!contains(execution, "snapshot.completed_files == 1") ||
+        !contains(execution, "TransferCompletedSingularFormat") ||
+        !contains(strings_en, "name=\"TransferCompletedSingularFormat\"") ||
+        !contains(strings_es, "name=\"TransferCompletedSingularFormat\"") ||
+        !contains(strings_es, "<value>{0} completado de {1}</value>")) {
+        return fail(48, "completed-file telemetry must localize the singular form instead of showing '1 completados'");
+    }
+
+    const auto titlebar_inset = body_of(window, "void MainWindow::ApplyTitleBarInset()");
+    const auto appwindow_changed = body_of(window, "void MainWindow::OnAppWindowChanged(");
+    if (!contains(header, "double title_bar_right_inset_epx_{};") ||
+        !contains(titlebar_inset, "title_bar.RightInset()") ||
+        !contains(titlebar_inset, "title_bar_right_inset_epx_ =") ||
+        !contains(titlebar_inset, "(std::max)(reported_right_inset_epx, title_bar_right_inset_epx_)") ||
+        !contains(appwindow_changed, "args.DidPresenterChange()") ||
+        !contains(appwindow_changed, "args.DidSizeChange()") ||
+        !contains(appwindow_changed, "dispatcher_.TryEnqueue") ||
+        count_occurrences(appwindow_changed, "ApplyTitleBarInset();") < 2) {
+        return fail(49, "custom title-bar padding must survive minimize/restore without allowing filename overlap");
+    }
 
     const auto set_expanded = body_of(window, "void MainWindow::SetExpanded(");
     const auto details_click = body_of(window, "void MainWindow::OnDetailsClick(");

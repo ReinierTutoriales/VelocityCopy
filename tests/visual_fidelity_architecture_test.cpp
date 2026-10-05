@@ -199,6 +199,13 @@ int main() {
         return fail(23, "new system icons must use FontIcon's SymbolThemeFontFamily fallback");
     }
 
+    const auto resize_to_content = body_of(window, "void MainWindow::ResizeWindowToContent(");
+    if (!contains(xaml, "x:Name=\"QueueSectionIcon\"") ||
+        !contains(resize_to_content, "QueueSectionIcon().Visibility(Visibility::Collapsed)") ||
+        !contains(resize_to_content, "QueueSectionIcon().Visibility(Visibility::Visible)")) {
+        return fail(24, "Queue section icon must yield header width in ThreeColumn and remain visible in Narrow");
+    }
+
     // New fidelity work must remain theme-driven; no fixed RGB/hex palette is allowed.
     if (contains(xaml, "Color=\"#") || contains(xaml, "Background=\"#") ||
         contains(xaml, "Foreground=\"#") || contains(tokens, "Color=\"#")) {
