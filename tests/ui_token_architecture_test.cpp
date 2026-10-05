@@ -121,7 +121,12 @@ int main(){
   for(const auto& [key,vals]:values) if(key.ends_with("Opacity")) return false;
   if(scalar("CaptionRowGridLength")!=scalar("CaptionRowHeight")) return false;
   static const std::regex text_style{R"re(<Style x:Key="[^"]+" TargetType="TextBlock">[\s\S]*?<Setter Property="Foreground" Value="\{ThemeResource TextFillColor[^}]+\}"\s*/>[\s\S]*?</Style>)re"};
-  return contains(text,"SecondaryTextStyle")&&contains(text,"TertiaryTextStyle")&&count_occurrences(text,"TargetType=\"TextBlock\"")==static_cast<std::size_t>(std::distance(std::sregex_iterator(text.begin(),text.end(),text_style),std::sregex_iterator{}));
+  static const std::regex icon_style{R"re(<Style x:Key="[^"]+" TargetType="FontIcon">[\s\S]*?<Setter Property="Foreground" Value="\{ThemeResource [^}]+Brush\}"\s*/>[\s\S]*?</Style>)re"};
+  const auto text_style_count=static_cast<std::size_t>(std::distance(std::sregex_iterator(text.begin(),text.end(),text_style),std::sregex_iterator{}));
+  const auto icon_style_count=static_cast<std::size_t>(std::distance(std::sregex_iterator(text.begin(),text.end(),icon_style),std::sregex_iterator{}));
+  return contains(text,"SecondaryTextStyle")&&contains(text,"TertiaryTextStyle")&&
+         count_occurrences(text,"TargetType=\"TextBlock\"")==text_style_count&&
+         count_occurrences(text,"TargetType=\"FontIcon\"")==icon_style_count;
  };
  if(!validate_design_tokens(tokens)) return fail(20,"design token invariants failed");
  auto mutate=[&](const std::string& from,const std::string& to){auto copy=tokens;auto pos=copy.find(from);if(pos==std::string::npos)return std::string{};copy.replace(pos,from.size(),to);return copy;};

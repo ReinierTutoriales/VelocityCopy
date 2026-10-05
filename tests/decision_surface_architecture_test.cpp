@@ -36,9 +36,11 @@ int main() {
  if(c.find("EnableWindow(")!=std::string::npos) return 15;
  if(h.find("enum class DecisionTone") == std::string::npos ||
     h.find("DecisionTone tone{DecisionTone::Neutral}") == std::string::npos ||
-    c.find("DecisionTone::Warning") == std::string::npos ||
-    c.find("DecisionTone::Error") == std::string::npos ||
-    c.find("status_icon.Glyph(options.tone == DecisionTone::Warning ? L\"\\xE7BA\" : L\"\\xEB90\")") == std::string::npos ||
+    c.find("switch (options.tone)") == std::string::npos ||
+    c.find("case DecisionTone::Warning:") == std::string::npos ||
+    c.find("case DecisionTone::Error:") == std::string::npos ||
+    c.find("status_icon.Glyph(L\"\\xE7BA\")") == std::string::npos ||
+    c.find("status_icon.Glyph(L\"\\xEB90\")") == std::string::npos ||
     c.find("token_double(L\"DecisionStatusIconSize\", 20)") == std::string::npos ||
     c.find("status_icon.FontFamily(") != std::string::npos ||
     c.find("WarningIconStyle") == std::string::npos ||

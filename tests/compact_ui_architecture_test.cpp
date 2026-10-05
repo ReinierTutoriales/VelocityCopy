@@ -115,7 +115,7 @@ int main() {
                                                                 : xaml.find("</StackPanel>", cluster_start);
     const auto clustered_action_count = cluster_end == std::string::npos
         ? 0
-        : count_occurrences(xaml.substr(cluster_start, cluster_end - cluster_start), "<Button");
+        : count_occurrences(xaml.substr(cluster_start, cluster_end - cluster_start), "<Button x:Name=");
     if (contains(xaml, "SkipButton") || contains(xaml, "StopButton") ||
         contains(xaml, "OnSkipClick") || contains(xaml, "OnStopClick") ||
         contains(execution, "SkipButton()") || contains(execution, "StopButton()") ||

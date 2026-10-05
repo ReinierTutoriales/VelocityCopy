@@ -79,18 +79,25 @@ Windows::Foundation::IAsyncOperation<std::uint32_t> show_decision_async(Decision
 
     if (options.tone != DecisionTone::Neutral) {
         FontIcon status_icon;
-        status_icon.Glyph(options.tone == DecisionTone::Warning ? L"\xE7BA" : L"\xEB90");
+        switch (options.tone) {
+        case DecisionTone::Warning:
+            status_icon.Glyph(L"\xE7BA");
+            apply_icon_style(status_icon, L"WarningIconStyle");
+            break;
+        case DecisionTone::Error:
+            status_icon.Glyph(L"\xEB90");
+            apply_icon_style(status_icon, L"ErrorIconStyle");
+            break;
+        case DecisionTone::Neutral:
+        default:
+            break;
+        }
         status_icon.FontSize(token_double(L"DecisionStatusIconSize", 20));
         status_icon.VerticalAlignment(VerticalAlignment::Center);
         status_icon.IsHitTestVisible(false);
         AutomationProperties::SetAccessibilityView(
             status_icon,
             Microsoft::UI::Xaml::Automation::Peers::AccessibilityView::Raw);
-        apply_icon_style(
-            status_icon,
-            options.tone == DecisionTone::Warning
-                ? L"WarningIconStyle"
-                : L"ErrorIconStyle");
         heading.Children().Append(status_icon);
     }
 
