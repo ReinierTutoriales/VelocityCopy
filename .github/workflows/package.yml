@@ -159,6 +159,15 @@ jobs:
           $size = (Get-ChildItem $payload -Recurse -File | Measure-Object Length -Sum).Sum
           Write-Host ("Self-contained ${{ matrix.arch }} payload: {0:N1} MB" -f ($size / 1MB))
 
+      - name: Validate staged application icon
+        shell: pwsh
+        run: |
+          $payload = (Resolve-Path "artifacts/installer-payload-${{ matrix.arch }}").Path
+          $ico = Join-Path $payload "Assets/VelocityCopy.ico"
+          if ((Get-FileHash $ico).Hash -ne (Get-FileHash src/ui/VelocityCopy.UI/Assets/VelocityCopy.ico).Hash) { throw "Staged icon is stale" }
+          pwsh -NoProfile -File tools/ci/Assert-AppIcon.ps1 -ExePath "$payload/VelocityCopy.WinUI.exe" -IcoPath $ico
+          if ($LASTEXITCODE -ne 0) { throw "Staged executable icon validation failed" }
+
       - name: Verify startup helper across two real profiles
         if: ${{ matrix.smoke }}
         shell: pwsh
@@ -395,6 +404,10 @@ jobs:
               throw "Upgrade did not replace the loaded VelocityCopy.Shell.dll with the current payload"
             }
             & ./tools/Test-ShellRegistration.ps1 -Phase Installed
+            $installedIcon = Join-Path $root "Assets/VelocityCopy.ico"
+            if ((Get-FileHash $installedIcon).Hash -ne (Get-FileHash src/ui/VelocityCopy.UI/Assets/VelocityCopy.ico).Hash) {
+              throw "Upgrade retained a stale icon asset"
+            }
 
             # Keep the first retired generation mapped, then map the newly
             # installed canonical DLL as a second generation. A second upgrade
@@ -450,8 +463,20 @@ jobs:
           pwsh -NoProfile -File tools/ci/Assert-PriResource.ps1 -RootPath $root -EvidencePath "artifacts/pri-evidence-${{ matrix.arch }}/installed" -Key RecoveryRestoreError -LanguagesCsv 'en-US,es-ES'
           if ($LASTEXITCODE -ne 0) { throw "Installed PRI validation failed" }
           & ./tools/Test-ShellRegistration.ps1 -Phase Installed
+          $ico = Join-Path $root "Assets/VelocityCopy.ico"
+          if ((Get-FileHash $ico).Hash -ne (Get-FileHash src/ui/VelocityCopy.UI/Assets/VelocityCopy.ico).Hash) { throw "Installed icon is stale" }
+          foreach ($binary in @($exe, $uninstaller, $setup)) {
+            pwsh -NoProfile -File tools/ci/Assert-AppIcon.ps1 -ExePath $binary -IcoPath $ico -FirstGroup
+            if ($LASTEXITCODE -ne 0) { throw "Installed/setup icon validation failed: $binary" }
+          }
+          $displayIcon = (Get-ItemProperty 'HKLM:/Software/Microsoft/Windows/CurrentVersion/Uninstall/VelocityCopy').DisplayIcon
+          if ($displayIcon -ne ('"' + $exe + '",0')) { throw "Installed Apps icon registration is incorrect" }
+          $shortcutPath = Join-Path ([Environment]::GetFolderPath('StartMenu')) 'Programs/VelocityCopy/VelocityCopy.lnk'
+          $wsh = New-Object -ComObject WScript.Shell
+          $shortcut = $wsh.CreateShortcut($shortcutPath)
+          if ($shortcut.TargetPath -ne $exe -or $shortcut.IconLocation -ne ($exe + ',0')) { throw "Start Menu icon/target registration is incorrect" }
 
-          $app = Start-Process $exe -PassThru
+          $app = Start-Process $exe -WorkingDirectory $env:TEMP -PassThru
           Start-Sleep -Seconds 5
           $app.Refresh()
           if ($app.HasExited) {

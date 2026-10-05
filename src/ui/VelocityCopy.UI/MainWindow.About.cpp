@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "IconAssets.h"
 #include "MainWindow.xaml.h"
 #include "Localization.h"
 #include "UiTokens.h"
@@ -263,7 +264,7 @@ void MainWindow::ShowAboutDialog() noexcept {
                 presenter.IsMaximizable(false);
                 presenter.IsResizable(false);
             }
-            app_window.SetIcon(L"Assets\\VelocityCopy.ico");
+            app_window.SetIcon(velocitycopy::ui::application_icon_path());
 
             const UINT dpi = hwnd_ != nullptr ? GetDpiForWindow(hwnd_) : USER_DEFAULT_SCREEN_DPI;
             const int width = MulDiv(velocitycopy::ui::token_int(L"AboutWindowWidth", 388), dpi == 0 ? USER_DEFAULT_SCREEN_DPI : static_cast<int>(dpi), USER_DEFAULT_SCREEN_DPI);

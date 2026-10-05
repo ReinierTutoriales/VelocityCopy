@@ -23,6 +23,7 @@ private:
     void OpenPrimaryWindow() noexcept;
     void ShowMenu(POINT anchor) noexcept;
     void RestoreIcon() noexcept;
+    bool RefreshIcon() noexcept;
 
     App* owner_{};
     HWND hwnd_{};

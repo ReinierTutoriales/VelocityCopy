@@ -29,6 +29,10 @@ VelocityCopy integrates deeply enough to feel native on Windows 11 without repla
 - Silent sign-in startup creates the tray presence without activating the compact window or creating a taskbar button.
 - The tray icon negotiates `NOTIFYICON_VERSION_4` after `NIM_ADD` and handles the v4 callback layout, including keyboard selection.
 - If Explorer restarts, VelocityCopy handles the registered `TaskbarCreated` message and re-adds the notification icon.
+- The executable resource, tray, window icons, Start Menu shortcut, Installed Apps entry, installer and uninstaller share `Assets/VelocityCopy.ico`. It contains 16, 20, 24, 28, 32, 40, 48, 64, 80, 96, 128 and 256 pixel frames generated from the centered 512px `Logo/VelocityCopy.png` master using `tools/Generate-AppIcon.sh` (ImageMagick is a developer dependency only).
+- The tray loads the embedded application resource with `LoadIconWithScaleDown` and small-icon metrics for the notification monitor, falling back to `LoadIconMetric`. It refreshes on DPI/display/settings changes and Explorer restart, without a polling timer. Replacing the icon publishes the new handle before releasing the old one; failure retains the existing handle.
+- Window icon paths are absolute and relative to the installed executable, independent of the caller's working directory. NSIS uses the staged ICO for both installer and uninstaller and quotes the executable in `DisplayIcon`.
+- Package CI validates every embedded icon frame byte-for-byte against the staged ICO on both architectures. The x64 install smoke also checks the installed asset, installer/uninstaller resources, Start Menu shortcut and Installed Apps registration, and launches from a different working directory. Visual verification on physical displays at 100%, 125%, 150% and 200%, including mixed-monitor setups, remains a manual check.
 
 ## Resident impact
 

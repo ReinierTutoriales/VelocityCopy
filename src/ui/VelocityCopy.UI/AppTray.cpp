@@ -2,8 +2,11 @@
 #include "AppTray.h"
 #include "Localization.h"
 #include "App.xaml.h"
+#include "IconResource.h"
 
+#include <commctrl.h>
 #include <shlobj_core.h>
+#include <shellscalingapi.h>
 
 namespace winrt::VelocityCopyUI::implementation {
 namespace {
@@ -33,35 +36,72 @@ bool AppTray::Initialize(App* owner) noexcept {
                                 0, 0, 0, 0, nullptr, nullptr, instance, this);
         if (!hwnd_) return false;
 
-        std::array<wchar_t, 32768> module_path{};
-        SHFILEINFOW shell_info{};
-        const DWORD length = GetModuleFileNameW(nullptr, module_path.data(), static_cast<DWORD>(module_path.size()));
-        if (length && length < module_path.size() &&
-            SHGetFileInfoW(module_path.data(), FILE_ATTRIBUTE_NORMAL, &shell_info, sizeof(shell_info),
-                           SHGFI_ICON | SHGFI_SMALLICON)) icon_ = shell_info.hIcon;
-        if (!icon_) icon_ = CopyIcon(LoadIconW(nullptr, IDI_APPLICATION));
-
         data_ = {};
         data_.cbSize = sizeof(data_);
         data_.hWnd = hwnd_;
         data_.uID = kTrayIconId;
         data_.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP | NIF_SHOWTIP;
         data_.uCallbackMessage = kTrayCallbackMessage;
-        data_.hIcon = icon_;
         wcscpy_s(data_.szTip, L"VelocityCopy");
-        RestoreIcon();
         taskbar_created_message_ = RegisterWindowMessageW(L"TaskbarCreated");
+        RestoreIcon();
+        if (!added_) { Remove(); return false; }
         return added_;
     } catch (...) { Remove(); return false; }
 }
 
+bool AppTray::RefreshIcon() noexcept {
+    if (!hwnd_) return false;
+    UINT dpi = GetDpiForWindow(hwnd_);
+    if (!dpi) dpi = USER_DEFAULT_SCREEN_DPI;
+
+    // The hidden owner can be on a different monitor from the notification area.
+    // Query the Shell's actual icon location rather than assuming primary-screen DPI.
+    RECT rect{};
+    NOTIFYICONIDENTIFIER identifier{sizeof(identifier)};
+    identifier.hWnd = hwnd_;
+    identifier.uID = kTrayIconId;
+    if (SUCCEEDED(Shell_NotifyIconGetRect(&identifier, &rect))) {
+        DEVICE_SCALE_FACTOR scale = SCALE_100_PERCENT;
+        if (SUCCEEDED(GetScaleFactorForMonitor(MonitorFromRect(&rect, MONITOR_DEFAULTTONEAREST), &scale))) {
+            dpi = static_cast<UINT>(MulDiv(USER_DEFAULT_SCREEN_DPI, static_cast<int>(scale), 100));
+        }
+    }
+
+    HICON replacement{};
+    const auto instance = GetModuleHandleW(nullptr);
+    if (FAILED(LoadIconWithScaleDown(instance, MAKEINTRESOURCEW(IDI_APPICON),
+            GetSystemMetricsForDpi(SM_CXSMICON, dpi), GetSystemMetricsForDpi(SM_CYSMICON, dpi), &replacement)) &&
+        FAILED(LoadIconMetric(instance, MAKEINTRESOURCEW(IDI_APPICON), LIM_SMALL, &replacement))) return false;
+    if (!replacement) return false;
+
+    if (added_) {
+        auto updated = data_;
+        updated.uFlags = NIF_ICON;
+        updated.hIcon = replacement;
+        if (!Shell_NotifyIconW(NIM_MODIFY, &updated)) {
+            DestroyIcon(replacement);
+            return false; // Retain the previously published, owned icon on failure.
+        }
+    }
+    const auto previous = icon_;
+    icon_ = replacement;
+    data_.hIcon = icon_;
+    if (previous) DestroyIcon(previous);
+    return true;
+}
+
 void AppTray::RestoreIcon() noexcept {
+    added_ = false;
+    v4_ = false;
+    if (!RefreshIcon()) return;
     data_.uVersion = 0;
     added_ = Shell_NotifyIconW(NIM_ADD, &data_) != FALSE;
-    v4_ = false;
     if (added_) {
         data_.uVersion = NOTIFYICON_VERSION_4;
         v4_ = Shell_NotifyIconW(NIM_SETVERSION, &data_) != FALSE;
+        // The Shell can provide the notification monitor only after NIM_ADD.
+        (void)RefreshIcon();
     }
 }
 
@@ -106,6 +146,9 @@ void AppTray::OpenPrimaryWindow() noexcept {
 LRESULT AppTray::HandleMessage(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) noexcept {
     if (message == taskbar_created_message_ && taskbar_created_message_ != 0) {
         RestoreIcon(); return 0;
+    }
+    if (message == WM_DPICHANGED || message == WM_DISPLAYCHANGE || message == WM_SETTINGCHANGE) {
+        if (added_) (void)RefreshIcon();
     }
     if (message == kTrayCallbackMessage) {
         UINT notification = v4_ ? LOWORD(lparam) : static_cast<UINT>(lparam);
