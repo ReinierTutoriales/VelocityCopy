@@ -75,7 +75,9 @@ struct DestinationPathGuard final {
         }
     }
 
-    bool lock_existing_chain(const std::filesystem::path& path, std::error_code& error) {
+    bool lock_existing_chain(
+        const std::filesystem::path& path, std::error_code& error,
+        const DWORD share_mode = FILE_SHARE_READ | FILE_SHARE_WRITE) {
         missing.clear();
         std::error_code absolute_error;
         auto probe = std::filesystem::absolute(path, absolute_error);
@@ -89,7 +91,7 @@ struct DestinationPathGuard final {
             const HANDLE handle = CreateFileW(
                 probe.c_str(),
                 FILE_READ_ATTRIBUTES,
-                FILE_SHARE_READ | FILE_SHARE_WRITE,
+                share_mode,
                 nullptr,
                 OPEN_EXISTING,
                 FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT,
