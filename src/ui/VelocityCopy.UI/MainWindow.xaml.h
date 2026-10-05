@@ -14,6 +14,7 @@
 #include "velocitycopy/transfer_router.hpp"
 #include "velocitycopy/ui_snapshot.hpp"
 #include "DecisionSurface.h"
+#include "PerformanceGraphScale.h"
 
 #include <chrono>
 #include <condition_variable>
@@ -299,6 +300,9 @@ private:
     PerformanceSamplingState performance_sampling_state_{PerformanceSamplingState::Idle};
     std::uint64_t last_performance_sample_ms_{};
     std::deque<double> performance_speed_samples_;
+    velocitycopy::ui::PerformanceScaleState performance_scale_state_{};
+    double performance_window_peak_{};
+    bool performance_graph_clipped_{};
     PendingResume pending_resume_{};
     HWND hwnd_{};
     bool tray_exit_requested_{};

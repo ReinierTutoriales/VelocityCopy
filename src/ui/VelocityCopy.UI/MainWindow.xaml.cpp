@@ -644,6 +644,9 @@ void MainWindow::OnDetailsClick(IInspectable const&, RoutedEventArgs const&) {
 void MainWindow::ResetPerformanceHistory() noexcept {
     last_performance_sample_ms_ = 0;
     performance_speed_samples_.clear();
+    performance_scale_state_ = {};
+    performance_window_peak_ = 0.0;
+    performance_graph_clipped_ = false;
     try {
         PerformanceGraphLine().Points(PointCollection{});
         PerformanceGraphArea().Points(PointCollection{});
@@ -652,7 +655,7 @@ void MainWindow::ResetPerformanceHistory() noexcept {
         PerformanceScaleMidText().Text(FormatPerformanceScaleSpeed(mib / 2.0, mib));
         PerformanceScaleZeroText().Text(FormatPerformanceScaleSpeed(0.0, mib));
     } catch (...) {
-        OutputDebugStringW(L"VelocityCopy: ResetPerformanceHistory failed\\n");
+        OutputDebugStringW(L"VelocityCopy: ResetPerformanceHistory failed\n");
     }
 }
 
@@ -664,6 +667,15 @@ void MainWindow::ObservePerformanceSample(const double bytes_per_second) {
     performance_speed_samples_.push_back(
         std::isfinite(bytes_per_second) && bytes_per_second > 0.0 ? bytes_per_second : 0.0);
     while (performance_speed_samples_.size() > 60) performance_speed_samples_.pop_front();
+
+    const std::vector<double> samples(performance_speed_samples_.begin(), performance_speed_samples_.end());
+    const auto stats = velocitycopy::ui::performance_window_stats(samples);
+    performance_window_peak_ = stats.peak_bytes_per_second;
+    if (stats.scale_reference_ready) {
+        (void)velocitycopy::ui::update_performance_scale(
+            performance_scale_state_, stats.scale_reference_bytes_per_second);
+    }
+
     if (expanded_) UpdatePerformanceGraph();
 }
 
@@ -691,9 +703,10 @@ void MainWindow::UpdatePerformanceGraph() {
         const double height = canvas.ActualHeight();
         if (width <= 0.0 || height <= 0.0) return;
 
-        if (performance_speed_samples_.size() < 2) {
+        if (performance_speed_samples_.empty()) {
             PerformanceGraphLine().Points(PointCollection{});
             PerformanceGraphArea().Points(PointCollection{});
+            performance_graph_clipped_ = false;
             constexpr double mib = 1024.0 * 1024.0;
             PerformanceScaleMaxText().Text(FormatPerformanceScaleSpeed(mib, mib));
             PerformanceScaleMidText().Text(FormatPerformanceScaleSpeed(mib / 2.0, mib));
@@ -702,10 +715,7 @@ void MainWindow::UpdatePerformanceGraph() {
         }
 
         constexpr double sample_capacity = 60.0;
-        double peak = 0.0;
-        for (const double sample : performance_speed_samples_) peak = (std::max)(peak, sample);
-
-        const auto scale = velocitycopy::ui::performance_scale(peak);
+        const auto scale = velocitycopy::ui::current_performance_scale(performance_scale_state_);
         const double scale_max = scale.ceiling_bytes_per_second;
         PerformanceScaleMaxText().Text(FormatPerformanceScaleSpeed(scale_max, scale.unit_bytes));
         PerformanceScaleMidText().Text(FormatPerformanceScaleSpeed(scale_max / 2.0, scale.unit_bytes));
@@ -722,8 +732,10 @@ void MainWindow::UpdatePerformanceGraph() {
         PointCollection line_points;
         PointCollection area_points;
         area_points.Append({static_cast<float>(first_x), static_cast<float>(baseline)});
+        bool any_clipped = false;
         std::size_t index = 0;
         for (const double sample : performance_speed_samples_) {
+            any_clipped = any_clipped || velocitycopy::ui::performance_sample_clipped(sample, scale);
             const double x = first_x + static_cast<double>(index) * slot;
             const double normalized = (std::clamp)(sample / scale_max, 0.0, 1.0);
             const double y = baseline - normalized * plot_height;
@@ -737,8 +749,9 @@ void MainWindow::UpdatePerformanceGraph() {
 
         PerformanceGraphLine().Points(line_points);
         PerformanceGraphArea().Points(area_points);
+        performance_graph_clipped_ = any_clipped;
     } catch (...) {
-        OutputDebugStringW(L"VelocityCopy: UpdatePerformanceGraph failed\\n");
+        OutputDebugStringW(L"VelocityCopy: UpdatePerformanceGraph failed\n");
     }
 }
 

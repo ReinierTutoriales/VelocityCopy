@@ -450,10 +450,11 @@ int main() {
         contains(xaml, "PerformanceGraphBrushSource") ||
         contains(performance_graph, "Border bar") ||
         contains(performance_graph, "Children().") ||
-        !contains(performance_graph, "performance_speed_samples_.size() < 2") ||
+        !contains(performance_graph, "performance_speed_samples_.empty()") ||
         !contains(performance_graph, "sample_capacity = 60.0") ||
-        !contains(performance_graph, "double peak = 0.0") ||
-        !contains(performance_graph, "velocitycopy::ui::performance_scale(peak)") ||
+        !contains(performance_graph, "velocitycopy::ui::current_performance_scale(performance_scale_state_)") ||
+        contains(performance_graph, "velocitycopy::ui::performance_scale(peak)") ||
+        contains(performance_graph, "double peak = 0.0") ||
         !contains(performance_graph, "scale.ceiling_bytes_per_second") ||
         !contains(performance_graph, "FormatPerformanceScaleSpeed(scale_max, scale.unit_bytes)") ||
         !contains(performance_graph, "FormatPerformanceScaleSpeed(scale_max / 2.0, scale.unit_bytes)") ||
