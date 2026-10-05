@@ -221,6 +221,10 @@ void MainWindow::ApplyTitleBarInset() noexcept {
             }
         }
 
+        // Keep the last valid system-reserved caption inset while minimized.
+        // Caption metrics are not stable/meaningful for an iconic window.
+        if (IsIconic(hwnd)) return;
+
         const auto dpi = GetDpiForWindow(hwnd);
         if (dpi == 0) return;
 

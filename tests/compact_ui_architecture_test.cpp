@@ -546,7 +546,11 @@ int main() {
 
     const auto titlebar_inset = body_of(window, "void MainWindow::ApplyTitleBarInset()");
     const auto appwindow_changed = body_of(window, "void MainWindow::OnAppWindowChanged(");
+    const auto iconic_guard = titlebar_inset.find("if (IsIconic(hwnd)) return;");
+    const auto right_inset_read = titlebar_inset.find("title_bar.RightInset()");
     if (!contains(header, "double title_bar_right_inset_epx_{};") ||
+        iconic_guard == std::string::npos || right_inset_read == std::string::npos ||
+        iconic_guard > right_inset_read ||
         !contains(titlebar_inset, "title_bar.RightInset()") ||
         !contains(titlebar_inset, "title_bar_right_inset_epx_ =") ||
         !contains(titlebar_inset, "(std::max)(reported_right_inset_epx, title_bar_right_inset_epx_)") ||
