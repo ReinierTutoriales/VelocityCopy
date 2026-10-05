@@ -418,6 +418,7 @@
                                       CanDragItems="True"
                                       CanReorderItems="True"
                                       AllowDrop="True"
+                                      DragItemsStarting="OnQueueDragItemsStarting"
                                       DragItemsCompleted="OnQueueDragItemsCompleted"
                                       HorizontalContentAlignment="Stretch">
                                 <!-- Not the list's ItemContainerStyle: RefreshQueue() applies this compact style only in

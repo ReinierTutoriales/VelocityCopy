@@ -44,6 +44,12 @@ bool MainWindow::ApplyQueueItemStyle(const bool narrow) {
 }
 
 void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
+    if (queue_drag_active_) {
+        queue_refresh_deferred_ = true;
+        queue_refresh_force_rebuild_ = queue_refresh_force_rebuild_ || force_visual_rebuild;
+        return;
+    }
+
     // A container style only applies to containers created after it is set, so a style change
     // is handled exactly like a forced visual rebuild.
     const bool style_changed = ApplyQueueItemStyle(expanded_layout_mode_ == ExpandedLayoutMode::Narrow);
@@ -355,10 +361,21 @@ void MainWindow::OnQueueRemoveClick(IInspectable const&, RoutedEventArgs const&)
     FinalizeConflictSessionIfEmpty();
 }
 
+void MainWindow::OnQueueDragItemsStarting(
+    ListViewBase const&,
+    DragItemsStartingEventArgs const&) {
+    queue_drag_active_ = true;
+}
+
 void MainWindow::OnQueueDragItemsCompleted(
     ListViewBase const&,
     DragItemsCompletedEventArgs const&) {
+    queue_drag_active_ = false;
+    const bool force_visual_rebuild = std::exchange(queue_refresh_force_rebuild_, false);
+    queue_refresh_deferred_ = false;
+
     if (!live_plan_) {
+        RefreshQueue(force_visual_rebuild);
         return;
     }
 
@@ -374,7 +391,7 @@ void MainWindow::OnQueueDragItemsCompleted(
     }
 
     (void)live_plan_->reorder_pending_files(ordered_ids);
-    RefreshQueue();
+    RefreshQueue(force_visual_rebuild);
 }
 
 } // namespace winrt::VelocityCopyUI::implementation

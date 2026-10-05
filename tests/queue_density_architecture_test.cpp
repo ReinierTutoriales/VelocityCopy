@@ -21,9 +21,10 @@ int main() {
     const std::filesystem::path ui = root / "src/ui/VelocityCopy.UI";
     const auto xaml = read_source(ui / "MainWindow.xaml");
     const auto queue = read_source(ui / "MainWindow.Queue.cpp");
+    const auto window = read_source(ui / "MainWindow.xaml.cpp");
     const auto header = read_source(ui / "MainWindow.xaml.h");
     const auto tokens = read_source(root / "src/ui/DesignTokens.xaml");
-    if (xaml.empty() || queue.empty() || header.empty() || tokens.empty()) return fail(1, "required source missing");
+    if (xaml.empty() || queue.empty() || window.empty() || header.empty() || tokens.empty()) return fail(1, "required source missing");
 
     // 1. No compact container style may be global to the list: ThreeColumn keeps the native ListViewItem.
     if (contains(xaml, "ListView.ItemContainerStyle") || contains(xaml, "ItemContainerStyle=")) {
@@ -92,6 +93,41 @@ int main() {
         !contains(queue, "queue_scroll_viewer.ChangeView(") ||
         !contains(queue, "queue_scroll_viewer.ScrollableHeight()")) {
         return fail(17, "queue visual rebuilds must preserve the vertical scroll position");
+    }
+
+    // 6. Internal reorder owns QueueList.Items for the lifetime of the drag. Snapshot refreshes
+    // and the RootGrid external-drop path must not mutate or override that gesture.
+    if (!contains(xaml, "DragItemsStarting=\"OnQueueDragItemsStarting\"") ||
+        !contains(xaml, "DragItemsCompleted=\"OnQueueDragItemsCompleted\"")) {
+        return fail(18, "QueueList must bracket internal reorder with starting/completed handlers");
+    }
+    const auto drag_start = body_of(queue, "void MainWindow::OnQueueDragItemsStarting(");
+    const auto drag_done = body_of(queue, "void MainWindow::OnQueueDragItemsCompleted(");
+    if (!contains(drag_start, "queue_drag_active_ = true") ||
+        !contains(drag_done, "queue_drag_active_ = false") ||
+        !contains(drag_done, "std::exchange(queue_refresh_force_rebuild_, false)") ||
+        !contains(drag_done, "RefreshQueue(force_visual_rebuild)")) {
+        return fail(19, "drag handlers must guard the collection and flush one authoritative refresh");
+    }
+    if (!contains(refresh, "if (queue_drag_active_)") ||
+        !contains(refresh, "queue_refresh_deferred_ = true") ||
+        !contains(refresh, "queue_refresh_force_rebuild_ = queue_refresh_force_rebuild_ || force_visual_rebuild") ||
+        !contains(refresh, "return;")) {
+        return fail(20, "RefreshQueue must defer all collection/style mutation while reorder is active");
+    }
+    if (!contains(header, "bool queue_drag_active_{};") ||
+        !contains(header, "bool queue_refresh_deferred_{};") ||
+        !contains(header, "bool queue_refresh_force_rebuild_{};")) {
+        return fail(21, "queue drag refresh state missing");
+    }
+    for (const char* signature : {
+             "void MainWindow::OnDragEnter(IInspectable const&, DragEventArgs const& args)",
+             "void MainWindow::OnDragOver(IInspectable const&, DragEventArgs const& args)",
+             "void MainWindow::OnDrop(IInspectable const&, DragEventArgs const& args)"}) {
+        const auto handler = body_of(window, signature);
+        if (!contains(handler, "if (queue_drag_active_) return;")) {
+            return fail(22, "external RootGrid drop handlers must ignore QueueList internal reorder");
+        }
     }
 
     return 0;

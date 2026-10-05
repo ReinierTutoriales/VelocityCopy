@@ -75,6 +75,9 @@ struct MainWindow : MainWindowT<MainWindow> {
     void OnQueueRemoveClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnQueueSelectionChanged(IInspectable const&, Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const&);
     void OnQueueKeyDown(IInspectable const&, Microsoft::UI::Xaml::Input::KeyRoutedEventArgs const&);
+    void OnQueueDragItemsStarting(
+        Microsoft::UI::Xaml::Controls::ListViewBase const&,
+        Microsoft::UI::Xaml::Controls::DragItemsStartingEventArgs const&);
     void OnQueueDragItemsCompleted(
         Microsoft::UI::Xaml::Controls::ListViewBase const&,
         Microsoft::UI::Xaml::Controls::DragItemsCompletedEventArgs const&);
@@ -278,6 +281,9 @@ private:
     bool geometry_probe_run_marked_{};
     bool geometry_probe_speed_active_{};
     bool queue_item_style_narrow_{};
+    bool queue_drag_active_{};
+    bool queue_refresh_deferred_{};
+    bool queue_refresh_force_rebuild_{};
     bool telemetry_reserves_applied_{};
     double telemetry_reserve_text_scale_{};
     double telemetry_reserve_raster_{};

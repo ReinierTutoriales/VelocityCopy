@@ -504,6 +504,7 @@ hstring MainWindow::FormatProgressPercent(const double fraction) {
 }
 
 void MainWindow::OnDragEnter(IInspectable const&, DragEventArgs const& args) {
+    if (queue_drag_active_) return;
     args.AcceptedOperation(
         accepts_active_transfer_drop(active_destination_, execution_control_, live_plan_, args)
             ? DataPackageOperation::Copy
@@ -511,6 +512,7 @@ void MainWindow::OnDragEnter(IInspectable const&, DragEventArgs const& args) {
 }
 
 void MainWindow::OnDragOver(IInspectable const&, DragEventArgs const& args) {
+    if (queue_drag_active_) return;
     args.AcceptedOperation(
         accepts_active_transfer_drop(active_destination_, execution_control_, live_plan_, args)
             ? DataPackageOperation::Copy
@@ -521,6 +523,7 @@ void MainWindow::OnDragLeave(IInspectable const&, DragEventArgs const&) {
 }
 
 void MainWindow::OnDrop(IInspectable const&, DragEventArgs const& args) {
+    if (queue_drag_active_) return;
     if (!accepts_active_transfer_drop(active_destination_, execution_control_, live_plan_, args)) {
         args.AcceptedOperation(DataPackageOperation::None);
         return;
