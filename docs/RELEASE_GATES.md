@@ -11,6 +11,8 @@ These gates define the 1.1.0 stable release pipeline and must remain aligned wit
 - Package CI exercises deterministic Authenticode signing on disposable copies with an ephemeral self-signed code-signing certificate that is deliberately not added to a trust store. The PR gate verifies the expected signer and proves content integrity by tampering with the signed copy and requiring `HashMismatch`; it does not depend on external timestamp services. The ephemeral certificate and private key are removed afterward and are never packaged.
 - Stable `v*` tag packaging requires valid Authenticode signatures and RFC3161 timestamps on `VelocityCopy.WinUI.exe`, `VelocityCopy.Shell.dll`, `VelocityCopy.StartupHelper.exe` and both installers. Tag jobs fail closed when signing secrets are absent or verification fails.
 
+The upgrade fixture is the published unsigned x64 v1.1.0 installer, pinned to SHA256 `21647db6ca0b98b8c523c7f68ec56fb14b0151d536d97d5eb3677d17a6da22a7`. The historical v1.0.0 asset now returns HTTP 404; it is not silently substituted with a rebuilt payload. Two upgrades with independently write-locked shell generations remain required. Historical 1.0.0 upgrade coverage needs its original external fixture and remains a manual check.
+
 ## Required real-Windows sign-off
 
 CI and Package are necessary but do not authorize a stable tag by themselves.

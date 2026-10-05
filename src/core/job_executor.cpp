@@ -7,6 +7,8 @@
 
 #include <algorithm>
 #include <limits>
+#include <memory>
+#include <optional>
 #include <iterator>
 #include <mutex>
 #include <new>
@@ -80,64 +82,73 @@ bool is_already_gone(const std::error_code& ec) noexcept {
     return ec.value() == ERROR_FILE_NOT_FOUND || ec.value() == ERROR_PATH_NOT_FOUND;
 }
 
+// Keep each ancestor pinned while descending. Delete only the directory whose
+// non-reparse handle was inspected, and keep memory proportional to tree depth.
 std::int32_t remove_empty_source_directories(
-    const std::vector<std::filesystem::path>& source_roots) noexcept {
+    const std::vector<std::filesystem::path>& source_roots,
+    ExecutionControl& control) noexcept {
+    struct Frame {
+        std::filesystem::path path;
+        HANDLE handle{INVALID_HANDLE_VALUE};
+        std::filesystem::directory_iterator cursor;
+        ~Frame() { if (handle != INVALID_HANDLE_VALUE) CloseHandle(handle); }
+    };
     try {
         for (const auto& root : source_roots) {
             std::error_code ec;
             if (!std::filesystem::is_directory(root, ec)) {
-                if (ec && !is_already_gone(ec)) {
-                    return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
-                }
+                if (ec && !is_already_gone(ec)) return native_hresult(ec);
                 continue;
             }
-
-            std::vector<std::filesystem::path> directories;
-            std::filesystem::recursive_directory_iterator it(
-                root,
-                std::filesystem::directory_options::none,
-                ec);
-            const std::filesystem::recursive_directory_iterator end;
-            if (ec) {
+            detail::DestinationPathGuard ancestors;
+            if (!ancestors.lock_existing_chain(root.parent_path(), ec)) return native_hresult(ec);
+            std::vector<std::unique_ptr<Frame>> stack;
+            auto descend = [&](const std::filesystem::path& path) {
+                auto frame = std::make_unique<Frame>();
+                frame->path = path;
+                frame->handle = CreateFileW(path.c_str(), DELETE | FILE_READ_ATTRIBUTES,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING,
+                    FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
+                if (frame->handle == INVALID_HANDLE_VALUE) {
+                    ec = std::error_code(static_cast<int>(GetLastError()), std::system_category());
+                    return false;
+                }
+                if (!detail::safe_directory_handle(frame->handle, ec)) return false;
+                frame->cursor = std::filesystem::directory_iterator(path, ec);
+                if (ec) return false;
+                stack.push_back(std::move(frame));
+                return true;
+            };
+            if (!descend(root)) {
                 if (is_already_gone(ec)) continue;
-                return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
+                return native_hresult(ec);
             }
-            for (; it != end; it.increment(ec)) {
-                if (ec) {
-                    if (is_already_gone(ec)) break;
-                    return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
-                }
-                if (it->is_directory(ec)) {
-                    if (ec) {
-                        if (is_already_gone(ec)) continue;
-                        return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
+            while (!stack.empty()) {
+                auto directive = control.directive();
+                if (directive == ExecutionDirective::Pause) directive = control.wait_while_paused();
+                if (directive != ExecutionDirective::Run) return HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED);
+                auto& frame = *stack.back();
+                if (frame.cursor != std::filesystem::directory_iterator{}) {
+                    const auto child = frame.cursor->path();
+                    const bool directory = frame.cursor->is_directory(ec);
+                    if (ec && !is_already_gone(ec)) return native_hresult(ec);
+                    ec.clear();
+                    frame.cursor.increment(ec);
+                    if (ec && !is_already_gone(ec)) return native_hresult(ec);
+                    ec.clear();
+                    if (directory && !descend(child) && !is_already_gone(ec)) return native_hresult(ec);
+                } else {
+                    // Close enumeration before marking this pinned directory for deletion.
+                    frame.cursor = {};
+                    FILE_DISPOSITION_INFO disposition{TRUE};
+                    if (!SetFileInformationByHandle(frame.handle, FileDispositionInfo,
+                            &disposition, sizeof(disposition))) {
+                        const auto native = GetLastError();
+                        if (native != ERROR_DIR_NOT_EMPTY && native != ERROR_FILE_NOT_FOUND &&
+                            native != ERROR_PATH_NOT_FOUND) return HRESULT_FROM_WIN32(native);
                     }
-                    directories.push_back(it->path());
-                } else if (ec && !is_already_gone(ec)) {
-                    return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
+                    stack.pop_back();
                 }
-            }
-
-            std::sort(directories.begin(), directories.end(), [](const auto& left, const auto& right) {
-                const auto left_depth = static_cast<std::size_t>(std::distance(left.begin(), left.end()));
-                const auto right_depth = static_cast<std::size_t>(std::distance(right.begin(), right.end()));
-                if (left_depth != right_depth) {
-                    return left_depth > right_depth;
-                }
-                return left.native() > right.native();
-            });
-            for (const auto& directory : directories) {
-                ec.clear();
-                (void)std::filesystem::remove(directory, ec);
-                if (ec && ec.value() != ERROR_DIR_NOT_EMPTY && !is_already_gone(ec)) {
-                    return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
-                }
-            }
-
-            ec.clear();
-            (void)std::filesystem::remove(root, ec);
-            if (ec && ec.value() != ERROR_DIR_NOT_EMPTY && !is_already_gone(ec)) {
-                return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
             }
         }
         return S_OK;
@@ -355,11 +366,22 @@ JobResult JobExecutor::execute(
             return result;
         };
 
+        auto check_control = [&]() -> std::optional<JobResult> {
+            auto directive = control.directive();
+            if (directive == ExecutionDirective::Pause) directive = control.wait_while_paused();
+            if (directive == ExecutionDirective::Cancel)
+                return finish({false, true, HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED), false});
+            if (directive == ExecutionDirective::Stop) return finish({false, false, S_OK, true});
+            return std::nullopt;
+        };
+        if (const auto result = check_control()) return *result;
+
         // A RetrySourceRemoval is already copied. It is deliberately never
         // unparked into transfer work; a resumed decision session retries only
         // deletion of the original source.
         if (options.retry_source_removals) {
             for (const auto& recovery : plan.parked_source_removals()) {
+                if (const auto result = check_control()) return *result;
                 const auto validation = validate_source_removal_recovery(recovery);
                 if (validation == SourceRemovalValidation::TemporarilyUnavailable) {
                     continue;
@@ -384,6 +406,7 @@ JobResult JobExecutor::execute(
                         recovery.file_id, RecoveryAction::RetrySourceRemoval)) {
                     return finish({false, false, kInvalidPlanState});
                 }
+                if (const auto result = check_control()) return *result;
                 const auto remove_source = remove_moved_source_file(recovery.source);
                 if (remove_source == S_OK) {
                     if (!plan.resolve_parked(
@@ -399,6 +422,7 @@ JobResult JobExecutor::execute(
 
         const auto directory_batch = plan.pending_directories();
         for (const auto& directory : directory_batch.directories) {
+            if (const auto result = check_control()) return *result;
             detail::DestinationPathGuard directory_guard;
             std::error_code ec;
             if (!directory_guard.prepare_directory(directory.destination, ec)) {
@@ -414,14 +438,17 @@ JobResult JobExecutor::execute(
         }
         plan.mark_directories_materialized(directory_batch.through_index);
 
+        if (const auto result = check_control()) return *result;
         const auto remaining_files = plan.remaining_files();
         if (remaining_files == 0) {
             // Parked items are still unresolved work. In particular, a Move
             // may have copied its destination while source deletion is parked
             // for an explicit retry decision. Do not touch source directories
             // until every item has reached a terminal outcome.
+            if (const auto result = check_control()) return *result;
             if (plan.operation() == FileOperation::Move && plan.unresolved_files() == 0) {
-                const auto cleanup = remove_empty_source_directories(plan.source_roots());
+                const auto cleanup = remove_empty_source_directories(plan.source_roots(), control);
+                if (const auto result = check_control()) return *result;
                 if (cleanup != S_OK) {
                     return finish({false, false, cleanup});
                 }
@@ -847,8 +874,10 @@ JobResult JobExecutor::execute(
                 return finish(worker_result);
             }
         }
+        if (const auto result = check_control()) return *result;
         if (plan.operation() == FileOperation::Move && plan.unresolved_files() == 0) {
-            const auto cleanup = remove_empty_source_directories(plan.source_roots());
+            const auto cleanup = remove_empty_source_directories(plan.source_roots(), control);
+            if (const auto result = check_control()) return *result;
             if (cleanup != S_OK) {
                 return finish({false, false, cleanup, false});
             }

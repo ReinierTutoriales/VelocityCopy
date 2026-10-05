@@ -5,6 +5,9 @@
 
 #include <filesystem>
 #include <array>
+#include <atomic>
+#include <barrier>
+#include <thread>
 #include <cstdint>
 #include <fstream>
 #include <type_traits>
@@ -289,6 +292,38 @@ int wmain() {
     // allocations or long parse loops from a tiny file.
     if (!write_count_bomb_archive(archive_path, 250001)) return 20;
     if (store.load(archive_path)) return 21;
+
+    // A fixed .tmp belongs to nobody: do not truncate a preexisting file, and
+    // concurrent snapshots must never share the staging file.
+    const auto sentinel = fs::path(archive_path.wstring() + L".tmp");
+    { std::ofstream stream(sentinel); stream << "keep"; }
+    std::barrier start(2);
+    std::atomic<bool> saves_ok{true};
+    auto writer = [&](const wchar_t* name) {
+        velocitycopy::QueueArchive snapshot;
+        velocitycopy::CopyJob job{};
+        job.destination = root / name;
+        job.sources.push_back(root / L"input");
+        job.display_name = name;
+        snapshot.queued_jobs.assign(100, job);
+        for (int i = 0; i < 20; ++i) {
+            start.arrive_and_wait();
+            if (!store.save(archive_path, snapshot)) saves_ok = false;
+        }
+    };
+    { std::jthread first(writer, L"first"); std::jthread second(writer, L"second"); }
+    if (!saves_ok) return 30;
+    const auto concurrent = store.load(archive_path);
+    if (!concurrent || concurrent->queued_jobs.size() != 100) return 31;
+    const auto name = concurrent->queued_jobs.front().display_name;
+    if (name != L"first" && name != L"second") return 32;
+    for (const auto& job : concurrent->queued_jobs) {
+        if (job.display_name != name || job.destination != root / name) return 33;
+    }
+    { std::ifstream stream(sentinel); std::string text; stream >> text; if (text != "keep") return 34; }
+    for (const auto& entry : fs::directory_iterator(root)) {
+        if (entry.path().extension() == L".tmp" && entry.path() != sentinel) return 35;
+    }
 
     // Corrupt or unknown formats must be rejected without partial recovery.
     {

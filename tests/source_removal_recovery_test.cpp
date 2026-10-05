@@ -71,6 +71,25 @@ int wmain() {
     fs::create_directories(root, ec);
     if (ec) return 1;
 
+    // Cancel/Stop must be observed before retrying destructive source removal.
+    for (bool cancel : {false, true}) {
+        const auto source = root / (cancel ? L"cancel" : L"stop") / L"source.txt";
+        const auto destination = source.parent_path() / L"destination.txt";
+        write_text(source, "same");
+        write_text(destination, "same");
+        LiveCopyPlan plan(empty_move_plan(destination.parent_path()));
+        if (!plan.restore_parked_source_removal(make_recovery(source, destination, 7))) return 30;
+        ExecutionControl control;
+        if (cancel) control.request_cancel(); else control.request_stop();
+        JobExecutionOptions options{1};
+        options.retry_source_removals = true;
+        const auto result = JobExecutor{}.execute(plan, control, options, {});
+        const auto incidents = plan.parked_incidents();
+        if (result.success || result.cancelled != cancel || result.stopped == cancel ||
+            !fs::exists(source) || !fs::exists(destination) || incidents.size() != 1 ||
+            incidents[0].attempt_count != 7) return 31;
+    }
+
     // Destination missing: never delete the retained source.
     {
         const auto source = root / L"missing" / L"source.txt";

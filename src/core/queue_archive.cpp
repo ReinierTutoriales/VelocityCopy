@@ -1,6 +1,8 @@
 #include "velocitycopy/queue_archive.hpp"
 
 #include <windows.h>
+#include <objbase.h>
+#include <new>
 
 #include <algorithm>
 #include <array>
@@ -299,6 +301,12 @@ bool flush_file_to_disk(const std::filesystem::path& path) noexcept {
 
 std::filesystem::path temp_path_for(const std::filesystem::path& path) {
     auto temp = path;
+    GUID id{};
+    if (FAILED(CoCreateGuid(&id))) throw std::bad_alloc{};
+    wchar_t text[39]{};
+    if (StringFromGUID2(id, text, 39) == 0) throw std::bad_alloc{};
+    temp += L".";
+    temp += text;
     temp += L".tmp";
     return temp;
 }

@@ -75,7 +75,7 @@ struct DestinationPathGuard final {
         }
     }
 
-    bool lock_existing_chain(const std::filesystem::path& path, std::error_code& error) noexcept {
+    bool lock_existing_chain(const std::filesystem::path& path, std::error_code& error) {
         missing.clear();
         std::error_code absolute_error;
         auto probe = std::filesystem::absolute(path, absolute_error);
@@ -110,13 +110,18 @@ struct DestinationPathGuard final {
                 return false;
             }
 
-            handles.push_back({handle, false});
+            try {
+                handles.push_back({handle, false});
+            } catch (...) {
+                CloseHandle(handle);
+                throw;
+            }
             probe = probe.parent_path();
         }
         return true;
     }
 
-    bool create_missing(std::error_code& error) noexcept {
+    bool create_missing(std::error_code& error) {
         for (auto it = missing.rbegin(); it != missing.rend(); ++it) {
             const BOOL created_now = CreateDirectoryW(it->c_str(), nullptr);
             if (created_now == 0) {
@@ -147,13 +152,23 @@ struct DestinationPathGuard final {
                 return false;
             }
 
-            handles.push_back({handle, created_now != 0});
+            try {
+                handles.push_back({handle, created_now != 0});
+            } catch (...) {
+                if (created_now != 0) {
+                    FILE_DISPOSITION_INFO disposition{TRUE};
+                    (void)SetFileInformationByHandle(handle, FileDispositionInfo, &disposition, sizeof(disposition));
+                }
+                CloseHandle(handle);
+                rollback_created();
+                throw;
+            }
         }
         missing.clear();
         return true;
     }
 
-    bool prepare_directory(const std::filesystem::path& directory, std::error_code& error) noexcept {
+    bool prepare_directory(const std::filesystem::path& directory, std::error_code& error) {
         if (directory.empty()) {
             return true;
         }
