@@ -1,0 +1,90 @@
+name: Publish unsigned VelocityCopy 1.1.0
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-unsigned-1.1.0.yml']
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: publish-unsigned-velocitycopy-1.1.0
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Verify approved builds and publish their exact installers
+        shell: python
+        run: |
+          import hashlib, json, os, pathlib, subprocess, zipfile
+
+          def api(path):
+              return json.loads(subprocess.check_output(["gh", "api", path]))
+
+          repo = os.environ["GH_REPO"]
+          sha = "a0435370b1c290f359ee13ca6fb422b70d4cdd26"
+          tag = api(f"repos/{repo}/git/ref/tags/v1.1.0")
+          assert tag["object"]["type"] == "commit" and tag["object"]["sha"] == sha, "Release tag changed"
+          for run_id in (37253264867, 37253264876):
+              run = api(f"repos/{repo}/actions/runs/{run_id}")
+              assert run["head_sha"] == sha and run["conclusion"] == "success", "Approved build mismatch"
+
+          expected = [
+              (11321159765, "VelocityCopy-Setup-x64.exe", "584eb410bad3685436379ae6c5d03f91be687d0fcef4f27d563fddf6d17f6881"),
+              (11321832659, "VelocityCopy-Setup-ARM64.exe", "19bd8d22d15ebe50cae02ed65e528cbeb56e973809989f064ab932fcbb7022b1"),
+          ]
+          output = pathlib.Path("release-assets")
+          output.mkdir()
+          files, hashes = [], []
+          for artifact_id, filename, digest in expected:
+              metadata = api(f"repos/{repo}/actions/artifacts/{artifact_id}")
+              assert not metadata["expired"], "Artifact expired"
+              assert metadata["workflow_run"]["id"] == 37253264876
+              assert metadata["workflow_run"]["head_sha"] == sha
+              archive = output / f"{artifact_id}.zip"
+              with archive.open("wb") as stream:
+                  subprocess.run(["gh", "api", f"repos/{repo}/actions/artifacts/{artifact_id}/zip"], stdout=stream, check=True)
+              assert hashlib.sha256(archive.read_bytes()).hexdigest() == digest, "Artifact SHA-256 mismatch"
+              with zipfile.ZipFile(archive) as z:
+                  entries = [i for i in z.infolist() if not i.is_dir()]
+                  assert len(entries) == 1 and pathlib.PurePosixPath(entries[0].filename).name == filename, "Unexpected artifact contents"
+                  binary = z.read(entries[0])
+              assert binary[:2] == b"MZ", "Invalid Windows installer"
+              destination = output / filename.replace(".exe", "-v1.1.0.exe")
+              destination.write_bytes(binary)
+              files.append(str(destination))
+              hashes.append(f"{hashlib.sha256(binary).hexdigest()}  {destination.name}")
+          checksum = output / "SHA256SUMS.txt"
+          checksum.write_text("\n".join(hashes) + "\n")
+          files.append(str(checksum))
+          notes = output / "release-notes.md"
+          notes.write_text("""VelocityCopy 1.1.0
+
+          Stabilizes the integrated transfer interface, queue layout, performance graph and transfer diagnostics.
+
+          Downloads:
+          - x64 installer for Intel/AMD Windows 11 PCs.
+          - ARM64 installer for Windows on ARM PCs.
+
+          These installers are published without an Authenticode digital signature, as explicitly authorized by the repository owner. Windows may display an unknown-publisher or SmartScreen prompt. Verify downloads against SHA256SUMS.txt.
+
+          Source: a0435370b1c290f359ee13ca6fb422b70d4cdd26 (v1.1.0).
+          Windows CI and Windows Package passed on this exact source commit. Assets reuse the validated main-build artifacts from run 37253264876; no binaries were rebuilt or modified.
+          ARM64 was cross-built and its PE architecture validated; a physical ARM64 install/launch/shell-integration check is not recorded by this automated publication.
+          """)
+          subprocess.run(["gh", "release", "upload", "v1.1.0", *files, "--clobber"], check=True)
+          subprocess.run(["gh", "release", "edit", "v1.1.0", "--title", "VelocityCopy v1.1.0", "--notes-file", str(notes), "--draft=false", "--prerelease=false", "--latest"], check=True)
+          release = api(f"repos/{repo}/releases/tags/v1.1.0")
+          names = {a["name"] for a in release["assets"]}
+          assert all(pathlib.Path(f).name in names for f in files), "Release asset verification failed"
+          print(release["html_url"])
