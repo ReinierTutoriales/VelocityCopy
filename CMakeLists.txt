@@ -188,3 +188,6 @@ add_test(NAME velocitycopy_shell_dll COMMAND VelocityCopyShellDllTest "$<TARGET_
 
 add_velocitycopy_test(VelocityCopyPreflightTest tests/executor_preflight_test.cpp velocitycopy_executor_preflight)
 add_velocitycopy_test(VelocityCopyAllocationTest tests/copy_engine_allocation_test.cpp velocitycopy_copy_engine_allocation)
+
+add_velocitycopy_test(VelocityCopyUiSnapshotMailboxTest tests/ui_snapshot_mailbox_test.cpp velocitycopy_ui_snapshot_mailbox)
+target_include_directories(VelocityCopyUiSnapshotMailboxTest PRIVATE src/ui/VelocityCopy.UI)

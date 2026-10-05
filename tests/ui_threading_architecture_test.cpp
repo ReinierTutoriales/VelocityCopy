@@ -34,8 +34,11 @@ int main() {
         return fail(2, "UI-thread DispatcherQueue ownership missing");
     }
 
-    if (!contains(execution, "dispatcher.TryEnqueue([weak, value]()") ||
-        !contains(execution, "self->ApplySnapshot(value)") ||
+    if (!contains(execution, "dispatcher.TryEnqueue([weak, control, mailbox]()") ||
+        !contains(execution, "self->ApplySnapshot(*value)") ||
+        !contains(execution, "self->execution_control_ == control") ||
+        !contains(execution, "mailbox->consume()") ||
+        !contains(execution, "mailbox->discard()") ||
         !contains(execution, "dispatcher.TryEnqueue([weak, result]()") ||
         count_occurrences(execution, "copy_thread_ = std::jthread") < 2) {
         return fail(3, "copy workers must marshal progress and completion through DispatcherQueue");
@@ -77,6 +80,19 @@ int main() {
         !contains(window, "TransferProgress().Value(percent)") ||
         !contains(window, "ProgressPercentText().Text")) {
         return fail(7, "progress rendering must remain centralized behind the UI-thread snapshot consumer");
+    }
+
+    const auto scale_callback = body_of(window,
+        "[weak, dispatcher = self->dispatcher_](Windows::UI::ViewManagement::UISettings const& sender");
+    const auto enqueue = scale_callback.find("dispatcher.TryEnqueue");
+    if (enqueue == std::string::npos ||
+        contains(scale_callback.substr(0, enqueue), "weak.get()") ||
+        contains(scale_callback.substr(0, enqueue), "last_text_scale_factor_") ||
+        !contains(scale_callback.substr(enqueue), "last_text_scale_factor_ = scale")) {
+        return fail(8, "text-scale callbacks must marshal before accessing window state");
+    }
+    if (!contains(apply_body, "if (paused_ ||") || apply_body.find("if (paused_ ||") > apply_body.find("SetProgressFraction")) {
+        return fail(9, "queued progress must not overwrite paused telemetry");
     }
 
     return 0;

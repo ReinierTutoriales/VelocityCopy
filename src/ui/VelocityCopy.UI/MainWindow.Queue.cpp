@@ -2,6 +2,7 @@
 #include "MainWindow.xaml.h"
 #include "Localization.h"
 #include "UiTokens.h"
+#include "QueueItem.h"
 
 using namespace winrt;
 using namespace Microsoft::UI::Xaml;
@@ -35,6 +36,8 @@ bool MainWindow::ApplyQueueItemStyle(const bool narrow) {
             // ThreeColumn keeps the native ListViewItem container (DefaultListViewItemStyle).
             QueueList().ClearValue(ItemsControl::ItemContainerStyleProperty());
         }
+        QueueList().ItemTemplate(RootGrid().Resources().Lookup(box_value(
+            narrow ? L"QueueNarrowItemTemplate" : L"QueueItemTemplate")).as<DataTemplate>());
         queue_item_style_narrow_ = narrow;
         return true;
     } catch (...) {
@@ -45,98 +48,26 @@ bool MainWindow::ApplyQueueItemStyle(const bool narrow) {
 
 void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
     if (queue_drag_active_) {
-        queue_refresh_deferred_ = true;
         queue_refresh_force_rebuild_ = queue_refresh_force_rebuild_ || force_visual_rebuild;
+        return;
+    }
+
+    // No queue enumeration or row creation while Details is collapsed.
+    if (!expanded_) {
+        queue_refresh_force_rebuild_ = queue_refresh_force_rebuild_ || force_visual_rebuild;
+        RefreshQueueCommandState();
         return;
     }
 
     // A container style only applies to containers created after it is set, so a style change
     // is handled exactly like a forced visual rebuild.
     const bool style_changed = ApplyQueueItemStyle(expanded_layout_mode_ == ExpandedLayoutMode::Narrow);
-    const bool rebuild_visuals = force_visual_rebuild || style_changed;
+    const bool rebuild_visuals = std::exchange(queue_refresh_force_rebuild_, false) ||
+        force_visual_rebuild || style_changed;
     auto items = QueueList().Items();
 
-    auto append_visual = [&](const std::filesystem::path& source, const std::optional<std::uint64_t> id) {
-        const bool narrow = expanded_layout_mode_ == ExpandedLayoutMode::Narrow;
-        Grid row;
-        Thickness row_margin{};
-        if (narrow) {
-            row_margin = velocitycopy::ui::token_thickness(L"QueueNarrowItemMargin", Thickness{8, 4, 8, 4});
-        } else {
-            row_margin = velocitycopy::ui::token_thickness(L"QueueItemMargin", Thickness{8, 8, 8, 8});
-        }
-        row.Margin(row_margin);
-        row.HorizontalAlignment(HorizontalAlignment::Stretch);
-        if (id) {
-            row.Tag(box_value(*id));
-        }
-
-        TextBlock name;
-        name.Text(hstring(source.filename().wstring()));
-        name.TextTrimming(TextTrimming::CharacterEllipsis);
-        name.MaxLines(1);
-        name.FontWeight(Windows::UI::Text::FontWeights::SemiBold());
-        name.FontSize(velocitycopy::ui::token_double(L"BodyFontSize", 14));
-
-        FontIcon item_icon;
-        item_icon.Glyph(L"\xE8A5");
-        item_icon.FontSize(velocitycopy::ui::token_double(L"QueueItemIconSize", 16));
-        velocitycopy::ui::apply_icon_style(item_icon, L"SecondaryIconStyle");
-        item_icon.Margin(velocitycopy::ui::token_thickness(L"QueueItemIconMargin", Thickness{0, 0, 8, 0}));
-        item_icon.VerticalAlignment(VerticalAlignment::Center);
-        item_icon.IsHitTestVisible(false);
-        Microsoft::UI::Xaml::Automation::AutomationProperties::SetAccessibilityView(
-            item_icon,
-            Microsoft::UI::Xaml::Automation::Peers::AccessibilityView::Raw);
-
-        Grid name_line;
-        name_line.ColumnDefinitions().Append(ColumnDefinition{});
-        name_line.ColumnDefinitions().GetAt(0).Width(GridLength{0.0, GridUnitType::Auto});
-        name_line.ColumnDefinitions().Append(ColumnDefinition{});
-        name_line.ColumnDefinitions().GetAt(1).Width(GridLength{1.0, GridUnitType::Star});
-        Grid::SetColumn(name, 1);
-        name_line.Children().Append(item_icon);
-        name_line.Children().Append(name);
-
-        TextBlock location;
-        location.Text(hstring(source.parent_path().wstring()));
-        location.TextTrimming(TextTrimming::CharacterEllipsis);
-        location.MaxLines(1);
-        velocitycopy::ui::apply_text_style(location, L"SecondaryTextStyle");
-        location.FontSize(velocitycopy::ui::token_double(L"CaptionFontSize", 12));
-
-        if (narrow) {
-            row.ColumnDefinitions().Append(ColumnDefinition{});
-            row.ColumnDefinitions().GetAt(0).Width(GridLength{1.0, GridUnitType::Star});
-            row.ColumnDefinitions().Append(ColumnDefinition{});
-            row.ColumnDefinitions().GetAt(1).Width(GridLength{0.0, GridUnitType::Auto});
-            location.MaxWidth(velocitycopy::ui::token_double(L"QueueNarrowLocationMaxWidth", 160));
-            location.Margin(Thickness{8, 0, 0, 0});
-            Grid::SetColumn(location, 1);
-        } else {
-            row.RowDefinitions().Append(RowDefinition{});
-            row.RowDefinitions().GetAt(0).Height(GridLength{0.0, GridUnitType::Auto});
-            row.RowDefinitions().Append(RowDefinition{});
-            row.RowDefinitions().GetAt(1).Height(GridLength{0.0, GridUnitType::Auto});
-            row.RowSpacing(velocitycopy::ui::token_double(L"QueueItemLineSpacing", 4));
-            Grid::SetRow(location, 1);
-        }
-
-        row.Children().Append(name_line);
-        row.Children().Append(location);
-
-        const auto full_path = source.wstring();
-        if (!full_path.empty()) {
-            ToolTipService::SetToolTip(row, box_value(hstring(full_path)));
-        }
-        std::wstring accessible_name = source.filename().wstring();
-        const auto parent = source.parent_path().wstring();
-        if (!parent.empty()) {
-            accessible_name += L", ";
-            accessible_name += parent;
-        }
-        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(row, hstring(accessible_name));
-        items.Append(row);
+    auto append_item = [&](const std::filesystem::path& source, const std::optional<std::uint64_t> id) {
+        items.Append(winrt::make<QueueItem>(source, id.value_or(0)));
     };
 
     if (!live_plan_) {
@@ -151,7 +82,7 @@ void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
             constexpr std::size_t kPlanningPreviewLimit = 256;
             const auto visible = (std::min)(planning_sources_.size(), kPlanningPreviewLimit);
             for (std::size_t index = 0; index < visible; ++index) {
-                append_visual(planning_sources_[index], std::nullopt);
+                append_item(planning_sources_[index], std::nullopt);
             }
             QueueCountText().Text(hstring(std::format(L"{}", planning_sources_.size())));
             RefreshQueueCommandState();
@@ -187,13 +118,17 @@ void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
     const std::optional<double> previous_vertical_offset =
         queue_scroll_viewer ? std::optional<double>{queue_scroll_viewer.VerticalOffset()} : std::nullopt;
     std::optional<std::uint64_t> focused_id;
-    if (auto focused = FocusManager::GetFocusedElement().try_as<FrameworkElement>()) {
+    const auto xaml_root = RootGrid().XamlRoot();
+    const auto focused_element = xaml_root ? FocusManager::GetFocusedElement(xaml_root) : IInspectable{nullptr};
+    if (auto focused = focused_element.try_as<FrameworkElement>()) {
         auto current = focused;
         while (current) {
             try {
-                if (current.Tag()) {
-                    focused_id = unbox_value<std::uint64_t>(current.Tag());
-                    break;
+                if (auto container = current.try_as<ListViewItem>()) {
+                    if (auto item = container.Content().try_as<VelocityCopyUI::QueueItem>()) {
+                        focused_id = item.Id();
+                        break;
+                    }
                 }
             } catch (...) {
             }
@@ -239,7 +174,7 @@ void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
 
     for (std::size_t file_index = append_from_index; file_index < queue_snapshot_.size(); ++file_index) {
         const auto& file = queue_snapshot_[file_index];
-        append_visual(file.source, file.id);
+        append_item(file.source, file.id);
     }
 
     const auto selected_ranges = QueueList().SelectedRanges();
@@ -415,7 +350,6 @@ void MainWindow::OnQueueDragItemsCompleted(
     DragItemsCompletedEventArgs const&) {
     queue_drag_active_ = false;
     const bool force_visual_rebuild = std::exchange(queue_refresh_force_rebuild_, false);
-    queue_refresh_deferred_ = false;
 
     if (!live_plan_) {
         RefreshQueue(force_visual_rebuild);
@@ -427,8 +361,8 @@ void MainWindow::OnQueueDragItemsCompleted(
     ordered_ids.reserve(items.Size());
     for (std::uint32_t index = 0; index < items.Size(); ++index) {
         try {
-            const auto row = items.GetAt(index).as<FrameworkElement>();
-            ordered_ids.push_back(unbox_value<std::uint64_t>(row.Tag()));
+            const auto item = items.GetAt(index).as<VelocityCopyUI::QueueItem>();
+            ordered_ids.push_back(item.Id());
         } catch (...) {
         }
     }

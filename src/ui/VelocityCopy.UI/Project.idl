@@ -1,6 +1,16 @@
 namespace VelocityCopyUI
 {
     [default_interface]
+    runtimeclass QueueItem
+    {
+        QueueItem();
+        UInt64 Id { get; };
+        String Name { get; };
+        String Location { get; };
+        String FullPath { get; };
+    }
+
+    [default_interface]
     runtimeclass MainWindow : Microsoft.UI.Xaml.Window
     {
         MainWindow();

@@ -57,7 +57,6 @@ struct MainWindow : MainWindowT<MainWindow> {
     winrt::Windows::Foundation::IAsyncOperation<std::uint32_t> RequestDecisionAsync(velocitycopy::ui::DecisionOptions options);
     void OnDragEnter(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
     void OnDragOver(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
-    void OnDragLeave(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
     void OnDrop(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
     void OnPauseClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnSkipClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
@@ -211,6 +210,7 @@ private:
     [[nodiscard]] double RequiredNormalWindowWidth();
     void SetProgressFraction(double fraction);
     void ResetCurrentItemState() noexcept;
+    void ClearLiveTelemetry();
     void ResetInterruptedSessionState() noexcept;
     void SetExecutionButtonsPlanning();
     void SetExecutionButtonsRunning();
@@ -255,7 +255,6 @@ private:
     std::vector<velocitycopy::PlannedFile> queue_snapshot_;
     std::vector<std::filesystem::path> planning_sources_;
     Microsoft::UI::Dispatching::DispatcherQueue dispatcher_{nullptr};
-    Microsoft::UI::Xaml::Controls::Button queue_options_button_{nullptr};
     Microsoft::UI::Xaml::Controls::MenuFlyoutItem save_queue_menu_item_{nullptr};
     Microsoft::UI::Xaml::Controls::MenuFlyoutItem load_queue_menu_item_{nullptr};
     Microsoft::UI::Xaml::Controls::MenuFlyoutItem skip_menu_item_{nullptr};
@@ -274,7 +273,6 @@ private:
     Microsoft::UI::Xaml::Thickness base_caption_content_padding_{};
     double title_bar_right_inset_epx_{};
     std::atomic_bool cancel_requested_{false};
-    double progress_fraction_{};
     double last_rasterization_scale_{};
     double last_text_scale_factor_{};
     bool resize_in_progress_{};
@@ -284,7 +282,6 @@ private:
     bool geometry_probe_speed_active_{};
     bool queue_item_style_narrow_{};
     bool queue_drag_active_{};
-    bool queue_refresh_deferred_{};
     bool queue_refresh_force_rebuild_{};
     bool telemetry_reserves_applied_{};
     double telemetry_reserve_text_scale_{};
@@ -309,8 +306,6 @@ private:
     std::uint64_t last_performance_sample_ms_{};
     std::deque<double> performance_speed_samples_;
     velocitycopy::ui::PerformanceScaleState performance_scale_state_{};
-    double performance_window_peak_{};
-    bool performance_graph_clipped_{};
     PendingResume pending_resume_{};
     HWND hwnd_{};
     bool tray_exit_requested_{};

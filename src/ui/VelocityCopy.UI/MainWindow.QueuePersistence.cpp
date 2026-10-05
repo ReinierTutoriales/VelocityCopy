@@ -100,7 +100,7 @@ void MainWindow::PersistRecoveryQueueNoThrow() noexcept {
 
 void MainWindow::ConfigureQueuePersistenceMenu() {
     try {
-        queue_options_button_ = OptionsButton();
+        const auto options_button = OptionsButton();
 
         MenuFlyout menu;
         auto weak = get_weak();
@@ -125,8 +125,8 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
             load_queue_menu_item_.Text(velocitycopy::localization::get_string(L"ActionLoadQueue"));
             about_menu_item_.Text(velocitycopy::localization::get_string(L"ActionAbout"));
             hide_to_tray_menu_item.Text(velocitycopy::localization::get_string(L"ActionHideToTray"));
-            ToolTipService::SetToolTip(queue_options_button_, box_value(options_label));
-            Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(queue_options_button_, options_label);
+            ToolTipService::SetToolTip(options_button, box_value(options_label));
+            Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(options_button, options_label);
         } catch (...) {
             skip_menu_item_.Text(L"Skip");
             stop_menu_item_.Text(L"Stop");
@@ -134,8 +134,8 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
             load_queue_menu_item_.Text(L"Load queue");
             about_menu_item_.Text(L"About VelocityCopy");
             hide_to_tray_menu_item.Text(L"Hide to tray");
-            ToolTipService::SetToolTip(queue_options_button_, box_value(L"Options"));
-            Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(queue_options_button_, L"Options");
+            ToolTipService::SetToolTip(options_button, box_value(L"Options"));
+            Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(options_button, L"Options");
         }
 
         skip_menu_item_.Click({this, &MainWindow::OnMenuSkipClick});
@@ -155,7 +155,7 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
         menu.Items().Append(MenuFlyoutSeparator{});
         menu.Items().Append(about_menu_item_);
         menu.Items().Append(hide_to_tray_menu_item);
-        queue_options_button_.Flyout(menu);
+        options_button.Flyout(menu);
 
         RefreshQueueCommandState();
         RefreshExecutionMenuState();

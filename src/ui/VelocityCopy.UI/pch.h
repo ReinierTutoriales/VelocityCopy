@@ -42,19 +42,3 @@
 #include <thread>
 #include <type_traits>
 #include <vector>
-
-// DragEventArgs::Modifiers is projected from Windows.ApplicationModel.DataTransfer.DragDrop.
-// Keep the existing Microsoft::UI::Input call sites source-compatible with that projection.
-namespace winrt::Microsoft::UI::Input {
-namespace DragDrop = winrt::Windows::ApplicationModel::DataTransfer::DragDrop;
-}
-
-namespace winrt::Windows::ApplicationModel::DataTransfer::DragDrop {
-inline constexpr DragDropModifiers operator&(
-    const DragDropModifiers left,
-    const DragDropModifiers right) noexcept {
-    using underlying = std::underlying_type_t<DragDropModifiers>;
-    return static_cast<DragDropModifiers>(
-        static_cast<underlying>(left) & static_cast<underlying>(right));
-}
-}

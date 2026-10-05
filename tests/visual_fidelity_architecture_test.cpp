@@ -38,7 +38,7 @@ int main() {
 
     if (!contains(tokens, "SecondaryIconStyle") ||
         !contains(ui_tokens, "apply_icon_style") ||
-        !contains(queue, "apply_icon_style(item_icon, L\"SecondaryIconStyle\")")) {
+        !contains(xaml, "Style=\"{StaticResource SecondaryIconStyle}\"")) {
         return fail(13, "dynamic queue icons must inherit the shared theme-aware secondary icon style");
     }
 
@@ -62,14 +62,15 @@ int main() {
         return fail(5, "information iconography must use theme-aware secondary color");
     }
 
-    // Queue rows are generated dynamically; every visual gets the document glyph without
-    // replacing selection/focus behavior or introducing per-item progress.
-    if (!contains(queue, "FontIcon item_icon") ||
-        !contains(queue, "item_icon.Glyph(L\"\\xE8A5\")") ||
-        !contains(queue, "QueueItemIconSize") ||
-        !contains(queue, "name_line.Children().Append(item_icon)") ||
-        contains(queue, "ProgressBar")) {
-        return fail(6, "queue rows must use document icons without fake per-item progress");
+    // Data templates preserve document icons, native selection and themed colors.
+    const auto template_begin = xaml.find("x:Key=\"QueueItemTemplate\"");
+    const auto template_end = xaml.find("</Grid.Resources>", template_begin);
+    const auto queue_templates = xaml.substr(template_begin, template_end - template_begin);
+    if (template_begin == std::string::npos ||
+        count_occurrences(queue_templates, "Glyph=\"&#xE8A5;\"") != 2 ||
+        !contains(queue_templates, "QueueItemIconSize") ||
+        contains(queue_templates, "ProgressBar")) {
+        return fail(6, "queue templates must preserve document icons without per-item progress");
     }
 
     if (!contains(tokens, "SectionHeaderPadding") ||
@@ -167,8 +168,7 @@ int main() {
             return fail(19, "information-row icons must remain decorative in UI Automation");
         }
     }
-    if (!contains(queue, "AutomationProperties::SetAccessibilityView(") ||
-        !contains(queue, "AccessibilityView::Raw")) {
+    if (count_occurrences(queue_templates, "AutomationProperties.AccessibilityView=\"Raw\"") != 2) {
         return fail(20, "dynamic queue row icons must remain decorative in UI Automation");
     }
 

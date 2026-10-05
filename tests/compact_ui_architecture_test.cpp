@@ -69,10 +69,10 @@ int main() {
     }
 
     if (!contains(queue, "expanded_layout_mode_ == ExpandedLayoutMode::Narrow") ||
-        !contains(queue, "QueueNarrowItemMargin") ||
-        !contains(queue, "QueueNarrowLocationMaxWidth") ||
-        !contains(queue, "ToolTipService::SetToolTip(row") ||
-        !contains(queue, "AutomationProperties::SetName(row") ||
+        !contains(xaml, "QueueNarrowItemMargin") ||
+        !contains(xaml, "QueueNarrowLocationMaxWidth") ||
+        !contains(xaml, "ToolTipService.ToolTip=\"{x:Bind FullPath}\"") ||
+        !contains(xaml, "AutomationProperties.Name=\"{x:Bind FullPath}\"") ||
         !contains(queue, "RefreshQueue(const bool force_visual_rebuild)") ||
         !contains(queue, "unchanged && !rebuild_visuals") ||
         !contains(window, "RefreshQueue(true)") ||
