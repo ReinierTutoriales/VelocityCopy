@@ -101,13 +101,13 @@ std::int32_t remove_empty_source_directories(
                 continue;
             }
             detail::DestinationPathGuard ancestors;
-            if (!ancestors.lock_existing_chain(root.parent_path(), ec)) return native_hresult(ec);
+            if (!ancestors.lock_existing_chain(root.parent_path(), ec, FILE_SHARE_READ)) return native_hresult(ec);
             std::vector<std::unique_ptr<Frame>> stack;
             auto descend = [&](const std::filesystem::path& path) {
                 auto frame = std::make_unique<Frame>();
                 frame->path = path;
                 frame->handle = CreateFileW(path.c_str(), DELETE | FILE_READ_ATTRIBUTES,
-                    FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING,
+                    FILE_SHARE_READ, nullptr, OPEN_EXISTING,
                     FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
                 if (frame->handle == INVALID_HANDLE_VALUE) {
                     ec = std::error_code(static_cast<int>(GetLastError()), std::system_category());

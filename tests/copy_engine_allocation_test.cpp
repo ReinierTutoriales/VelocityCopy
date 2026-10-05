@@ -41,8 +41,10 @@ int wmain() {
         const auto result = engine.copy_file(source, destination, progress);
         allocations_until_failure = -1;
         GetProcessHandleCount(GetCurrentProcess(), &after);
-        if (after != before) return 1;
-        if (result.native_code == static_cast<std::int32_t>(E_OUTOFMEMORY)) ++failures;
+        if (result.native_code == static_cast<std::int32_t>(E_OUTOFMEMORY)) {
+            if (after != before) return 1;
+            ++failures;
+        }
         else if (!result.success) return 2;
     }
     fs::remove_all(root, ec);

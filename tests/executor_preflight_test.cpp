@@ -5,6 +5,7 @@
 #include <future>
 #include <chrono>
 #include <cstdlib>
+#include <fstream>
 
 int wmain() {
     namespace fs = std::filesystem;
@@ -13,7 +14,7 @@ int wmain() {
     const auto root = fs::temp_directory_path() / L"VelocityCopyPreflightTest";
     std::error_code ec;
     fs::remove_all(root, ec);
-    fs::create_directories(root / L"source" / L"empty");
+    fs::create_directories(root / L"source" / L"empty" / L"deep");
     auto raw_plan = [&] {
         CopyPlan raw{};
         raw.operation = FileOperation::Move;
@@ -49,6 +50,15 @@ int wmain() {
         if (!JobExecutor{}.execute(plan, control, JobExecutionOptions{1}, {}).success ||
             fs::exists(root / L"source")) return 3;
     }
+    fs::create_directories(root / L"source" / L"empty");
+    { std::ofstream stream(root / L"source" / L"keep.txt"); stream << "new file"; }
+    {
+        LiveCopyPlan plan(raw_plan());
+        ExecutionControl control;
+        if (!JobExecutor{}.execute(plan, control, JobExecutionOptions{1}, {}).success ||
+            !fs::exists(root / L"source" / L"keep.txt") || fs::exists(root / L"source" / L"empty")) return 6;
+    }
+    fs::remove_all(root / L"source");
     // Junctions must be rejected, never traversed into an unrelated tree.
     fs::create_directories(root / L"external" / L"keep");
     const auto junction = root / L"source";
@@ -61,6 +71,19 @@ int wmain() {
         if (JobExecutor{}.execute(plan, control, JobExecutionOptions{1}, {}).success ||
             !fs::exists(root / L"external" / L"keep")) return 5;
     }
+    fs::remove(junction, ec);
+    fs::create_directories(junction);
+    const auto nested = junction / L"nested";
+    const auto nested_command = L"cmd /c mklink /J \"" + nested.wstring() + L"\" \"" +
+        (root / L"external").wstring() + L"\" >nul";
+    if (_wsystem(nested_command.c_str()) != 0) return 7;
+    {
+        LiveCopyPlan plan(raw_plan());
+        ExecutionControl control;
+        if (JobExecutor{}.execute(plan, control, JobExecutionOptions{1}, {}).success ||
+            !fs::exists(root / L"external" / L"keep")) return 8;
+    }
+    fs::remove(nested, ec);
     fs::remove(junction, ec);
     fs::remove_all(root, ec);
     return 0;
