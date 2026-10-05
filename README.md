@@ -12,7 +12,7 @@
 
 ## Status
 
-VelocityCopy 1.0.0 is the current stable release. VelocityCopy 1.1.0 is the current release candidate; its copy engine, compact WinUI shell, Explorer integration and classic installers are being validated by the repository release pipeline before tagging.
+VelocityCopy 1.1.0 is published as an unsigned release. Current engine fixes are validated by Windows CI and Windows Package before integration; see [the engine audit](docs/COPY_AUDIT_20261005.md) for scope and remaining manual checks.
 
 Current automated baseline (`main`):
 

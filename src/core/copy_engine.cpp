@@ -4,6 +4,7 @@
 #include <windows.h>
 
 #include <algorithm>
+#include <new>
 #include <system_error>
 #include <vector>
 
@@ -129,7 +130,7 @@ bool source_is_unsafe_reparse_point(const std::filesystem::path& source) noexcep
     return unsafe;
 }
 
-std::uint64_t source_size_no_throw(const std::filesystem::path& source) noexcept {
+std::uint64_t source_size_no_throw(const std::filesystem::path& source) {
     std::error_code ec;
     const auto size = std::filesystem::file_size(source, ec);
     return ec ? 0 : size;
@@ -158,60 +159,68 @@ CopyResult CopyEngine::copy_file(
     const std::filesystem::path& destination,
     const CopyOptions& options,
     const ProgressCallback& progress) const noexcept {
-    // Lock the existing parent chain before creating anything. Directory creation
-    // must not follow a junction, so a name-surrogate parent fails before any
-    // directory is created through it.
-    detail::DestinationPathGuard destination_guard;
-    std::error_code directory_error;
-    const auto parent = destination.parent_path();
-    if (source_is_unsafe_reparse_point(source) ||
-        (!parent.empty() && !destination_guard.prepare_directory(parent, directory_error))) {
-        const auto native = directory_error
-            ? static_cast<DWORD>(directory_error.value())
-            : ERROR_CANT_ACCESS_FILE;
+    try {
+        // Lock the existing parent chain before creating anything. Directory creation
+        // must not follow a junction, so a name-surrogate parent fails before any
+        // directory is created through it.
+        detail::DestinationPathGuard destination_guard;
+        std::error_code directory_error;
+        const auto parent = destination.parent_path();
+        if (source_is_unsafe_reparse_point(source) ||
+            (!parent.empty() && !destination_guard.prepare_directory(parent, directory_error))) {
+            const auto native = directory_error
+                ? static_cast<DWORD>(directory_error.value())
+                : ERROR_CANT_ACCESS_FILE;
+            return {
+                false,
+                static_cast<std::int32_t>(HRESULT_FROM_WIN32(native)),
+            };
+        }
+
+        const auto source_size = source_size_no_throw(source);
+        CallbackContext callback_context{&progress};
+        callback_context.last_progress = {source_size, 0};
+        callback_context.has_progress = source_size != 0;
+
+        // VelocityCopy targets Windows 11, so use CopyFile2 V2 deliberately. Keep
+        // I/O cycles bounded so callbacks remain frequent enough for live controls.
+        // StrategySelector can override the fallback size through CopyOptions; this
+        // makes the storage-profile recommendation part of the production path.
+        COPYFILE2_EXTENDED_PARAMETERS_V2 parameters{};
+        parameters.dwSize = sizeof(parameters);
+        parameters.dwCopyFlags = options.copy_flags;
+        if (options.resume_from_pause) {
+            parameters.dwCopyFlags |= COPY_FILE_RESUME_FROM_PAUSE;
+        }
+        if (options.existing_destination == ExistingDestinationPolicy::Fail) {
+            parameters.dwCopyFlags |= COPY_FILE_FAIL_IF_EXISTS;
+        }
+        parameters.ioDesiredSize = desired_io_size(source_size, options.io_size_bytes);
+        if (progress) {
+            parameters.pProgressRoutine = copy_progress_routine;
+            parameters.pvCallbackContext = &callback_context;
+        }
+
+        const HRESULT result = CopyFile2(
+            source.c_str(),
+            destination.c_str(),
+            reinterpret_cast<COPYFILE2_EXTENDED_PARAMETERS*>(&parameters));
+
+        if (callback_context.callback_failed) {
+            return {false, static_cast<std::int32_t>(E_FAIL)};
+        }
+
         return {
-            false,
-            static_cast<std::int32_t>(HRESULT_FROM_WIN32(native)),
+            SUCCEEDED(result),
+            static_cast<std::int32_t>(result),
         };
-    }
-
-    const auto source_size = source_size_no_throw(source);
-    CallbackContext callback_context{&progress};
-    callback_context.last_progress = {source_size, 0};
-    callback_context.has_progress = source_size != 0;
-
-    // VelocityCopy targets Windows 11, so use CopyFile2 V2 deliberately. Keep
-    // I/O cycles bounded so callbacks remain frequent enough for live controls.
-    // StrategySelector can override the fallback size through CopyOptions; this
-    // makes the storage-profile recommendation part of the production path.
-    COPYFILE2_EXTENDED_PARAMETERS_V2 parameters{};
-    parameters.dwSize = sizeof(parameters);
-    parameters.dwCopyFlags = options.copy_flags;
-    if (options.resume_from_pause) {
-        parameters.dwCopyFlags |= COPY_FILE_RESUME_FROM_PAUSE;
-    }
-    if (options.existing_destination == ExistingDestinationPolicy::Fail) {
-        parameters.dwCopyFlags |= COPY_FILE_FAIL_IF_EXISTS;
-    }
-    parameters.ioDesiredSize = desired_io_size(source_size, options.io_size_bytes);
-    if (progress) {
-        parameters.pProgressRoutine = copy_progress_routine;
-        parameters.pvCallbackContext = &callback_context;
-    }
-
-    const HRESULT result = CopyFile2(
-        source.c_str(),
-        destination.c_str(),
-        reinterpret_cast<COPYFILE2_EXTENDED_PARAMETERS*>(&parameters));
-
-    if (callback_context.callback_failed) {
+    } catch (const std::bad_alloc&) {
+        return {false, static_cast<std::int32_t>(E_OUTOFMEMORY)};
+    } catch (const std::system_error& error) {
+        return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(error.code().value()))};
+    } catch (...) {
         return {false, static_cast<std::int32_t>(E_FAIL)};
     }
-
-    return {
-        SUCCEEDED(result),
-        static_cast<std::int32_t>(result),
-    };
 }
 
 } // namespace velocitycopy

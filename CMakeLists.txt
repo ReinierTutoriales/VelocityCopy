@@ -185,3 +185,6 @@ if(MSVC)
     target_compile_options(VelocityCopyShellDllTest PRIVATE /W4 /permissive- /EHsc /utf-8)
 endif()
 add_test(NAME velocitycopy_shell_dll COMMAND VelocityCopyShellDllTest "$<TARGET_FILE:VelocityCopyShell>")
+
+add_velocitycopy_test(VelocityCopyPreflightTest tests/executor_preflight_test.cpp velocitycopy_executor_preflight)
+add_velocitycopy_test(VelocityCopyAllocationTest tests/copy_engine_allocation_test.cpp velocitycopy_copy_engine_allocation)

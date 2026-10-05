@@ -185,3 +185,10 @@ Running planning off the UI thread is not enough if directory enumeration ignore
 ### Regression lesson: do not render real progress as zero
 
 If the engine is reporting transferred bytes, the UI must not round a positive fraction back to `0%`. For large jobs this makes a healthy transfer look stalled even while throughput and ETA are updating. Preserve a visible sub-percent state until whole-number percentages become meaningful.
+
+## Engine audit invariants
+
+- Observe Pause/Stop/Cancel before materializing directories or retrying source deletion, including jobs with no transfer files.
+- Move directory cleanup must pin and inspect directory handles, reject name-surrogate reparse points, and delete inspected directories by handle. Keep traversal state proportional to depth and poll execution controls during cleanup.
+- Each queue save owns a distinct staging path in the destination directory. Preserve atomic replacement and disk flushes; never share a fixed `.tmp` between writers.
+- Allocation failures inside the public noexcept copy boundary must return E_OUTOFMEMORY and release directory handles, rather than terminating the process.
