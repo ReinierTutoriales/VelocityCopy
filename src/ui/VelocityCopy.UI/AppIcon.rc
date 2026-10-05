@@ -1,8 +1,7 @@
 // Native Win32 resources embedded in VelocityCopy.WinUI.exe. Explorer, Alt-Tab,
 // taskbar pinning, shortcuts and Installed Apps consume these resources directly.
 #include "Version.h"
-
-#define IDI_APPICON 1
+#include "IconResource.h"
 
 IDI_APPICON ICON "Assets\\VelocityCopy.ico"
 

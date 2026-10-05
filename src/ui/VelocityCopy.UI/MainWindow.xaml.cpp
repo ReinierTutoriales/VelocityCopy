@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "IconAssets.h"
 #include "MainWindow.xaml.h"
 #include "App.xaml.h"
 #include "UiTokens.h"
@@ -123,7 +124,7 @@ MainWindow::MainWindow() {
                 self->OnAppWindowChanged(sender, args);
             }
         });
-        app_window.SetIcon(L"Assets\\VelocityCopy.ico");
+        app_window.SetIcon(velocitycopy::ui::application_icon_path());
     } catch (...) {
     }
 

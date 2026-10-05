@@ -19,6 +19,15 @@ SetCompressor /SOLID lzma
   !error "PAYLOAD_ARCH is required"
 !endif
 
+; Installer, uninstaller and application use the same normalized multi-size icon.
+; Fail at compilation if staging forgot the application asset.
+!if /FileExists "${PAYLOAD_DIR}\Assets\VelocityCopy.ico"
+  !define MUI_ICON "${PAYLOAD_DIR}\Assets\VelocityCopy.ico"
+  !define MUI_UNICON "${PAYLOAD_DIR}\Assets\VelocityCopy.ico"
+!else
+  !error "Installer payload is missing Assets\VelocityCopy.ico"
+!endif
+
 Name "VelocityCopy"
 OutFile "${OUTPUT_FILE}"
 InstallDir "$PROGRAMFILES64\VelocityCopy"
@@ -165,7 +174,7 @@ Section "Install VelocityCopy" SEC_INSTALL
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "Publisher" "ReinierTutoriales"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "UninstallString" '"$INSTDIR\Uninstall.exe"'
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "DisplayVersion" "${DISPLAY_VERSION}"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "DisplayIcon" "$INSTDIR\VelocityCopy.WinUI.exe,0"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "DisplayIcon" '"$INSTDIR\VelocityCopy.WinUI.exe",0'
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "InstallLocation" "$INSTDIR"
   ; Never write HKCU from the elevated installer: alternate administrator
   ; credentials would target the wrong profile. The helper impersonates the

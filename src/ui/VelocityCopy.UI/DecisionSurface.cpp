@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "IconAssets.h"
 #include "DecisionSurface.h"
 #include "UiTokens.h"
 
@@ -216,7 +217,7 @@ Windows::Foundation::IAsyncOperation<std::uint32_t> show_decision_async(Decision
             presenter.IsMaximizable(false);
             presenter.IsResizable(false);
         }
-        app_window.SetIcon(L"Assets\\VelocityCopy.ico");
+        app_window.SetIcon(velocitycopy::ui::application_icon_path());
 
         const UINT dpi = options.owner ? GetDpiForWindow(options.owner) : USER_DEFAULT_SCREEN_DPI;
         const int effective_dpi = dpi ? static_cast<int>(dpi) : USER_DEFAULT_SCREEN_DPI;
