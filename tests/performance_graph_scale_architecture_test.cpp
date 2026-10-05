@@ -35,16 +35,14 @@ int main() {
     const auto observe = body_of(window, "void MainWindow::ObservePerformanceSample(");
     if (!contains(observe, "performance_window_stats(samples)") ||
         !contains(observe, "stats.scale_reference_ready") ||
-        !contains(observe, "update_performance_scale(") ||
-        !contains(observe, "performance_window_peak_ = stats.peak_bytes_per_second")) {
-        return fail(3, "accepted samples must own scale hysteresis and truthful peak");
+        !contains(observe, "update_performance_scale(")) {
+        return fail(3, "accepted samples must own scale hysteresis");
     }
 
     const auto render = body_of(window, "void MainWindow::UpdatePerformanceGraph()");
     if (!contains(render, "current_performance_scale(performance_scale_state_)") ||
-        !contains(render, "performance_sample_clipped(sample, scale)") ||
-        !contains(render, "performance_graph_clipped_ = any_clipped")) {
-        return fail(4, "renderer must read stable scale and expose clipping as graph state");
+        !contains(render, "(std::clamp)(sample / scale_max, 0.0, 1.0)")) {
+        return fail(4, "renderer must read stable scale and clamp rendered samples");
     }
     if (contains(render, "update_performance_scale(") ||
         contains(render, "performance_scale(peak)") ||
@@ -53,9 +51,9 @@ int main() {
     }
 
     if (!contains(header, "PerformanceScaleState performance_scale_state_") ||
-        !contains(header, "double performance_window_peak_") ||
-        !contains(header, "bool performance_graph_clipped_")) {
-        return fail(6, "scale, peak, or clipping state missing");
+        contains(header, "performance_window_peak_") ||
+        contains(header, "performance_graph_clipped_")) {
+        return fail(6, "stable scale must be owned; unused peak/clipping write-only fields must stay removed");
     }
 
     if (contains(xaml, "PerformancePeakLabel") ||

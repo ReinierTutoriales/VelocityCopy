@@ -57,7 +57,7 @@ int main() {
     }
     const auto refresh = body_of(queue, "void MainWindow::RefreshQueue(");
     if (!contains(refresh, "ApplyQueueItemStyle(expanded_layout_mode_ == ExpandedLayoutMode::Narrow)") ||
-        !contains(refresh, "const bool rebuild_visuals = force_visual_rebuild || style_changed;") ||
+        !contains(refresh, "std::exchange(queue_refresh_force_rebuild_, false)") ||
         !contains(refresh, "unchanged && !rebuild_visuals") || !contains(refresh, "!rebuild_visuals && completed_prefix > 0")) {
         return fail(8, "RefreshQueue must rebuild visuals whenever the container style or the mode changes");
     }
@@ -110,13 +110,11 @@ int main() {
         return fail(19, "drag handlers must guard the collection and flush one authoritative refresh");
     }
     if (!contains(refresh, "if (queue_drag_active_)") ||
-        !contains(refresh, "queue_refresh_deferred_ = true") ||
         !contains(refresh, "queue_refresh_force_rebuild_ = queue_refresh_force_rebuild_ || force_visual_rebuild") ||
         !contains(refresh, "return;")) {
         return fail(20, "RefreshQueue must defer all collection/style mutation while reorder is active");
     }
     if (!contains(header, "bool queue_drag_active_{};") ||
-        !contains(header, "bool queue_refresh_deferred_{};") ||
         !contains(header, "bool queue_refresh_force_rebuild_{};")) {
         return fail(21, "queue drag refresh state missing");
     }
@@ -153,6 +151,22 @@ int main() {
     }
     if (!contains(tokens, "<x:Double x:Key=\"QueueWheelForwardStep\">48</x:Double>")) {
         return fail(25, "documented default wheel handoff step token missing");
+    }
+
+    // Items are data, so the bounded native ListView can create/recycle templates.
+    if (!contains(refresh, "winrt::make<QueueItem>") || contains(refresh, "Grid row") ||
+        contains(refresh, "TextBlock name") ||
+        !contains(xaml, "x:Key=\"QueueItemTemplate\" x:DataType=\"local:QueueItem\"") ||
+        !contains(xaml, "x:Key=\"QueueNarrowItemTemplate\" x:DataType=\"local:QueueItem\"") ||
+        !contains(xaml, "Text=\"{x:Bind Name}\"") || !contains(xaml, "Text=\"{x:Bind Location}\"") ||
+        !contains(xaml, "ToolTipService.ToolTip=\"{x:Bind FullPath}\"") ||
+        !contains(drag_done, "item.Id()") ||
+        contains(queue, "FocusManager::GetFocusedElement()") ||
+        !contains(queue, "FocusManager::GetFocusedElement(xaml_root)")) return fail(26, "queue must use data templates and stable data IDs");
+    const auto collapsed = body_of(refresh, "if (!expanded_)");
+    if (collapsed.empty() || !contains(collapsed, "return;") ||
+        refresh.find("if (!expanded_)") > refresh.find("live_plan_->queue_view")) {
+        return fail(27, "collapsed queue must not enumerate or create rows");
     }
 
     return 0;

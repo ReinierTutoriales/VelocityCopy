@@ -1,3 +1,4 @@
+#include "architecture_support.hpp"
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -210,8 +211,8 @@ int main() {
     }
     if (!contains(window, "StandardDataFormats::StorageItems()") ||
         !contains(window, "active_destination.empty()") ||
-        !contains(window, "job.destination = active_destination_") ||
-        !contains(window, "job.operation = active_operation_") ||
+        !contains(window, "job.destination = target_destination") ||
+        !contains(window, "job.operation = target_operation") ||
         !contains(window, "AppendTransfer(std::move(job))") ||
         contains(window, "preferred_drop_operation") ||
         contains(window, "DragDropModifiers::Control") ||
@@ -240,5 +241,15 @@ int main() {
         !contains(app, "RequestDecisionAsync({") || !contains(recovery, "RequestDecisionAsync({")) {
         return fail(17, "all runtime decisions must use the serialized WinUI decision surface");
     }
+    const auto drop = body_of(window, "fire_and_forget MainWindow::HandleDropAsync(");
+    const auto await_items = drop.find("co_await args.DataView().GetStorageItemsAsync()");
+    if (await_items == std::string::npos ||
+        drop.find("const auto target_gate = append_gate_") > await_items ||
+        drop.find("const auto target_destination = active_destination_") > await_items ||
+        !contains(drop, "append_gate_ == target_gate") ||
+        drop.find("if (!target_is_current())", await_items) > drop.find("AppendTransfer(")) {
+        return fail(15, "an asynchronous drop must remain bound to its accepted session");
+    }
+
     return 0;
 }

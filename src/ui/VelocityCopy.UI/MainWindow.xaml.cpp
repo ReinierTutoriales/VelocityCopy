@@ -155,20 +155,18 @@ MainWindow::MainWindow() {
                 self->ui_settings_ = Windows::UI::ViewManagement::UISettings();
                 self->last_text_scale_factor_ = self->ui_settings_.TextScaleFactor();
                 self->text_scale_changed_revoker_ = self->ui_settings_.TextScaleFactorChanged(auto_revoke,
-                    [weak](Windows::UI::ViewManagement::UISettings const& sender, IInspectable const&) {
-                        if (auto window = weak.get()) {
-                            const double scale = sender.TextScaleFactor();
-                            if (std::abs(scale - window->last_text_scale_factor_) <= 0.0001) return;
-                            window->last_text_scale_factor_ = scale;
-                            (void)window->dispatcher_.TryEnqueue([weak]() {
-                                if (auto ui_window = weak.get(); ui_window && !ui_window->resize_in_progress_) {
-                                    ui_window->UpdatePerformanceAxisWidth();
-                                    ui_window->ResizeWindowToContent();
-                                    ui_window->ScheduleTelemetryReserveSettle();
-                                    ui_window->ScheduleTelemetryGeometryProbe();
-                                }
-                            });
-                        }
+                    [weak, dispatcher = self->dispatcher_](Windows::UI::ViewManagement::UISettings const& sender, IInspectable const&) {
+                        const double scale = sender.TextScaleFactor();
+                        (void)dispatcher.TryEnqueue([weak, scale]() {
+                            if (auto window = weak.get(); window && !window->tray_exit_requested_) {
+                                if (std::abs(scale - window->last_text_scale_factor_) <= 0.0001) return;
+                                window->last_text_scale_factor_ = scale;
+                                window->UpdatePerformanceAxisWidth();
+                                window->ResizeWindowToContent();
+                                window->ScheduleTelemetryReserveSettle();
+                                window->ScheduleTelemetryGeometryProbe();
+                            }
+                        });
                     });
             } catch (...) {
             }
@@ -521,10 +519,10 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
 }
 
 void MainWindow::SetProgressFraction(const double fraction) {
-    progress_fraction_ = (std::clamp)(fraction, 0.0, 1.0);
-    const double percent = progress_fraction_ * 100.0;
+    const double progress_fraction = (std::clamp)(fraction, 0.0, 1.0);
+    const double percent = progress_fraction * 100.0;
     TransferProgress().Value(percent);
-    ProgressPercentText().Text(FormatProgressPercent(progress_fraction_));
+    ProgressPercentText().Text(FormatProgressPercent(progress_fraction));
 }
 
 hstring MainWindow::FormatProgressPercent(const double fraction) {
@@ -551,9 +549,6 @@ void MainWindow::OnDragOver(IInspectable const&, DragEventArgs const& args) {
             : DataPackageOperation::None);
 }
 
-void MainWindow::OnDragLeave(IInspectable const&, DragEventArgs const&) {
-}
-
 void MainWindow::OnDrop(IInspectable const&, DragEventArgs const& args) {
     if (queue_drag_active_) return;
     if (!accepts_active_transfer_drop(active_destination_, execution_control_, live_plan_, args)) {
@@ -569,13 +564,27 @@ void MainWindow::OnDrop(IInspectable const&, DragEventArgs const& args) {
 fire_and_forget MainWindow::HandleDropAsync(DragEventArgs args) {
     auto lifetime = get_strong();
     auto deferral = args.GetDeferral();
+    const auto target_gate = append_gate_;
+    const auto target_operation = active_operation_;
     try {
+        const auto target_destination = active_destination_;
+        auto target_is_current = [&]() {
+            return target_gate && append_gate_ == target_gate && !tray_exit_requested_ &&
+                !cancel_requested_.load(std::memory_order_relaxed) &&
+                active_destination_ == target_destination && active_operation_ == target_operation &&
+                (execution_control_ || live_plan_);
+        };
         if (active_destination_.empty() || (!execution_control_ && !live_plan_)) {
             deferral.Complete();
             co_return;
         }
 
         auto storage_items = co_await args.DataView().GetStorageItemsAsync();
+        if (!target_is_current()) {
+            args.AcceptedOperation(DataPackageOperation::None);
+            deferral.Complete();
+            co_return;
+        }
         std::vector<std::filesystem::path> sources;
         sources.reserve(storage_items.Size());
         for (auto const& item : storage_items) {
@@ -592,13 +601,15 @@ fire_and_forget MainWindow::HandleDropAsync(DragEventArgs args) {
         velocitycopy::CopyJob job{};
         job.id = next_job_id_++;
         job.sources = std::move(sources);
-        job.destination = active_destination_;
-        job.operation = active_operation_;
+        job.destination = target_destination;
+        job.operation = target_operation;
         AppendTransfer(std::move(job));
         deferral.Complete();
     } catch (...) {
         deferral.Complete();
-        ShowError();
+        args.AcceptedOperation(DataPackageOperation::None);
+        if (target_gate && append_gate_ == target_gate && !tray_exit_requested_ &&
+            !cancel_requested_.load(std::memory_order_relaxed)) ShowError();
     }
 }
 
@@ -683,8 +694,6 @@ void MainWindow::ResetPerformanceHistory() noexcept {
     last_performance_sample_ms_ = 0;
     performance_speed_samples_.clear();
     performance_scale_state_ = {};
-    performance_window_peak_ = 0.0;
-    performance_graph_clipped_ = false;
     try {
         PerformanceGraphLine().Points(PointCollection{});
         PerformanceGraphArea().Points(PointCollection{});
@@ -708,7 +717,6 @@ void MainWindow::ObservePerformanceSample(const double bytes_per_second) {
 
     const std::vector<double> samples(performance_speed_samples_.begin(), performance_speed_samples_.end());
     const auto stats = velocitycopy::ui::performance_window_stats(samples);
-    performance_window_peak_ = stats.peak_bytes_per_second;
     if (stats.scale_reference_ready) {
         (void)velocitycopy::ui::update_performance_scale(
             performance_scale_state_, stats.scale_reference_bytes_per_second);
@@ -744,7 +752,6 @@ void MainWindow::UpdatePerformanceGraph() {
         if (performance_speed_samples_.empty()) {
             PerformanceGraphLine().Points(PointCollection{});
             PerformanceGraphArea().Points(PointCollection{});
-            performance_graph_clipped_ = false;
             constexpr double mib = 1024.0 * 1024.0;
             PerformanceScaleMaxText().Text(FormatPerformanceScaleSpeed(mib, mib));
             PerformanceScaleMidText().Text(FormatPerformanceScaleSpeed(mib / 2.0, mib));
@@ -770,10 +777,8 @@ void MainWindow::UpdatePerformanceGraph() {
         PointCollection line_points;
         PointCollection area_points;
         area_points.Append({static_cast<float>(first_x), static_cast<float>(baseline)});
-        bool any_clipped = false;
         std::size_t index = 0;
         for (const double sample : performance_speed_samples_) {
-            any_clipped = any_clipped || velocitycopy::ui::performance_sample_clipped(sample, scale);
             const double x = first_x + static_cast<double>(index) * slot;
             const double normalized = (std::clamp)(sample / scale_max, 0.0, 1.0);
             const double y = baseline - normalized * plot_height;
@@ -787,7 +792,6 @@ void MainWindow::UpdatePerformanceGraph() {
 
         PerformanceGraphLine().Points(line_points);
         PerformanceGraphArea().Points(area_points);
-        performance_graph_clipped_ = any_clipped;
     } catch (...) {
         OutputDebugStringW(L"VelocityCopy: UpdatePerformanceGraph failed\n");
     }

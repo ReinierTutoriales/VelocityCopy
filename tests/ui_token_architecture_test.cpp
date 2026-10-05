@@ -156,7 +156,7 @@ int main(){
  const auto queue=read_source(root/"src/ui/VelocityCopy.UI/MainWindow.Queue.cpp");
  const auto about=read_source(root/"src/ui/VelocityCopy.UI/MainWindow.About.cpp");
  if(contains(queue,"TextFillColorSecondaryBrush")||contains(about,"TextFillColorSecondaryBrush")||contains(about,"TextFillColorTertiaryBrush")||
-    !contains(queue,"apply_text_style(location, L\"SecondaryTextStyle\")")||
+    !contains(xaml,"Style=\"{StaticResource SecondaryTextStyle}\"")||
     !contains(about,"apply_text_style(version_text, L\"SecondaryTextStyle\")")||
     !contains(about,"apply_text_style(metadata, L\"TertiaryTextStyle\")"))
   return fail(27,"C++ text must use theme-aware dictionary styles instead of captured brushes");

@@ -4,6 +4,7 @@
 #include "UiTokens.h"
 #include "DecisionSurface.h"
 #include "App.xaml.h"
+#include "UiSnapshotMailbox.h"
 
 #include "velocitycopy/diagnostics.hpp"
 
@@ -12,6 +13,14 @@ using namespace Microsoft::UI::Xaml;
 using namespace Microsoft::UI::Xaml::Controls;
 
 namespace winrt::VelocityCopyUI::implementation {
+
+void MainWindow::ClearLiveTelemetry() {
+    SpeedText().Text(L"—");
+    EtaText().Text(L"—");
+    DetailsSpeedText().Text(L"—");
+    DetailsEtaText().Text(L"—");
+    PerformanceCurrentSpeedText().Text(L"—");
+}
 
 void MainWindow::ResetCurrentItemState() noexcept {
     current_file_id_ = 0;
@@ -31,8 +40,7 @@ void MainWindow::SetExecutionButtonsPlanning() {
     TransferProgress().ShowPaused(false);
     TransferProgress().ShowError(false);
     RefreshEfficiencyMode();
-    SpeedText().Text(L"—");
-    EtaText().Text(L"—");
+    ClearLiveTelemetry();
     PauseIcon().Glyph(L"\xE769");
     PauseButton().IsEnabled(false);
     CancelButton().IsEnabled(true);
@@ -98,8 +106,7 @@ void MainWindow::SetExecutionButtonsConflict() {
     ApplyTransferVisualState(TransferVisualState::Warning);
     TransferProgress().ShowPaused(false);
     TransferProgress().ShowError(false);
-    SpeedText().Text(L"—");
-    EtaText().Text(L"—");
+    ClearLiveTelemetry();
     PauseIcon().Glyph(L"\xE769");
     PauseButton().IsEnabled(false);
     CancelButton().IsEnabled(true);
@@ -126,6 +133,7 @@ velocitycopy::JobResult MainWindow::RunLivePlanSession(
         });
     }
 
+    auto mailbox = std::make_shared<velocitycopy::ui::UiSnapshotMailbox>();
     velocitycopy::JobResult result{true, false, S_OK, false};
     for (;;) {
         auto options = executor_.recommend_options(*plan);
@@ -138,16 +146,20 @@ velocitycopy::JobResult MainWindow::RunLivePlanSession(
 
         result = executor_.execute(
             *plan, *control, options,
-            [this, weak, dispatcher, control, stop_token](const velocitycopy::JobProgress& progress) {
+            [this, weak, dispatcher, control, stop_token, mailbox](const velocitycopy::JobProgress& progress) {
                 if (stop_token.stop_requested() || cancel_requested_.load(std::memory_order_relaxed)) {
                     control->request_cancel();
                     return velocitycopy::JobDecision::Cancel;
                 }
                 if (auto snapshot = presenter_.observe(progress, GetTickCount64())) {
-                    const auto value = *snapshot;
-                    (void)dispatcher.TryEnqueue([weak, value]() {
-                        if (auto self = weak.get()) self->ApplySnapshot(value);
-                    });
+                    if (mailbox->publish(std::move(*snapshot))) {
+                        if (!dispatcher.TryEnqueue([weak, control, mailbox]() {
+                            const auto value = mailbox->consume();
+                            if (auto self = weak.get(); self && value && self->execution_control_ == control) {
+                                self->ApplySnapshot(*value);
+                            }
+                        })) mailbox->discard();
+                    }
                 }
                 return velocitycopy::JobDecision::Continue;
             });
@@ -307,8 +319,7 @@ void MainWindow::ResumeStoppedCopy() {
     presenter_.reset();
     // Preserve the stopped session's aggregate progress until the resumed executor
     // publishes its first authoritative snapshot. Reset only live telemetry.
-    SpeedText().Text(L"—");
-    EtaText().Text(L"—");
+    ClearLiveTelemetry();
     last_queue_completed_files_ = live_plan_->completed_files();
     execution_control_ = std::make_shared<velocitycopy::ExecutionControl>();
     if (!append_gate_) append_gate_ = std::make_shared<AppendGate>();
@@ -373,8 +384,7 @@ void MainWindow::OnPauseClick(IInspectable const&, RoutedEventArgs const&) {
         execution_control_->request_pause();
         paused_ = true;
         performance_sampling_state_ = PerformanceSamplingState::Paused;
-        SpeedText().Text(L"—");
-        EtaText().Text(L"—");
+        ClearLiveTelemetry();
     }
     TransferProgress().ShowPaused(paused_);
     TransferProgress().ShowError(false);
@@ -412,8 +422,7 @@ void MainWindow::OnStopClick(IInspectable const&, RoutedEventArgs const&) {
     current_file_skippable_ = false;
     execution_control_->request_stop();
     PauseButton().IsEnabled(false);
-    SpeedText().Text(L"—");
-    EtaText().Text(L"—");
+    ClearLiveTelemetry();
     RefreshExecutionMenuState();
 }
 
@@ -426,8 +435,7 @@ void MainWindow::CancelCurrentSession() {
     cancel_requested_.store(true, std::memory_order_relaxed);
     performance_sampling_state_ = PerformanceSamplingState::Cancelling;
     pending_resume_ = {};
-    SpeedText().Text(L"—");
-    EtaText().Text(L"—");
+    ClearLiveTelemetry();
     current_file_id_ = 0;
     current_file_skippable_ = false;
     deferred_same_destination_jobs_.clear();
@@ -455,8 +463,7 @@ void MainWindow::CancelCurrentSession() {
 
         SetExpanded(false);
         SetExecutionButtonsIdle();
-        SpeedText().Text(L"—");
-        EtaText().Text(L"—");
+        ClearLiveTelemetry();
         if (queued_sessions_.empty()) DestroyCompletedWindow();
         else StartNextQueuedSession();
         return;
@@ -466,7 +473,7 @@ void MainWindow::CancelCurrentSession() {
 void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
     // Progress callbacks are marshalled through DispatcherQueue. A snapshot that was
     // queued before a terminal/control transition must not repaint stale telemetry.
-    if (!execution_control_ || interrupted_session_ != InterruptedSessionState::None || stop_requested_ ||
+    if (paused_ || !execution_control_ || interrupted_session_ != InterruptedSessionState::None || stop_requested_ ||
         cancel_requested_.load(std::memory_order_relaxed)) return;
 
     const auto fraction = (std::clamp)(snapshot.fraction, 0.0, 1.0);
@@ -507,13 +514,17 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
 
     if (!snapshot.current_source.empty()) {
         const hstring source(snapshot.current_source.wstring());
-        if (SourcePathText().Text() != source) SourcePathText().Text(source);
-        ToolTipService::SetToolTip(SourcePathText(), box_value(source));
+        if (SourcePathText().Text() != source) {
+            SourcePathText().Text(source);
+            ToolTipService::SetToolTip(SourcePathText(), box_value(source));
+        }
     }
     if (!snapshot.current_destination.empty()) {
         const hstring destination(snapshot.current_destination.wstring());
-        if (DestinationPathText().Text() != destination) DestinationPathText().Text(destination);
-        ToolTipService::SetToolTip(DestinationPathText(), box_value(destination));
+        if (DestinationPathText().Text() != destination) {
+            DestinationPathText().Text(destination);
+            ToolTipService::SetToolTip(DestinationPathText(), box_value(destination));
+        }
     }
 
     const auto speed = FormatSpeed(snapshot.bytes_per_second);
@@ -532,13 +543,17 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
     if (PerformanceCurrentSpeedText().Text() != speed) PerformanceCurrentSpeedText().Text(speed);
     if (!snapshot.current_source.empty()) {
         const hstring source(snapshot.current_source.wstring());
-        if (DetailsSourceText().Text() != source) DetailsSourceText().Text(source);
-        ToolTipService::SetToolTip(DetailsSourceText(), box_value(source));
+        if (DetailsSourceText().Text() != source) {
+            DetailsSourceText().Text(source);
+            ToolTipService::SetToolTip(DetailsSourceText(), box_value(source));
+        }
     }
     if (!snapshot.current_destination.empty()) {
         const hstring destination(snapshot.current_destination.wstring());
-        if (DetailsDestinationText().Text() != destination) DetailsDestinationText().Text(destination);
-        ToolTipService::SetToolTip(DetailsDestinationText(), box_value(destination));
+        if (DetailsDestinationText().Text() != destination) {
+            DetailsDestinationText().Text(destination);
+            ToolTipService::SetToolTip(DetailsDestinationText(), box_value(destination));
+        }
     }
     ObservePerformanceSample(snapshot.bytes_per_second);
 
@@ -573,8 +588,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         SetExecutionButtonsStopped();
         RefreshQueue();
 
-        SpeedText().Text(L"—");
-        EtaText().Text(L"—");
+        ClearLiveTelemetry();
 
         auto deferred = std::move(deferred_interrupted_jobs_);
         deferred_interrupted_jobs_.clear();
@@ -597,8 +611,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         SetExecutionButtonsConflict();
         RefreshQueue();
 
-        SpeedText().Text(L"—");
-        EtaText().Text(L"—");
+        ClearLiveTelemetry();
 
         auto plan = live_plan_;
         auto gate = append_gate_;
@@ -632,8 +645,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         } catch (...) {}
         RefreshQueue();
 
-        SpeedText().Text(L"—");
-        EtaText().Text(L"—");
+        ClearLiveTelemetry();
         ShowRetryDecisionAsync();
         return;
     }
@@ -655,8 +667,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
 
         SetExpanded(false);
         SetExecutionButtonsIdle();
-        SpeedText().Text(L"—");
-        EtaText().Text(L"—");
+        ClearLiveTelemetry();
         try {
             CurrentItemText().Text(velocitycopy::localization::get_string(L"StatusCancelled"));
         } catch (...) {
@@ -679,8 +690,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
 
         SetExpanded(false);
         SetExecutionButtonsIdle();
-        SpeedText().Text(L"—");
-        EtaText().Text(L"—");
+        ClearLiveTelemetry();
         try {
             CurrentItemText().Text(velocitycopy::localization::get_string(L"StatusFailed"));
         } catch (...) {
@@ -725,8 +735,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
 
     SetExpanded(false);
     SetExecutionButtonsIdle();
-    SpeedText().Text(L"—");
-    EtaText().Text(L"—");
+    ClearLiveTelemetry();
     const bool completed_with_issues = result.outcomes.failed != 0 ||
         result.outcomes.skipped != 0 || result.outcomes.copied_source_retained != 0;
     if (queued_sessions_.empty()) {
