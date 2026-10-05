@@ -75,8 +75,9 @@ struct MainWindow : MainWindowT<MainWindow> {
     void OnQueueRemoveClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnQueueSelectionChanged(IInspectable const&, Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const&);
     void OnQueueKeyDown(IInspectable const&, Microsoft::UI::Xaml::Input::KeyRoutedEventArgs const&);
+    void OnQueuePointerWheelChanged(IInspectable const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&);
     void OnQueueDragItemsStarting(
-        Microsoft::UI::Xaml::Controls::ListViewBase const&,
+        IInspectable const&,
         Microsoft::UI::Xaml::Controls::DragItemsStartingEventArgs const&);
     void OnQueueDragItemsCompleted(
         Microsoft::UI::Xaml::Controls::ListViewBase const&,

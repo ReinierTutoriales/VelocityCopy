@@ -42,6 +42,14 @@ bool accepts_active_transfer_drop(
 MainWindow::MainWindow() {
     if (auto* app = App::Instance()) window_id_ = app->NextWindowId();
     InitializeComponent();
+    // ListView handles the mouse wheel internally. handledEventsToo lets
+    // Queue hand a wheel detent to the outer Narrow viewport only after the
+    // internal list reaches its boundary.
+    QueueList().AddHandler(
+        UIElement::PointerWheelChangedEvent(),
+        box_value(Microsoft::UI::Xaml::Input::PointerEventHandler{
+            this, &MainWindow::OnQueuePointerWheelChanged}),
+        true);
     // External Explorer drops must reach the window even when a child control
     // (notably ListView during its own reorder gesture) class-handles the
     // routed drag event. QueueList keeps AllowDrop/CanReorderItems for its

@@ -130,5 +130,30 @@ int main() {
         }
     }
 
+    // 7. Pointer wheel over Queue: ListView consumes the routed event. Register
+    // with handledEventsToo, keep native inner scrolling until a boundary, then
+    // move the outer Narrow viewport with ChangeView.
+    const auto wheel = body_of(queue, "void MainWindow::OnQueuePointerWheelChanged(");
+    if (wheel.size() < 500 ||
+        !contains(wheel, "outer.ScrollableHeight() <= 0.5") ||
+        !contains(wheel, "inner_can_scroll_up") ||
+        !contains(wheel, "inner_can_scroll_down") ||
+        !contains(wheel, "IsHorizontalMouseWheel()") ||
+        !contains(wheel, "outer.ChangeView(") ||
+        !contains(wheel, "args.Handled(true)") ||
+        contains(wheel, "ScrollToVerticalOffset")) {
+        return fail(23, "Queue wheel forwarding must preserve native list scrolling and hand off only at its limits");
+    }
+    if (!contains(window, "QueueList().AddHandler(") ||
+        !contains(window, "UIElement::PointerWheelChangedEvent()") ||
+        !contains(window, "&MainWindow::OnQueuePointerWheelChanged") ||
+        !contains(window, "true);") ||
+        contains(xaml, "PointerWheelChanged=")) {
+        return fail(24, "Queue wheel handler must use AddHandler with handledEventsToo rather than XAML routing");
+    }
+    if (!contains(tokens, "<x:Double x:Key=\"QueueWheelForwardStep\">48</x:Double>")) {
+        return fail(25, "documented default wheel handoff step token missing");
+    }
+
     return 0;
 }

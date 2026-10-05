@@ -361,8 +361,51 @@ void MainWindow::OnQueueRemoveClick(IInspectable const&, RoutedEventArgs const&)
     FinalizeConflictSessionIfEmpty();
 }
 
+void MainWindow::OnQueuePointerWheelChanged(IInspectable const&, PointerRoutedEventArgs const& args) {
+    // ListView consumes PointerWheelChanged, so the outer Narrow viewport never
+    // receives the wheel while the pointer is over Queue. Preserve native Queue
+    // scrolling until its internal viewer reaches the requested boundary, then
+    // hand the same detent to the outer viewport.
+    try {
+        const auto outer = ExpandedViewport();
+        if (!outer || outer.ScrollableHeight() <= 0.5) return;
+
+        const auto properties = args.GetCurrentPoint(QueueList()).Properties();
+        if (properties.IsHorizontalMouseWheel()) return;
+        const int wheel_delta = properties.MouseWheelDelta();
+        if (wheel_delta == 0) return;
+
+        const auto inner = find_scroll_viewer(QueueList());
+        if (inner && inner.ScrollableHeight() > 0.5) {
+            const bool inner_can_scroll_up = inner.VerticalOffset() > 0.5;
+            const bool inner_can_scroll_down =
+                inner.VerticalOffset() < inner.ScrollableHeight() - 0.5;
+            if ((wheel_delta > 0 && inner_can_scroll_up) ||
+                (wheel_delta < 0 && inner_can_scroll_down)) {
+                return;
+            }
+        }
+
+        // Microsoft documents 120 as one wheel detent and 48 DIP as the
+        // default three-line (3 x 16 DIP) vertical translation example.
+        const double notch_step =
+            velocitycopy::ui::token_double(L"QueueWheelForwardStep", 48);
+        const double step = notch_step * (static_cast<double>(wheel_delta) / 120.0);
+        const double target = (std::clamp)(
+            outer.VerticalOffset() - step, 0.0, outer.ScrollableHeight());
+        (void)outer.ChangeView(
+            nullptr,
+            Windows::Foundation::IReference<double>{target},
+            nullptr,
+            true);
+        args.Handled(true);
+    } catch (...) {
+        OutputDebugStringW(L"VelocityCopy: OnQueuePointerWheelChanged failed\n");
+    }
+}
+
 void MainWindow::OnQueueDragItemsStarting(
-    ListViewBase const&,
+    IInspectable const&,
     DragItemsStartingEventArgs const&) {
     queue_drag_active_ = true;
 }
