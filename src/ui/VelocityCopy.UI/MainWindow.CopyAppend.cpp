@@ -160,7 +160,7 @@ void MainWindow::EnqueueAppend(
                         return;
                     switch (append_result) {
                     case velocitycopy::LivePlanAppendResult::Appended:
-                        self->QueueButton().IsEnabled(true);
+
                         self->RefreshQueue();
                         self->ContinueInterruptedSessionAfterPlanning();
                         return;

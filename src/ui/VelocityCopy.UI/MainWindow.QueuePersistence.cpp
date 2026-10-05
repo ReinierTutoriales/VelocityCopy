@@ -157,13 +157,6 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
         menu.Items().Append(hide_to_tray_menu_item);
         queue_options_button_.Flyout(menu);
 
-        try {
-            const auto queue_label = velocitycopy::localization::get_string(L"ActionShowQueue");
-            ToolTipService::SetToolTip(QueueButton(), box_value(queue_label));
-            Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(QueueButton(), queue_label);
-        } catch (...) {
-        }
-
         RefreshQueueCommandState();
         RefreshExecutionMenuState();
     } catch (...) {
@@ -397,8 +390,7 @@ bool MainWindow::StartCopyPlan(
     queue_snapshot_.clear();
     QueueList().Items().Clear();
     QueueCountText().Text(L"0");
-    QueuePanel().Visibility(Visibility::Collapsed);
-    ResizeWindowToContent();
+    SetExpanded(false);
     SetProgressFraction(0.0);
 
     live_plan_ = live;

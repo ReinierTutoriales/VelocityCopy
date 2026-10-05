@@ -58,15 +58,17 @@
   <data name="RecoveryDiscard" xml:space="preserve"><value>Discard</value></data>
   <data name="RecoveryRestoreError" xml:space="preserve"><value>The saved recovery could not be restored. You can try again or discard it.</value></data>
   <data name="CurrentItemText.Text" xml:space="preserve"><value>Ready</value></data>
-  <data name="QueueTitle.Text" xml:space="preserve"><value>Pending files</value></data>
+  <data name="QueueTitle.Text" xml:space="preserve"><value>Pending</value></data>
   <data name="RetryDecisionTitle" xml:space="preserve"><value>Some items need attention</value></data>
   <data name="RetryDecisionMessage" xml:space="preserve"><value>The remaining failed items can be retried or left as failed.</value></data>
   <data name="ActionRetryAll" xml:space="preserve"><value>Retry all</value></data>
   <data name="ActionResolveFailures" xml:space="preserve"><value>Resolve failures</value></data>
   <data name="ActionSkipAll" xml:space="preserve"><value>Skip all</value></data>
   <data name="TransferCompletedFormat" xml:space="preserve"><value>{0} completed of {1}</value></data>
+  <data name="TransferCompletedSingularFormat" xml:space="preserve"><value>{0} completed of {1}</value></data>
 
 
+  <data name="ActionDetails" xml:space="preserve"><value>Details</value></data>
   <data name="ActionShowDetails" xml:space="preserve"><value>Show details</value></data>
 
   <data name="ActionHideDetails" xml:space="preserve"><value>Hide details</value></data>

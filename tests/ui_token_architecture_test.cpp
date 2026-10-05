@@ -31,7 +31,7 @@ int main(){
  const auto accessor=read_source(root/"src/ui/VelocityCopy.UI/UiTokens.h");
  const auto xaml=read_source(root/"src/ui/VelocityCopy.UI/MainWindow.xaml");
  if(tokens.empty()||accessor.empty()||xaml.empty()) return fail(1,"required UI token source missing");
- for(const auto* key:{"NormalWindowMinWidth","CaptionRowHeight","QueueExpandedMinHeight","QueueExpandedMaxHeight","ActionButtonSize","ActionIconSize","CaptionFontSize","BodyFontSize","SubtitleFontSize","PerformanceGraphHeight","AboutWindowWidth","AboutWindowHeight"})
+ for(const auto* key:{"NormalWindowMinWidth","CaptionRowHeight","QueueExpandedMinHeight","DetailsExpandedMinHeight","QueueExpandedMaxHeight","ActionButtonSize","ActionIconSize","CaptionFontSize","BodyFontSize","SubtitleFontSize","TransferProgressHeight","PerformanceGraphHeight","PerformanceAxisLabelMinWidth","AboutWindowWidth","AboutWindowHeight"})
   if(!contains(tokens,std::string("x:Key=\"")+key+"\"")) return fail(2,"required token missing");
  if(!contains(accessor,"Application::Current().Resources().Lookup")||!contains(accessor,"token_double")||!contains(accessor,"token_thickness")||!contains(read_source(root/"src/ui/VelocityCopy.UI/MainWindow.xaml.cpp"),"token_double(L\"CaptionRowHeight\", 32)")) return fail(3,"XAML/C++ token bridge incomplete");
  for(const auto* name:{"MainWindow.xaml.cpp","MainWindow.Queue.cpp","MainWindow.Conflict.cpp","MainWindow.Execution.cpp","MainWindow.QueuePersistence.cpp"}){
@@ -51,8 +51,9 @@ int main(){
   const auto source = read_source(entry_path.path());
   const auto total = count_occurrences(source, "token_double(") + count_occurrences(source, "token_int(") +
                      count_occurrences(source, "token_thickness(");
+  const auto normalized = std::regex_replace(source, std::regex{R"(\s+)"}, " ");
   std::size_t matched = 0;
-  for (std::sregex_iterator it(source.begin(), source.end(), read), end; it != end; ++it, ++matched) {
+  for (std::sregex_iterator it(normalized.begin(), normalized.end(), read), end; it != end; ++it, ++matched) {
    const auto kind = (*it)[1].str();
    const auto key = (*it)[2].str();
    const auto found = dictionary.find(key);
@@ -110,17 +111,35 @@ int main(){
   auto pad=values.find("TransferContentPadding"); if(pad==values.end()||pad->second.size()!=4) return false;
   for(const auto& [key,vals]:values) if(key.ends_with("FontSize")) for(double v:vals) if(v!=12&&v!=14&&v!=20) return false;
   for(const auto& [key,vals]:values) {
-   if(key.find("Opacity")!=std::string::npos||key.find("Radius")!=std::string::npos||key.find("FontSize")!=std::string::npos) continue;
+   if(key.find("Opacity")!=std::string::npos||key.find("Radius")!=std::string::npos||
+      key.find("FontSize")!=std::string::npos||key.ends_with("IconSize")) continue;
    for(double v:vals) if(std::fmod(v,4.0)!=0.0) return false;
   }
+  if(scalar("TransferItemIconSize")!=20||scalar("DecisionStatusIconSize")!=20||
+     scalar("SectionIconSize")!=16||scalar("QueueItemIconSize")!=16||
+     scalar("InformationIconSize")!=16||scalar("PathArrowIconSize")!=12) return false;
   for(const auto& [key,vals]:values) if(key.ends_with("Opacity")) return false;
   if(scalar("CaptionRowGridLength")!=scalar("CaptionRowHeight")) return false;
-  static const std::regex text_style{R"re(<Style x:Key="[^"]+" TargetType="TextBlock">[\s\S]*?<Setter Property="Foreground" Value="\{ThemeResource TextFillColor[^}]+\}"\s*/>[\s\S]*?</Style>)re"};
-  return contains(text,"SecondaryTextStyle")&&contains(text,"TertiaryTextStyle")&&count_occurrences(text,"TargetType=\"TextBlock\"")==static_cast<std::size_t>(std::distance(std::sregex_iterator(text.begin(),text.end(),text_style),std::sregex_iterator{}));
+  static const std::regex style_block{R"re(<Style x:Key="[^"]+" TargetType="(TextBlock|FontIcon)">([\s\S]*?)</Style>)re"};
+  static const std::regex themed_foreground{R"re(<Setter Property="Foreground" Value="\{ThemeResource [^}]+Brush\}"\s*/>)re"};
+  std::size_t text_style_count=0;
+  std::size_t icon_style_count=0;
+  for(std::sregex_iterator it(text.begin(),text.end(),style_block),end;it!=end;++it) {
+   const auto target=(*it)[1].str();
+   const auto body=(*it)[2].str();
+   if(!std::regex_search(body,themed_foreground)) return false;
+   if(target=="TextBlock") ++text_style_count;
+   else if(target=="FontIcon") ++icon_style_count;
+  }
+  return contains(text,"SecondaryTextStyle")&&contains(text,"TertiaryTextStyle")&&
+         count_occurrences(text,"TargetType=\"TextBlock\"")==text_style_count&&
+         count_occurrences(text,"TargetType=\"FontIcon\"")==icon_style_count;
  };
  if(!validate_design_tokens(tokens)) return fail(20,"design token invariants failed");
  auto mutate=[&](const std::string& from,const std::string& to){auto copy=tokens;auto pos=copy.find(from);if(pos==std::string::npos)return std::string{};copy.replace(pos,from.size(),to);return copy;};
  const std::vector<std::pair<std::string,std::string>> mutations={
+  {"<x:Double x:Key=\"DecisionStatusIconSize\">20</x:Double>","<x:Double x:Key=\"DecisionStatusIconSize\">19</x:Double>"},
+  {"<x:Double x:Key=\"SectionIconSize\">16</x:Double>","<x:Double x:Key=\"SectionIconSize\">15</x:Double>"},
   {"<x:Double x:Key=\"ActionIconSize\">16</x:Double>","<x:Double x:Key=\"ActionIconSize\">13</x:Double>"},
   {"<x:Double x:Key=\"ActionButtonSize\">32</x:Double>","<x:Double x:Key=\"ActionButtonSize\">32</x:Double><x:Double x:Key=\"QueueCommandButtonSize\">32</x:Double>"},
   {"<Thickness x:Key=\"QueueListMargin\">0,4,0,0</Thickness>","<Thickness x:Key=\"QueueListMargin\">0,7,0,0</Thickness>"},

@@ -10,13 +10,62 @@ using namespace Microsoft::UI::Xaml::Input;
 
 namespace winrt::VelocityCopyUI::implementation {
 
-void MainWindow::RefreshQueue() {
+namespace {
+ScrollViewer find_scroll_viewer(DependencyObject const& root) {
+    if (!root) return nullptr;
+    if (auto viewer = root.try_as<ScrollViewer>()) return viewer;
+    const auto child_count = Media::VisualTreeHelper::GetChildrenCount(root);
+    for (int index = 0; index < child_count; ++index) {
+        if (auto viewer = find_scroll_viewer(Media::VisualTreeHelper::GetChild(root, index))) {
+            return viewer;
+        }
+    }
+    return nullptr;
+}
+} // namespace
+
+
+bool MainWindow::ApplyQueueItemStyle(const bool narrow) {
+    if (narrow == queue_item_style_narrow_) return false;
+    try {
+        if (narrow) {
+            QueueList().ItemContainerStyle(
+                QueueList().Resources().Lookup(box_value(L"QueueNarrowListViewItemStyle")).as<Style>());
+        } else {
+            // ThreeColumn keeps the native ListViewItem container (DefaultListViewItemStyle).
+            QueueList().ClearValue(ItemsControl::ItemContainerStyleProperty());
+        }
+        queue_item_style_narrow_ = narrow;
+        return true;
+    } catch (...) {
+        OutputDebugStringW(L"VelocityCopy: ApplyQueueItemStyle failed\n");
+        return false;
+    }
+}
+
+void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
+    if (queue_drag_active_) {
+        queue_refresh_deferred_ = true;
+        queue_refresh_force_rebuild_ = queue_refresh_force_rebuild_ || force_visual_rebuild;
+        return;
+    }
+
+    // A container style only applies to containers created after it is set, so a style change
+    // is handled exactly like a forced visual rebuild.
+    const bool style_changed = ApplyQueueItemStyle(expanded_layout_mode_ == ExpandedLayoutMode::Narrow);
+    const bool rebuild_visuals = force_visual_rebuild || style_changed;
     auto items = QueueList().Items();
 
     auto append_visual = [&](const std::filesystem::path& source, const std::optional<std::uint64_t> id) {
-        StackPanel row;
-        row.Spacing(velocitycopy::ui::token_double(L"QueueItemLineSpacing", 4));
-        row.Margin(velocitycopy::ui::token_thickness(L"QueueItemPadding", Thickness{8, 4, 8, 4}));
+        const bool narrow = expanded_layout_mode_ == ExpandedLayoutMode::Narrow;
+        Grid row;
+        Thickness row_margin{};
+        if (narrow) {
+            row_margin = velocitycopy::ui::token_thickness(L"QueueNarrowItemMargin", Thickness{8, 4, 8, 4});
+        } else {
+            row_margin = velocitycopy::ui::token_thickness(L"QueueItemMargin", Thickness{8, 8, 8, 8});
+        }
+        row.Margin(row_margin);
         row.HorizontalAlignment(HorizontalAlignment::Stretch);
         if (id) {
             row.Tag(box_value(*id));
@@ -29,6 +78,26 @@ void MainWindow::RefreshQueue() {
         name.FontWeight(Windows::UI::Text::FontWeights::SemiBold());
         name.FontSize(velocitycopy::ui::token_double(L"BodyFontSize", 14));
 
+        FontIcon item_icon;
+        item_icon.Glyph(L"\xE8A5");
+        item_icon.FontSize(velocitycopy::ui::token_double(L"QueueItemIconSize", 16));
+        velocitycopy::ui::apply_icon_style(item_icon, L"SecondaryIconStyle");
+        item_icon.Margin(velocitycopy::ui::token_thickness(L"QueueItemIconMargin", Thickness{0, 0, 8, 0}));
+        item_icon.VerticalAlignment(VerticalAlignment::Center);
+        item_icon.IsHitTestVisible(false);
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetAccessibilityView(
+            item_icon,
+            Microsoft::UI::Xaml::Automation::Peers::AccessibilityView::Raw);
+
+        Grid name_line;
+        name_line.ColumnDefinitions().Append(ColumnDefinition{});
+        name_line.ColumnDefinitions().GetAt(0).Width(GridLength{0.0, GridUnitType::Auto});
+        name_line.ColumnDefinitions().Append(ColumnDefinition{});
+        name_line.ColumnDefinitions().GetAt(1).Width(GridLength{1.0, GridUnitType::Star});
+        Grid::SetColumn(name, 1);
+        name_line.Children().Append(item_icon);
+        name_line.Children().Append(name);
+
         TextBlock location;
         location.Text(hstring(source.parent_path().wstring()));
         location.TextTrimming(TextTrimming::CharacterEllipsis);
@@ -36,9 +105,30 @@ void MainWindow::RefreshQueue() {
         velocitycopy::ui::apply_text_style(location, L"SecondaryTextStyle");
         location.FontSize(velocitycopy::ui::token_double(L"CaptionFontSize", 12));
 
-        row.Children().Append(name);
+        if (narrow) {
+            row.ColumnDefinitions().Append(ColumnDefinition{});
+            row.ColumnDefinitions().GetAt(0).Width(GridLength{1.0, GridUnitType::Star});
+            row.ColumnDefinitions().Append(ColumnDefinition{});
+            row.ColumnDefinitions().GetAt(1).Width(GridLength{0.0, GridUnitType::Auto});
+            location.MaxWidth(velocitycopy::ui::token_double(L"QueueNarrowLocationMaxWidth", 160));
+            location.Margin(Thickness{8, 0, 0, 0});
+            Grid::SetColumn(location, 1);
+        } else {
+            row.RowDefinitions().Append(RowDefinition{});
+            row.RowDefinitions().GetAt(0).Height(GridLength{0.0, GridUnitType::Auto});
+            row.RowDefinitions().Append(RowDefinition{});
+            row.RowDefinitions().GetAt(1).Height(GridLength{0.0, GridUnitType::Auto});
+            row.RowSpacing(velocitycopy::ui::token_double(L"QueueItemLineSpacing", 4));
+            Grid::SetRow(location, 1);
+        }
+
+        row.Children().Append(name_line);
         row.Children().Append(location);
 
+        const auto full_path = source.wstring();
+        if (!full_path.empty()) {
+            ToolTipService::SetToolTip(row, box_value(hstring(full_path)));
+        }
         std::wstring accessible_name = source.filename().wstring();
         const auto parent = source.parent_path().wstring();
         if (!parent.empty()) {
@@ -85,7 +175,7 @@ void MainWindow::RefreshQueue() {
             [](const velocitycopy::PlannedFile& left, const velocitycopy::PlannedFile& right) {
                 return left.id == right.id && left.source == right.source && left.destination == right.destination && left.size == right.size;
             });
-    if (unchanged) {
+    if (unchanged && !rebuild_visuals) {
         QueueCountText().Text(hstring(std::format(L"{}", view.pending_count)));
         RefreshQueueCommandState();
         RefreshQueueEditCommandState();
@@ -93,6 +183,9 @@ void MainWindow::RefreshQueue() {
     }
 
     const auto selected_ids = SelectedPendingIds();
+    const auto queue_scroll_viewer = find_scroll_viewer(QueueList());
+    const std::optional<double> previous_vertical_offset =
+        queue_scroll_viewer ? std::optional<double>{queue_scroll_viewer.VerticalOffset()} : std::nullopt;
     std::optional<std::uint64_t> focused_id;
     if (auto focused = FocusManager::GetFocusedElement().try_as<FrameworkElement>()) {
         auto current = focused;
@@ -121,7 +214,7 @@ void MainWindow::RefreshQueue() {
     }
 
     const auto retained_count = previous_snapshot.size() - completed_prefix;
-    const bool can_trim_prefix = completed_prefix > 0 && completed_prefix < previous_snapshot.size() &&
+    const bool can_trim_prefix = !rebuild_visuals && completed_prefix > 0 && completed_prefix < previous_snapshot.size() &&
         queue_snapshot_.size() >= retained_count &&
         std::equal(previous_snapshot.begin() + completed_prefix, previous_snapshot.end(), queue_snapshot_.begin(),
             [](const velocitycopy::PlannedFile& left, const velocitycopy::PlannedFile& right) {
@@ -171,6 +264,17 @@ void MainWindow::RefreshQueue() {
                 break;
             }
         }
+    }
+
+    if (previous_vertical_offset && queue_scroll_viewer) {
+        QueueList().UpdateLayout();
+        const double target_offset = (std::clamp)(
+            *previous_vertical_offset, 0.0, queue_scroll_viewer.ScrollableHeight());
+        (void)queue_scroll_viewer.ChangeView(
+            nullptr,
+            Windows::Foundation::IReference<double>{target_offset},
+            nullptr,
+            true);
     }
 
     QueueCountText().Text(hstring(std::format(L"{}", view.pending_count)));
@@ -231,27 +335,6 @@ void MainWindow::OnQueueKeyDown(IInspectable const&, KeyRoutedEventArgs const& a
     }
 }
 
-void MainWindow::OnQueueClick(IInspectable const&, RoutedEventArgs const&) {
-    const bool expanding = QueuePanel().Visibility() != Visibility::Visible;
-    if (expanding) SetDetailsExpanded(false);
-    QueuePanel().Visibility(expanding ? Visibility::Visible : Visibility::Collapsed);
-    QueueChevron().Glyph(expanding ? L"\xE70E" : L"\xE70D");
-
-    try {
-        const auto label = velocitycopy::localization::get_string(expanding ? L"ActionHideQueue" : L"ActionShowQueue");
-        ToolTipService::SetToolTip(QueueButton(), box_value(label));
-        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(QueueButton(), label);
-    } catch (...) {
-    }
-
-    if (expanding) {
-        RefreshQueue();
-        ResizeWindowToContent();
-    } else {
-        ResizeWindowToContent();
-    }
-}
-
 void MainWindow::OnQueueMoveUpClick(IInspectable const&, RoutedEventArgs const&) {
     if (!live_plan_) {
         return;
@@ -278,10 +361,64 @@ void MainWindow::OnQueueRemoveClick(IInspectable const&, RoutedEventArgs const&)
     FinalizeConflictSessionIfEmpty();
 }
 
+void MainWindow::OnQueuePointerWheelChanged(IInspectable const&, PointerRoutedEventArgs const& args) {
+    // ListView consumes PointerWheelChanged, so the outer Narrow viewport never
+    // receives the wheel while the pointer is over Queue. Preserve native Queue
+    // scrolling until its internal viewer reaches the requested boundary, then
+    // hand the same detent to the outer viewport.
+    try {
+        const auto outer = ExpandedViewport();
+        if (!outer || outer.ScrollableHeight() <= 0.5) return;
+
+        const auto properties = args.GetCurrentPoint(QueueList()).Properties();
+        if (properties.IsHorizontalMouseWheel()) return;
+        const int wheel_delta = properties.MouseWheelDelta();
+        if (wheel_delta == 0) return;
+
+        const auto inner = find_scroll_viewer(QueueList());
+        if (inner && inner.ScrollableHeight() > 0.5) {
+            const bool inner_can_scroll_up = inner.VerticalOffset() > 0.5;
+            const bool inner_can_scroll_down =
+                inner.VerticalOffset() < inner.ScrollableHeight() - 0.5;
+            if ((wheel_delta > 0 && inner_can_scroll_up) ||
+                (wheel_delta < 0 && inner_can_scroll_down)) {
+                return;
+            }
+        }
+
+        // Microsoft documents 120 as one wheel detent and 48 DIP as the
+        // default three-line (3 x 16 DIP) vertical translation example.
+        const double notch_step =
+            velocitycopy::ui::token_double(L"QueueWheelForwardStep", 48);
+        const double step = notch_step * (static_cast<double>(wheel_delta) / 120.0);
+        const double target = (std::clamp)(
+            outer.VerticalOffset() - step, 0.0, outer.ScrollableHeight());
+        (void)outer.ChangeView(
+            nullptr,
+            Windows::Foundation::IReference<double>{target},
+            nullptr,
+            true);
+        args.Handled(true);
+    } catch (...) {
+        OutputDebugStringW(L"VelocityCopy: OnQueuePointerWheelChanged failed\n");
+    }
+}
+
+void MainWindow::OnQueueDragItemsStarting(
+    IInspectable const&,
+    DragItemsStartingEventArgs const&) {
+    queue_drag_active_ = true;
+}
+
 void MainWindow::OnQueueDragItemsCompleted(
     ListViewBase const&,
     DragItemsCompletedEventArgs const&) {
+    queue_drag_active_ = false;
+    const bool force_visual_rebuild = std::exchange(queue_refresh_force_rebuild_, false);
+    queue_refresh_deferred_ = false;
+
     if (!live_plan_) {
+        RefreshQueue(force_visual_rebuild);
         return;
     }
 
@@ -297,7 +434,7 @@ void MainWindow::OnQueueDragItemsCompleted(
     }
 
     (void)live_plan_->reorder_pending_files(ordered_ids);
-    RefreshQueue();
+    RefreshQueue(force_visual_rebuild);
 }
 
 } // namespace winrt::VelocityCopyUI::implementation

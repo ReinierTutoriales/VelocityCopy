@@ -27,6 +27,7 @@ void MainWindow::ResetInterruptedSessionState() noexcept {
 
 void MainWindow::SetExecutionButtonsPlanning() {
     performance_sampling_state_ = PerformanceSamplingState::Planning;
+    ApplyTransferVisualState(TransferVisualState::Active);
     TransferProgress().ShowPaused(false);
     TransferProgress().ShowError(false);
     RefreshEfficiencyMode();
@@ -41,6 +42,7 @@ void MainWindow::SetExecutionButtonsPlanning() {
 
 void MainWindow::SetExecutionButtonsRunning() {
     performance_sampling_state_ = PerformanceSamplingState::Copying;
+    ApplyTransferVisualState(TransferVisualState::Active);
     TransferProgress().ShowPaused(false);
     TransferProgress().ShowError(false);
     RefreshEfficiencyMode();
@@ -61,7 +63,7 @@ void MainWindow::SetExecutionButtonsIdle() {
     TransferProgress().ShowPaused(false);
     PauseButton().IsEnabled(false);
     CancelButton().IsEnabled(false);
-    QueueButton().IsEnabled(true);
+
     ResetCurrentItemState();
     pending_resume_ = {};
     PauseIcon().Glyph(L"\xE769");
@@ -93,6 +95,7 @@ void MainWindow::SetExecutionButtonsStopped() {
 
 void MainWindow::SetExecutionButtonsConflict() {
     performance_sampling_state_ = PerformanceSamplingState::Conflict;
+    ApplyTransferVisualState(TransferVisualState::Warning);
     TransferProgress().ShowPaused(false);
     TransferProgress().ShowError(false);
     SpeedText().Text(L"—");
@@ -233,9 +236,8 @@ void MainWindow::StartTransfer(velocitycopy::CopyJob job, velocitycopy::StorageK
     queue_snapshot_.clear();
     QueueList().Items().Clear();
     QueueCountText().Text(L"0");
-    QueueButton().IsEnabled(true);
-    QueuePanel().Visibility(Visibility::Collapsed);
-    ResizeWindowToContent();
+
+    SetExpanded(false);
     SetProgressFraction(0.0);
     SetExecutionButtonsPlanning();
     CurrentItemText().Text(job.display_name.empty() ? hstring(L"…") : hstring(job.display_name));
@@ -336,7 +338,7 @@ void MainWindow::StartNextQueuedSession() {
 
 void MainWindow::PublishLivePlan(std::shared_ptr<velocitycopy::LiveCopyPlan> plan) {
     live_plan_ = std::move(plan);
-    QueueButton().IsEnabled(true);
+
     RefreshQueue();
     if (!stop_requested_) SetExecutionButtonsRunning();
 
@@ -385,6 +387,7 @@ void MainWindow::OnPauseClick(IInspectable const&, RoutedEventArgs const&) {
         // Localization failure must never mutate the execution state.
     }
     RefreshExecutionMenuState();
+    ScheduleTelemetryGeometryProbe();
 }
 
 void MainWindow::OnSkipClick(IInspectable const&, RoutedEventArgs const&) {
@@ -449,10 +452,8 @@ void MainWindow::CancelCurrentSession() {
         queue_snapshot_.clear();
         QueueList().Items().Clear();
         QueueCountText().Text(L"0");
-        QueueButton().IsEnabled(false);
-        QueuePanel().Visibility(Visibility::Collapsed);
-        QueueChevron().Glyph(L"\xE70D");
-        ResizeWindowToContent();
+
+        SetExpanded(false);
         SetExecutionButtonsIdle();
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
@@ -491,7 +492,10 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
 
     hstring files_text;
     try {
-        const auto pattern = velocitycopy::localization::get_string(L"TransferCompletedFormat");
+        const auto pattern = velocitycopy::localization::get_string(
+            snapshot.completed_files == 1
+                ? L"TransferCompletedSingularFormat"
+                : L"TransferCompletedFormat");
         files_text = hstring(std::vformat(
             std::wstring_view{pattern.c_str(), pattern.size()},
             std::make_wformat_args(snapshot.completed_files, snapshot.total_files)));
@@ -516,6 +520,10 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
     if (SpeedText().Text() != speed) SpeedText().Text(speed);
     const auto eta = FormatEta(snapshot.eta_seconds);
     if (EtaText().Text() != eta) EtaText().Text(eta);
+    if ((snapshot.bytes_per_second > 0.0) != geometry_probe_speed_active_) {
+        geometry_probe_speed_active_ = snapshot.bytes_per_second > 0.0;
+        ScheduleTelemetryGeometryProbe();
+    }
 
     if (DetailsBytesText().Text() != bytes_text) DetailsBytesText().Text(bytes_text);
     if (DetailsFilesText().Text() != files_text) DetailsFilesText().Text(files_text);
@@ -534,7 +542,7 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
     }
     ObservePerformanceSample(snapshot.bytes_per_second);
 
-    if (QueuePanel().Visibility() == Visibility::Visible && snapshot.completed_files != last_queue_completed_files_) {
+    if (expanded_ && snapshot.completed_files != last_queue_completed_files_) {
         last_queue_completed_files_ = snapshot.completed_files;
         RefreshQueue();
     }
@@ -564,7 +572,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         }
         SetExecutionButtonsStopped();
         RefreshQueue();
-        QueueButton().IsEnabled(live_plan_ && (live_plan_->remaining_files() != 0 || live_plan_->has_pending_directories()));
+
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
 
@@ -588,7 +596,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         active_operation_ = live_plan_->operation();
         SetExecutionButtonsConflict();
         RefreshQueue();
-        QueueButton().IsEnabled(live_plan_->remaining_files() != 0 || live_plan_->has_pending_directories());
+
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
 
@@ -614,6 +622,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         active_destination_ = live_plan_->destination_root();
         active_operation_ = live_plan_->operation();
         SetExecutionButtonsConflict();
+        ApplyTransferVisualState(TransferVisualState::Error);
         PauseIcon().Glyph(L"\xE72C");
         PauseButton().IsEnabled(true);
         try {
@@ -622,7 +631,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
             Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), label);
         } catch (...) {}
         RefreshQueue();
-        QueueButton().IsEnabled(live_plan_->remaining_files() != 0 || live_plan_->has_pending_directories());
+
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
         ShowRetryDecisionAsync();
@@ -643,10 +652,8 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         live_plan_.reset();
         active_destination_.clear();
         RefreshQueue();
-        QueueButton().IsEnabled(false);
-        QueuePanel().Visibility(Visibility::Collapsed);
-        QueueChevron().Glyph(L"\xE70D");
-        ResizeWindowToContent();
+
+        SetExpanded(false);
         SetExecutionButtonsIdle();
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
@@ -669,10 +676,8 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         live_plan_.reset();
         active_destination_.clear();
         RefreshQueue();
-        QueueButton().IsEnabled(false);
-        QueuePanel().Visibility(Visibility::Collapsed);
-        QueueChevron().Glyph(L"\xE70D");
-        ResizeWindowToContent();
+
+        SetExpanded(false);
         SetExecutionButtonsIdle();
         SpeedText().Text(L"—");
         EtaText().Text(L"—");
@@ -717,10 +722,8 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     live_plan_.reset();
     active_destination_.clear();
     RefreshQueue();
-    QueueButton().IsEnabled(false);
-    QueuePanel().Visibility(Visibility::Collapsed);
-    QueueChevron().Glyph(L"\xE70D");
-    ResizeWindowToContent();
+
+    SetExpanded(false);
     SetExecutionButtonsIdle();
     SpeedText().Text(L"—");
     EtaText().Text(L"—");
@@ -734,10 +737,13 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
                 const auto failed_label = velocitycopy::localization::get_string(L"OutcomeFailed");
                 const auto skipped_label = velocitycopy::localization::get_string(L"OutcomeSkipped");
                 const auto retained_label = velocitycopy::localization::get_string(L"OutcomeSourceRetained");
+                const auto completed_with_issues_title =
+                    velocitycopy::localization::get_string(L"StatusCompletedWithIssues");
                 ShowNotice(
                     result.outcomes.failed == 0 && result.outcomes.copied_source_retained == 0
                         ? InfoBarSeverity::Warning
                         : InfoBarSeverity::Error,
+                    completed_with_issues_title,
                     hstring(std::format(
                     L"{}: {}, {}: {}, {}: {}",
                     failed_label.c_str(),
@@ -789,6 +795,7 @@ fire_and_forget MainWindow::ShowRetryDecisionAsync() {
             velocitycopy::localization::get_string(L"ActionCancel").c_str(),
             {},
             true,
+            velocitycopy::ui::DecisionTone::Error,
         }));
         if (tray_exit_requested_ || session_ending_) co_return;
         if (interrupted_session_ != InterruptedSessionState::Decision || !live_plan_) co_return;
@@ -886,10 +893,8 @@ void MainWindow::FinalizeStoppedSessionIfEmpty() {
     append_gate_.reset();
     active_destination_.clear();
     RefreshQueue();
-    QueueButton().IsEnabled(false);
-    QueuePanel().Visibility(Visibility::Collapsed);
-    QueueChevron().Glyph(L"\xE70D");
-    ResizeWindowToContent();
+
+    SetExpanded(false);
     SetExecutionButtonsIdle();
     SetProgressFraction(1.0);
     if (queued_sessions_.empty()) DestroyCompletedWindow();

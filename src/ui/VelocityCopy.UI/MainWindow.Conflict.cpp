@@ -72,7 +72,7 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
             velocitycopy::localization::get_string(L"ConflictApplyToAll").c_str();
         const auto decision = velocitycopy::ui::decode_decision(co_await RequestDecisionAsync({
             hwnd_, title, message, detail, replace_label, skip_label, cancel_label,
-            apply_to_all_label, true,
+            apply_to_all_label, true, velocitycopy::ui::DecisionTone::Warning,
         }));
 
         if (tray_exit_requested_ || session_ending_) co_return;
@@ -185,10 +185,8 @@ void MainWindow::FinalizeConflictSessionIfEmpty() {
     append_gate_.reset();
     active_destination_.clear();
     RefreshQueue();
-    QueueButton().IsEnabled(false);
-    QueuePanel().Visibility(Visibility::Collapsed);
-    QueueChevron().Glyph(L"\xE70D");
-    ResizeWindowToContent();
+
+    SetExpanded(false);
     SetExecutionButtonsIdle();
     SpeedText().Text(L"—");
     EtaText().Text(L"—");
