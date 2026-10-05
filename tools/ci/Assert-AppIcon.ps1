@@ -45,6 +45,7 @@ if ($ico.Length -lt 6 -or (U16 $ico 0) -ne 0 -or (U16 $ico 2) -ne 1) { throw 'In
 $count = U16 $ico 4
 if ($ico.Length -lt 6 + 16 * $count) { throw 'Truncated ICO directory' }
 $frames = @{}
+$frameData = @{}
 for ($i=0; $i -lt $count; $i++) {
     $entry = 6 + 16 * $i
     $width = if ($ico[$entry]) { [int]$ico[$entry] } else { 256 }
@@ -56,21 +57,29 @@ for ($i=0; $i -lt $count; $i++) {
     $bytes = [byte[]]::new($length)
     [Array]::Copy($ico, $offset, $bytes, 0, $length)
     $frames[$width] = Hash $bytes
+    $frameData[$width] = $bytes
 }
 foreach ($size in @(16,20,24,28,32,40,48,64,80,96,128,256)) {
     if (!$frames.ContainsKey($size)) { throw "Missing icon resolution: $size" }
 }
 
-# Exercise the native ICO decoder, including PNG-backed 256px icons. The solid
-# silhouette must fill the canvas optically; transparent padding must not regress.
+# Decode the DIB-backed ICO images and the embedded 256px PNG explicitly.
+# System.Drawing.Icon can select a smaller frame despite a 256px size request;
+# decoding the actual PNG payload avoids measuring the wrong image.
+# The solid silhouette must fill the canvas optically; padding must not regress.
 Add-Type -AssemblyName System.Drawing
 foreach ($size in @(16,32,48,256)) {
-    $stream = [IO.MemoryStream]::new($ico, $false)
+    $imageBytes = if ($size -eq 256) { $frameData[$size] } else { $ico }
+    $stream = [IO.MemoryStream]::new([byte[]]$imageBytes, $false)
     $icon = $null
     $bitmap = $null
     try {
-        $icon = [Drawing.Icon]::new($stream, $size, $size)
-        $bitmap = $icon.ToBitmap()
+        if ($size -eq 256) {
+            $bitmap = [Drawing.Bitmap]::new($stream)
+        } else {
+            $icon = [Drawing.Icon]::new($stream, $size, $size)
+            $bitmap = $icon.ToBitmap()
+        }
         if ($bitmap.Width -ne $size -or $bitmap.Height -ne $size) { throw "ICO decoding selected incorrect size: $size" }
         $left = $size; $top = $size; $right = -1; $bottom = -1
         for ($y=0; $y -lt $size; $y++) {
