@@ -120,10 +120,17 @@ int main(){
      scalar("InformationIconSize")!=16||scalar("PathArrowIconSize")!=12) return false;
   for(const auto& [key,vals]:values) if(key.ends_with("Opacity")) return false;
   if(scalar("CaptionRowGridLength")!=scalar("CaptionRowHeight")) return false;
-  static const std::regex text_style{R"re(<Style x:Key="[^"]+" TargetType="TextBlock">[\s\S]*?<Setter Property="Foreground" Value="\{ThemeResource TextFillColor[^}]+\}"\s*/>[\s\S]*?</Style>)re"};
-  static const std::regex icon_style{R"re(<Style x:Key="[^"]+" TargetType="FontIcon">[\s\S]*?<Setter Property="Foreground" Value="\{ThemeResource [^}]+Brush\}"\s*/>[\s\S]*?</Style>)re"};
-  const auto text_style_count=static_cast<std::size_t>(std::distance(std::sregex_iterator(text.begin(),text.end(),text_style),std::sregex_iterator{}));
-  const auto icon_style_count=static_cast<std::size_t>(std::distance(std::sregex_iterator(text.begin(),text.end(),icon_style),std::sregex_iterator{}));
+  static const std::regex style_block{R"re(<Style x:Key="[^"]+" TargetType="(TextBlock|FontIcon)">([\s\S]*?)</Style>)re"};
+  static const std::regex themed_foreground{R"re(<Setter Property="Foreground" Value="\{ThemeResource [^}]+Brush\}"\s*/>)re"};
+  std::size_t text_style_count=0;
+  std::size_t icon_style_count=0;
+  for(std::sregex_iterator it(text.begin(),text.end(),style_block),end;it!=end;++it) {
+   const auto target=(*it)[1].str();
+   const auto body=(*it)[2].str();
+   if(!std::regex_search(body,themed_foreground)) return false;
+   if(target=="TextBlock") ++text_style_count;
+   else if(target=="FontIcon") ++icon_style_count;
+  }
   return contains(text,"SecondaryTextStyle")&&contains(text,"TertiaryTextStyle")&&
          count_occurrences(text,"TargetType=\"TextBlock\"")==text_style_count&&
          count_occurrences(text,"TargetType=\"FontIcon\"")==icon_style_count;

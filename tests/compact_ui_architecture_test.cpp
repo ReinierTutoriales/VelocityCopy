@@ -523,7 +523,7 @@ int main() {
     if (contains(finish_copy, "ErrorBar().Severity(") ||
         !contains(finish_copy, "ShowNotice(") ||
         !contains(finish_copy, "? InfoBarSeverity::Warning") ||
-        !contains(show_error, "ShowNotice(InfoBarSeverity::Error, message)") ||
+        !contains(show_error, "ShowNotice(InfoBarSeverity::Error, title, message)") ||
         count_occurrences(window, "ErrorBar().Severity(") != 1) {
         return fail(41, "notice severity must be explicit per message and ordinary errors must always use Error severity");
     }
