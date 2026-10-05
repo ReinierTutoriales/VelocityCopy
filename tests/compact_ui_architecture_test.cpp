@@ -419,11 +419,14 @@ int main() {
         !contains(narrow_branch, "ExpandedViewport().VerticalScrollBarVisibility(ScrollBarVisibility::Auto)") ||
         !contains(resize_to_content, "ExpandedViewport().MaxHeight(expanded_height_cap)") ||
         !contains(resize_to_content, "DetailsExpandedMinHeight") ||
-        !contains(resize_to_content, "const double required_content_height = queue_min_height + details_min_height;") ||
+        !contains(resize_to_content, "const double details_required_height = (std::max)(") ||
+        !contains(resize_to_content, "details_min_height, performance_height + information_height") ||
+        !contains(resize_to_content, "const double required_content_height = queue_min_height + details_required_height;") ||
         !contains(resize_to_content, "const bool constrained_height = content_cap < required_content_height;") ||
+        !contains(resize_to_content, "ExpandedRow1().Height(GridLength{1.0, GridUnitType::Auto})") ||
         !contains(resize_to_content, "ExpandedViewport().IsTabStop(constrained_height)") ||
         !contains(resize_to_content, "const double queue_height = queue_min_height;") ||
-        !contains(resize_to_content, "? details_min_height") ||
+        !contains(resize_to_content, "queue_height + details_required_height + padding_height") ||
         !contains(resize_to_content, "expanded_region_height = constrained_height") ||
         !contains(resize_to_content, "? expanded_height_cap") ||
         contains(resize_to_content, "fixed_content_height") ||

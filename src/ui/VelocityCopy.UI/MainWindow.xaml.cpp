@@ -460,14 +460,17 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
     } else {
         const double padding_height = expanded_padding.Top + expanded_padding.Bottom;
         const double content_cap = (std::max)(1.0, expanded_height_cap - padding_height);
-        const double required_content_height = queue_min_height + details_min_height;
+        const double details_required_height = (std::max)(
+            details_min_height, performance_height + information_height);
+        const double required_content_height = queue_min_height + details_required_height;
         const bool constrained_height = content_cap < required_content_height;
         const double queue_height = queue_min_height;
-        const double details_height = constrained_height
-            ? details_min_height
-            : (std::max)(details_min_height, content_cap - queue_height);
         ExpandedRow0().Height(GridLength{queue_height, GridUnitType::Pixel});
-        ExpandedRow1().Height(GridLength{details_height, GridUnitType::Pixel});
+        // Let DetailsGrid keep its measured desired height. When the combined
+        // Queue + Performance + Information extent exceeds the viewport cap,
+        // the outer ScrollViewer must own the overflow instead of clipping
+        // Information inside a fixed 128 epx details row.
+        ExpandedRow1().Height(GridLength{1.0, GridUnitType::Auto});
         ExpandedViewport().VerticalScrollMode(
             constrained_height ? ScrollMode::Auto : ScrollMode::Disabled);
         ExpandedViewport().VerticalScrollBarVisibility(
@@ -475,7 +478,7 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
         ExpandedViewport().IsTabStop(constrained_height);
         expanded_region_height = constrained_height
             ? expanded_height_cap
-            : queue_height + details_height + padding_height;
+            : queue_height + details_required_height + padding_height;
     }
 
     ResizeWindow(
