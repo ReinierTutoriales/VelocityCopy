@@ -28,5 +28,7 @@ int main() {
  if(conflict.find("tray_exit_requested_ || session_ending_") == std::string::npos ||
     execution.find("tray_exit_requested_ || session_ending_") == std::string::npos) return 9;
  if(header.find("pending_conflict_") != std::string::npos || conflict.find("ShowPendingConflictDecision") != std::string::npos) return 10;
+ if(conflict.find("DecisionTone::Warning") == std::string::npos ||
+    execution.find("DecisionTone::Error") == std::string::npos) return 11;
  return 0;
 }

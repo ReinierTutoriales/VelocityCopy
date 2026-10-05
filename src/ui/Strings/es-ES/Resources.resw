@@ -58,15 +58,17 @@
   <data name="RecoveryDiscard" xml:space="preserve"><value>Descartar</value></data>
   <data name="RecoveryRestoreError" xml:space="preserve"><value>No se pudo restaurar la recuperación guardada. Puedes volver a intentarlo o descartarla.</value></data>
   <data name="CurrentItemText.Text" xml:space="preserve"><value>Listo</value></data>
-  <data name="QueueTitle.Text" xml:space="preserve"><value>Archivos pendientes</value></data>
+  <data name="QueueTitle.Text" xml:space="preserve"><value>Pendientes</value></data>
   <data name="RetryDecisionTitle" xml:space="preserve"><value>Algunos elementos requieren atención</value></data>
   <data name="RetryDecisionMessage" xml:space="preserve"><value>Los elementos fallidos restantes se pueden reintentar o dejar como fallidos.</value></data>
   <data name="ActionRetryAll" xml:space="preserve"><value>Reintentar todos</value></data>
   <data name="ActionResolveFailures" xml:space="preserve"><value>Resolver errores</value></data>
   <data name="ActionSkipAll" xml:space="preserve"><value>Omitir todos</value></data>
   <data name="TransferCompletedFormat" xml:space="preserve"><value>{0} completados de {1}</value></data>
+  <data name="TransferCompletedSingularFormat" xml:space="preserve"><value>{0} completado de {1}</value></data>
 
 
+  <data name="ActionDetails" xml:space="preserve"><value>Detalles</value></data>
   <data name="ActionShowDetails" xml:space="preserve"><value>Mostrar detalles</value></data>
 
   <data name="ActionHideDetails" xml:space="preserve"><value>Ocultar detalles</value></data>

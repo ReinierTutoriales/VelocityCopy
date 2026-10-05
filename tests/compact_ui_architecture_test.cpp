@@ -1,5 +1,6 @@
 #include "architecture_support.hpp"
 
+#include <regex>
 #include <filesystem>
 #include <iostream>
 #include <string>
@@ -14,6 +15,15 @@ bool contains(const std::string& text, const std::string& value) {
     return text.find(value) != std::string::npos;
 }
 
+std::string brace_body_at(const std::string& text, const std::size_t open) {
+    if (open == std::string::npos || open >= text.size() || text[open] != '{') return {};
+    int depth = 0;
+    for (std::size_t i = open; i < text.size(); ++i) {
+        if (text[i] == '{') ++depth;
+        else if (text[i] == '}' && --depth == 0) return text.substr(open + 1, i - open - 1);
+    }
+    return {};
+}
 
 int fail(const int code, const char* message) {
     std::cerr << "compact UI architecture contract " << code << ": " << message << '\n';
@@ -28,15 +38,46 @@ int main() {
     const auto execution = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Execution.cpp");
     const auto queue = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Queue.cpp");
     const auto menu = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.QueuePersistence.cpp");
+    const auto queue_persistence = menu;
     const auto window = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
     const auto tokens = read_source(root / "src/ui/DesignTokens.xaml");
     const auto spec = read_source(root / "docs/UI_SPEC.md");
     const auto conflict = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Conflict.cpp");
     const auto about = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.About.cpp");
+    const auto strings_en = read_source(root / "src/ui/Strings/en-US/Resources.resw");
+    const auto strings_es = read_source(root / "src/ui/Strings/es-ES/Resources.resw");
+    bool stray_expanded_visibility_writer = false;
+    bool stray_queue_button_reference = false;
+    const auto ui_dir = root / "src/ui/VelocityCopy.UI";
+    for (const auto& entry : std::filesystem::directory_iterator(ui_dir)) {
+        if (!entry.is_regular_file()) continue;
+        const auto name = entry.path().filename().string();
+        if (!name.starts_with("MainWindow") || entry.path().extension() != ".cpp" ||
+            name == "MainWindow.xaml.cpp") continue;
+        const auto source = read_source(entry.path());
+        if (contains(source, "QueueButton")) stray_queue_button_reference = true;
+        if (contains(source, "QueuePanel().Visibility(") ||
+            contains(source, "DetailsPanel().Visibility(")) {
+            stray_expanded_visibility_writer = true;
+        }
+    }
 
     if (xaml.empty() || header.empty() || execution.empty() || queue.empty() ||
-        menu.empty() || window.empty() || tokens.empty() || spec.empty() || conflict.empty() || about.empty()) {
+        menu.empty() || window.empty() || tokens.empty() || spec.empty() || conflict.empty() || about.empty() ||
+        strings_en.empty() || strings_es.empty()) {
         return fail(1, "required UI source missing");
+    }
+
+    if (!contains(queue, "expanded_layout_mode_ == ExpandedLayoutMode::Narrow") ||
+        !contains(queue, "QueueNarrowItemMargin") ||
+        !contains(queue, "QueueNarrowLocationMaxWidth") ||
+        !contains(queue, "ToolTipService::SetToolTip(row") ||
+        !contains(queue, "AutomationProperties::SetName(row") ||
+        !contains(queue, "RefreshQueue(const bool force_visual_rebuild)") ||
+        !contains(queue, "unchanged && !rebuild_visuals") ||
+        !contains(window, "RefreshQueue(true)") ||
+        !contains(window, "previous_layout_mode != expanded_layout_mode_")) {
+        return fail(47, "queue rows must compact in Narrow without replacing native ListViewItem behavior and must rebuild when layout mode changes");
     }
 
     if (!contains(xaml, "x:Name=\"TransferSurface\"") ||
@@ -56,7 +97,7 @@ int main() {
         !contains(xaml, "x:Name=\"CancelButton\"") ||
         !contains(xaml, "x:Name=\"OptionsButton\"") ||
         !contains(xaml, "x:Name=\"DetailsButton\"") ||
-        !contains(xaml, "x:Name=\"QueueButton\"")) {
+        contains(xaml, "x:Name=\"QueueButton\"")) {
         return fail(2, "collapsed surface must separate telemetry from the right-aligned primary actions");
     }
 
@@ -68,23 +109,24 @@ int main() {
         return fail(3, "telemetry must not share the caption-constrained filename row");
     }
 
-    // UI_SPEC: the compact surface has exactly four primary actions (Pause/Resume,
-    // Cancel, Options, queue disclosure). Skip and Stop are Options menu commands
-    // only, with dynamic enablement; no visible or hidden XAML buttons.
+    // UI_SPEC: the compact surface has four actions total. Pause/Resume, Cancel
+    // and Options stay in the operational cluster; Details is isolated at the far
+    // right. Skip and Stop remain Options menu commands only.
     const auto refresh_menu = body_of(menu, "void MainWindow::RefreshExecutionMenuState(");
     const auto cluster_start = xaml.find("x:Name=\"PrimaryActionCluster\"");
     const auto cluster_end = cluster_start == std::string::npos ? std::string::npos
                                                                 : xaml.find("</StackPanel>", cluster_start);
-    const auto primary_action_count = cluster_end == std::string::npos
+    const auto clustered_action_count = cluster_end == std::string::npos
         ? 0
-        : count_occurrences(xaml.substr(cluster_start, cluster_end - cluster_start), "<Button");
+        : count_occurrences(xaml.substr(cluster_start, cluster_end - cluster_start), "<Button x:Name=");
     if (contains(xaml, "SkipButton") || contains(xaml, "StopButton") ||
         contains(xaml, "OnSkipClick") || contains(xaml, "OnStopClick") ||
         contains(execution, "SkipButton()") || contains(execution, "StopButton()") ||
         contains(window, "SkipButton()") || contains(window, "StopButton()") ||
         contains(header, "RefreshExecutionButtonState") ||
         contains(tokens, "SkipIconSize") || contains(tokens, "StopIconSize") ||
-        primary_action_count != 5 ||
+        clustered_action_count != 3 ||
+        count_occurrences(xaml, "x:Name=\"DetailsButton\"") != 1 ||
         !contains(menu, "skip_menu_item_.Click({this, &MainWindow::OnMenuSkipClick})") ||
         !contains(menu, "stop_menu_item_.Click({this, &MainWindow::OnMenuStopClick})") ||
         !contains(refresh_menu, "skip_menu_item_.IsEnabled(velocitycopy::can_skip_current_file(") ||
@@ -104,7 +146,7 @@ int main() {
         const auto glyph = element.find("Glyph=\"");
         return glyph == std::string::npos ? std::string{} : element.substr(glyph + 7, 8);
     };
-    if (glyph_of("QueueButton") != "&#xE70D;" ||
+    if (
         glyph_of("QueueMoveUpButton") != "&#xE74A;" ||
         glyph_of("QueueMoveDownButton") != "&#xE74B;" ||
         glyph_of("QueueRemoveButton") != "&#xE738;" ||
@@ -114,6 +156,13 @@ int main() {
     }
 
     if (!contains(xaml, "<ProgressBar x:Name=\"TransferProgress\"") ||
+        !contains(tokens, "<x:Double x:Key=\"TransferProgressHeight\">8</x:Double>") ||
+        !contains(xaml, "x:Name=\"DetailsButtonText\"") ||
+        !contains(xaml, "x:Name=\"DetailsChevronIcon\"") ||
+        !contains(window, "DetailsButtonText().Text(velocitycopy::localization::get_string(L\"ActionDetails\"))") ||
+        !contains(window, "get_string(L\"ActionDetails\")") ||
+        !contains(window, "DetailsButtonText().Text(details_button_label)") ||
+        !contains(window, "DetailsChevronIcon().Glyph(expanded ? L\"\\uE70E\" : L\"\\uE70D\")") ||
         contains(xaml, "x:Name=\"ProgressFill\"") ||
         !contains(window, "TransferProgress().Value(percent)") ||
         contains(window, "ProgressFill().Width(")) {
@@ -123,7 +172,20 @@ int main() {
     // DesignTokens.xaml is the single width source; C++ reads it through the
     // UiTokens.h accessor with an identical fallback.
     if (!contains(tokens, "<x:Double x:Key=\"NormalWindowMinWidth\">380</x:Double>") ||
-        !contains(window, "token_int(L\"NormalWindowMinWidth\", 380)") ||
+        !contains(tokens, "<x:Double x:Key=\"ExpandedPreferredWidth\">880</x:Double>") ||
+        !contains(tokens, "<x:Double x:Key=\"ExpandedThreeColumnThreshold\">720</x:Double>") ||
+        !contains(tokens, "<x:Double x:Key=\"ExpandedWorkAreaMargin\">16</x:Double>") ||
+        !contains(window, "token_double(L\"NormalWindowMinWidth\", 380)") ||
+        !contains(window, "const double work_width_cap = (std::max)(normal_width, work_width_epx - work_margin * 2.0);") ||
+        // 380 epx x TextScale is the scaled minimum, not the final width: the window grows only to
+        // fit the reserved bottom row (see telemetry_layout_architecture_test).
+        !contains(window, "const double scaled_normal_width = normal_width * text_scale;") ||
+        !contains(window, "velocitycopy::ui::layout::normal_target_width(") ||
+        !contains(window, "scaled_normal_width, required_normal_width, work_width_cap);") ||
+        !contains(window, ": normal_target_width;") ||
+        !contains(window, "const double effective_width = target_width / text_scale;") ||
+        !contains(window, "expanded_layout_mode_ = effective_width >= three_column_threshold") ||
+        !contains(window, "TransferSurface().InvalidateMeasure();") ||
         contains(window, "token_int(L\"CompactWindowWidth\"") ||
         contains(tokens, "CompactWindowWidth") ||
         contains(tokens, "CompactSurfaceHeight") ||
@@ -178,10 +240,8 @@ int main() {
         !contains(tokens, "<x:Double x:Key=\"TelemetrySpeedMinWidth\">64</x:Double>") ||
         !contains(tokens, "<x:Double x:Key=\"TelemetryPercentMinWidth\">36</x:Double>") ||
         !contains(tokens, "<Thickness x:Key=\"TransferContentPadding\">8,0,8,8</Thickness>") ||
-        !contains(tokens, "<Thickness x:Key=\"QueuePanelPadding\">8,8,8,12</Thickness>") ||
         !contains(xaml, "Height=\"{StaticResource CaptionRowHeight}\"") ||
         !contains(xaml, "<RowDefinition x:Name=\"CaptionRowDefinition\" Height=\"{StaticResource CaptionRowGridLength}\" />") ||
-        !contains(xaml, "Padding=\"{StaticResource QueuePanelPadding}\"") ||
         contains(xaml, "ComfortableState") || contains(tokens, "QueueMaxHeightComfortable")) {
         return fail(12, "compact resources must be live, shared and free of unreachable width states");
     }
@@ -210,8 +270,7 @@ int main() {
         contains(tokens, "TelemetrySecondaryOpacity") || contains(tokens, "TelemetryEmphasisOpacity") ||
         contains(tokens, "QueueCountOpacity") || contains(tokens, "QueueItemLocationOpacity") ||
         contains(tokens, "QueueMaxHeightCompact") ||
-        !contains(xaml, "TextFillColorSecondaryBrush") || !contains(xaml, "TextFillColorTertiaryBrush") ||
-        !contains(window, "queue_ceiling - normal_surface_fallback")) {
+        !contains(xaml, "TextFillColorSecondaryBrush") || !contains(xaml, "TextFillColorTertiaryBrush")) {
         return fail(17, "step 3a design-system invariants must remain normalized and runtime-aware");
     }
 
@@ -251,6 +310,12 @@ int main() {
     // on an enabled transparent host so Pause/Cancel remain discoverable while idle.
     if (!contains(xaml, "x:Name=\"PauseButtonHost\"") ||
         !contains(xaml, "x:Name=\"CancelButtonHost\"") ||
+        !contains(xaml, "x:Name=\"PrimaryActionCluster\"") ||
+        !contains(xaml, "x:Name=\"DetailsButton\"\n                                Grid.Column=\"3\"") ||
+        contains(body_of(xaml, "<Button x:Name=\"OptionsButton\""), "Background=\"Transparent\"") ||
+        contains(body_of(xaml, "<Button x:Name=\"QueueMoveUpButton\""), "BorderThickness=\"0\"") ||
+        contains(body_of(xaml, "<Button x:Name=\"QueueMoveDownButton\""), "BorderThickness=\"0\"") ||
+        contains(body_of(xaml, "<Button x:Name=\"QueueRemoveButton\""), "BorderThickness=\"0\"") ||
         !contains(window, "ToolTipService::SetToolTip(PauseButtonHost()") ||
         !contains(window, "ToolTipService::SetToolTip(CancelButtonHost()") ||
         contains(window, "ToolTipService::SetToolTip(PauseButton()") ||
@@ -299,25 +364,147 @@ int main() {
     }
     const auto show_notice = body_of(window, "void MainWindow::ShowNotice(");
     const auto show_error = body_of(window, "void MainWindow::ShowError(");
-    if (contains(xaml, "Grid.RowSpan=\"2\"") ||
+    // The notice row of RootGrid must never be covered by a spanning element. The only RowSpan="2" allowed
+    // is the transfer icon inside the transfer header's own two-row grid.
+    const auto row_span_count = count_occurrences(xaml, "Grid.RowSpan=\"2\"");
+    const auto icon_at = xaml.find("x:Name=\"CurrentItemIcon\"");
+    const auto icon_span_at = icon_at == std::string::npos ? std::string::npos : xaml.find("Grid.RowSpan=\"2\"", icon_at);
+    const bool row_span_only_on_icon = row_span_count == 0 ||
+        (row_span_count == 1 && icon_span_at != std::string::npos && icon_span_at - icon_at < 160);
+    if (!row_span_only_on_icon ||
         !contains(execution, "InfoBarSeverity::Warning") ||
         !contains(window, "notice_height") ||
         !contains(show_notice, "ResizeWindowToContent();")) {
         return fail(39, "terminal issue notices must distinguish skip-only warnings and reserve layout space");
     }
 
-    const auto resize_to_content = body_of(window, "void MainWindow::ResizeWindowToContent()");
+    const auto resize_to_content = body_of(window, "void MainWindow::ResizeWindowToContent(");
+    const auto collapsed_if = resize_to_content.find("if (!expanded_)");
+    const auto collapsed_open = collapsed_if == std::string::npos ? std::string::npos : resize_to_content.find('{', collapsed_if);
+    const auto collapsed_branch = brace_body_at(resize_to_content, collapsed_open);
+    const auto mode_if = resize_to_content.find("if (expanded_layout_mode_ == ExpandedLayoutMode::ThreeColumn)");
+    const auto mode_open = mode_if == std::string::npos ? std::string::npos : resize_to_content.find('{', mode_if);
+    const auto three_column_branch = brace_body_at(resize_to_content, mode_open);
+    const auto narrow_else = mode_open == std::string::npos ? std::string::npos : resize_to_content.find("else", mode_open + three_column_branch.size());
+    const auto narrow_open = narrow_else == std::string::npos ? std::string::npos : resize_to_content.find('{', narrow_else);
+    const auto narrow_branch = brace_body_at(resize_to_content, narrow_open);
+    if (contains(resize_to_content, "RootGrid().ActualWidth()") ||
+        !contains(resize_to_content, "work_width_epx") ||
+        !contains(resize_to_content, "ExpandedPreferredWidth") ||
+        !contains(resize_to_content, "ExpandedThreeColumnThreshold") ||
+        !contains(resize_to_content, "expanded_layout_mode_ = effective_width >= three_column_threshold") ||
+        !contains(resize_to_content, "PerformancePanel().Measure(") ||
+        !contains(resize_to_content, "InformationPanel().Measure(") ||
+        !contains(resize_to_content, "ExpandedRegion().Padding()") ||
+        !contains(resize_to_content, "ExpandedColumnSpacing") ||
+        !contains(resize_to_content, "expanded_padding.Top + expanded_padding.Bottom") ||
+        !contains(three_column_branch, "ExpandedRegion().ColumnSpacing(") ||
+        !contains(three_column_branch, "ExpandedColumnSpacing") ||
+        !contains(three_column_branch, "token_thickness(L\"ExpandedSectionMargin\"") ||
+        !contains(three_column_branch, "Grid::SetRow(DetailsViewport(), 0)") ||
+        !contains(three_column_branch, "Grid::SetColumn(DetailsViewport(), 1)") ||
+        !contains(three_column_branch, "ExpandedViewport().VerticalScrollMode(ScrollMode::Disabled)") ||
+        !contains(three_column_branch, "ExpandedViewport().VerticalScrollBarVisibility(ScrollBarVisibility::Disabled)") ||
+        !contains(three_column_branch, "ExpandedViewport().IsTabStop(false)") ||
+        !contains(narrow_branch, "ExpandedRegion().ColumnSpacing(0.0)") ||
+        !contains(narrow_branch, "PerformancePanel().Margin(") ||
+        !contains(xaml, "x:Name=\"ExpandedViewport\"") ||
+        !contains(xaml, "MinHeight=\"{StaticResource TransferProgressHeight}\"") ||
+        !contains(xaml, "<x:Double x:Key=\"ProgressBarTrackHeight\">8</x:Double>") ||
+        contains(xaml, "<ControlTemplate TargetType=\"ProgressBar\"") ||
+        !contains(xaml, "Margin=\"{StaticResource TransferProgressMargin}\"") ||
+        !contains(xaml, "Background=\"{ThemeResource CardBackgroundFillColorDefaultBrush}\"") ||
+        count_occurrences(xaml, "BorderBrush=\"{ThemeResource CardStrokeColorDefaultBrush}\"") < 4 ||
+        count_occurrences(xaml, "CornerRadius=\"{ThemeResource ControlCornerRadius}\"") < 4 ||
+        !contains(narrow_branch, "Grid::SetRow(DetailsViewport(), 1)") ||
+        !contains(narrow_branch, "Grid::SetColumn(DetailsViewport(), 0)") ||
+        !contains(narrow_branch, "ExpandedViewport().VerticalScrollMode(ScrollMode::Auto)") ||
+        !contains(narrow_branch, "ExpandedViewport().VerticalScrollBarVisibility(ScrollBarVisibility::Auto)") ||
+        !contains(resize_to_content, "ExpandedViewport().MaxHeight(expanded_height_cap)") ||
+        !contains(resize_to_content, "DetailsExpandedMinHeight") ||
+        !contains(resize_to_content, "const double details_required_height = (std::max)(") ||
+        !contains(resize_to_content, "details_min_height, performance_height + information_height") ||
+        !contains(resize_to_content, "const double required_content_height = queue_min_height + details_required_height;") ||
+        !contains(resize_to_content, "const bool constrained_height = content_cap < required_content_height;") ||
+        !contains(resize_to_content, "ExpandedRow1().Height(GridLength{1.0, GridUnitType::Auto})") ||
+        !contains(resize_to_content, "ExpandedViewport().IsTabStop(constrained_height)") ||
+        !contains(resize_to_content, "const double queue_height = queue_min_height;") ||
+        !contains(resize_to_content, "queue_height + details_required_height + padding_height") ||
+        !contains(resize_to_content, "expanded_region_height = constrained_height") ||
+        !contains(resize_to_content, "? expanded_height_cap") ||
+        contains(resize_to_content, "fixed_content_height") ||
+        contains(resize_to_content, "(std::min)(queue_min_height, content_cap - fixed_content_height)") ||
+        contains(resize_to_content, "QueuePanel().Measure(") ||
+        !contains(resize_to_content, "Grid::SetRow(QueuePanel()") ||
+        !contains(resize_to_content, "Grid::SetColumn(InformationPanel()") ||
+        !contains(resize_to_content, "ResizeWindow(") ||
+        contains(window, "QueueList().MaxHeight(") ||
+        contains(window, "normal_surface_fallback") ||
+        !contains(xaml, "<RowDefinition Height=\"*\" />")) {
+        return fail(43, "expanded layout must select composition before target-width measurement, exclude Queue from infinite-height measurement, and remove the legacy queue MaxHeight");
+    }
+    const auto performance_graph = body_of(window, "void MainWindow::UpdatePerformanceGraph()");
+    if (!contains(xaml, "x:Name=\"PerformanceGraphArea\"") ||
+        !contains(xaml, "x:Name=\"PerformanceGraphLine\"") ||
+        !contains(xaml, "Stroke=\"{ThemeResource AccentFillColorDefaultBrush}\"") ||
+        !contains(xaml, "Fill=\"{ThemeResource AccentFillColorDefaultBrush}\"") ||
+        !std::regex_search(xaml, std::regex{R"(<TextBlock[^>]*x:Name="PerformanceScaleMaxText"[^>]*AutomationProperties\.AccessibilityView="Raw"[^>]*/>)"}) ||
+        !std::regex_search(xaml, std::regex{R"(<TextBlock[^>]*x:Name="PerformanceScaleMidText"[^>]*AutomationProperties\.AccessibilityView="Raw"[^>]*/>)"}) ||
+        !std::regex_search(xaml, std::regex{R"(<TextBlock[^>]*x:Name="PerformanceScaleZeroText"[^>]*AutomationProperties\.AccessibilityView="Raw"[^>]*/>)"}) ||
+        !std::regex_search(xaml, std::regex{R"(<Polygon[^>]*x:Name="PerformanceGraphArea"[^>]*AutomationProperties\.AccessibilityView="Raw"[^>]*/>)"}) ||
+        !std::regex_search(xaml, std::regex{R"(<Polyline[^>]*x:Name="PerformanceGraphLine"[^>]*AutomationProperties\.AccessibilityView="Raw"[^>]*/>)"}) ||
+        contains(xaml, "PerformanceGraphBrushSource") ||
+        contains(performance_graph, "Border bar") ||
+        contains(performance_graph, "Children().") ||
+        !contains(performance_graph, "performance_speed_samples_.empty()") ||
+        !contains(performance_graph, "sample_capacity = 60.0") ||
+        !contains(performance_graph, "velocitycopy::ui::current_performance_scale(performance_scale_state_)") ||
+        contains(performance_graph, "velocitycopy::ui::performance_scale(peak)") ||
+        contains(performance_graph, "double peak = 0.0") ||
+        !contains(performance_graph, "scale.ceiling_bytes_per_second") ||
+        !contains(performance_graph, "FormatPerformanceScaleSpeed(scale_max, scale.unit_bytes)") ||
+        !contains(performance_graph, "FormatPerformanceScaleSpeed(scale_max / 2.0, scale.unit_bytes)") ||
+        !contains(performance_graph, "FormatPerformanceScaleSpeed(0.0, scale.unit_bytes)") ||
+        !contains(performance_graph, "PerformanceGraphLine().StrokeThickness()") ||
+        !contains(window, "UpdatePerformanceAxisWidth()") ||
+        !contains(window, "label.Text(L\"1000 MiB/s\")") ||
+        !contains(window, "label.DesiredSize().Width") ||
+        !contains(window, "PerformanceScaleLabels().Margin()") ||
+        !contains(window, "axis_margin.Left + axis_margin.Right") ||
+        !contains(window, "PerformanceScaleColumn().MinWidth(") ||
+        !contains(window, "token_double(L\"PerformanceAxisLabelMinWidth\"") ||
+        !contains(performance_graph, "for (const double sample : performance_speed_samples_)") ||
+        !contains(performance_graph, "performance_speed_samples_.size() - 1") ||
+        !contains(performance_graph, "width - slot * static_cast<double>") ||
+        !contains(performance_graph, "PerformanceGraphLine().Points(line_points)") ||
+        !contains(performance_graph, "PerformanceGraphArea().Points(area_points)")) {
+        return fail(44, "performance graph must use the phase 2 sample history as a declarative right-anchored line/area plot with a binary-unit nice Y scale");
+    }
+
     const auto resize_window = body_of(window, "void MainWindow::ResizeWindow(");
+    if (!contains(resize_window, "client_width_epx") ||
+        !contains(resize_window, "client_height_epx") ||
+        !contains(resize_window, "MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST)") ||
+        !contains(resize_window, "monitor_info.rcWork") ||
+        !contains(resize_window, "ExpandedWorkAreaMargin") ||
+        !contains(resize_window, "if (!preserve_position)") ||
+        !contains(resize_window, "x + window_width > monitor_info.rcWork.right") ||
+        !contains(resize_window, "y + window_height > monitor_info.rcWork.bottom") ||
+        !contains(resize_window, "reposition ? 0 : SWP_NOMOVE")) {
+        return fail(42, "phase 3 resize must own width/height, preserve in-bounds position, suppress DPI repositioning, and correct only work-area overflow");
+    }
     if (!contains(show_notice, "ErrorBar().Severity(severity)") ||
         !contains(show_notice, "ErrorBar().IsOpen(true)") ||
         count_occurrences(show_notice, "ResizeWindowToContent();") != 2 ||
         !contains(show_notice, "dispatcher_.TryEnqueue") ||
         !contains(show_notice, "self->ErrorBar().IsOpen()") ||
-        !contains(show_error, "ShowNotice(InfoBarSeverity::Error, message)") ||
+        !contains(show_error, "ShowNotice(InfoBarSeverity::Error, title, message)") ||
         !contains(window, "ErrorBar().Closed(") ||
         !contains(window, "self->ResizeWindowToContent();") ||
         !contains(resize_to_content, "QueueExpandedMinHeight") ||
-        !contains(resize_to_content, "+ notice_height_epx") ||
+        !contains(collapsed_branch, "normal_height + notice_height") ||
+        !contains(resize_to_content, "normal_height + notice_height + expanded_region_height") ||
+        !contains(resize_to_content, "work_height_epx - work_margin * 2.0 - normal_height - notice_height") ||
         count_occurrences(execution, "ResizeWindow(velocitycopy::ui::token_int(L\"CompactSurfaceHeight\"") != 0) {
         return fail(40, "notice and terminal paths must resize from measured content");
     }
@@ -330,11 +517,12 @@ int main() {
         !contains(resize_to_content, "if (resize_in_progress_) return") ||
         !contains(window, "root.RasterizationScale()") ||
         !contains(window, "scale - window->last_rasterization_scale_") ||
+        !contains(window, "window->ResizeWindowToContent(true)") ||
         !contains(window, "ui_settings_ = Windows::UI::ViewManagement::UISettings()") ||
         !contains(window, "ui_settings_.TextScaleFactorChanged(auto_revoke") ||
         !contains(window, "scale - window->last_text_scale_factor_") ||
         !contains(resize_to_content, "RootGrid().UpdateLayout()") ||
-        !contains(resize_to_content, "TransferSurface().Measure({measured_width, std::numeric_limits<float>::infinity()})") ||
+        !contains(resize_to_content, "TransferSurface().Measure({measure_width, std::numeric_limits<float>::infinity()})") ||
         !contains(resize_to_content, "TransferSurface().DesiredSize().Height")) {
         return fail(42, "content sizing must compensate the native frame and guard DPI/text-scale remeasurement from self-resize loops");
     }
@@ -342,27 +530,62 @@ int main() {
     if (contains(finish_copy, "ErrorBar().Severity(") ||
         !contains(finish_copy, "ShowNotice(") ||
         !contains(finish_copy, "? InfoBarSeverity::Warning") ||
-        !contains(show_error, "ShowNotice(InfoBarSeverity::Error, message)") ||
+        !contains(show_error, "ShowNotice(InfoBarSeverity::Error, title, message)") ||
         count_occurrences(window, "ErrorBar().Severity(") != 1) {
         return fail(41, "notice severity must be explicit per message and ordinary errors must always use Error severity");
     }
 
 
-    const auto queue_click = body_of(queue, "void MainWindow::OnQueueClick(");
+    if (!contains(execution, "snapshot.completed_files == 1") ||
+        !contains(execution, "TransferCompletedSingularFormat") ||
+        !contains(strings_en, "name=\"TransferCompletedSingularFormat\"") ||
+        !contains(strings_es, "name=\"TransferCompletedSingularFormat\"") ||
+        !contains(strings_es, "<value>{0} completado de {1}</value>")) {
+        return fail(48, "completed-file telemetry must localize the singular form instead of showing '1 completados'");
+    }
+
+    const auto titlebar_inset = body_of(window, "void MainWindow::ApplyTitleBarInset()");
+    const auto appwindow_changed = body_of(window, "void MainWindow::OnAppWindowChanged(");
+    const auto iconic_guard = titlebar_inset.find("if (IsIconic(hwnd)) return;");
+    const auto right_inset_read = titlebar_inset.find("title_bar.RightInset()");
+    if (!contains(header, "double title_bar_right_inset_epx_{};") ||
+        iconic_guard == std::string::npos || right_inset_read == std::string::npos ||
+        iconic_guard > right_inset_read ||
+        !contains(titlebar_inset, "title_bar.RightInset()") ||
+        !contains(titlebar_inset, "title_bar_right_inset_epx_ =") ||
+        !contains(titlebar_inset, "(std::max)(reported_right_inset_epx, title_bar_right_inset_epx_)") ||
+        !contains(appwindow_changed, "args.DidPresenterChange()") ||
+        !contains(appwindow_changed, "args.DidSizeChange()") ||
+        !contains(appwindow_changed, "dispatcher_.TryEnqueue") ||
+        count_occurrences(appwindow_changed, "ApplyTitleBarInset();") < 2) {
+        return fail(49, "custom title-bar padding must survive minimize/restore without allowing filename overlap");
+    }
+
+    const auto set_expanded = body_of(window, "void MainWindow::SetExpanded(");
     const auto details_click = body_of(window, "void MainWindow::OnDetailsClick(");
     const auto observe_performance = body_of(window, "void MainWindow::ObservePerformanceSample(");
     const auto update_performance = body_of(window, "void MainWindow::UpdatePerformanceGraph()");
-    if (!contains(xaml, "x:Name=\"DetailsPanel\"") ||
-        !contains(xaml, "x:Name=\"PerformanceGraph\"") ||
-        !contains(xaml, "x:Name=\"PerformanceGraph\" AutomationProperties.AccessibilityView=\"Raw\"") ||
-        !contains(details_click, "QueuePanel().Visibility(Visibility::Collapsed)") ||
-        !contains(queue_click, "SetDetailsExpanded(false)") ||
+    if (!contains(xaml, "x:Name=\"PerformanceGraph\"") ||
+        !contains(details_click, "SetExpanded(!expanded_)") ||
+        contains(details_click, "ResizeWindowToContent();") ||
+        !contains(set_expanded, "ResizeWindowToContent();") ||
+        contains(set_expanded, "Transitional Phase 2") ||
+        contains(execution, "SetExpanded(false);\n    ResizeWindowToContent();") ||
+        contains(queue_persistence, "SetExpanded(false);\n    ResizeWindowToContent();") ||
+        contains(conflict, "SetExpanded(false);\n    ResizeWindowToContent();") ||
+        contains(xaml, "x:Name=\"QueueButton\"") ||
+        stray_queue_button_reference ||
+        !contains(xaml, "x:Name=\"ExpandedRegion\"") ||
+        !contains(xaml, "x:Name=\"PerformancePanel\"") ||
+        !contains(xaml, "x:Name=\"InformationPanel\"") ||
+        count_occurrences(window, "ExpandedRegion().Visibility(") != 1 ||
+        contains(window, "QueuePanel().Visibility(") ||
+        contains(window, "DetailsPanel().Visibility(") ||
+        !contains(window, "void MainWindow::SetExpanded(") ||
+        stray_expanded_visibility_writer ||
         !contains(observe_performance, "performance_sampling_state_ != PerformanceSamplingState::Copying") ||
         !contains(observe_performance, "now - last_performance_sample_ms_ < 500") ||
         !contains(observe_performance, "performance_speed_samples_.size() > 60") ||
-        !contains(update_performance, "double peak = 1.0") ||
-        !contains(update_performance, "sample <= 0.0 ? 1.0") ||
-        !contains(update_performance, "PerformanceGraphBrushSource().Background()") ||
         contains(update_performance, "Application::Current().Resources().Lookup") ||
         !contains(update_performance, "OutputDebugStringW") ||
         contains(update_performance, "executor_") ||
@@ -370,7 +593,7 @@ int main() {
         !contains(execution, "performance_sampling_state_ = PerformanceSamplingState::Cancelling") ||
         !contains(execution, "performance_sampling_state_ = PerformanceSamplingState::Paused") ||
         !contains(execution, "performance_sampling_state_ = PerformanceSamplingState::Copying")) {
-        return fail(43, "phase 2 details must remain separate from Queue and keep bounded presentation-only performance history");
+        return fail(45, "phase 2 sampling and expanded presentation contracts must remain bounded, presentation-only, and separate from Queue execution semantics");
     }
 
     return 0;

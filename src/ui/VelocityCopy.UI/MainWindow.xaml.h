@@ -14,6 +14,7 @@
 #include "velocitycopy/transfer_router.hpp"
 #include "velocitycopy/ui_snapshot.hpp"
 #include "DecisionSurface.h"
+#include "PerformanceGraphScale.h"
 
 #include <chrono>
 #include <condition_variable>
@@ -32,6 +33,8 @@ namespace winrt::VelocityCopyUI::implementation {
 // transition in progress, not an interrupted state.
 enum class InterruptedSessionState : std::uint8_t { None, Stopped, Conflict, Decision };
 enum class PerformanceSamplingState : std::uint8_t { Idle, Planning, Copying, Paused, Stopped, Cancelling, Conflict };
+enum class ExpandedLayoutMode : std::uint8_t { ThreeColumn, Narrow };
+enum class TransferVisualState : std::uint8_t { Active, Warning, Error };
 
 struct MainWindow : MainWindowT<MainWindow> {
     MainWindow();
@@ -61,7 +64,7 @@ struct MainWindow : MainWindowT<MainWindow> {
     void OnStopClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnCancelClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnDetailsClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
-    void OnQueueClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
+
     void OnSaveQueueClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnLoadQueueClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnMenuSkipClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
@@ -72,6 +75,10 @@ struct MainWindow : MainWindowT<MainWindow> {
     void OnQueueRemoveClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnQueueSelectionChanged(IInspectable const&, Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const&);
     void OnQueueKeyDown(IInspectable const&, Microsoft::UI::Xaml::Input::KeyRoutedEventArgs const&);
+    void OnQueuePointerWheelChanged(IInspectable const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&);
+    void OnQueueDragItemsStarting(
+        IInspectable const&,
+        Microsoft::UI::Xaml::Controls::DragItemsStartingEventArgs const&);
     void OnQueueDragItemsCompleted(
         Microsoft::UI::Xaml::Controls::ListViewBase const&,
         Microsoft::UI::Xaml::Controls::DragItemsCompletedEventArgs const&);
@@ -182,17 +189,26 @@ private:
         velocitycopy::ConflictPolicy conflict_policy = velocitycopy::ConflictPolicy::Prompt,
         bool retry_source_removals = false);
     void PublishLivePlan(std::shared_ptr<velocitycopy::LiveCopyPlan> plan);
-    void RefreshQueue();
+    void RefreshQueue(bool force_visual_rebuild = false);
+    // Applies the compact container style in Narrow mode only; returns true when the style changed
+    // (existing containers keep their old style, so the visuals must be rebuilt).
+    bool ApplyQueueItemStyle(bool narrow);
     void RefreshQueueCommandState();
     void RefreshExecutionMenuState();
     void RefreshQueueEditCommandState();
-    void SetDetailsExpanded(bool expanded);
+    void SetExpanded(bool expanded);
     void ResetPerformanceHistory() noexcept;
     void ObservePerformanceSample(double bytes_per_second);
     void UpdatePerformanceGraph();
+    void UpdatePerformanceAxisWidth();
     [[nodiscard]] std::vector<std::uint64_t> SelectedPendingIds();
-    void ResizeWindow(int height_epx);
-    void ResizeWindowToContent();
+    void ResizeWindow(int width_epx, int height_epx, bool preserve_position = false);
+    void ResizeWindowToContent(bool preserve_position = false);
+    void LogTelemetryGeometry();
+    void ScheduleTelemetryGeometryProbe();
+    bool ApplyTelemetryReserves();
+    void ScheduleTelemetryReserveSettle();
+    [[nodiscard]] double RequiredNormalWindowWidth();
     void SetProgressFraction(double fraction);
     void ResetCurrentItemState() noexcept;
     void ResetInterruptedSessionState() noexcept;
@@ -209,12 +225,15 @@ private:
     void FinalizeConflictSessionIfEmpty();
     void ApplySnapshot(const velocitycopy::UiSnapshot& snapshot);
     void FinishCopy(const velocitycopy::JobResult& result);
+    void ApplyTransferVisualState(TransferVisualState state) noexcept;
     void ResetTransferSurface();
-    void ShowNotice(Microsoft::UI::Xaml::Controls::InfoBarSeverity severity, hstring const& message);
+    void ShowNotice(Microsoft::UI::Xaml::Controls::InfoBarSeverity severity, hstring const& title, hstring const& message);
     void ShowError(hstring const& message = {});
     static hstring FormatFailureReason(std::int32_t native_code);
     static hstring FormatSpeed(double bytes_per_second);
+    static hstring FormatPerformanceScaleSpeed(double bytes_per_second, double unit_bytes);
     static hstring FormatEta(double seconds);
+    static hstring FormatProgressPercent(double fraction);
     static hstring FormatBytes(std::uint64_t bytes);
 
     std::wstring session_id_{velocitycopy::new_session_id()};
@@ -253,11 +272,27 @@ private:
     winrt::Windows::Foundation::IAsyncOperation<std::uint32_t> decision_operation_{nullptr};
     std::deque<std::shared_ptr<PendingDecision>> decision_queue_;
     Microsoft::UI::Xaml::Thickness base_caption_content_padding_{};
+    double title_bar_right_inset_epx_{};
     std::atomic_bool cancel_requested_{false};
     double progress_fraction_{};
     double last_rasterization_scale_{};
     double last_text_scale_factor_{};
     bool resize_in_progress_{};
+    Microsoft::UI::Dispatching::DispatcherQueueTimer geometry_probe_timer_{nullptr};
+    std::wstring last_geometry_line_;
+    bool geometry_probe_run_marked_{};
+    bool geometry_probe_speed_active_{};
+    bool queue_item_style_narrow_{};
+    bool queue_drag_active_{};
+    bool queue_refresh_deferred_{};
+    bool queue_refresh_force_rebuild_{};
+    bool telemetry_reserves_applied_{};
+    double telemetry_reserve_text_scale_{};
+    double telemetry_reserve_raster_{};
+    double telemetry_reserve_canary_{};
+    Microsoft::UI::Dispatching::DispatcherQueueTimer telemetry_reserve_settle_timer_{nullptr};
+    bool expanded_{};
+    ExpandedLayoutMode expanded_layout_mode_{ExpandedLayoutMode::ThreeColumn};
     Microsoft::UI::Xaml::XamlRoot::Changed_revoker xaml_root_changed_revoker_{};
     Windows::UI::ViewManagement::UISettings ui_settings_{nullptr};
     Windows::UI::ViewManagement::UISettings::TextScaleFactorChanged_revoker text_scale_changed_revoker_{};
@@ -273,6 +308,9 @@ private:
     PerformanceSamplingState performance_sampling_state_{PerformanceSamplingState::Idle};
     std::uint64_t last_performance_sample_ms_{};
     std::deque<double> performance_speed_samples_;
+    velocitycopy::ui::PerformanceScaleState performance_scale_state_{};
+    double performance_window_peak_{};
+    bool performance_graph_clipped_{};
     PendingResume pending_resume_{};
     HWND hwnd_{};
     bool tray_exit_requested_{};

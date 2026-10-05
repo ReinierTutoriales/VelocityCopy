@@ -9,6 +9,7 @@
 namespace velocitycopy::ui {
 
 enum class DecisionChoice : std::uint32_t { Cancel = 0, Primary = 1, Secondary = 2 };
+enum class DecisionTone : std::uint8_t { Neutral = 0, Warning = 1, Error = 2 };
 
 struct DecisionOptions {
     HWND owner{};
@@ -20,6 +21,7 @@ struct DecisionOptions {
     std::wstring cancel_label;
     std::wstring verification_label;
     bool include_cancel{};
+    DecisionTone tone{DecisionTone::Neutral};
 };
 
 struct DecisionResult {
