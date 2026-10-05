@@ -86,5 +86,13 @@ int main() {
     }
     // 5. The queue height budget stays untouched in this block.
     if (!contains(tokens, "<x:Double x:Key=\"QueueExpandedMinHeight\">176</x:Double>")) return fail(16, "QueueExpandedMinHeight changed");
+    if (!contains(queue, "find_scroll_viewer(QueueList())") ||
+        !contains(queue, "queue_scroll_viewer.VerticalOffset()") ||
+        !contains(queue, "QueueList().UpdateLayout()") ||
+        !contains(queue, "queue_scroll_viewer.ChangeView(") ||
+        !contains(queue, "queue_scroll_viewer.ScrollableHeight()")) {
+        return fail(17, "queue visual rebuilds must preserve the vertical scroll position");
+    }
+
     return 0;
 }

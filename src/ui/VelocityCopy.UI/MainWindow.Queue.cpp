@@ -10,6 +10,21 @@ using namespace Microsoft::UI::Xaml::Input;
 
 namespace winrt::VelocityCopyUI::implementation {
 
+namespace {
+ScrollViewer find_scroll_viewer(DependencyObject const& root) {
+    if (!root) return nullptr;
+    if (auto viewer = root.try_as<ScrollViewer>()) return viewer;
+    const auto child_count = Media::VisualTreeHelper::GetChildrenCount(root);
+    for (int index = 0; index < child_count; ++index) {
+        if (auto viewer = find_scroll_viewer(Media::VisualTreeHelper::GetChild(root, index))) {
+            return viewer;
+        }
+    }
+    return nullptr;
+}
+} // namespace
+
+
 bool MainWindow::ApplyQueueItemStyle(const bool narrow) {
     if (narrow == queue_item_style_narrow_) return false;
     try {
@@ -162,6 +177,9 @@ void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
     }
 
     const auto selected_ids = SelectedPendingIds();
+    const auto queue_scroll_viewer = find_scroll_viewer(QueueList());
+    const std::optional<double> previous_vertical_offset =
+        queue_scroll_viewer ? std::optional<double>{queue_scroll_viewer.VerticalOffset()} : std::nullopt;
     std::optional<std::uint64_t> focused_id;
     if (auto focused = FocusManager::GetFocusedElement().try_as<FrameworkElement>()) {
         auto current = focused;
@@ -240,6 +258,17 @@ void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
                 break;
             }
         }
+    }
+
+    if (previous_vertical_offset && queue_scroll_viewer) {
+        QueueList().UpdateLayout();
+        const double target_offset = (std::clamp)(
+            *previous_vertical_offset, 0.0, queue_scroll_viewer.ScrollableHeight());
+        (void)queue_scroll_viewer.ChangeView(
+            nullptr,
+            Windows::Foundation::IReference<double>{target_offset},
+            nullptr,
+            true);
     }
 
     QueueCountText().Text(hstring(std::format(L"{}", view.pending_count)));
