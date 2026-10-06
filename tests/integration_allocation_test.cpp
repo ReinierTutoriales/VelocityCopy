@@ -37,6 +37,7 @@ int main() {
     { std::ofstream out(source); out << "data"; }
     const auto absent_exe = root / L"NeverExists.VelocityCopy.exe";
     ShellRequest request;
+    request.action = ShellAction::Transfer;
     request.sources = {source};
     request.destination = root / L"destination";
     (void)StorageProfiler{}.inspect(root);

@@ -121,6 +121,7 @@ bool large_frame_with_bounded_buffer() {
     velocitycopy::ShellIpcServer server;
     if (!server.valid()) return false;
     velocitycopy::ShellRequest request;
+    request.action = velocitycopy::ShellAction::Transfer;
     request.destination = L"C:\\destination";
     const std::wstring name(30000, L'x');
     for (int i = 0; i < 200; ++i) request.sources.emplace_back(L"C:\\" + name + std::to_wstring(i));
