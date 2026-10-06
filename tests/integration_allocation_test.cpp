@@ -81,10 +81,10 @@ int main() {
     fail_after = -1;
     if (result.success || result.native_code != static_cast<std::int32_t>(E_OUTOFMEMORY) || queue.active_job_id()) return 7;
     std::fprintf(stderr, "Worker cancellation allocation check\n");
-    JobPlanningWorker worker;
     std::mutex mutex;
     std::condition_variable gate;
     bool entered = false, release = false;
+    JobPlanningWorker worker;
     (void)worker.enqueue(job, [&](JobPlanningResult) {
         std::unique_lock lock(mutex);
         entered = true;
