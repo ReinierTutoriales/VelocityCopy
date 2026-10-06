@@ -67,6 +67,71 @@ bool send_times_out_when_server_stops_reading() {
         elapsed < 2s;
 }
 
+bool stop_with_partial_frame(const bool payload_started) {
+    velocitycopy::ShellIpcServer server;
+    if (!server.valid()) return false;
+    std::optional<velocitycopy::ShellRequest> result;
+    std::jthread receiver([&] { result = server.receive(); });
+    const auto name = velocitycopy::shell_pipe_name();
+    HANDLE client = INVALID_HANDLE_VALUE;
+    if (WaitNamedPipeW(name.c_str(), 2000)) {
+        client = CreateFileW(name.c_str(), GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    }
+    if (client == INVALID_HANDLE_VALUE) { server.stop(); receiver.join(); return false; }
+    const std::uint32_t size = 32;
+    const std::uint8_t byte = 1;
+    DWORD written = 0;
+    bool sent = true;
+    if (payload_started) sent = WriteFile(client, &size, sizeof(size), &written, nullptr) != FALSE;
+    sent = sent && WriteFile(client, &byte, sizeof(byte), &written, nullptr) != FALSE;
+    std::this_thread::sleep_for(25ms);
+    server.stop();
+    const DWORD finished = WaitForSingleObject(static_cast<HANDLE>(receiver.native_handle()), 1000);
+    // Release the client even on failure so this regression fails without
+    // hanging the test runner against the old synchronous implementation.
+    CloseHandle(client);
+    receiver.join();
+    return sent && finished == WAIT_OBJECT_0 && !result && server.stopping();
+}
+
+bool stalled_frame_recovers(const velocitycopy::ShellRequest& request) {
+    velocitycopy::ShellIpcServer server;
+    if (!server.valid()) return false;
+    std::optional<velocitycopy::ShellRequest> result;
+    std::jthread receiver([&] { result = server.receive(); });
+    const auto name = velocitycopy::shell_pipe_name();
+    if (!WaitNamedPipeW(name.c_str(), 2000)) { server.stop(); receiver.join(); return false; }
+    HANDLE client = CreateFileW(name.c_str(), GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (client == INVALID_HANDLE_VALUE) { server.stop(); receiver.join(); return false; }
+    const std::uint32_t size = 32;
+    DWORD written = 0;
+    const bool sent = WriteFile(client, &size, sizeof(size), &written, nullptr) != FALSE;
+    const DWORD finished = WaitForSingleObject(static_cast<HANDLE>(receiver.native_handle()), 7000);
+    CloseHandle(client);
+    receiver.join();
+    if (!sent || finished != WAIT_OBJECT_0 || result || server.stopping() || !server.valid()) return false;
+    std::jthread recovery([&] { result = server.receive(); });
+    const auto accepted = velocitycopy::send_shell_request(request, 2000);
+    if (!accepted) server.stop();
+    recovery.join();
+    return accepted && result && result->sources == request.sources;
+}
+
+bool large_frame_with_bounded_buffer() {
+    velocitycopy::ShellIpcServer server;
+    if (!server.valid()) return false;
+    velocitycopy::ShellRequest request;
+    request.destination = L"C:\\destination";
+    const std::wstring name(30000, L'x');
+    for (int i = 0; i < 200; ++i) request.sources.emplace_back(L"C:\\" + name + std::to_wstring(i));
+    std::optional<velocitycopy::ShellRequest> result;
+    std::jthread receiver([&] { result = server.receive(); });
+    const auto sent = velocitycopy::send_shell_request(request, 3000);
+    if (!sent) server.stop();
+    receiver.join();
+    return sent && result && result->sources == request.sources && result->destination == request.destination;
+}
+
 bool send_malformed_message() {
     const auto name = velocitycopy::shell_pipe_name();
     if (name.empty() || !WaitNamedPipeW(name.c_str(), 2000)) return false;
@@ -159,6 +224,10 @@ int wmain() {
     // instance that accepts the pipe connection but stops reading must not be
     // able to block Explorer indefinitely.
     if (!send_times_out_when_server_stops_reading()) return 14;
+    if (!stop_with_partial_frame(false)) return 15;
+    if (!stop_with_partial_frame(true)) return 16;
+    if (!stalled_frame_recovers(request)) return 17;
+    if (!large_frame_with_bounded_buffer()) return 18;
 
     std::wcout << L"VelocityCopy IPC test passed.\n";
     return 0;

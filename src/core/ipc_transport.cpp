@@ -8,9 +8,9 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <new>
-#include <thread>
 #include <utility>
 #include <vector>
 
@@ -138,20 +138,9 @@ private:
     HANDLE handle_{};
 };
 
-bool write_all(HANDLE handle, const void* data, std::uint32_t bytes) noexcept {
-    const auto* cursor = static_cast<const std::uint8_t*>(data);
-    std::uint32_t written_total = 0;
-    while (written_total < bytes) {
-        DWORD written = 0;
-        if (!WriteFile(handle, cursor + written_total, bytes - written_total, &written, nullptr) || written == 0) {
-            return false;
-        }
-        written_total += written;
-    }
-    return true;
-}
-
 using SteadyClock = std::chrono::steady_clock;
+constexpr DWORD kPipeBufferBytes = 64u * 1024u;
+constexpr auto kFrameTimeout = std::chrono::seconds(5);
 
 DWORD remaining_timeout_ms(const SteadyClock::time_point deadline) noexcept {
     const auto now = SteadyClock::now();
@@ -163,15 +152,68 @@ DWORD remaining_timeout_ms(const SteadyClock::time_point deadline) noexcept {
         count, static_cast<std::int64_t>(std::numeric_limits<DWORD>::max())));
 }
 
-bool read_all(HANDLE handle, void* data, std::uint32_t bytes) noexcept {
+// Never release an OVERLAPPED, event or data buffer until the kernel has
+// completed the exact operation, including the cancellation path.
+bool finish_io(
+    HANDLE pipe, OVERLAPPED& operation, const BOOL started, const DWORD start_error,
+    DWORD& transferred, HANDLE stop_event, const DWORD timeout) noexcept {
+    if (started) return true;
+    if (start_error != ERROR_IO_PENDING) {
+        SetLastError(start_error);
+        return false;
+    }
+    HANDLE events[] = {stop_event, operation.hEvent};
+    const DWORD waited = stop_event
+        ? WaitForMultipleObjects(2, events, FALSE, timeout)
+        : WaitForSingleObject(operation.hEvent, timeout);
+    const DWORD completed = stop_event ? WAIT_OBJECT_0 + 1 : WAIT_OBJECT_0;
+    if (waited == completed) return GetOverlappedResult(pipe, &operation, &transferred, FALSE) != FALSE;
+
+    const DWORD error = waited == WAIT_TIMEOUT ? ERROR_SEM_TIMEOUT
+        : (stop_event && waited == WAIT_OBJECT_0 ? ERROR_OPERATION_ABORTED : GetLastError());
+    (void)CancelIoEx(pipe, &operation);
+    (void)GetOverlappedResult(pipe, &operation, &transferred, TRUE);
+    SetLastError(error);
+    return false;
+}
+
+bool read_all(
+    HANDLE pipe, void* data, const std::uint32_t bytes, HANDLE event,
+    HANDLE stop_event, const SteadyClock::time_point deadline) noexcept {
     auto* cursor = static_cast<std::uint8_t*>(data);
-    std::uint32_t read_total = 0;
-    while (read_total < bytes) {
-        DWORD read = 0;
-        if (!ReadFile(handle, cursor + read_total, bytes - read_total, &read, nullptr) || read == 0) {
-            return false;
-        }
-        read_total += read;
+    std::uint32_t total = 0;
+    while (total < bytes) {
+        const DWORD timeout = remaining_timeout_ms(deadline);
+        if (timeout == 0 || WaitForSingleObject(stop_event, 0) == WAIT_OBJECT_0) return false;
+        OVERLAPPED operation{};
+        operation.hEvent = event;
+        ResetEvent(event);
+        DWORD received = 0;
+        const BOOL started = ReadFile(pipe, cursor + total, bytes - total, &received, &operation);
+        const DWORD error = started ? ERROR_SUCCESS : GetLastError();
+        if (!finish_io(pipe, operation, started, error, received, stop_event, timeout) || received == 0) return false;
+        total += received;
+    }
+    return true;
+}
+
+bool write_all(
+    HANDLE pipe, const void* data, const std::uint32_t bytes, HANDLE event,
+    const SteadyClock::time_point deadline) noexcept {
+    const auto* cursor = static_cast<const std::uint8_t*>(data);
+    std::uint32_t total = 0;
+    while (total < bytes) {
+        const DWORD timeout = remaining_timeout_ms(deadline);
+        if (timeout == 0) { SetLastError(ERROR_SEM_TIMEOUT); return false; }
+        OVERLAPPED operation{};
+        operation.hEvent = event;
+        ResetEvent(event);
+        DWORD written = 0;
+        const BOOL started = WriteFile(pipe, cursor + total, bytes - total, &written, &operation);
+        const DWORD error = started ? ERROR_SUCCESS : GetLastError();
+        if (!finish_io(pipe, operation, started, error, written, nullptr, timeout)) return false;
+        if (written == 0) { SetLastError(ERROR_WRITE_FAULT); return false; }
+        total += written;
     }
     return true;
 }
@@ -222,11 +264,15 @@ SingleInstance::~SingleInstance() {
 bool SingleInstance::valid() const noexcept { return mutex_ != nullptr; }
 bool SingleInstance::primary() const noexcept { return primary_; }
 
-ShellIpcServer::ShellIpcServer() noexcept { create_pipe(); }
+ShellIpcServer::ShellIpcServer() noexcept {
+    stop_event_ = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    if (stop_event_) create_pipe();
+}
 
 ShellIpcServer::~ShellIpcServer() {
     stop();
     close_pipe();
+    if (stop_event_) CloseHandle(static_cast<HANDLE>(stop_event_));
 }
 
 bool ShellIpcServer::valid() const noexcept {
@@ -248,10 +294,9 @@ bool ShellIpcServer::create_pipe() noexcept {
     if (security.attributes() == nullptr) return false;
 
     HANDLE pipe = CreateNamedPipeW(
-        name.c_str(), PIPE_ACCESS_INBOUND | FILE_FLAG_FIRST_PIPE_INSTANCE,
+        name.c_str(), PIPE_ACCESS_INBOUND | FILE_FLAG_FIRST_PIPE_INSTANCE | FILE_FLAG_OVERLAPPED,
         PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS, 1,
-        static_cast<DWORD>(kMaxShellMessageBytes + sizeof(std::uint32_t)),
-        static_cast<DWORD>(kMaxShellMessageBytes + sizeof(std::uint32_t)), 0, security.attributes());
+        kPipeBufferBytes, kPipeBufferBytes, 0, security.attributes());
     if (pipe == INVALID_HANDLE_VALUE) {
         pipe_ = nullptr;
         return false;
@@ -272,58 +317,48 @@ void ShellIpcServer::close_pipe() noexcept {
     pipe_ = nullptr;
 }
 
-void ShellIpcServer::wake_receiver() noexcept {
-    const auto name = shell_pipe_name();
-    if (name.empty() || !WaitNamedPipeW(name.c_str(), 250)) return;
-
-    UniqueHandle pipe{CreateFileW(
-        name.c_str(), GENERIC_WRITE, 0, nullptr, OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL, nullptr)};
-    if (!pipe.valid()) return;
-
-    const std::uint32_t wake_size = 0;
-    (void)write_all(pipe.get(), &wake_size, sizeof(wake_size));
-}
-
 void ShellIpcServer::stop() noexcept {
-    bool expected = false;
-    if (!stopping_.compare_exchange_strong(expected, true, std::memory_order_acq_rel)) return;
-    wake_receiver();
+    stopping_.store(true, std::memory_order_release);
+    if (stop_event_) SetEvent(static_cast<HANDLE>(stop_event_));
 }
 
 std::optional<ShellRequest> ShellIpcServer::receive() noexcept {
     if (!valid() || stopping()) return std::nullopt;
-
     HANDLE pipe = static_cast<HANDLE>(pipe_);
-    const BOOL connected = ConnectNamedPipe(pipe, nullptr) ? TRUE : (GetLastError() == ERROR_PIPE_CONNECTED);
-    if (!connected) {
-        (void)recreate_pipe_or_stop();
+    const HANDLE stop_event = static_cast<HANDLE>(stop_event_);
+    UniqueHandle event{CreateEventW(nullptr, TRUE, FALSE, nullptr)};
+    if (!event.valid()) { stop(); return std::nullopt; }
+    OVERLAPPED connection{};
+    connection.hEvent = event.get();
+    DWORD transferred = 0;
+    const BOOL connected = ConnectNamedPipe(pipe, &connection);
+    const DWORD error = connected ? ERROR_SUCCESS : GetLastError();
+    if (error != ERROR_PIPE_CONNECTED &&
+        !finish_io(pipe, connection, connected, error, transferred, stop_event, INFINITE)) {
+        if (!stopping()) (void)recreate_pipe_or_stop();
         return std::nullopt;
     }
 
-    if (!connected_client_in_same_session(pipe)) {
-        (void)DisconnectNamedPipe(pipe);
-        (void)recreate_pipe_or_stop();
-        return std::nullopt;
-    }
-
-    std::uint32_t size = 0;
     std::optional<ShellRequest> result;
-    if (read_all(pipe, &size, sizeof(size)) && size > 0 && size <= kMaxShellMessageBytes) {
-        try {
-            std::vector<std::uint8_t> payload(size);
-            if (read_all(pipe, payload.data(), size)) result = deserialize_shell_request(payload);
-        } catch (...) {
-            result.reset();
+    if (!stopping() && connected_client_in_same_session(pipe)) {
+        // No timer runs while idle. A connected sender gets a bounded interval
+        // to deliver one frame, so truncated/stalled clients cannot monopolize IPC.
+        const auto deadline = SteadyClock::now() + kFrameTimeout;
+        std::uint32_t size = 0;
+        if (read_all(pipe, &size, sizeof(size), event.get(), stop_event, deadline) &&
+            size > 0 && size <= kMaxShellMessageBytes) {
+            try {
+                std::vector<std::uint8_t> payload(size);
+                if (read_all(pipe, payload.data(), size, event.get(), stop_event, deadline) && !stopping()) {
+                    result = deserialize_shell_request(payload);
+                }
+            } catch (...) { result.reset(); }
         }
     }
-
-    if (size != 0) (void)FlushFileBuffers(pipe);
-    (void)DisconnectNamedPipe(pipe);
-
-    // Invalid client data is recoverable. Failure to recreate the transport is
-    // not: mark the server stopped so the receiver loop cannot hot-spin.
-    (void)recreate_pipe_or_stop();
+    // Inbound intent has no response/acknowledgement to flush. Keep the same
+    // pipe instance and its bounded buffer for the next activation.
+    if (!DisconnectNamedPipe(pipe) && !stopping()) (void)recreate_pipe_or_stop();
+    if (stopping()) return std::nullopt;
     return result;
 }
 
@@ -355,7 +390,7 @@ IpcSendResult send_shell_request(
 
         UniqueHandle pipe{CreateFileW(
             name.c_str(), GENERIC_WRITE, 0, nullptr, OPEN_EXISTING,
-            FILE_ATTRIBUTE_NORMAL, nullptr)};
+            FILE_FLAG_OVERLAPPED, nullptr)};
         if (!pipe.valid()) {
             return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(GetLastError()))};
         }
@@ -365,47 +400,10 @@ IpcSendResult send_shell_request(
         std::memcpy(frame.data(), &payload_size, sizeof(payload_size));
         std::memcpy(frame.data() + sizeof(payload_size), payload->data(), payload->size());
 
-        bool write_succeeded = false;
-        DWORD write_error = ERROR_SUCCESS;
-        std::jthread writer([&] {
-            DWORD written = 0;
-            if (WriteFile(
-                    pipe.get(),
-                    frame.data(),
-                    static_cast<DWORD>(frame.size()),
-                    &written,
-                    nullptr) == FALSE) {
-                write_error = GetLastError();
-                return;
-            }
-            if (written != frame.size()) {
-                write_error = ERROR_WRITE_FAULT;
-                return;
-            }
-            write_succeeded = true;
-        });
-
-        const auto write_timeout = remaining_timeout_ms(deadline);
-        if (write_timeout == 0) {
-            (void)CancelSynchronousIo(static_cast<HANDLE>(writer.native_handle()));
-            writer.join();
-            return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_SEM_TIMEOUT))};
-        }
-
-        const DWORD wait_result = WaitForSingleObject(
-            static_cast<HANDLE>(writer.native_handle()),
-            write_timeout);
-        if (wait_result != WAIT_OBJECT_0) {
-            const DWORD wait_error = wait_result == WAIT_TIMEOUT ? ERROR_SEM_TIMEOUT : GetLastError();
-            (void)CancelSynchronousIo(static_cast<HANDLE>(writer.native_handle()));
-            writer.join();
-            return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(wait_error))};
-        }
-
-        writer.join();
-        if (!write_succeeded) {
-            if (write_error == ERROR_SUCCESS) write_error = ERROR_WRITE_FAULT;
-            return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(write_error))};
+        UniqueHandle event{CreateEventW(nullptr, TRUE, FALSE, nullptr)};
+        if (!event.valid()) return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(GetLastError()))};
+        if (!write_all(pipe.get(), frame.data(), static_cast<std::uint32_t>(frame.size()), event.get(), deadline)) {
+            return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(GetLastError()))};
         }
         return {true, S_OK};
     } catch (const std::bad_alloc&) {

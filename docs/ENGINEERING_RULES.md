@@ -192,3 +192,24 @@ If the engine is reporting transferred bytes, the UI must not round a positive f
 - Move directory cleanup must pin and inspect directory handles, reject name-surrogate reparse points, and delete inspected directories by handle. Keep traversal state proportional to depth and poll execution controls during cleanup.
 - Each queue save owns a distinct staging path in the destination directory. Preserve atomic replacement and disk flushes; never share a fixed `.tmp` between writers.
 - Allocation failures inside the public noexcept copy boundary must return E_OUTOFMEMORY and release directory handles, rather than terminating the process.
+
+
+## Low-memory and IPC audit invariants
+
+- A rejected live append restores the original directories, roots and pending
+  files. IDs, destination reservations and totals are committed only after
+  staging succeeds; roll back only the new tail instead of copying the queue.
+- Acquisition/release preserve file ownership on allocation failure. These
+  internal operations may propagate to the executor's E_OUTOFMEMORY boundary.
+  Recovery restoration/unparking must not leave duplicate entries, reservations
+  or partially advanced counters when rejected.
+- Pending planning cancellation detaches existing requests without allocating,
+  and invokes their callbacks outside the lock. Request stop states are created
+  by enqueue, not inside the noexcept worker loop.
+- Storage probing is advisory: allocation failures fall back to an unknown
+  profile and release opened handles. Activation mappings also have scope-owned
+  cleanup across command-line/path allocation failures.
+- IPC shutdown interrupts connection and incomplete-frame waits. Drain exact
+  overlapped cancellation before freeing buffers, and preserve idle blocking.
+- Recovery cleanup recognizes legacy .vcq.tmp and unique .vcq.{GUID}.tmp files,
+  preserves active session owners, and never deletes unrelated/malformed names.

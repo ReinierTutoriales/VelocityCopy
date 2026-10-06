@@ -1,4 +1,5 @@
 #include "velocitycopy/process_activation.hpp"
+#include "win32_handle.hpp"
 
 #include "velocitycopy/ipc_protocol.hpp"
 
@@ -81,9 +82,9 @@ bool launch_velocitycopy_with_request(
             return false;
         }
 
+        detail::Win32Handle owned_mapping(mapping);
         void* view = MapViewOfFile(mapping, FILE_MAP_WRITE, 0, 0, payload->size());
         if (view == nullptr) {
-            CloseHandle(mapping);
             return false;
         }
         std::memcpy(view, payload->data(), payload->size());
@@ -91,7 +92,6 @@ bool launch_velocitycopy_with_request(
 
         AttributeList attributes;
         if (attributes.get() == nullptr) {
-            CloseHandle(mapping);
             return false;
         }
 
@@ -104,7 +104,6 @@ bool launch_velocitycopy_with_request(
                 sizeof(allowed_handles),
                 nullptr,
                 nullptr)) {
-            CloseHandle(mapping);
             return false;
         }
 
@@ -136,7 +135,6 @@ bool launch_velocitycopy_with_request(
             &startup.StartupInfo,
             &process);
 
-        CloseHandle(mapping);
 
         if (!created) {
             return false;
