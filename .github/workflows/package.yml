@@ -2,6 +2,11 @@ name: Windows Package
 
 on:
   workflow_dispatch:
+    inputs:
+      geometry_probe:
+        description: 'Enable diagnostic geometry logging (not for distribution)'
+        type: boolean
+        default: false
   pull_request:
   push:
     branches: [main]
@@ -64,7 +69,7 @@ jobs:
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $msbuild = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\MSBuild.exe" | Select-Object -First 1
           if (-not $msbuild) { throw "MSBuild was not found" }
-          & $msbuild src/ui/VelocityCopy.UI/VelocityCopy.UI.vcxproj /restore /m /p:Configuration=Release /p:Platform=${{ matrix.platform }} /p:AppxPackage=false /p:WindowsPackageType=None /p:WindowsAppSDKSelfContained=true /p:SelfContained=true /p:EnableMsixTooling=true /p:SkipVelocityCopyCoreBuild=true /p:VelocityCopyGeometryProbe=true /p:VelocityCopyBuildSha=${{ github.event.pull_request.head.sha || github.sha }}
+          & $msbuild src/ui/VelocityCopy.UI/VelocityCopy.UI.vcxproj /restore /m /p:Configuration=Release /p:Platform=${{ matrix.platform }} /p:AppxPackage=false /p:WindowsPackageType=None /p:WindowsAppSDKSelfContained=true /p:SelfContained=true /p:EnableMsixTooling=true /p:SkipVelocityCopyCoreBuild=true /p:VelocityCopyGeometryProbe=${{ github.event_name == 'workflow_dispatch' && inputs.geometry_probe || false }} /p:VelocityCopyBuildSha=${{ github.event.pull_request.head.sha || github.sha }}
           if ($LASTEXITCODE -ne 0) { throw "Self-contained WinUI ${{ matrix.arch }} build failed" }
 
       - name: Smoke launch built x64 output
@@ -156,8 +161,29 @@ jobs:
 
           $forbidden = @(Get-ChildItem $payload -Recurse -File | Where-Object { $_.Extension -in '.msix','.msixbundle','.appx','.appxbundle','.cer','.pfx' })
           if ($forbidden.Count) { throw "Installer payload contains package/certificate artifacts" }
-          $size = (Get-ChildItem $payload -Recurse -File | Measure-Object Length -Sum).Sum
-          Write-Host ("Self-contained ${{ matrix.arch }} payload: {0:N1} MB" -f ($size / 1MB))
+          # Exclude build-only products recursively, including nested output folders.
+          Get-ChildItem $payload -Recurse -File |
+            Where-Object { $_.Extension -in '.pdb','.ilk','.lib','.exp','.iobj','.ipdb' } |
+            Remove-Item -Force
+          foreach ($unused in @('Microsoft.Windows.AI.Text.dll','Microsoft.Windows.AI.MachineLearning.dll','onnxruntime.dll','Microsoft.Windows.Search.dll','Microsoft.Windows.Widgets.dll')) {
+            if (Test-Path (Join-Path $payload $unused)) { throw "Unused SDK component is still staged: $unused" }
+          }
+          $files = @(Get-ChildItem $payload -Recurse -File)
+          $size = ($files | Measure-Object Length -Sum).Sum
+          $inventory = @($files | Sort-Object FullName | ForEach-Object {
+            [ordered]@{ path = [IO.Path]::GetRelativePath((Resolve-Path $payload).Path, $_.FullName); bytes = $_.Length }
+          })
+          [ordered]@{ architecture = '${{ matrix.arch }}'; bytes = $size; files = $inventory } |
+            ConvertTo-Json -Depth 4 | Set-Content "artifacts/payload-inventory-${{ matrix.arch }}.json" -Encoding utf8
+          Write-Host ("Self-contained ${{ matrix.arch }} payload: {0:N1} MB ({1} files)" -f ($size / 1MB), $files.Count)
+          $files | Sort-Object Length -Descending | Select-Object -First 15 Name,Length | Format-Table
+
+      - name: Upload payload size inventory
+        uses: actions/upload-artifact@v4
+        with:
+          name: VelocityCopy-payload-inventory-${{ matrix.arch }}-${{ github.run_id }}
+          path: artifacts/payload-inventory-${{ matrix.arch }}.json
+          retention-days: 7
 
       - name: Validate staged application icon
         shell: pwsh
@@ -357,6 +383,11 @@ jobs:
           $root = Join-Path $env:ProgramFiles "VelocityCopy"
           $shellDll = Join-Path $root "VelocityCopy.Shell.dll"
           if (-not (Test-Path $shellDll)) { throw "v1.1.0 shell DLL is missing" }
+          # Seed a retired component and unrelated user file to check targeted cleanup.
+          $retiredFixture = Join-Path $root 'Microsoft.Windows.AI.Text.dll'
+          if (-not (Test-Path $retiredFixture)) { Set-Content $retiredFixture 'retired SDK fixture' }
+          $userFixture = Join-Path $root 'upgrade-preserve-user-file.txt'
+          Set-Content $userFixture 'preserve me'
 
           $holderScript = Join-Path $env:RUNNER_TEMP "hold-velocitycopy-shell.ps1"
           @(
@@ -387,7 +418,16 @@ jobs:
             if ($upgrade.ExitCode -ne 0) { throw "Upgrade over write-locked v1.1.0 shell DLL failed: $($upgrade.ExitCode)" }
             if (-not (Test-Path $shellDll)) { throw "Shell DLL disappeared after upgrade" }
 
+            if (Test-Path $retiredFixture) { throw "Upgrade left the retired AI component behind" }
+            if ((Get-Content $userFixture -Raw).Trim() -ne 'preserve me') { throw "Upgrade altered an unrelated file" }
             $payloadRoot = (Resolve-Path "artifacts/installer-payload-x64").Path
+            $retiredNames = [regex]::Matches((Get-Content tools/Retired-Sdk-Components.nsh -Raw), '!insertmacro RetireUnusedSdkFile "([^"\r\n]+)"')
+            foreach ($match in $retiredNames) {
+              $name = $match.Groups[1].Value
+              if (-not (Test-Path (Join-Path $payloadRoot $name)) -and (Test-Path (Join-Path $root $name))) {
+                throw "Upgrade retained obsolete SDK file: $name"
+              }
+            }
             $installedExe = Join-Path $root "VelocityCopy.WinUI.exe"
             $payloadExe = Join-Path $payloadRoot "VelocityCopy.WinUI.exe"
             $payloadShell = Join-Path $payloadRoot "VelocityCopy.Shell.dll"
