@@ -432,7 +432,11 @@ IpcSendResult send_shell_request(
             return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(error))};
         }
         flusher.join();
-        if (!flushed) return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(flush_error))};
+        // A receiver may consume/disconnect before the flush worker starts.
+        // As with the original write-only contract, disconnect is not a durable
+        // admission acknowledgement; only transport errors/timeouts are reported.
+        if (!flushed && flush_error != ERROR_PIPE_NOT_CONNECTED && flush_error != ERROR_BROKEN_PIPE)
+            return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(flush_error))};
         return {true, S_OK};
     } catch (const std::bad_alloc&) {
         return {false, static_cast<std::int32_t>(E_OUTOFMEMORY)};
