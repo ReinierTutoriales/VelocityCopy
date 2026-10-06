@@ -8,6 +8,7 @@ bool shares_device(const TransferRequest&r,const ActiveSession&s) {return same_d
 }
 bool same_destination(const std::filesystem::path&a,const std::filesystem::path&b) {return !a.empty()&&!b.empty()&&path_key(a)==path_key(b);}
 std::wstring fallback_volume_key(const std::filesystem::path& path) noexcept {
+ try {
  auto s=path.lexically_normal().wstring();
  std::replace(s.begin(),s.end(),L'/',L'\\');
  std::transform(s.begin(),s.end(),s.begin(),[](wchar_t ch){return static_cast<wchar_t>(std::towlower(ch));});
@@ -25,8 +26,10 @@ std::wstring fallback_volume_key(const std::filesystem::path& path) noexcept {
  }
  if(s.size()>=2&&s[1]==L':') return s.substr(0,2)+L"\\";
  return {};
+ } catch (...) { return {}; }
 }
 StorageKey resolve_storage_key(const std::filesystem::path& path) noexcept {
+ try {
  const auto profile=StorageProfiler{}.inspect(path);
  StorageKey key{};
  key.volume=profile.volume_id.empty()?fallback_volume_key(profile.volume_root.empty()?path:profile.volume_root):profile.volume_id;
@@ -36,6 +39,7 @@ StorageKey resolve_storage_key(const std::filesystem::path& path) noexcept {
  if(profile.kind==StorageKind::Fixed&&profile.physical_disk_extents_available&&profile.physical_disk_numbers.size()==1)
   key.disk=profile.physical_disk_numbers.front();
  return key;
+ } catch (...) { return {}; }
 }
 bool same_device(const StorageKey&a,const StorageKey&b) {
  if(!a.volume.empty()&&!b.volume.empty()){auto x=a.volume,y=b.volume;std::transform(x.begin(),x.end(),x.begin(),::towlower);std::transform(y.begin(),y.end(),y.begin(),::towlower);if(x==y)return true;}

@@ -47,7 +47,7 @@ The resident process exists only to provide near-instant Explorer handoff and st
 - no process injection, DLL injection, or generic keystroke capture
 - no periodic benchmark
 - no copy worker until work exists
-- IPC blocks on a local named pipe instead of polling
+- IPC waits on local named-pipe completion and shutdown events instead of polling
 - the hidden startup window performs no animation
 - when hidden in the tray and no transfer/planning work is active, VelocityCopy opts into Windows 11 EcoQoS with `ProcessPowerThrottling` / `PROCESS_POWER_THROTTLING_EXECUTION_SPEED`
 - EcoQoS is removed before planning, copying, resuming work, showing the window or exiting, so active file I/O is never intentionally throttled
@@ -58,7 +58,7 @@ Any future idle feature must preserve this near-zero-CPU design and must not app
 
 - `WM_QUERYENDSESSION` returns success immediately; VelocityCopy does not delay Windows shutdown with UI.
 - On a confirmed `WM_ENDSESSION`, EcoQoS is removed and the remaining live plan, deferred appends and queued sessions are snapshotted.
-- The snapshot is stored as `VelocityCopy.Recovery.vcq` in the packaged app LocalState using the existing atomic temp-file + `MoveFileExW` archive path.
+- The snapshot is stored as `VelocityCopy.Recovery.vcq` under `%LOCALAPPDATA%\VelocityCopy` using the existing atomic, per-writer unique staging file + `MoveFileExW` archive path. Cleanup recognizes both legacy and unique GUID staging names, keeps active owners, and preserves unrelated files.
 - Recovery persistence is best-effort and must never block or veto Windows shutdown.
 
 ## File Explorer integration

@@ -1,4 +1,7 @@
 #include "velocitycopy/job_queue.hpp"
+#include <windows.h>
+#include <new>
+#include <type_traits>
 
 #include <algorithm>
 #include <utility>
@@ -45,9 +48,12 @@ bool JobQueue::move_pending(const std::uint64_t job_id, const std::size_t new_in
         return true;
     }
 
-    CopyJob job = std::move(*it);
-    jobs_.erase(it);
-    jobs_.insert(jobs_.begin() + static_cast<std::ptrdiff_t>(new_index), std::move(job));
+    static_assert(std::is_nothrow_move_constructible_v<CopyJob> && std::is_nothrow_move_assignable_v<CopyJob>);
+    if (current_index < new_index) {
+        std::rotate(it, it + 1, jobs_.begin() + static_cast<std::ptrdiff_t>(new_index + 1));
+    } else {
+        std::rotate(jobs_.begin() + static_cast<std::ptrdiff_t>(new_index), it, it + 1);
+    }
     return true;
 }
 
@@ -76,6 +82,7 @@ JobResult JobQueue::execute_next(const QueueProgressCallback& progress) noexcept
     }
 
     auto& job = jobs_[*pending_index];
+    try {
     job.state = JobState::Running;
     active_job_id_ = job.id;
 
@@ -103,6 +110,15 @@ JobResult JobQueue::execute_next(const QueueProgressCallback& progress) noexcept
     }
 
     return result;
+    } catch (const std::bad_alloc&) {
+        active_job_id_.reset();
+        job.state = JobState::Failed;
+        return {false, false, static_cast<std::int32_t>(E_OUTOFMEMORY)};
+    } catch (...) {
+        active_job_id_.reset();
+        job.state = JobState::Failed;
+        return {false, false, static_cast<std::int32_t>(E_FAIL)};
+    }
 }
 
 std::size_t JobQueue::execute_all(const QueueProgressCallback& progress) noexcept {

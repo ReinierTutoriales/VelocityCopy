@@ -5,7 +5,7 @@
 
 #include <condition_variable>
 #include <cstdint>
-#include <deque>
+#include <vector>
 #include <functional>
 #include <mutex>
 #include <optional>
@@ -42,6 +42,7 @@ private:
         std::uint64_t id{};
         CopyJob job;
         JobPlanningCallback callback;
+        std::stop_source cancellation;
     };
 
     static JobPlanningResult cancelled_result(Request request) noexcept;
@@ -50,8 +51,8 @@ private:
     JobPlanner planner_;
     std::mutex mutex_;
     std::condition_variable_any condition_;
-    std::deque<Request> pending_;
-    std::stop_source active_stop_source_;
+    std::vector<Request> pending_;
+    std::stop_source active_stop_source_{std::nostopstate};
     std::uint64_t active_request_id_{};
     std::uint64_t next_request_id_{1};
     std::jthread worker_;

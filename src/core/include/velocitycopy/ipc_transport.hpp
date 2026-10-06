@@ -44,9 +44,9 @@ private:
     bool create_pipe() noexcept;
     bool recreate_pipe_or_stop() noexcept;
     void close_pipe() noexcept;
-    void wake_receiver() noexcept;
 
     void* pipe_{};
+    void* stop_event_{};
     std::atomic_bool stopping_{false};
 };
 
