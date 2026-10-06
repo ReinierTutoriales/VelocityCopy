@@ -54,6 +54,35 @@ ShowUninstDetails show
 !define MUI_FINISHPAGE_RUN_FUNCTION LaunchVelocityCopyAsUser
 !insertmacro MUI_PAGE_FINISH
 !insertmacro MUI_LANGUAGE "English"
+!insertmacro MUI_LANGUAGE "Spanish"
+
+; NSIS selects the current user's Windows UI language, including a primary
+; language match (es-MX/es-US -> Spanish), and falls back to the first language.
+; Keep English first for users whose display language is not supported.
+LangString InstallSectionName ${LANG_ENGLISH} "Install VelocityCopy"
+LangString InstallSectionName ${LANG_SPANISH} "Instalar VelocityCopy"
+LangString Requires64Bit ${LANG_ENGLISH} "VelocityCopy requires 64-bit Windows."
+LangString Requires64Bit ${LANG_SPANISH} "VelocityCopy requiere Windows de 64 bits."
+LangString RequiresX64 ${LANG_ENGLISH} "This installer is for x64 Windows. Use VelocityCopy-Setup-ARM64.exe."
+LangString RequiresX64 ${LANG_SPANISH} "Este instalador es para Windows x64. Use VelocityCopy-Setup-ARM64.exe."
+LangString RequiresARM64 ${LANG_ENGLISH} "This installer is for Windows on ARM. Use VelocityCopy-Setup-x64.exe."
+LangString RequiresARM64 ${LANG_SPANISH} "Este instalador es para Windows ARM. Use VelocityCopy-Setup-x64.exe."
+LangString StartupConfig ${LANG_ENGLISH} "Configuring VelocityCopy startup for the interactive desktop user..."
+LangString StartupConfig ${LANG_SPANISH} "Configurando el inicio de VelocityCopy para el usuario de la sesión interactiva..."
+LangString StartupSkipped ${LANG_ENGLISH} "No interactive Explorer session; startup registration was skipped."
+LangString StartupSkipped ${LANG_SPANISH} "No hay una sesión interactiva de Explorer; se omitió el registro de inicio."
+LangString StartupFailed ${LANG_ENGLISH} "Startup registration helper failed with exit code $0: $1"
+LangString StartupFailed ${LANG_SPANISH} "Falló el registro de inicio con el código $0: $1"
+LangString StartupAbort ${LANG_ENGLISH} "VelocityCopy could not configure startup for the interactive user."
+LangString StartupAbort ${LANG_SPANISH} "VelocityCopy no pudo configurar el inicio para el usuario de la sesión interactiva."
+LangString ClosingApp ${LANG_ENGLISH} "Closing VelocityCopy if it is running..."
+LangString ClosingApp ${LANG_SPANISH} "Cerrando VelocityCopy si está en ejecución..."
+LangString ShellLocked ${LANG_ENGLISH} "VelocityCopy.Shell.dll is locked and could not be retired."
+LangString ShellLocked ${LANG_SPANISH} "VelocityCopy.Shell.dll está bloqueado y no se pudo retirar."
+LangString ShellAbort ${LANG_ENGLISH} "VelocityCopy.Shell.dll is in use and was not replaced."
+LangString ShellAbort ${LANG_SPANISH} "VelocityCopy.Shell.dll está en uso y no se reemplazó."
+LangString HelperMissing ${LANG_ENGLISH} "Startup helper is unavailable; no elevated HKCU fallback is used."
+LangString HelperMissing ${LANG_SPANISH} "El asistente de inicio no está disponible; no se modifica HKCU desde el instalador elevado."
 
 ; Some NSIS packages omit the LogicLib ${IsARM64} helper. Detect native ARM64
 ; with IsWow64Process2 (IMAGE_FILE_MACHINE_ARM64 = 0xAA64 = 43620) instead.
@@ -63,18 +92,18 @@ Function .onInit
   System::Call "kernel32::IsWow64Process2(pr0,*i.r1,*i.r2)i.r3"
 !if "${PAYLOAD_ARCH}" == "x64"
   ${IfNot} ${RunningX64}
-    MessageBox MB_ICONSTOP "VelocityCopy requires 64-bit Windows."
+    MessageBox MB_ICONSTOP "$(Requires64Bit)"
     Abort
   ${EndIf}
   ${If} $3 <> 0
   ${AndIf} $2 = 43620
-    MessageBox MB_ICONSTOP "This installer is for x64 Windows. Use VelocityCopy-Setup-ARM64.exe."
+    MessageBox MB_ICONSTOP "$(RequiresX64)"
     Abort
   ${EndIf}
 !else if "${PAYLOAD_ARCH}" == "ARM64"
   ${If} $3 = 0
   ${OrIf} $2 <> 43620
-    MessageBox MB_ICONSTOP "This installer is for Windows on ARM. Use VelocityCopy-Setup-x64.exe."
+    MessageBox MB_ICONSTOP "$(RequiresARM64)"
     Abort
   ${EndIf}
 !else
@@ -90,15 +119,15 @@ Function LaunchVelocityCopyAsUser
 FunctionEnd
 
 !macro ConfigureInteractiveStartup ACTION
-  DetailPrint "Configuring VelocityCopy startup for the interactive desktop user..."
+  DetailPrint "$(StartupConfig)"
   nsExec::ExecToStack '"$INSTDIR\VelocityCopy.StartupHelper.exe" --${ACTION} "$INSTDIR\VelocityCopy.WinUI.exe"'
   Pop $0
   Pop $1
   ${If} $0 == 10
-    DetailPrint "No interactive Explorer session; startup registration was skipped."
+    DetailPrint "$(StartupSkipped)"
   ${ElseIf} $0 != 0
-    DetailPrint "Startup registration helper failed with exit code $0: $1"
-    Abort "VelocityCopy could not configure startup for the interactive user."
+    DetailPrint "$(StartupFailed)"
+    Abort "$(StartupAbort)"
   ${EndIf}
 !macroend
 
@@ -122,7 +151,7 @@ FunctionEnd
 ; before touching installed binaries. taskkill is part of Windows and nsExec is
 ; bundled with NSIS; a non-zero result is harmless when no process is running.
 !macro CloseRunningApp
-  DetailPrint "Closing VelocityCopy if it is running..."
+  DetailPrint "$(ClosingApp)"
   nsExec::ExecToLog '"$SYSDIR\taskkill.exe" /IM VelocityCopy.WinUI.exe /F'
   Sleep 500
 !macroend
@@ -149,13 +178,13 @@ Function ReleaseLoadedShellDll
   Goto shell_release_done
 
 shell_release_failed:
-  DetailPrint "VelocityCopy.Shell.dll is locked and could not be retired."
-  Abort "VelocityCopy.Shell.dll is in use and was not replaced."
+  DetailPrint "$(ShellLocked)"
+  Abort "$(ShellAbort)"
 
 shell_release_done:
 FunctionEnd
 
-Section "Install VelocityCopy" SEC_INSTALL
+Section "$(InstallSectionName)" SEC_INSTALL
   SetRegView 64
   !insertmacro CloseRunningApp
   Call ReleaseLoadedShellDll
@@ -205,7 +234,7 @@ Section "Uninstall"
   ${If} ${FileExists} "$INSTDIR\VelocityCopy.StartupHelper.exe"
     !insertmacro ConfigureInteractiveStartup remove
   ${Else}
-    DetailPrint "Startup helper is unavailable; no elevated HKCU fallback is used."
+    DetailPrint "$(HelperMissing)"
   ${EndIf}
 
   !insertmacro RemoveLegacyShell
