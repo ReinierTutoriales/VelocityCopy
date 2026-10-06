@@ -5,6 +5,7 @@ SetCompressor /SOLID lzma
 !include "MUI2.nsh"
 !include "LogicLib.nsh"
 !include "x64.nsh"
+!include "Retired-Sdk-Components.nsh"
 
 !ifndef PAYLOAD_DIR
   !error "PAYLOAD_DIR is required"
@@ -160,6 +161,7 @@ Section "Install VelocityCopy" SEC_INSTALL
   Call ReleaseLoadedShellDll
   SetOutPath "$INSTDIR"
   File /r "${PAYLOAD_DIR}\*.*"
+  !insertmacro RetireUnusedSdkComponents
   ${If} $1 != ""
     Delete /REBOOTOK "$1"
   ${EndIf}
