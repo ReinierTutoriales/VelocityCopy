@@ -77,7 +77,9 @@ bool AppTray::RefreshIcon() noexcept {
 
     if (added_) {
         auto updated = data_;
-        updated.uFlags = NIF_ICON;
+        // Re-publish the hover text and standard tooltip on every icon refresh.
+        // NOTIFYICON_VERSION_4 otherwise permits the Shell to suppress that tooltip.
+        updated.uFlags = NIF_ICON | NIF_TIP | NIF_SHOWTIP;
         updated.hIcon = replacement;
         if (!Shell_NotifyIconW(NIM_MODIFY, &updated)) {
             DestroyIcon(replacement);
