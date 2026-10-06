@@ -22,6 +22,8 @@ using namespace Microsoft::UI::Xaml::Controls;
 #define VELOCITYCOPY_BUILD_SHA unknown
 #endif
 
+
+#if defined(VELOCITYCOPY_GEOMETRY_PROBE)
 namespace {
 
 // Telemetry geometry diagnostics. Records layout metrics only: no file names,
@@ -84,6 +86,7 @@ std::string to_utf8(const std::wstring& text) {
 }
 
 } // namespace
+#endif
 
 namespace winrt::VelocityCopyUI::implementation {
 
@@ -110,6 +113,7 @@ void MainWindow::ScheduleTelemetryGeometryProbe() {
 }
 
 void MainWindow::LogTelemetryGeometry() {
+#if defined(VELOCITYCOPY_GEOMETRY_PROBE)
     namespace probe = velocitycopy::ui::probe;
     try {
         constexpr double mib = 1024.0 * 1024.0;
@@ -277,6 +281,7 @@ void MainWindow::LogTelemetryGeometry() {
     } catch (...) {
         OutputDebugStringW(L"VelocityCopy: LogTelemetryGeometry failed\n");
     }
+#endif
 }
 
 } // namespace winrt::VelocityCopyUI::implementation
