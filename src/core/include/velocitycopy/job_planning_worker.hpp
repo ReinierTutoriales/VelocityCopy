@@ -5,7 +5,7 @@
 
 #include <condition_variable>
 #include <cstdint>
-#include <list>
+#include <vector>
 #include <functional>
 #include <mutex>
 #include <optional>
@@ -51,7 +51,7 @@ private:
     JobPlanner planner_;
     std::mutex mutex_;
     std::condition_variable_any condition_;
-    std::list<Request> pending_;
+    std::vector<Request> pending_;
     std::stop_source active_stop_source_{std::nostopstate};
     std::uint64_t active_request_id_{};
     std::uint64_t next_request_id_{1};

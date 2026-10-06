@@ -8,6 +8,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstdlib>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <mutex>
@@ -40,6 +41,7 @@ int main() {
     request.destination = root / L"destination";
     (void)StorageProfiler{}.inspect(root);
     (void)launch_velocitycopy_with_request(absent_exe, request);
+    std::fprintf(stderr, "Storage/activation allocation sweep\n");
     for (int allocation = 0; allocation < 60; ++allocation) {
         DWORD before{}, after{};
         GetProcessHandleCount(GetCurrentProcess(), &before);
@@ -60,6 +62,7 @@ int main() {
         if (launched || after != before) return 3;
     }
 
+    std::fprintf(stderr, "Queue allocation checks\n");
     CopyJob job;
     job.sources = {source};
     job.destination = root / L"destination";
@@ -77,6 +80,7 @@ int main() {
     const auto result = queue.execute_next();
     fail_after = -1;
     if (result.success || result.native_code != static_cast<std::int32_t>(E_OUTOFMEMORY) || queue.active_job_id()) return 7;
+    std::fprintf(stderr, "Worker cancellation allocation check\n");
     JobPlanningWorker worker;
     std::mutex mutex;
     std::condition_variable gate;

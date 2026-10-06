@@ -149,7 +149,7 @@ bool send_malformed_message() {
 }
 } // namespace
 
-int wmain() {
+int run_test() {
     using namespace velocitycopy;
 
     ShellRequest request{};
@@ -231,4 +231,10 @@ int wmain() {
 
     std::wcout << L"VelocityCopy IPC test passed.\n";
     return 0;
+}
+
+int wmain() {
+    const int result = run_test();
+    if (result) std::cerr << "IPC failure at check " << result << "\n";
+    return result;
 }

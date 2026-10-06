@@ -157,7 +157,7 @@ DWORD remaining_timeout_ms(const SteadyClock::time_point deadline) noexcept {
 bool finish_io(
     HANDLE pipe, OVERLAPPED& operation, const BOOL started, const DWORD start_error,
     DWORD& transferred, HANDLE stop_event, const DWORD timeout) noexcept {
-    if (started) return true;
+    if (started) return GetOverlappedResult(pipe, &operation, &transferred, FALSE) != FALSE;
     if (start_error != ERROR_IO_PENDING) {
         SetLastError(start_error);
         return false;

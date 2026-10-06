@@ -49,13 +49,13 @@ JobPlanningResult JobPlanningWorker::cancelled_result(Request request) noexcept 
 }
 
 void JobPlanningWorker::cancel_pending() noexcept {
-    std::list<Request> cancelled;
+    std::vector<Request> cancelled;
     {
         std::lock_guard lock(mutex_);
         if (active_request_id_ != 0) {
             active_stop_source_.request_stop();
         }
-        cancelled.splice(cancelled.end(), pending_);
+        cancelled.swap(pending_);
     }
 
     // Deliver explicit-cancellation callbacks outside the worker mutex. The UI
@@ -84,7 +84,7 @@ void JobPlanningWorker::run(const std::stop_token stop_token) noexcept {
                 return;
             }
             request = std::move(pending_.front());
-            pending_.pop_front();
+            pending_.erase(pending_.begin());
             active_stop_source_ = request.cancellation;
             active_request_id_ = request.id;
             request_stop_token = active_stop_source_.get_token();

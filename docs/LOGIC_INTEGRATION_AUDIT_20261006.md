@@ -18,7 +18,7 @@ Windows Package passed before this work (37442672197 / 37442672300).
   reservations/maps on rejected restoration. Retry counters saturate at uint32
   maximum rather than wrapping to an invalid archived zero.
 - cancel_pending allocated a vector inside noexcept; active stop states also
-  allocated inside the noexcept worker loop. A node queue detaches by splice,
+  allocated inside the noexcept worker loop. A request vector detaches by swap (including on MSVC, whose list sentinel allocates),
   creates stop states during enqueue and retains callbacks outside the lock.
 - Legacy JobQueue reordering erased then inserted into an allocating deque.
   Rotate existing entries instead. Its noexcept execution boundary catches
