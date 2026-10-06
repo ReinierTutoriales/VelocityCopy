@@ -14,6 +14,7 @@ namespace {
 static_assert(std::is_nothrow_move_constructible_v<std::filesystem::path>);
 static_assert(std::is_nothrow_move_constructible_v<PlannedDirectory>);
 static_assert(std::is_nothrow_move_constructible_v<PlannedFile>);
+static_assert(std::is_nothrow_move_assignable_v<PlannedFile>);
 
 std::wstring normalized_path_key(const std::filesystem::path& path) {
     auto value = path.lexically_normal().wstring();
@@ -155,22 +156,32 @@ LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan, const bool allow_draine
             staged_destination_keys.insert(key);
         }
 
-        directories_.insert(
-            directories_.end(),
-            std::make_move_iterator(plan.directories.begin()),
-            std::make_move_iterator(plan.directories.end()));
-        source_roots_.insert(
-            source_roots_.end(),
-            std::make_move_iterator(plan.source_roots.begin()),
-            std::make_move_iterator(plan.source_roots.end()));
-
+        const auto old_directories = directories_.size();
+        const auto old_roots = source_roots_.size();
+        const auto old_pending = pending_files_.size();
         std::uint64_t assigned_id = next_file_id_;
-        for (auto& file : plan.files) {
-            file.id = assigned_id;
-            assigned_id = assigned_id == std::numeric_limits<std::uint64_t>::max()
-                ? 0
-                : assigned_id + 1;
-            pending_files_.push_back(std::move(file));
+        try {
+            directories_.insert(
+                directories_.end(),
+                std::make_move_iterator(plan.directories.begin()),
+                std::make_move_iterator(plan.directories.end()));
+            source_roots_.insert(
+                source_roots_.end(),
+                std::make_move_iterator(plan.source_roots.begin()),
+                std::make_move_iterator(plan.source_roots.end()));
+            for (auto& file : plan.files) {
+                file.id = assigned_id;
+                assigned_id = assigned_id == std::numeric_limits<std::uint64_t>::max()
+                    ? 0 : assigned_id + 1;
+                pending_files_.push_back(std::move(file));
+            }
+        } catch (...) {
+            // Deque growth can fail after some files have been appended. Roll
+            // back only the new tail; existing queued work is never copied.
+            while (pending_files_.size() > old_pending) pending_files_.pop_back();
+            directories_.resize(old_directories);
+            source_roots_.resize(old_roots);
+            throw;
         }
 
         reserved_destination_keys_.swap(staged_destination_keys);
@@ -227,11 +238,11 @@ bool LiveCopyPlan::move_pending_file(const std::uint64_t file_id, const std::siz
 }
 
 bool LiveCopyPlan::move_pending_file_up(const std::uint64_t file_id) noexcept {
-    return move_pending_files_up({file_id});
+    try { return move_pending_files_up({file_id}); } catch (...) { return false; }
 }
 
 bool LiveCopyPlan::move_pending_file_down(const std::uint64_t file_id) noexcept {
-    return move_pending_files_down({file_id});
+    try { return move_pending_files_down({file_id}); } catch (...) { return false; }
 }
 
 bool LiveCopyPlan::move_pending_files_up(const std::vector<std::uint64_t>& file_ids) noexcept {
@@ -313,7 +324,7 @@ bool LiveCopyPlan::reorder_pending_files(const std::vector<std::uint64_t>& order
 }
 
 bool LiveCopyPlan::remove_pending_file(const std::uint64_t file_id) noexcept {
-    return remove_pending_files({file_id}) != 0;
+    try { return remove_pending_files({file_id}) != 0; } catch (...) { return false; }
 }
 
 std::size_t LiveCopyPlan::remove_pending_files(const std::vector<std::uint64_t>& file_ids) noexcept {
@@ -363,12 +374,12 @@ std::size_t LiveCopyPlan::remove_pending_files(const std::vector<std::uint64_t>&
     }
 }
 
-std::optional<PlannedFile> LiveCopyPlan::acquire_next() noexcept {
+std::optional<PlannedFile> LiveCopyPlan::acquire_next() {
     std::lock_guard lock(mutex_);
     if (pending_files_.empty()) return std::nullopt;
-    PlannedFile file = std::move(pending_files_.front());
+    PlannedFile file = pending_files_.front();
+    active_files_.push_back(std::move(pending_files_.front()));
     pending_files_.pop_front();
-    active_files_.push_back(file);
     attempt_bytes_.erase(file.id);
     // Keep the attempt number while this item is active. If this retry parks
     // again, park_active() must report the incremented attempt.
@@ -396,13 +407,13 @@ void LiveCopyPlan::complete_active(const std::uint64_t file_id) noexcept {
     active_files_.erase(it);
 }
 
-void LiveCopyPlan::release_active(const std::uint64_t file_id) noexcept {
+void LiveCopyPlan::release_active(const std::uint64_t file_id) {
     std::lock_guard lock(mutex_);
     auto it = find_active(file_id);
     if (it == active_files_.end()) return;
-    PlannedFile file = std::move(*it);
+    pending_files_.emplace_front();
+    pending_files_.front() = std::move(*it);
     active_files_.erase(it);
-    pending_files_.push_front(std::move(file));
 }
 
 bool LiveCopyPlan::skip_active(const std::uint64_t file_id) noexcept {
@@ -596,13 +607,20 @@ bool LiveCopyPlan::restore_parked_source_removal(const SourceRemovalRecovery& ar
         const auto destination_key = normalized_path_key(file.destination);
         if (destination_key.empty() || reserved_destination_keys_.contains(destination_key)) return false;
 
-        parked_files_.push_back({file, incident, recovery});
-        reserved_destination_keys_.insert(destination_key);
+        try {
+            reserved_destination_keys_.insert(destination_key);
+            high_water_.emplace(id, weight);
+            attempt_counts_.emplace(id, incident.attempt_count);
+            parked_files_.push_back({file, incident, recovery});
+        } catch (...) {
+            reserved_destination_keys_.erase(destination_key);
+            high_water_.erase(id);
+            attempt_counts_.erase(id);
+            throw;
+        }
         next_file_id_ = id == std::numeric_limits<std::uint64_t>::max() ? 0 : id + 1;
         counters_.resolution_total += weight;
         counters_.resolution_weight += weight;
-        high_water_[id] = weight;
-        attempt_counts_[id] = incident.attempt_count;
         total_bytes_ += size;
         ++total_files_;
         largest_file_bytes_ = std::max(largest_file_bytes_, size);
@@ -635,8 +653,15 @@ bool LiveCopyPlan::unpark(const std::uint64_t file_id) noexcept {
             it->incident.recovery_action != RecoveryAction::RetryTransfer) {
             return false;
         }
-        pending_files_.push_front(it->file);
-        attempt_counts_[file_id] = it->incident.attempt_count + 1;
+        auto [attempt, inserted] = attempt_counts_.try_emplace(file_id, 0);
+        try {
+            pending_files_.push_front(it->file);
+        } catch (...) {
+            if (inserted) attempt_counts_.erase(attempt);
+            throw;
+        }
+        attempt->second = it->incident.attempt_count == std::numeric_limits<std::uint32_t>::max()
+            ? it->incident.attempt_count : it->incident.attempt_count + 1;
         parked_files_.erase(it);
         // The retry is a new attempt; the high-water mark is kept so the
         // visible progress does not move backwards.
@@ -654,8 +679,10 @@ bool LiveCopyPlan::begin_parked_retry(
         std::lock_guard lock(mutex_);
         auto it = find_parked(file_id);
         if (it == parked_files_.end() || it->incident.recovery_action != action) return false;
-        ++it->incident.attempt_count;
-        attempt_counts_[file_id] = it->incident.attempt_count;
+        const auto next_attempt = it->incident.attempt_count == std::numeric_limits<std::uint32_t>::max()
+            ? it->incident.attempt_count : it->incident.attempt_count + 1;
+        attempt_counts_.insert_or_assign(file_id, next_attempt);
+        it->incident.attempt_count = next_attempt;
         return true;
     } catch (...) {
         return false;

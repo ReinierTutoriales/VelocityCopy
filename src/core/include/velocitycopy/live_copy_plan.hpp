@@ -117,9 +117,9 @@ public:
     [[nodiscard]] bool remove_pending_file(std::uint64_t file_id) noexcept;
     [[nodiscard]] std::size_t remove_pending_files(const std::vector<std::uint64_t>& file_ids) noexcept;
 
-    [[nodiscard]] std::optional<PlannedFile> acquire_next() noexcept;
+    [[nodiscard]] std::optional<PlannedFile> acquire_next();
     void complete_active(std::uint64_t file_id) noexcept;
-    void release_active(std::uint64_t file_id) noexcept;
+    void release_active(std::uint64_t file_id);
     [[nodiscard]] bool skip_active(std::uint64_t file_id) noexcept;
 
     // Per-item resolution API (ItemState contract). Runs alongside the legacy

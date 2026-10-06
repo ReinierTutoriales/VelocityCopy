@@ -1,4 +1,5 @@
 #include "velocitycopy/storage_profiler.hpp"
+#include "win32_handle.hpp"
 
 #include <windows.h>
 #include <winioctl.h>
@@ -22,7 +23,7 @@ StorageKind map_drive_type(const UINT type) noexcept {
     }
 }
 
-std::filesystem::path nearest_existing_path(std::filesystem::path path) noexcept {
+std::filesystem::path nearest_existing_path(std::filesystem::path path) {
     std::error_code ec;
     while (!path.empty() && !std::filesystem::exists(path, ec)) {
         path = path.parent_path();
@@ -31,7 +32,7 @@ std::filesystem::path nearest_existing_path(std::filesystem::path path) noexcept
     return path;
 }
 
-bool open_volume(const std::filesystem::path& volume_root, HANDLE& volume) noexcept {
+bool open_volume(const std::filesystem::path& volume_root, HANDLE& volume) {
     std::array<wchar_t, 64> volume_name{};
     if (GetVolumeNameForVolumeMountPointW(
             volume_root.c_str(),
@@ -56,12 +57,13 @@ bool open_volume(const std::filesystem::path& volume_root, HANDLE& volume) noexc
     return volume != INVALID_HANDLE_VALUE;
 }
 
-void query_physical_disk_extents(const std::filesystem::path& volume_root, StorageProfile& profile) noexcept {
+void query_physical_disk_extents(const std::filesystem::path& volume_root, StorageProfile& profile) {
     HANDLE volume = INVALID_HANDLE_VALUE;
     if (!open_volume(volume_root, volume)) {
         return;
     }
 
+    detail::Win32Handle owned_volume(volume);
     std::vector<std::byte> buffer(sizeof(VOLUME_DISK_EXTENTS) + sizeof(DISK_EXTENT) * 7);
     for (;;) {
         DWORD bytes_returned = 0;
@@ -96,10 +98,9 @@ void query_physical_disk_extents(const std::filesystem::path& volume_root, Stora
         buffer.resize(buffer.size() * 2);
     }
 
-    CloseHandle(volume);
 }
 
-void query_device_number(const std::filesystem::path& volume_root, StorageProfile& profile) noexcept {
+void query_device_number(const std::filesystem::path& volume_root, StorageProfile& profile) {
     // GetVolumePathNameW may return a drive root or a mounted-folder root.
     // Resolve that mount point to its stable volume GUID path before opening
     // the volume. Microsoft documents that CreateFile must receive the GUID
@@ -150,7 +151,7 @@ void query_device_number(const std::filesystem::path& volume_root, StorageProfil
     CloseHandle(volume);
 }
 
-void query_seek_penalty(const std::filesystem::path& volume_root, StorageProfile& profile) noexcept {
+void query_seek_penalty(const std::filesystem::path& volume_root, StorageProfile& profile) {
     const auto root = volume_root.wstring();
     if (root.size() < 2 || root[1] != L':') {
         return;
@@ -198,6 +199,7 @@ void query_seek_penalty(const std::filesystem::path& volume_root, StorageProfile
 } // namespace
 
 StorageProfile StorageProfiler::inspect(const std::filesystem::path& path) const noexcept {
+    try {
     StorageProfile profile{};
 
     const auto existing = nearest_existing_path(path);
@@ -267,6 +269,11 @@ StorageProfile StorageProfiler::inspect(const std::filesystem::path& path) const
 
     CloseHandle(handle);
     return profile;
+    } catch (...) {
+        // Profiling is advisory. Allocation/device failures use the conservative
+        // unknown profile; they must never terminate a copy or Explorer handoff.
+        return {};
+    }
 }
 
 } // namespace velocitycopy

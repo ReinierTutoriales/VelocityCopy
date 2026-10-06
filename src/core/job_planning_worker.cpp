@@ -4,7 +4,7 @@
 
 #include <system_error>
 #include <utility>
-#include <vector>
+
 
 namespace velocitycopy {
 
@@ -35,7 +35,7 @@ JobPlanningWorker::~JobPlanningWorker() {
 std::uint64_t JobPlanningWorker::enqueue(CopyJob job, JobPlanningCallback callback) {
     std::lock_guard lock(mutex_);
     const auto id = next_request_id_++;
-    pending_.push_back(Request{id, std::move(job), std::move(callback)});
+    pending_.push_back(Request{id, std::move(job), std::move(callback), std::stop_source{}});
     condition_.notify_one();
     return id;
 }
@@ -55,11 +55,7 @@ void JobPlanningWorker::cancel_pending() noexcept {
         if (active_request_id_ != 0) {
             active_stop_source_.request_stop();
         }
-        cancelled.reserve(pending_.size());
-        while (!pending_.empty()) {
-            cancelled.push_back(std::move(pending_.front()));
-            pending_.pop_front();
-        }
+        cancelled.swap(pending_);
     }
 
     // Deliver explicit-cancellation callbacks outside the worker mutex. The UI
@@ -79,7 +75,7 @@ void JobPlanningWorker::cancel_pending() noexcept {
 
 void JobPlanningWorker::run(const std::stop_token stop_token) noexcept {
     while (!stop_token.stop_requested()) {
-        Request request{};
+        Request request{0, {}, {}, std::stop_source{std::nostopstate}};
         std::stop_token request_stop_token;
         {
             std::unique_lock lock(mutex_);
@@ -88,8 +84,8 @@ void JobPlanningWorker::run(const std::stop_token stop_token) noexcept {
                 return;
             }
             request = std::move(pending_.front());
-            pending_.pop_front();
-            active_stop_source_ = std::stop_source{};
+            pending_.erase(pending_.begin());
+            active_stop_source_ = request.cancellation;
             active_request_id_ = request.id;
             request_stop_token = active_stop_source_.get_token();
         }
@@ -120,7 +116,7 @@ void JobPlanningWorker::run(const std::stop_token stop_token) noexcept {
             std::lock_guard lock(mutex_);
             if (active_request_id_ == request.id) {
                 active_request_id_ = 0;
-                active_stop_source_ = std::stop_source{};
+                active_stop_source_ = std::stop_source{std::nostopstate};
             }
         }
 

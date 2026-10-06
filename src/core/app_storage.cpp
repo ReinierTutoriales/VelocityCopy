@@ -73,12 +73,18 @@ std::vector<std::filesystem::path> list_recovery_files(
         for (std::filesystem::directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec)) {
             const auto path = it->path();
             const auto name = path.filename().wstring();
-            if (name.ends_with(L".vcq.tmp")) {
-                const auto recovery_name = std::filesystem::path(name.substr(0, name.size() - 4));
-                const auto session_id = recovery_session_id(recovery_name);
+            if (name.ends_with(L".tmp")) {
+                const auto base = name.substr(0, name.size() - 4);
+                auto session_id = recovery_session_id(std::filesystem::path(base));
+                // QueueArchiveStore now owns a unique .{GUID}.tmp staging
+                // file per writer. Recognize both this and the legacy .tmp name.
+                if (!session_id && base.size() > 39 && base[base.size() - 39] == L'.' &&
+                    valid_guid(base.substr(base.size() - 38))) {
+                    session_id = recovery_session_id(std::filesystem::path(base.substr(0, base.size() - 39)));
+                }
                 const bool active = session_id && std::find(
                     active_session_ids.begin(), active_session_ids.end(), *session_id) != active_session_ids.end();
-                if (!active) {
+                if (session_id && !active) {
                     std::error_code remove_ec;
                     std::filesystem::remove(path, remove_ec);
                 }

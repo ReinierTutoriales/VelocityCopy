@@ -25,9 +25,17 @@ int main() {
     const std::wstring active_id = L"{11111111-2222-4333-8444-555555555555}";
     const auto active_recovery = velocitycopy::recovery_file(root, active_id);
     const auto active_tmp = std::filesystem::path(active_recovery.wstring() + L".tmp");
+    const auto unique_orphan = std::filesystem::path(recovery.wstring() + L"." + active_id + L".tmp");
+    const auto unique_active = std::filesystem::path(active_recovery.wstring() + L"." + id + L".tmp");
+    const auto unrelated_tmp = root / L"unrelated.vcq.tmp";
+    const auto malformed_tmp = std::filesystem::path(recovery.wstring() + L".{bad}.tmp");
     { std::ofstream out(recovery); out << "valid"; }
     { std::ofstream out(orphan); out << "orphan"; }
     { std::ofstream out(active_tmp); out << "live"; }
+    { std::ofstream out(unique_orphan); out << "orphan"; }
+    { std::ofstream out(unique_active); out << "live"; }
+    { std::ofstream out(unrelated_tmp); out << "unrelated"; }
+    { std::ofstream out(malformed_tmp); out << "unrelated"; }
     { std::ofstream out(root / L"garbage.vcq"); out << "garbage"; }
 
     const std::vector<std::wstring> active_session_ids{active_id};
@@ -35,10 +43,14 @@ int main() {
     if (files.size() != 1 || files.front() != recovery) return 8;
     if (std::filesystem::exists(orphan)) return 9;
     if (!std::filesystem::exists(active_tmp)) return 12;
+    if (std::filesystem::exists(unique_orphan) || !std::filesystem::exists(unique_active)) return 15;
+    if (!std::filesystem::exists(unrelated_tmp) || !std::filesystem::exists(malformed_tmp)) return 16;
 
     const auto files_after_session = velocitycopy::list_recovery_files(root);
     if (files_after_session.size() != 1 || files_after_session.front() != recovery) return 13;
     if (std::filesystem::exists(active_tmp)) return 14;
+    if (std::filesystem::exists(unique_active)) return 17;
+    if (!std::filesystem::exists(unrelated_tmp) || !std::filesystem::exists(malformed_tmp)) return 18;
 
     velocitycopy::retire_recovery_file(recovery);
     if (std::filesystem::exists(recovery)) return 10;
