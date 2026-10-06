@@ -31,7 +31,9 @@ Windows Package passed before this work (37442672197 / 37442672300).
   partial ReadFile. Sender cancellation could also race its temporary writer
   thread. Use overlapped operations and a stop event; drain cancellation before
   destroying buffers, bound connected frames, reuse the pipe and stream through
-  64 KiB buffering. No idle timer, extra service, wire or permission changes.
+  64 KiB buffering. A deadline-bounded client flush retains the connection until
+  the frame is consumed, including small immediate writes. No idle timer, extra
+  service, wire or permission changes.
 - The earlier unique queue staging names no longer matched recovery cleanup's
   legacy suffix. Recognize strict session/writer GUIDs in both forms and retain
   active owners. Unrelated .vcq.tmp names are now preserved.

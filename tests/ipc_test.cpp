@@ -13,7 +13,7 @@
 using namespace std::chrono_literals;
 
 namespace {
-bool send_times_out_when_server_stops_reading() {
+bool send_times_out_when_server_stops_reading(const bool small_frame = false) {
     const auto name = velocitycopy::shell_pipe_name();
     if (name.empty()) return false;
 
@@ -45,8 +45,8 @@ bool send_times_out_when_server_stops_reading() {
     large.operation = velocitycopy::FileOperation::Copy;
     large.layout = velocitycopy::DestinationLayout::PreserveSourceFolder;
     large.destination = L"C:\\Destination";
-    const std::wstring padding(30000, L'x');
-    for (int index = 0; index < 200; ++index) {
+    const std::wstring padding(small_frame ? 100 : 30000, L'x');
+    for (int index = 0; index < (small_frame ? 1 : 200); ++index) {
         large.sources.emplace_back(
             L"C:\\" + padding + L"\\file-" + std::to_wstring(index));
     }
@@ -228,6 +228,7 @@ int run_test() {
     if (!stop_with_partial_frame(true)) return 16;
     if (!stalled_frame_recovers(request)) return 17;
     if (!large_frame_with_bounded_buffer()) return 18;
+    if (!send_times_out_when_server_stops_reading(true)) return 19;
 
     std::wcout << L"VelocityCopy IPC test passed.\n";
     return 0;

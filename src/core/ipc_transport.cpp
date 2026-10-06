@@ -11,6 +11,8 @@
 #include <cstring>
 #include <limits>
 #include <new>
+#include <thread>
+#include <atomic>
 #include <utility>
 #include <vector>
 
@@ -405,6 +407,32 @@ IpcSendResult send_shell_request(
         if (!write_all(pipe.get(), frame.data(), static_cast<std::uint32_t>(frame.size()), event.get(), deadline)) {
             return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(GetLastError()))};
         }
+        // A buffered write can finish before the server accepts/validates the
+        // client. Keep the client handle alive until all bytes are consumed.
+        // FlushFileBuffers is synchronous even on an overlapped pipe handle.
+        std::atomic_bool abort_flush{false};
+        BOOL flushed = FALSE;
+        DWORD flush_error = ERROR_OPERATION_ABORTED;
+        std::jthread flusher([&] {
+            if (abort_flush.load(std::memory_order_acquire)) return;
+            flushed = FlushFileBuffers(pipe.get());
+            flush_error = flushed ? ERROR_SUCCESS : GetLastError();
+        });
+        const HANDLE flush_thread = static_cast<HANDLE>(flusher.native_handle());
+        const DWORD wait = WaitForSingleObject(flush_thread, remaining_timeout_ms(deadline));
+        if (wait != WAIT_OBJECT_0) {
+            const DWORD error = wait == WAIT_TIMEOUT ? ERROR_SEM_TIMEOUT : GetLastError();
+            abort_flush.store(true, std::memory_order_release);
+            // Cancellation may race the start of the synchronous flush. Repeat
+            // only during shutdown until the worker has actually completed.
+            do {
+                (void)CancelSynchronousIo(flush_thread);
+            } while (WaitForSingleObject(flush_thread, 10) == WAIT_TIMEOUT);
+            flusher.join();
+            return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(error))};
+        }
+        flusher.join();
+        if (!flushed) return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(flush_error))};
         return {true, S_OK};
     } catch (const std::bad_alloc&) {
         return {false, static_cast<std::int32_t>(E_OUTOFMEMORY)};

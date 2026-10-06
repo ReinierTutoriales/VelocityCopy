@@ -40,7 +40,9 @@ truncated/stalled input is discarded and the next client remains serviceable.
 The normal pipe instance is disconnected/reused, with a 64 KiB buffer rather
 than a buffer sized for the entire 16 MiB protocol ceiling. Requests up to the
 existing ceiling still stream through it. Sender writes share the original
-connection/write deadline and do not create a temporary writer thread.
+connection/write deadline. A bounded synchronous client flush keeps the handle
+alive until the server consumes the buffered frame; its worker is joined and
+cancellation is retried if it races the flush start.
 
 Native regressions cover partial header/payload shutdown, stalled-frame recovery,
 malformed data followed by valid activation, a 12 MB frame through the bounded
