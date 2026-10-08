@@ -86,15 +86,4 @@ winrt::hstring get_string(std::wstring_view key) noexcept {
     }
     try { return winrt::hstring(key); } catch (...) { return {}; }
 }
-
-winrt::hstring get_string_for_language(std::wstring_view key, std::wstring_view language) noexcept {
-    try {
-        return lookup(key, language);
-    } catch (winrt::hresult_error const& error) {
-        log_hresult(L"qualified resource lookup failed", error);
-    } catch (...) {
-        try { log_diagnostic(L"localization: qualified resource lookup failed"); } catch (...) {}
-    }
-    try { return winrt::hstring(key); } catch (...) { return {}; }
-}
 }

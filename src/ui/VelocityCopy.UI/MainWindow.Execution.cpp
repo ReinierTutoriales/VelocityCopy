@@ -626,10 +626,12 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
 
     hstring files_text;
     try {
-        const auto pattern = velocitycopy::localization::get_string(
-            snapshot.completed_files == 1
-                ? L"TransferCompletedSingularFormat"
-                : L"TransferCompletedFormat");
+        // Resolved once per window: this runs on every progress snapshot.
+        if (files_format_.empty()) {
+            files_format_ = velocitycopy::localization::get_string(L"TransferCompletedFormat");
+            files_format_singular_ = velocitycopy::localization::get_string(L"TransferCompletedSingularFormat");
+        }
+        const auto& pattern = snapshot.completed_files == 1 ? files_format_singular_ : files_format_;
         files_text = hstring(std::vformat(
             std::wstring_view{pattern.c_str(), pattern.size()},
             std::make_wformat_args(snapshot.completed_files, snapshot.total_files)));

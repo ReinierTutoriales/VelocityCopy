@@ -343,6 +343,8 @@ private:
     TBPFLAG taskbar_state_{TBPF_NOPROGRESS};
     double taskbar_fraction_{};
     std::wstring window_title_;
+    hstring files_format_;
+    hstring files_format_singular_;
     InterruptedSessionState interrupted_session_{InterruptedSessionState::None};
     bool stop_requested_{};
     bool current_file_skippable_{};
