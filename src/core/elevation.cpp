@@ -140,6 +140,23 @@ bool same_digest(std::wstring_view left, std::wstring_view right) noexcept {
     return true;
 }
 
+// No write/delete sharing: while this handle is open the content cannot
+// change between hashing and parsing.
+std::optional<QueueArchive> load_verified(const std::filesystem::path& file, std::wstring_view expected_sha256) {
+    Handle hold(CreateFileW(
+        file.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+        FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_OPEN_REPARSE_POINT, nullptr));
+    if (!hold.valid()) return std::nullopt;
+    BY_HANDLE_FILE_INFORMATION details{};
+    if (!GetFileInformationByHandle(hold.get(), &details) ||
+        (details.dwFileAttributes & (FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_DIRECTORY)) != 0) {
+        return std::nullopt;
+    }
+    const auto digest = sha256_of(hold.get());
+    if (!digest || !same_digest(*digest, expected_sha256)) return std::nullopt;
+    return QueueArchiveStore{}.load(file);
+}
+
 } // namespace
 
 bool process_is_elevated() noexcept {
@@ -258,26 +275,13 @@ std::optional<QueueArchive> take_elevated_handoff(
     std::optional<QueueArchive> archive;
     try {
         const auto name = file.filename().wstring();
-        if (name.starts_with(kHandoffPrefix) && name.ends_with(kHandoffSuffix)) {
-            // No write/delete sharing: once this handle is open the content
-            // cannot change between hashing and parsing.
-            Handle hold(CreateFileW(
-                file.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
-                FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_OPEN_REPARSE_POINT, nullptr));
-            if (hold.valid()) {
-                BY_HANDLE_FILE_INFORMATION details{};
-                const bool plain_file = GetFileInformationByHandle(hold.get(), &details) &&
-                    (details.dwFileAttributes & (FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_DIRECTORY)) == 0;
-                const auto digest = plain_file ? sha256_of(hold.get()) : std::nullopt;
-                if (digest && same_digest(*digest, expected_sha256)) {
-                    archive = QueueArchiveStore{}.load(file);
-                }
-            }
-            (void)DeleteFileW(file.c_str());
-        }
+        if (!name.starts_with(kHandoffPrefix) || !name.ends_with(kHandoffSuffix)) return std::nullopt;
+        archive = load_verified(file, expected_sha256);
     } catch (...) {
         archive.reset();
     }
+    // After load_verified closed its handle (it denies delete sharing).
+    (void)DeleteFileW(file.c_str());
     return archive;
 }
 
