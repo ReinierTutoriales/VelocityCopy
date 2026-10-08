@@ -29,6 +29,8 @@ struct App : AppT<App> {
     void ShowPrimaryWindow();
     void ShowPrimaryWindowError() noexcept;
     void ExitFromTray() noexcept;
+    // Windows notification from the tray icon (no-op without one).
+    void ShowTrayNotification(const wchar_t* title, const wchar_t* text) noexcept { tray_.ShowNotification(title, text); }
     void DeliverShellRequest(const velocitycopy::ShellRequest& request);
     void OnWindowDestroyed(std::uint64_t window_id) noexcept;
     std::optional<std::filesystem::path> TakeRecoveryFile() noexcept;

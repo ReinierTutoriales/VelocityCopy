@@ -1,10 +1,13 @@
 ﻿Unicode true
 RequestExecutionLevel admin
+; Crisp installer text at 125-200% display scaling instead of bitmap-stretched.
+ManifestDPIAware true
 SetCompressor /SOLID lzma
 
 !include "MUI2.nsh"
 !include "LogicLib.nsh"
 !include "x64.nsh"
+!include "FileFunc.nsh"
 !include "Retired-Sdk-Components.nsh"
 
 !ifndef PAYLOAD_DIR
@@ -239,6 +242,13 @@ Section "$(InstallSectionName)" SEC_INSTALL
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
   WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "NoModify" 1
   WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "NoRepair" 1
+  ; Settings > Apps: size, links, and a silent uninstall command for managed removal.
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "QuietUninstallString" '"$INSTDIR\Uninstall.exe" /S'
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "URLInfoAbout" "https://github.com/ReinierTutoriales/VelocityCopy"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "HelpLink" "https://github.com/ReinierTutoriales/VelocityCopy/issues"
+  ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
+  IntFmt $0 "0x%08X" $0
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "EstimatedSize" $0
 SectionEnd
 
 Section "Uninstall"

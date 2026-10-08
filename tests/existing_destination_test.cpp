@@ -1,3 +1,4 @@
+#include "velocitycopy/copy_engine.hpp"
 #include "velocitycopy/execution_control.hpp"
 #include "velocitycopy/job_executor.hpp"
 #include "velocitycopy/live_copy_plan.hpp"
@@ -5,6 +6,8 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+
+#include <windows.h>
 
 namespace {
 
@@ -136,6 +139,32 @@ int wmain() {
         move_plan.completed_files() != 1 || move_plan.remaining_files() != 1) {
         fs::remove_all(root, ec);
         return 6;
+    }
+
+    // Replacing a read-only or hidden destination works like Explorer: the
+    // marks that make Windows refuse the overwrite are cleared first. Without
+    // a Replace decision the existing file stays untouched.
+    {
+        const auto attr_source = root / L"attr-source.txt";
+        const auto attr_target = root / L"attr-target.txt";
+        write_text(attr_source, "NEW");
+        write_text(attr_target, "OLD");
+        SetFileAttributesW(attr_target.c_str(), FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_HIDDEN);
+        CopyOptions keep{};
+        keep.existing_destination = ExistingDestinationPolicy::Fail;
+        if (CopyEngine{}.copy_file(attr_source, attr_target, keep, {}).success || read_text(attr_target) != "OLD") {
+            SetFileAttributesW(attr_target.c_str(), FILE_ATTRIBUTE_NORMAL);
+            fs::remove_all(root, ec);
+            return 7;
+        }
+        CopyOptions replace{};
+        replace.existing_destination = ExistingDestinationPolicy::Replace;
+        const auto replaced = CopyEngine{}.copy_file(attr_source, attr_target, replace, {});
+        SetFileAttributesW(attr_target.c_str(), FILE_ATTRIBUTE_NORMAL);
+        if (!replaced.success || read_text(attr_target) != "NEW") {
+            fs::remove_all(root, ec);
+            return 8;
+        }
     }
 
     fs::remove_all(root, ec);

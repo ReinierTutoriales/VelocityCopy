@@ -535,6 +535,52 @@ void MainWindow::SetProgressFraction(const double fraction) {
     const double percent = progress_fraction * 100.0;
     TransferProgress().Value(percent);
     ProgressPercentText().Text(FormatProgressPercent(progress_fraction));
+    taskbar_fraction_ = progress_fraction;
+    RefreshTaskbarProgress();
+}
+
+void MainWindow::SetTaskbarState(const TBPFLAG state) noexcept {
+    taskbar_state_ = state;
+    RefreshTaskbarProgress();
+}
+
+void MainWindow::RefreshWindowTitle() noexcept {
+    // Several copies show up as separate taskbar/Alt+Tab entries; name each
+    // by its progress and destination folder so they can be told apart.
+    try {
+        std::wstring title = L"VelocityCopy";
+        if (taskbar_state_ != TBPF_NOPROGRESS && !active_destination_.empty()) {
+            auto folder = active_destination_.filename().wstring();
+            if (folder.empty()) folder = active_destination_.wstring();
+            title = taskbar_state_ == TBPF_INDETERMINATE
+                ? std::format(L"{} \u2014 VelocityCopy", folder)
+                : std::format(L"{} \u00B7 {} \u2014 VelocityCopy", FormatProgressPercent(taskbar_fraction_).c_str(), folder);
+        }
+        if (title == window_title_) return;
+        window_title_ = title;
+        Title(hstring(title));
+    } catch (...) {
+    }
+}
+
+void MainWindow::RefreshTaskbarProgress() noexcept {
+    RefreshWindowTitle();
+    if (hwnd_ == nullptr || taskbar_unavailable_) return;
+    if (!taskbar_) {
+        // Explorer can be restarted or absent; failing once disables the
+        // feature for this window instead of retrying on every tick.
+        if (FAILED(CoCreateInstance(__uuidof(TaskbarList), nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(taskbar_.put()))) ||
+            FAILED(taskbar_->HrInit())) {
+            taskbar_ = nullptr;
+            taskbar_unavailable_ = true;
+            return;
+        }
+    }
+    (void)taskbar_->SetProgressState(hwnd_, taskbar_state_);
+    if (taskbar_state_ != TBPF_NOPROGRESS && taskbar_state_ != TBPF_INDETERMINATE) {
+        constexpr ULONGLONG kScale = 10000;
+        (void)taskbar_->SetProgressValue(hwnd_, static_cast<ULONGLONG>(taskbar_fraction_ * kScale), kScale);
+    }
 }
 
 hstring MainWindow::FormatProgressPercent(const double fraction) {
@@ -634,6 +680,7 @@ void MainWindow::ApplyTransferVisualState(const TransferVisualState state) noexc
             velocitycopy::ui::apply_icon_style(icon, L"WarningIconStyle");
             break;
         case TransferVisualState::Error:
+            SetTaskbarState(TBPF_ERROR);
             icon.Glyph(L"\xEB90");
             velocitycopy::ui::apply_icon_style(icon, L"ErrorIconStyle");
             break;
@@ -813,6 +860,9 @@ void MainWindow::ShowNotice(
     InfoBarSeverity const severity,
     hstring const& title,
     hstring const& message) {
+    // Only the "completed with issues" notice carries an action; any other
+    // notice replaces it without one.
+    ErrorBar().ActionButton(nullptr);
     TransferProgress().ShowError(severity == InfoBarSeverity::Error);
     if (severity == InfoBarSeverity::Error) {
         ApplyTransferVisualState(TransferVisualState::Error);

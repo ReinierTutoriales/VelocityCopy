@@ -493,6 +493,28 @@ void App::ShowPrimaryWindow() {
     velocitycopy::log_diagnostic(
         L"tray: show primary pid=" + std::to_wstring(GetCurrentProcessId()) +
         L" registered=" + std::to_wstring(windows_.size()));
+    // Every window that is still copying (or waiting on a decision) comes
+    // back, not only the newest one: two simultaneous copies hidden to the
+    // tray must both be visible again. Oldest first so the newest ends on top.
+    std::vector<VelocityCopyUI::MainWindow> busy;
+    for (auto& [id, window] : windows_) {
+        (void)id;
+        if (auto main_window = window.try_as<VelocityCopyUI::MainWindow>()) {
+            if (auto* implementation = get_self<MainWindow>(main_window); implementation && implementation->HasActiveTransfer()) {
+                busy.push_back(main_window);
+            }
+        }
+    }
+    for (auto& main_window : busy) {
+        if (auto* implementation = get_self<MainWindow>(main_window)) {
+            velocitycopy::log_diagnostic(
+                L"tray: show busy id=" + std::to_wstring(implementation->WindowId()) +
+                L" pid=" + std::to_wstring(GetCurrentProcessId()));
+            implementation->ShowFromTray();
+        }
+    }
+    if (!busy.empty()) return;
+
     Microsoft::UI::Xaml::Window target{nullptr};
     if (!windows_.empty()) target = windows_.rbegin()->second;
     if (!target) target = CreateMainWindow();

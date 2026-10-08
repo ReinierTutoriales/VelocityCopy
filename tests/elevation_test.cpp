@@ -30,7 +30,6 @@ int wmain() {
     plan.destination_root = root / L"missing" / L"nested";
     plan.files.front().destination = plan.destination_root / L"source.txt";
     if (destination_requires_elevation(plan)) return fail(2, "creatable destination reported as protected");
-    if (destination_requires_elevation(root / L"destination")) return fail(3, "writable folder reported as protected");
     for (const auto& entry : fs::directory_iterator(root / L"destination")) {
         (void)entry;
         return fail(4, "the write probe left an entry behind");

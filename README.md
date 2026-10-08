@@ -12,7 +12,7 @@
 
 ## Status
 
-VelocityCopy 1.2.0 is published as an unsigned release (see [CHANGELOG](CHANGELOG.md)). Current engine fixes are validated by Windows CI and Windows Package before integration; see [the engine audit](docs/COPY_AUDIT_20261005.md) for scope and remaining manual checks.
+VelocityCopy 1.2.1 is published as an unsigned release (see [CHANGELOG](CHANGELOG.md)). Current engine fixes are validated by Windows CI and Windows Package before integration; see [the engine audit](docs/COPY_AUDIT_20261005.md) for scope and remaining manual checks.
 
 Current automated baseline (`main`):
 
