@@ -24,9 +24,6 @@ namespace velocitycopy {
 // engine still reports real failures per item.
 [[nodiscard]] bool destination_requires_elevation(const CopyPlan& plan) noexcept;
 
-// Same check for an arbitrary destination folder, for creating a file in it.
-[[nodiscard]] bool destination_requires_elevation(const std::filesystem::path& destination) noexcept;
-
 struct ElevatedHandoff {
     std::filesystem::path file;
     std::wstring sha256;

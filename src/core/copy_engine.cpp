@@ -1,6 +1,8 @@
 #include "velocitycopy/copy_engine.hpp"
 #include "destination_path_guard.hpp"
 
+#include <memory>
+
 #include <windows.h>
 
 #include <algorithm>
@@ -171,6 +173,25 @@ constexpr DWORD kTransientRetryDelaysMs[] = {150, 400, 900};
 
 } // namespace
 
+struct DestinationLease::State {
+    std::filesystem::path folder;
+    std::unique_ptr<detail::DestinationPathGuard> guard;
+
+    bool prepare(const std::filesystem::path& parent, std::error_code& error) {
+        if (guard && folder == parent) return true;
+        guard.reset();
+        folder.clear();
+        auto fresh = std::make_unique<detail::DestinationPathGuard>();
+        if (!fresh->prepare_directory(parent, error)) return false;
+        guard = std::move(fresh);
+        folder = parent;
+        return true;
+    }
+};
+
+DestinationLease::DestinationLease() : state_(std::make_unique<State>()) {}
+DestinationLease::~DestinationLease() = default;
+
 CopyResult CopyEngine::copy_file(
     const std::filesystem::path& source,
     const std::filesystem::path& destination,
@@ -190,8 +211,13 @@ CopyResult CopyEngine::copy_file(
         detail::DestinationPathGuard destination_guard;
         std::error_code directory_error;
         const auto parent = destination.parent_path();
-        if (source_is_unsafe_reparse_point(source) ||
-            (!parent.empty() && !destination_guard.prepare_directory(parent, directory_error))) {
+        const auto prepare_parent = [&]() {
+            if (parent.empty()) return true;
+            return options.lease != nullptr
+                ? options.lease->state_->prepare(parent, directory_error)
+                : destination_guard.prepare_directory(parent, directory_error);
+        };
+        if (source_is_unsafe_reparse_point(source) || !prepare_parent()) {
             const auto native = directory_error
                 ? static_cast<DWORD>(directory_error.value())
                 : ERROR_CANT_ACCESS_FILE;

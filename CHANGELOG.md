@@ -4,9 +4,11 @@
 
 - Replacing a read-only, hidden or system file at the destination works like Explorer instead of failing with "access denied" (and no longer offers a pointless "Retry as administrator").
 - A file briefly locked by antivirus or the indexer right after it was written is retried a few times before it counts as failed.
+- Copies of many small files into the same folder no longer reopen and re-check every destination parent folder for each file: each copy worker keeps the folder chain locked (still junction-safe) and reuses it.
+- A copy that finishes while the window is minimized, in the tray or behind another app shows a Windows notification instead of disappearing silently.
 - The taskbar button shows copy progress (yellow while paused or waiting for a decision, red on errors).
 - Setup is DPI-aware (sharp at 125-200% scaling) and registers size, links and a silent uninstall command in Settings > Apps.
-- Windows App SDK 2.5.1 component set, NSIS 3.13 from the official distribution, and GitHub Actions on Node 24 (checkout v6, upload-artifact v6, cache v5, setup-msbuild v3).
+- C++/WinRT 2.0.250303.1, Windows App SDK 2.5.1 component set, NSIS 3.13 from the official distribution, and GitHub Actions on Node 24 (checkout v6, upload-artifact v6, cache v5, setup-msbuild v3).
 
 ## 1.2.0 — 2026-10-08
 

@@ -100,4 +100,5 @@
   <data name="ElevationMessage" xml:space="preserve"><value>Windows protects this destination. To copy here, VelocityCopy continues as administrator and asks for permission first. Existing Windows system files stay protected even then.</value></data>
   <data name="ActionContinueAsAdmin" xml:space="preserve"><value>Continue as administrator</value></data>
   <data name="ActionRetryAsAdmin" xml:space="preserve"><value>Retry as administrator</value></data>
+  <data name="CompletedNotificationFormat" xml:space="preserve"><value>{} files done — {}</value></data>
 </root>

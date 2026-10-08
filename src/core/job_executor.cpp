@@ -524,6 +524,8 @@ JobResult JobExecutor::execute(
         for (std::uint32_t worker_index = 0; worker_index < worker_count; ++worker_index) {
             workers.emplace_back([&, worker_index] {
                 std::uint64_t held_file_id = 0;
+                // Released when this worker ends, i.e. with the session.
+                DestinationLease destination_lease;
                 for (;;) {
                 try {
                     for (;;) {
@@ -646,6 +648,7 @@ JobResult JobExecutor::execute(
                                     existing_policy,
                                     options.copy_flags,
                                     options.suggested_buffer_bytes,
+                                    &destination_lease,
                                 },
                                 [&](const CopyProgress& file_progress) {
                                     plan.record_attempt_bytes(file_id, file_progress.transferred_bytes);

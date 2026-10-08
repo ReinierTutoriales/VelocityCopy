@@ -866,6 +866,7 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         });
         if (failed != issues.end()) first_issue = *failed;
     }
+    const auto finished_destination = active_destination_;
     live_plan_.reset();
     active_destination_.clear();
     RefreshQueue();
@@ -923,6 +924,26 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
             // Keep the terminal surface visible so per-item failures/skips cannot
             // masquerade as a clean transfer that immediately disappears.
             return;
+        }
+        // The window closes itself on a clean finish; when it was not in front
+        // (minimized, in the tray, another app in use) say so with a Windows
+        // notification, otherwise the copy just silently disappears.
+        if (hwnd_ != nullptr && GetForegroundWindow() != hwnd_ && !session_ending_) {
+            try {
+                const auto title = velocitycopy::localization::get_string(
+                    active_operation_ == velocitycopy::FileOperation::Move
+                        ? L"StatusMoveCompleted"
+                        : L"StatusCompleted");
+                const auto pattern = velocitycopy::localization::get_string(L"CompletedNotificationFormat");
+                const auto count = result.outcomes.succeeded;
+                const auto folder_text = finished_destination.wstring();
+                const std::wstring_view folder{folder_text};
+                const std::wstring text = std::vformat(
+                    std::wstring_view{pattern.c_str(), pattern.size()},
+                    std::make_wformat_args(count, folder));
+                if (auto* app = App::Instance()) app->ShowTrayNotification(title.c_str(), text.c_str());
+            } catch (...) {
+            }
         }
         // Clean completed transfer windows are session surfaces, not recovery owners.
         // Recovery remains available through ShowFromTray() when the app is opened
