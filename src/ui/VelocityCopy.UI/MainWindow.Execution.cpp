@@ -261,9 +261,20 @@ void MainWindow::StartTransfer(velocitycopy::CopyJob job, velocitycopy::StorageK
     auto gate = append_gate_;
     copy_thread_ = std::jthread([this, weak, dispatcher, control, gate, job = std::move(job)](std::stop_token stop_token) mutable {
         std::shared_ptr<velocitycopy::LiveCopyPlan> plan;
+        // The planner reports *why* a job cannot run (destination inside the
+        // source, two entries resolving to the same file, missing source...).
+        // Carry that reason to FinishCopy instead of a generic E_FAIL so the
+        // notice tells the user what to fix.
+        std::int32_t planning_error = static_cast<std::int32_t>(E_FAIL);
         try {
             plan = std::make_shared<velocitycopy::LiveCopyPlan>(planner_.build(job, stop_token));
+        } catch (const std::system_error& error) {
+            planning_error = velocitycopy::planning_error_hresult(error.code());
+        } catch (const std::bad_alloc&) {
+            planning_error = static_cast<std::int32_t>(E_OUTOFMEMORY);
         } catch (...) {
+        }
+        if (!plan) {
             const bool cancelled = stop_token.stop_requested() ||
                 cancel_requested_.load(std::memory_order_relaxed);
             {
@@ -271,11 +282,11 @@ void MainWindow::StartTransfer(velocitycopy::CopyJob job, velocitycopy::StorageK
                 gate->accepting = false;
                 gate->condition.notify_all();
             }
-            (void)dispatcher.TryEnqueue([weak, cancelled]() {
+            (void)dispatcher.TryEnqueue([weak, cancelled, planning_error]() {
                 if (auto self = weak.get()) {
                     self->FinishCopy(cancelled
                         ? velocitycopy::JobResult{false, true, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED)), false}
-                        : velocitycopy::JobResult{false, false, static_cast<std::int32_t>(E_FAIL), false});
+                        : velocitycopy::JobResult{false, false, planning_error, false});
                 }
             });
             return;

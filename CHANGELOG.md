@@ -10,6 +10,10 @@ VelocityCopy stabilization release.
 - Installer packaging validates the PE architecture of both `VelocityCopy.WinUI.exe` and `VelocityCopy.Shell.dll`.
 - Release and pre-test contracts now match the implemented window lifecycle and current 380x72 compact UI.
 - Regression coverage was expanded for routed drop, activation visibility, stalled IPC and package identity.
+- Copying or moving several loose files no longer recreates their source folder at the destination; files land directly in the target folder like Explorer. A parent folder is only used to separate files whose names collide.
+- Same-volume Move renames files in place instead of copying every byte and deleting the source.
+- Planning failures report the real reason (missing source, duplicate destination, destination inside source) instead of a generic error.
+- Decision dialogs size their client area (not the outer frame) from the dialog's own monitor scale and scroll instead of clipping; the in-window notice re-fits the window whenever its height changes.
 
 ## 1.0.0 — 2026-09-22
 

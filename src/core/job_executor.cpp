@@ -588,7 +588,23 @@ JobResult JobExecutor::execute(
                         bool skipped = false;
                         bool failed = false;
 
-                        for (;;) {
+                        // Same-volume Move: a rename moves the file instantly
+                        // instead of copying every byte and deleting the
+                        // source. Any failure (other volume, sharing
+                        // violation, existing destination under Fail policy)
+                        // falls back to the regular copy path below, which
+                        // also owns conflict reporting.
+                        bool renamed = false;
+                        if (plan.operation() == FileOperation::Move) {
+                            const auto rename_policy =
+                                options.replace_file_id == file_id ||
+                                options.conflict_policy == ConflictPolicy::ReplaceAll
+                                    ? ExistingDestinationPolicy::Replace
+                                    : options.existing_destination;
+                            renamed = engine_.rename_file(file->source, file->destination, rename_policy).success;
+                        }
+
+                        while (!renamed) {
                             bool skip_requested = false;
                             const auto existing_policy =
                                 options.replace_file_id == file_id ||
@@ -749,7 +765,7 @@ JobResult JobExecutor::execute(
                             continue;
                         }
 
-                        if (plan.operation() == FileOperation::Move) {
+                        if (plan.operation() == FileOperation::Move && !renamed) {
                             const auto remove_source = remove_moved_source_file(file->source);
                             if (remove_source != S_OK) {
                                 const auto source_fingerprint = probe_file_fingerprint(file->source);

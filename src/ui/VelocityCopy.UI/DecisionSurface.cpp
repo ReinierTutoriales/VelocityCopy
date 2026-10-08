@@ -46,6 +46,61 @@ void center_owned_window(HWND owner, HWND dialog) noexcept {
     const LONG y = (std::clamp)(static_cast<LONG>(desired_y), monitor_info.rcWork.top, static_cast<LONG>(max_y));
     SetWindowPos(dialog, HWND_TOP, x, y, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE);
 }
+// Sizes the dialog's CLIENT area to the measured content. AppWindow::Resize
+// sets the OUTER window size (frame and borders included), so the old code left
+// the bottom/right edge of the content (the action buttons) clipped by exactly
+// the non-client frame. The XAML rasterization scale of the dialog itself is
+// used, not the owner's DPI, because the dialog may open on another monitor.
+// Width grows when the localized buttons (or a large Text Size) need more than
+// the token width, and both axes are capped to the work area: the content sits
+// in a ScrollViewer, so an oversized message scrolls instead of being cut.
+void fit_dialog_to_content(
+    Window const& dialog,
+    Grid const& root,
+    FrameworkElement const& actions,
+    Thickness const& content_padding,
+    HWND owner) noexcept {
+    try {
+        HWND dialog_hwnd{};
+        if (auto native = dialog.try_as<::IWindowNative>()) (void)native->get_WindowHandle(&dialog_hwnd);
+
+        double scale = 0.0;
+        if (const auto xaml_root = root.XamlRoot()) scale = xaml_root.RasterizationScale();
+        if (!(scale > 0.0)) {
+            UINT dpi = dialog_hwnd ? GetDpiForWindow(dialog_hwnd) : 0;
+            if (dpi == 0 && owner) dpi = GetDpiForWindow(owner);
+            scale = static_cast<double>(dpi ? dpi : USER_DEFAULT_SCREEN_DPI) / USER_DEFAULT_SCREEN_DPI;
+        }
+
+        double max_width_epx = std::numeric_limits<double>::infinity();
+        double max_height_epx = std::numeric_limits<double>::infinity();
+        MONITORINFO monitor_info{sizeof(monitor_info)};
+        const HMONITOR monitor = MonitorFromWindow(owner ? owner : dialog_hwnd, MONITOR_DEFAULTTONEAREST);
+        if (monitor && GetMonitorInfoW(monitor, &monitor_info)) {
+            const double margin = token_double(L"ExpandedWorkAreaMargin", 16);
+            max_width_epx = (std::max)(1.0,
+                (monitor_info.rcWork.right - monitor_info.rcWork.left) / scale - margin * 2.0);
+            max_height_epx = (std::max)(1.0,
+                (monitor_info.rcWork.bottom - monitor_info.rcWork.top) / scale - margin * 2.0);
+        }
+
+        constexpr float unbounded = std::numeric_limits<float>::infinity();
+        actions.Measure(Windows::Foundation::Size{unbounded, unbounded});
+        double width_epx = (std::max)(
+            static_cast<double>(token_int(L"DecisionWindowWidth", 440)),
+            actions.DesiredSize().Width + content_padding.Left + content_padding.Right);
+        width_epx = (std::min)(width_epx, max_width_epx);
+
+        root.Measure(Windows::Foundation::Size{static_cast<float>(width_epx), unbounded});
+        const double height_epx = (std::min)(
+            static_cast<double>(root.DesiredSize().Height), max_height_epx);
+
+        dialog.AppWindow().ResizeClient(Windows::Graphics::SizeInt32{
+            static_cast<std::int32_t>(std::ceil(width_epx * scale)),
+            static_cast<std::int32_t>(std::ceil(height_epx * scale))});
+        center_owned_window(owner, dialog_hwnd);
+    } catch (...) {}
+}
 } // namespace
 
 Windows::Foundation::IAsyncOperation<std::uint32_t> show_decision_async(DecisionOptions options) {
@@ -60,16 +115,20 @@ Windows::Foundation::IAsyncOperation<std::uint32_t> show_decision_async(Decision
     Window dialog;
     dialog.Title(hstring(options.title));
 
-    StackPanel root;
-    root.Spacing(0);
+    Grid root;
+    root.RowDefinitions().Append(RowDefinition{});
+    root.RowDefinitions().GetAt(0).Height(GridLength{0.0, GridUnitType::Auto});
+    root.RowDefinitions().Append(RowDefinition{});
+    root.RowDefinitions().GetAt(1).Height(GridLength{1.0, GridUnitType::Star});
 
     Border title_bar;
     title_bar.Height(token_double(L"AboutTitleBarHeight", 32));
     root.Children().Append(title_bar);
 
+    const auto content_padding = token_thickness(L"DecisionContentPadding", Thickness{24, 20, 24, 20});
     StackPanel content;
     content.Spacing(token_double(L"DecisionContentSpacing", 12));
-    content.Padding(token_thickness(L"DecisionContentPadding", Thickness{24, 20, 24, 20}));
+    content.Padding(content_padding);
 
     Grid heading;
     heading.ColumnSpacing(token_double(L"SpaceRelated", 8));
@@ -123,6 +182,7 @@ Windows::Foundation::IAsyncOperation<std::uint32_t> show_decision_async(Decision
         detail.Text(hstring(options.detail));
         detail.FontSize(token_double(L"CaptionFontSize", 12));
         detail.TextWrapping(TextWrapping::Wrap);
+        detail.IsTextSelectionEnabled(true);
         apply_text_style(detail, L"SecondaryTextStyle");
         content.Children().Append(detail);
     }
@@ -166,7 +226,15 @@ Windows::Foundation::IAsyncOperation<std::uint32_t> show_decision_async(Decision
     actions.Children().Append(secondary);
     if (options.include_cancel) actions.Children().Append(cancel);
     content.Children().Append(actions);
-    root.Children().Append(content);
+
+    ScrollViewer content_viewport;
+    content_viewport.HorizontalScrollBarVisibility(ScrollBarVisibility::Disabled);
+    content_viewport.HorizontalScrollMode(ScrollMode::Disabled);
+    content_viewport.VerticalScrollBarVisibility(ScrollBarVisibility::Auto);
+    content_viewport.VerticalScrollMode(ScrollMode::Auto);
+    content_viewport.Content(content);
+    Grid::SetRow(content_viewport, 1);
+    root.Children().Append(content_viewport);
 
     KeyboardAccelerator escape;
     escape.Key(Windows::System::VirtualKey::Escape);
@@ -176,26 +244,11 @@ Windows::Foundation::IAsyncOperation<std::uint32_t> show_decision_async(Decision
     });
     root.KeyboardAccelerators().Append(escape);
 
-    // Loaded is the first point where WinUI templates/theme resources have been applied.
-    // Resize again there so Button/CheckBox desired sizes cannot be clipped.
-    root.Loaded([primary, root, dialog, owner = options.owner](auto const&, auto const&) {
-        try {
-            const int width_epx = token_int(L"DecisionWindowWidth", 440);
-            root.Measure(Windows::Foundation::Size{
-                static_cast<float>(width_epx),
-                std::numeric_limits<float>::infinity()});
-            const int height_epx = static_cast<int>(std::ceil(root.DesiredSize().Height));
-            const UINT dpi = owner ? GetDpiForWindow(owner) : USER_DEFAULT_SCREEN_DPI;
-            const int effective_dpi = dpi ? static_cast<int>(dpi) : USER_DEFAULT_SCREEN_DPI;
-            dialog.AppWindow().Resize(Windows::Graphics::SizeInt32{
-                MulDiv(width_epx, effective_dpi, USER_DEFAULT_SCREEN_DPI),
-                MulDiv(height_epx, effective_dpi, USER_DEFAULT_SCREEN_DPI)});
-            HWND loaded_hwnd{};
-            auto native = dialog.as<::IWindowNative>();
-            if (SUCCEEDED(native->get_WindowHandle(&loaded_hwnd))) {
-                center_owned_window(owner, loaded_hwnd);
-            }
-        } catch (...) {}
+    // Loaded is the first point where WinUI templates/theme resources have been applied
+    // and the dialog's own XamlRoot (monitor scale) is known. Resize again there so
+    // Button/CheckBox desired sizes cannot be clipped.
+    root.Loaded([primary, root, dialog, actions, content_padding, owner = options.owner](auto const&, auto const&) {
+        fit_dialog_to_content(dialog, root, actions, content_padding, owner);
         (void)primary.Focus(FocusState::Programmatic);
     });
 
@@ -219,14 +272,7 @@ Windows::Foundation::IAsyncOperation<std::uint32_t> show_decision_async(Decision
         }
         app_window.SetIcon(velocitycopy::ui::application_icon_path());
 
-        const UINT dpi = options.owner ? GetDpiForWindow(options.owner) : USER_DEFAULT_SCREEN_DPI;
-        const int effective_dpi = dpi ? static_cast<int>(dpi) : USER_DEFAULT_SCREEN_DPI;
-        const int width_epx = token_int(L"DecisionWindowWidth", 440);
-        root.Measure(Windows::Foundation::Size{static_cast<float>(width_epx), std::numeric_limits<float>::infinity()});
-        const int height_epx = static_cast<int>(std::ceil(root.DesiredSize().Height));
-        app_window.Resize(Windows::Graphics::SizeInt32{
-            MulDiv(width_epx, effective_dpi, USER_DEFAULT_SCREEN_DPI),
-            MulDiv(height_epx, effective_dpi, USER_DEFAULT_SCREEN_DPI)});
+        fit_dialog_to_content(dialog, root, actions, content_padding, options.owner);
     } catch (...) {}
 
     dialog.Closed([state](auto const&, auto const&) { state->complete(DecisionChoice::Cancel, false); });

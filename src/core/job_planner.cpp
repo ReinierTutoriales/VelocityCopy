@@ -9,6 +9,7 @@
 #include <limits>
 #include <stop_token>
 #include <system_error>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace velocitycopy {
@@ -43,24 +44,18 @@ std::filesystem::path destination_root_for(
         }
     }
 
-    if (is_regular_file) {
-        // Only invent a same-name parent folder when this job actually has
-        // more than one top-level source: that is the one case where two
-        // loose files sharing a filename from different folders would
-        // otherwise collide at destination/filename (OutputRegistry below
-        // throws on that). A single file/folder copy or move — by far the
-        // common case (Explorer "Copiar aqui"/"Mover aqui" on one item,
-        // Ctrl+X/Ctrl+V, a lone drag) — has nothing to disambiguate against,
-        // so it used to still get wrapped in a synthetic folder named after
-        // its source directory: copying just a file silently brought along
-        // a piece of the source's folder tree at the destination.
-        if (disambiguate_by_parent) {
-            const auto immediate_parent = source.parent_path().filename();
-            if (!immediate_parent.empty()) {
-                return destination / immediate_parent / source.filename();
-            }
+    if (is_regular_file && disambiguate_by_parent) {
+        // Loose files land directly in the destination, exactly like Explorer:
+        // selecting a.txt and b.txt in C:\Fotos and copying them to D:\ yields
+        // D:\a.txt and D:\b.txt, never D:\Fotos\a.txt. A synthetic parent
+        // folder is invented only for the rare file whose name collides with
+        // another top-level source of the same job (two "same.txt" from
+        // different folders, or a file named like a selected folder), because
+        // OutputRegistry would otherwise reject the whole job.
+        const auto immediate_parent = source.parent_path().filename();
+        if (!immediate_parent.empty()) {
+            return destination / immediate_parent / source.filename();
         }
-        return destination / source.filename();
     }
 
     return destination / source.filename();
@@ -225,6 +220,26 @@ void account_file(CopyPlan& plan, const PlannedFile& file) {
 
 } // namespace
 
+std::int32_t planning_error_hresult(const std::error_code& code) noexcept {
+    if (!code) {
+        return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_INVALID_DATA));
+    }
+    if (code.category() == std::system_category()) {
+        return static_cast<std::int32_t>(HRESULT_FROM_WIN32(static_cast<DWORD>(code.value())));
+    }
+
+    DWORD native = ERROR_INVALID_DATA;
+    if (code == std::errc::file_exists) native = ERROR_FILE_EXISTS;
+    else if (code == std::errc::invalid_argument) native = ERROR_INVALID_PARAMETER;
+    else if (code == std::errc::value_too_large) native = ERROR_ARITHMETIC_OVERFLOW;
+    else if (code == std::errc::not_supported) native = ERROR_NOT_SUPPORTED;
+    else if (code == std::errc::operation_canceled) native = ERROR_REQUEST_ABORTED;
+    else if (code == std::errc::no_such_file_or_directory) native = ERROR_FILE_NOT_FOUND;
+    else if (code == std::errc::permission_denied) native = ERROR_ACCESS_DENIED;
+    else if (code == std::errc::not_enough_memory) native = ERROR_NOT_ENOUGH_MEMORY;
+    return static_cast<std::int32_t>(HRESULT_FROM_WIN32(native));
+}
+
 bool CopyPlan::move_file(const std::uint64_t file_id, const std::size_t new_index) noexcept {
     if (new_index >= files.size()) {
         return false;
@@ -334,7 +349,25 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
     std::uint64_t next_file_id = 1;
     OutputRegistry outputs;
     std::unordered_set<std::wstring> preserved_roots;
-    const bool disambiguate_by_parent = job.sources.size() > 1;
+    // Top-level names (files and folders) that appear more than once in this
+    // job. Only files whose name is in this set are disambiguated by parent.
+    std::unordered_map<std::wstring, std::size_t> top_level_names;
+    top_level_names.reserve(job.sources.size());
+    for (const auto& source : job.sources) {
+        auto name = source.filename().wstring();
+        std::transform(name.begin(), name.end(), name.begin(), [](const wchar_t value) {
+            return static_cast<wchar_t>(std::towlower(value));
+        });
+        ++top_level_names[name];
+    }
+    const auto name_collides = [&top_level_names](const std::filesystem::path& source) {
+        auto name = source.filename().wstring();
+        std::transform(name.begin(), name.end(), name.begin(), [](const wchar_t value) {
+            return static_cast<wchar_t>(std::towlower(value));
+        });
+        const auto it = top_level_names.find(name);
+        return it != top_level_names.end() && it->second > 1;
+    };
 
     for (const auto& source : job.sources) {
         throw_if_cancelled(stop_token);
@@ -342,11 +375,14 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
         std::error_code ec;
         const auto status = std::filesystem::symlink_status(source, ec);
         if (ec || !std::filesystem::exists(status)) {
-            throw std::filesystem::filesystem_error("Source does not exist", source, ec);
+            throw std::filesystem::filesystem_error(
+                "Source does not exist",
+                source,
+                ec ? ec : std::make_error_code(std::errc::no_such_file_or_directory));
         }
         validate_source_reparse_semantics(source);
 
-        const auto root = destination_root_for(source, job.destination, job.layout, status, disambiguate_by_parent);
+        const auto root = destination_root_for(source, job.destination, job.layout, status, name_collides(source));
         if (job.layout == DestinationLayout::PreserveSourceFolder) {
             const auto root_key = normalized_path_key(root);
             if (root_key.empty() || !preserved_roots.insert(root_key).second) {

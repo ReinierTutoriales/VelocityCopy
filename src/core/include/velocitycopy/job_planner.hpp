@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <stop_token>
+#include <system_error>
 #include <vector>
 
 namespace velocitycopy {
@@ -35,6 +36,12 @@ struct CopyPlan {
     [[nodiscard]] bool move_file_down(std::uint64_t file_id) noexcept;
     [[nodiscard]] bool remove_file(std::uint64_t file_id) noexcept;
 };
+
+// Maps a planner failure to an HRESULT the UI can explain. Planner validation
+// errors use std::errc (generic category); their numeric values are POSIX errno
+// values and must not be reinterpreted as Win32 codes (errc::file_exists == 17
+// would otherwise read as ERROR_NOT_SAME_DEVICE).
+[[nodiscard]] std::int32_t planning_error_hresult(const std::error_code& code) noexcept;
 
 class JobPlanner final {
 public:
