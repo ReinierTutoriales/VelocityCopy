@@ -535,6 +535,32 @@ void MainWindow::SetProgressFraction(const double fraction) {
     const double percent = progress_fraction * 100.0;
     TransferProgress().Value(percent);
     ProgressPercentText().Text(FormatProgressPercent(progress_fraction));
+    taskbar_fraction_ = progress_fraction;
+    RefreshTaskbarProgress();
+}
+
+void MainWindow::SetTaskbarState(const TBPFLAG state) noexcept {
+    taskbar_state_ = state;
+    RefreshTaskbarProgress();
+}
+
+void MainWindow::RefreshTaskbarProgress() noexcept {
+    if (hwnd_ == nullptr || taskbar_unavailable_) return;
+    if (!taskbar_) {
+        // Explorer can be restarted or absent; failing once disables the
+        // feature for this window instead of retrying on every tick.
+        if (FAILED(CoCreateInstance(__uuidof(TaskbarList), nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(taskbar_.put()))) ||
+            FAILED(taskbar_->HrInit())) {
+            taskbar_ = nullptr;
+            taskbar_unavailable_ = true;
+            return;
+        }
+    }
+    (void)taskbar_->SetProgressState(hwnd_, taskbar_state_);
+    if (taskbar_state_ != TBPF_NOPROGRESS && taskbar_state_ != TBPF_INDETERMINATE) {
+        constexpr ULONGLONG kScale = 10000;
+        (void)taskbar_->SetProgressValue(hwnd_, static_cast<ULONGLONG>(taskbar_fraction_ * kScale), kScale);
+    }
 }
 
 hstring MainWindow::FormatProgressPercent(const double fraction) {
@@ -634,6 +660,7 @@ void MainWindow::ApplyTransferVisualState(const TransferVisualState state) noexc
             velocitycopy::ui::apply_icon_style(icon, L"WarningIconStyle");
             break;
         case TransferVisualState::Error:
+            SetTaskbarState(TBPF_ERROR);
             icon.Glyph(L"\xEB90");
             velocitycopy::ui::apply_icon_style(icon, L"ErrorIconStyle");
             break;

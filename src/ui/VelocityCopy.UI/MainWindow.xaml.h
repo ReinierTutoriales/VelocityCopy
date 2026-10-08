@@ -30,6 +30,7 @@
 #include <utility>
 #include <variant>
 #include <winrt/Windows.UI.ViewManagement.h>
+#include <shobjidl_core.h>
 
 namespace winrt::VelocityCopyUI::implementation {
 // A session interrupted by Stop or by a destination conflict. The two are
@@ -241,6 +242,8 @@ private:
     bool ApplyTelemetryReserves();
     void ScheduleTelemetryReserveSettle();
     [[nodiscard]] double RequiredNormalWindowWidth();
+    void SetTaskbarState(TBPFLAG state) noexcept;
+    void RefreshTaskbarProgress() noexcept;
     void SetProgressFraction(double fraction);
     void ResetCurrentItemState() noexcept;
     void ClearLiveTelemetry();
@@ -333,6 +336,11 @@ private:
     Windows::UI::ViewManagement::UISettings ui_settings_{nullptr};
     Windows::UI::ViewManagement::UISettings::TextScaleFactorChanged_revoker text_scale_changed_revoker_{};
     bool paused_{};
+    // Windows 11 taskbar button progress (fill, paused yellow, error red).
+    winrt::com_ptr<ITaskbarList3> taskbar_;
+    bool taskbar_unavailable_{};
+    TBPFLAG taskbar_state_{TBPF_NOPROGRESS};
+    double taskbar_fraction_{};
     InterruptedSessionState interrupted_session_{InterruptedSessionState::None};
     bool stop_requested_{};
     bool current_file_skippable_{};

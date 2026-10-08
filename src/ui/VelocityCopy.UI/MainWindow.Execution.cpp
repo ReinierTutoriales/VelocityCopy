@@ -58,6 +58,7 @@ void MainWindow::ResetInterruptedSessionState() noexcept {
 }
 
 void MainWindow::SetExecutionButtonsPlanning() {
+    SetTaskbarState(TBPF_INDETERMINATE);
     performance_sampling_state_ = PerformanceSamplingState::Planning;
     ApplyTransferVisualState(TransferVisualState::Active);
     TransferProgress().ShowPaused(false);
@@ -72,6 +73,7 @@ void MainWindow::SetExecutionButtonsPlanning() {
 }
 
 void MainWindow::SetExecutionButtonsRunning() {
+    SetTaskbarState(TBPF_NORMAL);
     performance_sampling_state_ = PerformanceSamplingState::Copying;
     ApplyTransferVisualState(TransferVisualState::Active);
     TransferProgress().ShowPaused(false);
@@ -90,6 +92,7 @@ void MainWindow::SetExecutionButtonsRunning() {
 }
 
 void MainWindow::SetExecutionButtonsIdle() {
+    SetTaskbarState(TBPF_NOPROGRESS);
     performance_sampling_state_ = PerformanceSamplingState::Idle;
     TransferProgress().ShowPaused(false);
     PauseButton().IsEnabled(false);
@@ -108,6 +111,7 @@ void MainWindow::SetExecutionButtonsIdle() {
 }
 
 void MainWindow::SetExecutionButtonsStopped() {
+    SetTaskbarState(TBPF_PAUSED);
     performance_sampling_state_ = PerformanceSamplingState::Stopped;
     TransferProgress().ShowPaused(true);
     TransferProgress().ShowError(false);
@@ -125,6 +129,7 @@ void MainWindow::SetExecutionButtonsStopped() {
 }
 
 void MainWindow::SetExecutionButtonsConflict() {
+    SetTaskbarState(TBPF_PAUSED);
     performance_sampling_state_ = PerformanceSamplingState::Conflict;
     ApplyTransferVisualState(TransferVisualState::Warning);
     TransferProgress().ShowPaused(false);
@@ -509,6 +514,7 @@ void MainWindow::OnPauseClick(IInspectable const&, RoutedEventArgs const&) {
     }
     TransferProgress().ShowPaused(paused_);
     TransferProgress().ShowError(false);
+    SetTaskbarState(paused_ ? TBPF_PAUSED : TBPF_NORMAL);
     PauseIcon().Glyph(paused_ ? L"\xE768" : L"\xE769");
     try {
         const auto label = velocitycopy::localization::get_string(paused_ ? L"ActionResume" : L"ActionPause");

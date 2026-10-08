@@ -145,6 +145,30 @@ ULONG desired_io_size(
     return source_size >= kLargeFileThreshold ? kLargeFileIoSize : kDefaultIoSize;
 }
 
+// CopyFile2 and MoveFileEx refuse to replace a destination marked read-only,
+// hidden or system (ERROR_ACCESS_DENIED). Once replacing it was decided, clear
+// those marks so the replacement behaves like Explorer's. Reparse points are
+// left alone. Returns true when an attribute was cleared.
+bool clear_replace_blocking_attributes(const std::filesystem::path& destination) noexcept {
+    const DWORD attributes = GetFileAttributesW(destination.c_str());
+    constexpr DWORD kBlocking = FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM;
+    if (attributes == INVALID_FILE_ATTRIBUTES ||
+        (attributes & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) != 0 ||
+        (attributes & kBlocking) == 0) {
+        return false;
+    }
+    return SetFileAttributesW(destination.c_str(), attributes & ~kBlocking) != FALSE;
+}
+
+// Antivirus and indexers briefly open files that were just written; such a
+// sharing or lock violation usually clears within a fraction of a second.
+bool is_transient_lock(const HRESULT result) noexcept {
+    return result == HRESULT_FROM_WIN32(ERROR_SHARING_VIOLATION) ||
+        result == HRESULT_FROM_WIN32(ERROR_LOCK_VIOLATION);
+}
+
+constexpr DWORD kTransientRetryDelaysMs[] = {150, 400, 900};
+
 } // namespace
 
 CopyResult CopyEngine::copy_file(
@@ -201,10 +225,23 @@ CopyResult CopyEngine::copy_file(
             parameters.pvCallbackContext = &callback_context;
         }
 
-        const HRESULT result = CopyFile2(
-            source.c_str(),
-            destination.c_str(),
-            reinterpret_cast<COPYFILE2_EXTENDED_PARAMETERS*>(&parameters));
+        const auto copy = [&]() {
+            return CopyFile2(
+                source.c_str(),
+                destination.c_str(),
+                reinterpret_cast<COPYFILE2_EXTENDED_PARAMETERS*>(&parameters));
+        };
+        HRESULT result = copy();
+        if (result == HRESULT_FROM_WIN32(ERROR_ACCESS_DENIED) && !callback_context.callback_failed &&
+            options.existing_destination == ExistingDestinationPolicy::Replace &&
+            clear_replace_blocking_attributes(destination)) {
+            result = copy();
+        }
+        for (const DWORD delay : kTransientRetryDelaysMs) {
+            if (!is_transient_lock(result) || callback_context.callback_failed) break;
+            Sleep(delay);
+            result = copy();
+        }
 
         if (callback_context.callback_failed) {
             return {false, static_cast<std::int32_t>(E_FAIL)};
@@ -245,7 +282,15 @@ CopyResult CopyEngine::rename_file(
         if (MoveFileExW(source.c_str(), destination.c_str(), flags) != FALSE) {
             return {true, static_cast<std::int32_t>(S_OK)};
         }
-        return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(GetLastError()))};
+        DWORD error = GetLastError();
+        if (error == ERROR_ACCESS_DENIED && existing_destination == ExistingDestinationPolicy::Replace &&
+            clear_replace_blocking_attributes(destination)) {
+            if (MoveFileExW(source.c_str(), destination.c_str(), flags) != FALSE) {
+                return {true, static_cast<std::int32_t>(S_OK)};
+            }
+            error = GetLastError();
+        }
+        return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(error))};
     } catch (const std::bad_alloc&) {
         return {false, static_cast<std::int32_t>(E_OUTOFMEMORY)};
     } catch (const std::system_error& error) {
