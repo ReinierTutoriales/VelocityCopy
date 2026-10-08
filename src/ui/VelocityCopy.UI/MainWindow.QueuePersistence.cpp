@@ -303,21 +303,30 @@ fire_and_forget MainWindow::LoadQueueAsync() {
     const auto path = std::move(*selected_path);
     co_await resume_background();
 
+    // Tell the person why a queue could not be loaded: an unreadable or
+    // tampered file is not the same as a saved queue whose sources were moved.
     auto archive = velocitycopy::QueueArchiveStore{}.load(path);
+    std::int32_t load_error = static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_INVALID_DATA));
     if (archive) {
         try {
-            if (archive->current_plan && !revalidate_plan_sources(*archive->current_plan)) archive.reset();
+            if (archive->current_plan && !revalidate_plan_sources(*archive->current_plan)) {
+                archive.reset();
+                load_error = static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+            }
             if (archive && !merge_current_append_jobs(*archive)) archive.reset();
+        } catch (const std::system_error& error) {
+            archive.reset();
+            load_error = velocitycopy::planning_error_hresult(error.code());
         } catch (...) {
             archive.reset();
         }
     }
 
-    (void)dispatcher.TryEnqueue([weak, archive = std::move(archive)]() mutable {
+    (void)dispatcher.TryEnqueue([weak, archive = std::move(archive), load_error]() mutable {
         auto self = weak.get();
         if (!self) return;
         if (!archive) {
-            self->ShowError();
+            self->ShowError(FormatFailureReason(load_error));
             return;
         }
         if (self->execution_control_ || self->live_plan_ || self->interrupted_session_ != InterruptedSessionState::None ||

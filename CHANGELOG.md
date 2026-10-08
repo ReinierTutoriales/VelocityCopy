@@ -13,6 +13,9 @@ VelocityCopy stabilization release.
 - Copying or moving several loose files no longer recreates their source folder at the destination; files land directly in the target folder like Explorer. A parent folder is only used to separate files whose names collide.
 - Same-volume Move renames files in place instead of copying every byte and deleting the source.
 - Planning failures report the real reason (missing source, duplicate destination, destination inside source) instead of a generic error.
+- An unreadable subfolder, junction or file that disappears while scanning no longer aborts the whole job; it is reported as a failed item and everything else is transferred.
+- Saved queue files are validated: outputs must stay inside the destination and inputs inside the declared sources.
+- The retry dialog names the failed files and why; the completion notice lists only non-zero outcomes plus the first failure. The About window sizes to its content.
 - Decision dialogs size their client area (not the outer frame) from the dialog's own monitor scale and scroll instead of clipping; the in-window notice re-fits the window whenever its height changes.
 
 ## 1.0.0 — 2026-09-22

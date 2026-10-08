@@ -188,6 +188,9 @@ private:
         const PlannedFile& file, ItemOutcome outcome, std::int32_t hresult,
         bool destination_preexisted);
     void drop_in_flight_locked(std::uint64_t file_id) noexcept;
+    // Entries the planner could not transfer become terminal Failed items:
+    // counted, retained with their reason, and already resolved for progress.
+    void record_planning_failures_locked(const std::vector<PlanningFailure>& failures);
 
 
     std::vector<PlannedDirectory> directories_;

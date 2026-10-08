@@ -22,6 +22,15 @@ struct PlannedFile {
     std::uint64_t size{};
 };
 
+// An entry found while planning that cannot be transferred (unreadable
+// folder, junction/symlink, unsupported file type, file gone mid-scan). It is
+// reported as a Failed item; the rest of the job still runs.
+struct PlanningFailure {
+    std::filesystem::path source;
+    std::filesystem::path destination;
+    std::int32_t hresult{};
+};
+
 struct CopyPlan {
     std::vector<PlannedDirectory> directories;
     std::vector<PlannedFile> files;
@@ -30,6 +39,7 @@ struct CopyPlan {
     FileOperation operation{FileOperation::Copy};
     std::uint64_t total_bytes{};
     std::uint64_t largest_file_bytes{};
+    std::vector<PlanningFailure> failures;
 
     [[nodiscard]] bool move_file(std::uint64_t file_id, std::size_t new_index) noexcept;
     [[nodiscard]] bool move_file_up(std::uint64_t file_id) noexcept;

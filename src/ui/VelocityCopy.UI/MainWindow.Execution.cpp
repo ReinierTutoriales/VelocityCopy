@@ -740,6 +740,16 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         return;
     }
 
+    // Keep the first failed/skipped item before the plan is released so the
+    // notice can say which file needs attention and why.
+    std::optional<velocitycopy::ItemResult> first_issue;
+    if (live_plan_) {
+        const auto issues = live_plan_->retained_results();
+        const auto failed = std::find_if(issues.begin(), issues.end(), [](const velocitycopy::ItemResult& item) {
+            return item.outcome != velocitycopy::ItemOutcome::Skipped;
+        });
+        if (failed != issues.end()) first_issue = *failed;
+    }
     live_plan_.reset();
     active_destination_.clear();
     RefreshQueue();
@@ -759,19 +769,32 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
                 const auto retained_label = velocitycopy::localization::get_string(L"OutcomeSourceRetained");
                 const auto completed_with_issues_title =
                     velocitycopy::localization::get_string(L"StatusCompletedWithIssues");
+                // List only the outcomes that actually happened ("Skipped: 3"
+                // instead of "Failed: 0, Skipped: 3, Source retained: 0").
+                std::wstring summary;
+                const auto append_outcome = [&summary](hstring const& label, const std::uint64_t count) {
+                    if (count == 0) return;
+                    if (!summary.empty()) summary.append(L", ");
+                    summary.append(std::format(L"{}: {}", label.c_str(), count));
+                };
+                append_outcome(failed_label, result.outcomes.failed);
+                append_outcome(skipped_label, result.outcomes.skipped);
+                append_outcome(retained_label, result.outcomes.copied_source_retained);
+                if (first_issue) {
+                    summary.append(L"\n");
+                    summary.append(first_issue->source.wstring());
+                    const auto reason = FormatFailureReason(first_issue->hresult);
+                    if (!reason.empty()) {
+                        summary.append(L" — ");
+                        summary.append(reason.c_str());
+                    }
+                }
                 ShowNotice(
                     result.outcomes.failed == 0 && result.outcomes.copied_source_retained == 0
                         ? InfoBarSeverity::Warning
                         : InfoBarSeverity::Error,
                     completed_with_issues_title,
-                    hstring(std::format(
-                    L"{}: {}, {}: {}, {}: {}",
-                    failed_label.c_str(),
-                    result.outcomes.failed,
-                    skipped_label.c_str(),
-                    result.outcomes.skipped,
-                    retained_label.c_str(),
-                    result.outcomes.copied_source_retained)));
+                    hstring(summary));
             } else {
                 CurrentItemText().Text(velocitycopy::localization::get_string(
                     active_operation_ == velocitycopy::FileOperation::Move
@@ -805,11 +828,29 @@ fire_and_forget MainWindow::ShowRetryDecisionAsync() {
     auto lifetime = get_strong();
     if (interrupted_session_ != InterruptedSessionState::Decision || !live_plan_) co_return;
     try {
+        // Name the files that need attention and why; a bare "some items
+        // failed" gives no basis for choosing Retry over Skip.
+        constexpr std::size_t kListedIncidents = 3;
+        const auto incidents = live_plan_->parked_incidents();
+        std::wstring detail;
+        for (std::size_t index = 0; index < incidents.size() && index < kListedIncidents; ++index) {
+            if (!detail.empty()) detail.push_back(L'\n');
+            const auto name = incidents[index].source.filename();
+            detail.append(name.empty() ? incidents[index].source.wstring() : name.wstring());
+            const auto reason = FormatFailureReason(incidents[index].hresult);
+            if (!reason.empty()) {
+                detail.append(L" — ");
+                detail.append(reason.c_str());
+            }
+        }
+        if (incidents.size() > kListedIncidents) {
+            detail.append(std::format(L"\n(+{})", incidents.size() - kListedIncidents));
+        }
         const auto decision = velocitycopy::ui::decode_decision(co_await RequestDecisionAsync({
             hwnd_,
             velocitycopy::localization::get_string(L"RetryDecisionTitle").c_str(),
             velocitycopy::localization::get_string(L"RetryDecisionMessage").c_str(),
-            {},
+            detail,
             velocitycopy::localization::get_string(L"ActionRetryAll").c_str(),
             velocitycopy::localization::get_string(L"ActionSkipAll").c_str(),
             velocitycopy::localization::get_string(L"ActionCancel").c_str(),

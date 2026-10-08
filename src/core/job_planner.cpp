@@ -11,6 +11,8 @@
 #include <system_error>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
+#include <vector>
 
 namespace velocitycopy {
 namespace {
@@ -213,6 +215,20 @@ bool valid_relative_path(const std::filesystem::path& relative) {
     return true;
 }
 
+void record_failure(
+    CopyPlan& plan,
+    const std::filesystem::path& source,
+    const std::filesystem::path& destination,
+    const std::error_code& code) {
+    if (plan.failures.size() >= kMaxPlannedEntries) {
+        throw std::filesystem::filesystem_error(
+            "Copy plan exceeds the supported entry limit",
+            source,
+            std::make_error_code(std::errc::value_too_large));
+    }
+    plan.failures.push_back({source, destination, planning_error_hresult(code)});
+}
+
 void account_file(CopyPlan& plan, const PlannedFile& file) {
     checked_add(plan.total_bytes, file.size, file.source);
     plan.largest_file_bytes = std::max(plan.largest_file_bytes, file.size);
@@ -412,58 +428,98 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
         outputs.add_directory(root);
         plan.directories.push_back({root});
 
-        std::filesystem::recursive_directory_iterator it(source, std::filesystem::directory_options::none, ec);
-        const std::filesystem::recursive_directory_iterator end;
-        if (ec) {
-            throw std::filesystem::filesystem_error("Unable to enumerate source", source, ec);
-        }
-
-        for (; it != end; it.increment(ec)) {
+        // Walk the tree with an explicit stack so one unreadable folder, a
+        // junction/symlink or a file that vanished mid-scan is recorded as a
+        // failed item instead of aborting the whole job. Explorer behaves the
+        // same way: everything that can be copied is copied and the rest is
+        // reported. Job-level problems (cancellation, collisions, the entry
+        // limit) still throw.
+        std::vector<std::pair<std::filesystem::path, std::filesystem::path>> pending_directories;
+        pending_directories.emplace_back(source, root);
+        while (!pending_directories.empty()) {
             throw_if_cancelled(stop_token);
+            auto [directory_source, directory_target] = std::move(pending_directories.back());
+            pending_directories.pop_back();
+
+            std::filesystem::directory_iterator it(directory_source, std::filesystem::directory_options::none, ec);
             if (ec) {
-                throw std::filesystem::filesystem_error("Unable to enumerate source", source, ec);
-            }
-
-            const auto& entry = *it;
-            const auto relative = entry.path().lexically_relative(source);
-            if (!valid_relative_path(relative)) {
-                throw std::filesystem::filesystem_error(
-                    "Unable to resolve relative path",
-                    entry.path(),
-                    source,
-                    std::make_error_code(std::errc::invalid_argument));
-            }
-
-            const auto target = root / relative;
-            const auto entry_status = entry.symlink_status(ec);
-            if (ec) {
-                throw std::filesystem::filesystem_error("Unable to inspect source", entry.path(), ec);
-            }
-
-            validate_source_reparse_semantics(entry.path());
-
-            if (std::filesystem::is_directory(entry_status)) {
-                ensure_plan_capacity(plan, entry.path());
-                outputs.add_directory(target);
-                plan.directories.push_back({target});
-                continue;
-            }
-
-            if (std::filesystem::is_regular_file(entry_status)) {
-                throw_if_cancelled(stop_token);
-                const auto size = entry.file_size(ec);
-                if (ec) {
-                    throw std::filesystem::filesystem_error("Unable to read file size", entry.path(), ec);
+                if (directory_source == source) {
+                    throw std::filesystem::filesystem_error("Unable to enumerate source", source, ec);
                 }
-                ensure_plan_capacity(plan, entry.path());
-                outputs.add_file(target);
-                PlannedFile file{next_file_id++, entry.path(), target, size};
-                account_file(plan, file);
-                plan.files.push_back(std::move(file));
+                record_failure(plan, directory_source, directory_target, ec);
+                ec.clear();
                 continue;
             }
 
-            throw_unsupported(entry.path());
+            // Subfolders are visited after this folder's files and in
+            // enumeration order (pushed reversed onto the LIFO stack).
+            std::vector<std::pair<std::filesystem::path, std::filesystem::path>> subdirectories;
+            for (const std::filesystem::directory_iterator end; it != end; it.increment(ec)) {
+                throw_if_cancelled(stop_token);
+                if (ec) break;
+
+                const auto& entry = *it;
+                const auto relative = entry.path().lexically_relative(source);
+                if (!valid_relative_path(relative)) {
+                    throw std::filesystem::filesystem_error(
+                        "Unable to resolve relative path",
+                        entry.path(),
+                        source,
+                        std::make_error_code(std::errc::invalid_argument));
+                }
+
+                const auto target = root / relative;
+                const auto entry_status = entry.symlink_status(ec);
+                if (ec) {
+                    record_failure(plan, entry.path(), target, ec);
+                    ec.clear();
+                    continue;
+                }
+
+                try {
+                    validate_source_reparse_semantics(entry.path());
+                } catch (const std::filesystem::filesystem_error& error) {
+                    // Junctions and symbolic links are never traversed (they
+                    // could lead outside the selected tree); report them.
+                    record_failure(plan, entry.path(), target, error.code());
+                    continue;
+                }
+
+                if (std::filesystem::is_directory(entry_status)) {
+                    ensure_plan_capacity(plan, entry.path());
+                    outputs.add_directory(target);
+                    plan.directories.push_back({target});
+                    subdirectories.emplace_back(entry.path(), target);
+                    continue;
+                }
+
+                if (std::filesystem::is_regular_file(entry_status)) {
+                    const auto size = entry.file_size(ec);
+                    if (ec) {
+                        record_failure(plan, entry.path(), target, ec);
+                        ec.clear();
+                        continue;
+                    }
+                    ensure_plan_capacity(plan, entry.path());
+                    outputs.add_file(target);
+                    PlannedFile file{next_file_id++, entry.path(), target, size};
+                    account_file(plan, file);
+                    plan.files.push_back(std::move(file));
+                    continue;
+                }
+
+                record_failure(
+                    plan, entry.path(), target, std::make_error_code(std::errc::not_supported));
+            }
+            pending_directories.insert(
+                pending_directories.end(),
+                std::make_move_iterator(subdirectories.rbegin()),
+                std::make_move_iterator(subdirectories.rend()));
+            if (ec) {
+                // Enumeration stopped part-way through this folder.
+                record_failure(plan, directory_source, directory_target, ec);
+                ec.clear();
+            }
         }
     }
 
