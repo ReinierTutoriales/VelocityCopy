@@ -1,0 +1,99 @@
+name: Publish unsigned VelocityCopy 1.2.0
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-unsigned-1.2.0.yml']
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: publish-unsigned-velocitycopy-1.2.0
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Verify the approved build and publish its exact installers
+        shell: python
+        run: |
+          import hashlib, json, os, pathlib, subprocess, zipfile
+
+          def api(path):
+              return json.loads(subprocess.check_output(["gh", "api", path]))
+
+          repo = os.environ["GH_REPO"]
+          sha = "3a1651f3627d91e9f4c9d6af6ccf334f120f144d"
+          run_id = 37721336506
+          version = "1.2.0.0"
+
+          run = api(f"repos/{repo}/actions/runs/{run_id}")
+          assert run["name"] == "Windows Package", "Unexpected workflow run"
+          assert run["head_sha"] == sha and run["conclusion"] == "success", "Approved build mismatch"
+          existing = subprocess.run(["gh", "api", f"repos/{repo}/git/ref/tags/v1.2.0"], capture_output=True)
+          assert existing.returncode != 0, "Tag v1.2.0 already exists"
+
+          artifacts = api(f"repos/{repo}/actions/runs/{run_id}/artifacts?per_page=100")["artifacts"]
+          output = pathlib.Path("release-assets")
+          output.mkdir()
+          files, hashes = [], []
+          for arch, filename in (("x64", "VelocityCopy-Setup-x64.exe"), ("arm64", "VelocityCopy-Setup-ARM64.exe")):
+              name = f"VelocityCopy-Setup-{arch}-{version}"
+              matches = [a for a in artifacts if a["name"] == name]
+              assert len(matches) == 1 and not matches[0]["expired"], f"Missing artifact {name}"
+              archive = output / f"{name}.zip"
+              with archive.open("wb") as stream:
+                  subprocess.run(["gh", "api", f"repos/{repo}/actions/artifacts/{matches[0]['id']}/zip"], stdout=stream, check=True)
+              with zipfile.ZipFile(archive) as z:
+                  entries = [i for i in z.infolist() if not i.is_dir()]
+                  assert len(entries) == 1 and pathlib.PurePosixPath(entries[0].filename).name == filename, "Unexpected artifact contents"
+                  binary = z.read(entries[0])
+              assert binary[:2] == b"MZ", "Invalid Windows installer"
+              destination = output / filename.replace(".exe", "-v1.2.0.exe")
+              destination.write_bytes(binary)
+              files.append(str(destination))
+              hashes.append(f"{hashlib.sha256(binary).hexdigest()}  {destination.name}")
+          checksum = output / "SHA256SUMS.txt"
+          checksum.write_text("\n".join(hashes) + "\n")
+          files.append(str(checksum))
+
+          notes = output / "release-notes.md"
+          notes.write_text(f"""VelocityCopy 1.2.0
+
+          Copy-correctness, protected-destination and interaction release.
+
+          - Several loose files land directly in the destination folder, like Explorer; same-volume Move renames in place.
+          - Unreadable subfolders, junctions or files removed while scanning are reported per item instead of aborting the job.
+          - Conflicts offer "Keep both"; a transfer that cannot fit asks before writing anything.
+          - Copying to C:\\, C:\\Windows or Program Files asks to continue as administrator (UAC) instead of failing.
+          - Questions and problem notices come to the front on their own; clearer "copy afterwards / at the same time" choices.
+          - Setup finishes resident in the notification area, enables long paths and shows correct Spanish text.
+
+          Full list: CHANGELOG.md.
+
+          Downloads:
+          - x64 installer for Intel/AMD Windows 11 PCs.
+          - ARM64 installer for Windows on ARM PCs.
+
+          These installers are published without an Authenticode digital signature, as explicitly authorized by the repository owner. Windows may display an unknown-publisher or SmartScreen prompt. Verify downloads against SHA256SUMS.txt.
+
+          Source: {sha} (v1.2.0).
+          Windows CI passed on the pull request head with the same tree and Windows Package passed on this exact commit (run {run_id}); assets are that run's artifacts, not rebuilt or modified.
+          ARM64 was cross-built and its PE architecture validated; a physical ARM64 install/launch/shell-integration check is not recorded by this automated publication.
+          """)
+          subprocess.run(["gh", "release", "create", "v1.2.0", *files, "--target", sha, "--title", "VelocityCopy v1.2.0", "--notes-file", str(notes), "--latest"], check=True)
+          release = api(f"repos/{repo}/releases/tags/v1.2.0")
+          names = {a["name"] for a in release["assets"]}
+          assert all(pathlib.Path(f).name in names for f in files), "Release asset verification failed"
+          tag = api(f"repos/{repo}/git/ref/tags/v1.2.0")
+          assert tag["object"]["sha"] == sha, "Release tag points at the wrong commit"
+          print(release["html_url"])
