@@ -244,6 +244,7 @@ private:
     [[nodiscard]] double RequiredNormalWindowWidth();
     void SetTaskbarState(TBPFLAG state) noexcept;
     void RefreshTaskbarProgress() noexcept;
+    void RefreshWindowTitle() noexcept;
     void SetProgressFraction(double fraction);
     void ResetCurrentItemState() noexcept;
     void ClearLiveTelemetry();
@@ -341,6 +342,7 @@ private:
     bool taskbar_unavailable_{};
     TBPFLAG taskbar_state_{TBPF_NOPROGRESS};
     double taskbar_fraction_{};
+    std::wstring window_title_;
     InterruptedSessionState interrupted_session_{InterruptedSessionState::None};
     bool stop_requested_{};
     bool current_file_skippable_{};

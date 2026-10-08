@@ -6,6 +6,8 @@
 - A file briefly locked by antivirus or the indexer right after it was written is retried a few times before it counts as failed.
 - Copies of many small files into the same folder no longer reopen and re-check every destination parent folder for each file: each copy worker keeps the folder chain locked (still junction-safe) and reuses it.
 - A copy that finishes while the window is minimized, in the tray or behind another app shows a Windows notification instead of disappearing silently.
+- Clicking the tray icon brings back every window that is still copying or waiting for a decision, not only the newest one, so two simultaneous copies hidden to the tray are both visible again.
+- Each copy window is titled with its progress and destination folder ("45% · Fotos — VelocityCopy"), so simultaneous copies can be told apart in the taskbar and Alt+Tab.
 - The taskbar button shows copy progress (yellow while paused or waiting for a decision, red on errors).
 - Setup is DPI-aware (sharp at 125-200% scaling) and registers size, links and a silent uninstall command in Settings > Apps.
 - C++/WinRT 3.0.260818.1, Windows App SDK 2.5.1 component set, NSIS 3.13 from the official distribution, and GitHub Actions on Node 24 (checkout v6, upload-artifact v6, cache v5, setup-msbuild v3).

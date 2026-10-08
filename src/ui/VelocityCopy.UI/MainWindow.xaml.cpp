@@ -544,7 +544,27 @@ void MainWindow::SetTaskbarState(const TBPFLAG state) noexcept {
     RefreshTaskbarProgress();
 }
 
+void MainWindow::RefreshWindowTitle() noexcept {
+    // Several copies show up as separate taskbar/Alt+Tab entries; name each
+    // by its progress and destination folder so they can be told apart.
+    try {
+        std::wstring title = L"VelocityCopy";
+        if (taskbar_state_ != TBPF_NOPROGRESS && !active_destination_.empty()) {
+            auto folder = active_destination_.filename().wstring();
+            if (folder.empty()) folder = active_destination_.wstring();
+            title = taskbar_state_ == TBPF_INDETERMINATE
+                ? std::format(L"{} \u2014 VelocityCopy", folder)
+                : std::format(L"{} \u00B7 {} \u2014 VelocityCopy", FormatProgressPercent(taskbar_fraction_).c_str(), folder);
+        }
+        if (title == window_title_) return;
+        window_title_ = title;
+        Title(hstring(title));
+    } catch (...) {
+    }
+}
+
 void MainWindow::RefreshTaskbarProgress() noexcept {
+    RefreshWindowTitle();
     if (hwnd_ == nullptr || taskbar_unavailable_) return;
     if (!taskbar_) {
         // Explorer can be restarted or absent; failing once disables the
