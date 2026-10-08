@@ -1,15 +1,9 @@
 # Changelog
 
-## 1.1.0 — Unreleased
+## 1.2.0 — Unreleased
 
-VelocityCopy stabilization release.
+Copy-correctness, protected-destination and interaction release.
 
-- Explorer-triggered transfers now start in a normal visible window instead of inheriting a minimized presentation state.
-- External Explorer drag/drop reaches the full transfer surface while preserving internal queue reordering.
-- Shell IPC handoff is bounded so a stalled resident receiver cannot block Explorer indefinitely.
-- Installer packaging validates the PE architecture of both `VelocityCopy.WinUI.exe` and `VelocityCopy.Shell.dll`.
-- Release and pre-test contracts now match the implemented window lifecycle and current 380x72 compact UI.
-- Regression coverage was expanded for routed drop, activation visibility, stalled IPC and package identity.
 - Copying or moving several loose files no longer recreates their source folder at the destination; files land directly in the target folder like Explorer. A parent folder is only used to separate files whose names collide.
 - Same-volume Move renames files in place instead of copying every byte and deleting the source.
 - Planning failures report the real reason (missing source, duplicate destination, destination inside source) instead of a generic error.
@@ -28,6 +22,17 @@ VelocityCopy stabilization release.
 - The notification-area icon keeps its hover text after the setup notification.
 - Setup text is compiled as UTF-8, so accented Spanish installer messages no longer show garbled characters.
 - Decision dialogs size their client area (not the outer frame) from the dialog's own monitor scale and scroll instead of clipping; the in-window notice re-fits the window whenever its height changes.
+
+## 1.1.0 — 2026-10-04
+
+VelocityCopy stabilization release.
+
+- Explorer-triggered transfers now start in a normal visible window instead of inheriting a minimized presentation state.
+- External Explorer drag/drop reaches the full transfer surface while preserving internal queue reordering.
+- Shell IPC handoff is bounded so a stalled resident receiver cannot block Explorer indefinitely.
+- Installer packaging validates the PE architecture of both `VelocityCopy.WinUI.exe` and `VelocityCopy.Shell.dll`.
+- Release and pre-test contracts now match the implemented window lifecycle and current 380x72 compact UI.
+- Regression coverage was expanded for routed drop, activation visibility, stalled IPC and package identity.
 
 ## 1.0.0 — 2026-09-22
 
