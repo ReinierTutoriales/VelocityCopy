@@ -11,6 +11,8 @@
 #include <cwctype>
 #include <vector>
 
+// Consumers such as the WinUI project link only an umbrella import set.
+#pragma comment(lib, "advapi32.lib")
 #pragma comment(lib, "bcrypt.lib")
 
 namespace velocitycopy {
