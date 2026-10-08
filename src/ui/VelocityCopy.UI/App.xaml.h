@@ -33,7 +33,6 @@ struct App : AppT<App> {
     void OnWindowDestroyed(std::uint64_t window_id) noexcept;
     std::optional<std::filesystem::path> TakeRecoveryFile() noexcept;
     void ReturnRecoveryFile(std::filesystem::path path) noexcept;
-    [[nodiscard]] bool HasPendingRecovery() const noexcept { return !pending_recovery_files_.empty(); }
 
 private:
     static inline App* s_instance = nullptr;

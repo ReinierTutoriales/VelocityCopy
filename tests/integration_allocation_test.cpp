@@ -1,5 +1,4 @@
 #include "velocitycopy/job_planning_worker.hpp"
-#include "velocitycopy/job_queue.hpp"
 #include "velocitycopy/process_activation.hpp"
 #include "velocitycopy/storage_profiler.hpp"
 #include "velocitycopy/transfer_router.hpp"
@@ -63,24 +62,9 @@ int main() {
         if (launched || after != before) return 3;
     }
 
-    std::fprintf(stderr, "Queue allocation checks\n");
     CopyJob job;
     job.sources = {source};
     job.destination = root / L"destination";
-    JobQueue queue;
-    job.id = 1;
-    queue.enqueue(job);
-    job.id = 2;
-    queue.enqueue(job);
-    fail_after = 0;
-    const bool reordered = queue.move_pending(2, 0);
-    const bool allocation_free = fail_after == 0;
-    fail_after = -1;
-    if (!reordered || !allocation_free || queue.jobs()[0].id != 2) return 6;
-    fail_after = 0;
-    const auto result = queue.execute_next();
-    fail_after = -1;
-    if (result.success || result.native_code != static_cast<std::int32_t>(E_OUTOFMEMORY) || queue.active_job_id()) return 7;
     std::fprintf(stderr, "Worker cancellation allocation check\n");
     std::mutex mutex;
     std::condition_variable gate;

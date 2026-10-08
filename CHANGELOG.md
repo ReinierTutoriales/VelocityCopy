@@ -16,6 +16,8 @@ VelocityCopy stabilization release.
 - An unreadable subfolder, junction or file that disappears while scanning no longer aborts the whole job; it is reported as a failed item and everything else is transferred.
 - Saved queue files are validated: outputs must stay inside the destination and inputs inside the declared sources.
 - The retry dialog names the failed files and why; the completion notice lists only non-zero outcomes plus the first failure. The About window sizes to its content.
+- Finishing setup starts VelocityCopy resident in the notification area instead of leaving its window open.
+- Removed unused code: the legacy job queue, destination catalog enumeration and copy-plan editing helpers.
 - Decision dialogs size their client area (not the outer frame) from the dialog's own monitor scale and scroll instead of clipping; the in-window notice re-fits the window whenever its height changes.
 
 ## 1.0.0 — 2026-09-22

@@ -1,5 +1,11 @@
 #include <windows.h>
+#include <exdisp.h>
+#include <shldisp.h>
+#include <shlobj.h>
+#include <shlwapi.h>
+#include <wrl/client.h>
 
+#include <filesystem>
 #include <string>
 #include <string_view>
 
@@ -170,6 +176,96 @@ DWORD apply_with_shell_token(
     return result;
 }
 
+// The installer runs elevated, and Exec/ExecShell would hand VelocityCopy the
+// elevated token. Ask the interactive desktop shell (already running with the
+// user's normal token) to start it instead, through the documented
+// IShellDispatch2::ShellExecute of the desktop folder view. Unlike
+// `explorer.exe <path>`, this forwards arguments, so the app starts with
+// --startup: resident in the notification area, no window left open.
+class ComBstr final {
+public:
+    explicit ComBstr(const wchar_t* value) noexcept : value_(SysAllocString(value)) {}
+    ~ComBstr() { SysFreeString(value_); }
+    ComBstr(const ComBstr&) = delete;
+    ComBstr& operator=(const ComBstr&) = delete;
+    [[nodiscard]] BSTR get() const noexcept { return value_; }
+
+private:
+    BSTR value_{};
+};
+
+HRESULT shell_execute_unelevated(const std::wstring& executable, const wchar_t* arguments) noexcept {
+    using Microsoft::WRL::ComPtr;
+
+    ComPtr<IShellWindows> windows;
+    HRESULT hr = CoCreateInstance(CLSID_ShellWindows, nullptr, CLSCTX_LOCAL_SERVER, IID_PPV_ARGS(&windows));
+    if (FAILED(hr)) return hr;
+
+    VARIANT location{};
+    location.vt = VT_I4;
+    location.lVal = CSIDL_DESKTOP;
+    VARIANT empty{};
+    long desktop_hwnd{};
+    ComPtr<IDispatch> desktop;
+    hr = windows->FindWindowSW(&location, &empty, SWC_DESKTOP, &desktop_hwnd, SWFO_NEEDDISPATCH, &desktop);
+    if (hr == S_FALSE || !desktop) return E_FAIL;
+    if (FAILED(hr)) return hr;
+
+    ComPtr<IShellBrowser> browser;
+    hr = IUnknown_QueryService(desktop.Get(), SID_STopLevelBrowser, IID_PPV_ARGS(&browser));
+    if (FAILED(hr)) return hr;
+    ComPtr<IShellView> view;
+    hr = browser->QueryActiveShellView(&view);
+    if (FAILED(hr)) return hr;
+    ComPtr<IDispatch> background;
+    hr = view->GetItemObject(SVGIO_BACKGROUND, IID_PPV_ARGS(&background));
+    if (FAILED(hr)) return hr;
+    ComPtr<IShellFolderViewDual> folder_view;
+    hr = background.As(&folder_view);
+    if (FAILED(hr)) return hr;
+    ComPtr<IDispatch> application;
+    hr = folder_view->get_Application(&application);
+    if (FAILED(hr)) return hr;
+    ComPtr<IShellDispatch2> shell;
+    hr = application.As(&shell);
+    if (FAILED(hr)) return hr;
+
+    std::wstring directory;
+    try {
+        directory = std::filesystem::path(executable).parent_path().wstring();
+    } catch (...) {
+        return E_OUTOFMEMORY;
+    }
+    const ComBstr file(executable.c_str());
+    const ComBstr argument_text(arguments);
+    const ComBstr directory_text(directory.c_str());
+    const ComBstr operation_text(L"open");
+    if (!file.get() || !argument_text.get() || !directory_text.get() || !operation_text.get()) {
+        return E_OUTOFMEMORY;
+    }
+    VARIANT argument_value{};
+    argument_value.vt = VT_BSTR;
+    argument_value.bstrVal = argument_text.get();
+    VARIANT directory_value{};
+    directory_value.vt = VT_BSTR;
+    directory_value.bstrVal = directory_text.get();
+    VARIANT operation_value{};
+    operation_value.vt = VT_BSTR;
+    operation_value.bstrVal = operation_text.get();
+    VARIANT show_value{};
+    show_value.vt = VT_I4;
+    show_value.lVal = SW_SHOWNORMAL;
+    return shell->ShellExecute(file.get(), argument_value, directory_value, operation_value, show_value);
+}
+
+DWORD launch_resident(const std::wstring& executable) noexcept {
+    const HRESULT initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    if (FAILED(initialized)) return static_cast<DWORD>(initialized);
+    const HRESULT launched = shell_execute_unelevated(executable, L"--startup");
+    CoUninitialize();
+    return SUCCEEDED(launched) ? ERROR_SUCCESS : static_cast<DWORD>(launched);
+}
+
 } // namespace
 
 int wmain(int argc, wchar_t** argv) {
@@ -186,6 +282,9 @@ int wmain(int argc, wchar_t** argv) {
     }
     if (mode == L"--install") {
         return static_cast<int>(apply_with_shell_token(true, executable));
+    }
+    if (mode == L"--launch") {
+        return static_cast<int>(launch_resident(executable));
     }
     if (mode == L"--remove") {
         return static_cast<int>(apply_with_shell_token(false, executable));

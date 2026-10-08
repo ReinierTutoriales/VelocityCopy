@@ -34,7 +34,6 @@ add_library(velocitycopy_core STATIC
     src/core/job_executor.cpp
     src/core/job_planner.cpp
     src/core/job_planning_worker.cpp
-    src/core/job_queue.cpp
     src/core/live_copy_plan.cpp
     src/core/live_copy_plan_export.cpp
     src/core/process_activation.cpp
@@ -61,7 +60,7 @@ target_link_libraries(VelocityCopyCli PRIVATE velocitycopy_core)
 
 add_executable(VelocityCopyStartupHelper src/app/startup_helper.cpp)
 target_compile_definitions(VelocityCopyStartupHelper PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
-target_link_libraries(VelocityCopyStartupHelper PRIVATE advapi32 user32)
+target_link_libraries(VelocityCopyStartupHelper PRIVATE advapi32 user32 ole32 oleaut32 shlwapi uuid)
 set_target_properties(VelocityCopyStartupHelper PROPERTIES OUTPUT_NAME "VelocityCopy.StartupHelper")
 
 add_executable(VelocityCopyBenchmark tools/benchmark.cpp)
@@ -97,8 +96,6 @@ endfunction()
 add_velocitycopy_test(VelocityCopyAppStorageTest tests/app_storage_test.cpp velocitycopy_app_storage)
 add_velocitycopy_test(VelocityCopyDiagnosticsTest tests/diagnostics_test.cpp velocitycopy_diagnostics)
 add_velocitycopy_test(VelocityCopySmokeTest tests/smoke_test.cpp velocitycopy_smoke)
-add_velocitycopy_test(VelocityCopyQueueTest tests/queue_test.cpp velocitycopy_queue)
-add_velocitycopy_test(VelocityCopyPlanEditTest tests/plan_edit_test.cpp velocitycopy_plan_edit)
 add_velocitycopy_test(VelocityCopyLivePlanTest tests/live_copy_plan_test.cpp velocitycopy_live_plan)
 add_velocitycopy_test(VelocityCopyLivePlanStructureTest tests/live_plan_structure_test.cpp velocitycopy_live_plan_structure)
 add_velocitycopy_test(VelocityCopyLivePlanSnapshotContractTest tests/live_plan_snapshot_contract_test.cpp velocitycopy_live_plan_snapshot_contract)

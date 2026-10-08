@@ -46,6 +46,21 @@ still requires green Windows CI and manual Windows validation.
   requires absolute paths, every output inside the destination root and every
   input inside a declared source root.
 
+### Installer
+- **Setup left a window open.** The finish page launched the app through
+  `explorer.exe <exe>`, which cannot pass arguments, so the full window opened.
+  `VelocityCopy.StartupHelper.exe --launch` now asks the desktop shell
+  (`IShellDispatch2::ShellExecute`, user's unelevated token) to start it with
+  `--startup`, i.e. resident in the notification area. The old `explorer.exe`
+  launch remains the fallback. The finish checkbox now says so.
+
+### Dead code removed
+- `JobQueue` (pre-session queue; the UI uses `queued_sessions_`) and its test.
+- `DestinationCatalog::enumerate`, `DestinationEntry`, `DestinationKind`
+  (retired destination picker).
+- `CopyPlan::move_file/_up/_down/remove_file` (plan editing moved to
+  `LiveCopyPlan`) and its test; unused `is_terminal`, `App::HasPendingRecovery`.
+
 ## Reviewed, no change
 
 - Queue view: already incremental, capped at 256 rows, preserves selection,
@@ -65,4 +80,8 @@ still requires green Windows CI and manual Windows validation.
 | Medium | No "keep both / rename" conflict choice. | Add a third action generating `name (2).ext`. |
 | Medium | Whole tree is planned before the first byte moves. | Same as the streaming item above. |
 | Low | Same-volume Move renames file by file. | Rename a whole directory when its destination does not exist. |
+| Medium | Paths over 260 characters need the system `LongPathsEnabled` policy (off by default); the manifest is already `longPathAware`. | Offer an installer option to enable it, or convert engine paths to `\\?\` form. |
+| Low | Directory attributes/timestamps (hidden, read-only folders) are not copied; files keep theirs via CopyFile2. | Apply source directory attributes and times after the last file of each folder. |
+| Low | No free-space pre-check; a full disk is detected mid-copy. | Warn (not block) when remaining bytes exceed free space on a different volume. |
+| Low | No post-copy verification option. | Optional hash verification for critical copies. |
 | Low | Planner failures are not saved in `.vcq`/recovery archives. | Persist them if post-recovery reporting matters. |

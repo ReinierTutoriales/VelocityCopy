@@ -40,11 +40,6 @@ struct CopyPlan {
     std::uint64_t total_bytes{};
     std::uint64_t largest_file_bytes{};
     std::vector<PlanningFailure> failures;
-
-    [[nodiscard]] bool move_file(std::uint64_t file_id, std::size_t new_index) noexcept;
-    [[nodiscard]] bool move_file_up(std::uint64_t file_id) noexcept;
-    [[nodiscard]] bool move_file_down(std::uint64_t file_id) noexcept;
-    [[nodiscard]] bool remove_file(std::uint64_t file_id) noexcept;
 };
 
 // Maps a planner failure to an HRESULT the UI can explain. Planner validation

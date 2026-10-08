@@ -52,6 +52,7 @@ ShowUninstDetails show
 ; instead, checked by default like a normal installer.
 !define MUI_FINISHPAGE_RUN
 !define MUI_FINISHPAGE_RUN_FUNCTION LaunchVelocityCopyAsUser
+!define MUI_FINISHPAGE_RUN_TEXT "$(FinishRunText)"
 !insertmacro MUI_PAGE_FINISH
 !insertmacro MUI_LANGUAGE "English"
 !insertmacro MUI_LANGUAGE "Spanish"
@@ -60,6 +61,8 @@ ShowUninstDetails show
 ; language match (es-MX/es-US -> Spanish), and falls back to the first language.
 ; Keep English first for users whose display language is not supported.
 LangString InstallSectionName ${LANG_ENGLISH} "Install VelocityCopy"
+LangString FinishRunText ${LANG_ENGLISH} "Start VelocityCopy in the notification area"
+LangString FinishRunText ${LANG_SPANISH} "Iniciar VelocityCopy en el área de notificación"
 LangString InstallSectionName ${LANG_SPANISH} "Instalar VelocityCopy"
 LangString Requires64Bit ${LANG_ENGLISH} "VelocityCopy requires 64-bit Windows."
 LangString Requires64Bit ${LANG_SPANISH} "VelocityCopy requiere Windows de 64 bits."
@@ -111,11 +114,18 @@ Function .onInit
 !endif
 FunctionEnd
 
-; The installer runs elevated. Exec/ExecShell would inherit that token, so ask
-; explorer.exe to launch the app: it hands the request to the existing
-; unelevated shell, which starts VelocityCopy with the user's normal token.
+; The installer runs elevated. Exec/ExecShell would inherit that token, so the
+; startup helper asks the interactive desktop shell to start VelocityCopy with
+; the user's normal token and --startup: it stays resident in the notification
+; area instead of leaving a window open after setup. If the shell cannot be
+; reached, fall back to explorer.exe (no arguments: opens the window).
 Function LaunchVelocityCopyAsUser
-  Exec '"$WINDIR\explorer.exe" "$INSTDIR\VelocityCopy.WinUI.exe"'
+  nsExec::ExecToStack '"$INSTDIR\VelocityCopy.StartupHelper.exe" --launch "$INSTDIR\VelocityCopy.WinUI.exe"'
+  Pop $0
+  Pop $1
+  ${If} $0 != 0
+    Exec '"$WINDIR\explorer.exe" "$INSTDIR\VelocityCopy.WinUI.exe"'
+  ${EndIf}
 FunctionEnd
 
 !macro ConfigureInteractiveStartup ACTION
