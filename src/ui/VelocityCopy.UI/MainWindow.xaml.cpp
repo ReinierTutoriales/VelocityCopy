@@ -91,6 +91,9 @@ MainWindow::MainWindow() {
         const auto cancel = velocitycopy::localization::get_string(L"ActionCancel");
         ToolTipService::SetToolTip(PauseButtonHost(), box_value(pause));
         ToolTipService::SetToolTip(CancelButtonHost(), box_value(cancel));
+        const auto skip = velocitycopy::localization::get_string(L"ActionSkip");
+        ToolTipService::SetToolTip(SkipButtonHost(), box_value(skip));
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(SkipButton(), skip);
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), pause);
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(CancelButton(), cancel);
 
@@ -112,7 +115,9 @@ MainWindow::MainWindow() {
     }
 
     try {
-        SystemBackdrop(Microsoft::UI::Xaml::Media::MicaBackdrop{});
+        // Same translucent, wallpaper-tinted material as Windows 11 menus and
+        // flyouts; Windows falls back to a solid colour when transparency is off.
+        SystemBackdrop(Microsoft::UI::Xaml::Media::DesktopAcrylicBackdrop{});
     } catch (...) {
     }
 
@@ -364,9 +369,9 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
         (monitor_info.rcWork.bottom - monitor_info.rcWork.top) * 96.0 / static_cast<double>(dpi);
     const double work_margin = velocitycopy::ui::token_double(L"ExpandedWorkAreaMargin", 16);
     const double normal_width = velocitycopy::ui::token_double(L"NormalWindowMinWidth", 380);
-    const double preferred_width = velocitycopy::ui::token_double(L"ExpandedPreferredWidth", 880);
+    const double preferred_width = velocitycopy::ui::token_double(L"ExpandedPreferredWidth", 640);
     const double three_column_threshold =
-        velocitycopy::ui::token_double(L"ExpandedThreeColumnThreshold", 720);
+        velocitycopy::ui::token_double(L"ExpandedThreeColumnThreshold", 560);
     const double work_width_cap = (std::max)(normal_width, work_width_epx - work_margin * 2.0);
     const double text_scale = (std::max)(1.0, last_text_scale_factor_);
     // 380 epx scaled by Text Size is the minimum, not the final width: the window grows only
@@ -395,29 +400,19 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
             ExpandedRow1().Height(GridLength{0.0, GridUnitType::Pixel});
             ExpandedRow2().Height(GridLength{0.0, GridUnitType::Pixel});
             ExpandedColumn0().Width(GridLength{1.0, GridUnitType::Star});
-            ExpandedColumn1().Width(GridLength{2.0, GridUnitType::Star});
+            ExpandedColumn1().Width(GridLength{1.0, GridUnitType::Star});
             ExpandedColumn2().Width(GridLength{0.0, GridUnitType::Pixel});
             Grid::SetRow(QueuePanel(), 0);
             Grid::SetColumn(QueuePanel(), 0);
             Grid::SetRow(DetailsViewport(), 0);
             Grid::SetColumn(DetailsViewport(), 1);
             Grid::SetColumnSpan(DetailsViewport(), 1);
-            DetailsRow0().Height(GridLength{1.0, GridUnitType::Star});
-            DetailsRow1().Height(GridLength{0.0, GridUnitType::Pixel});
-            DetailsColumn0().Width(GridLength{1.0, GridUnitType::Star});
-            DetailsColumn1().Width(GridLength{1.0, GridUnitType::Star});
-            Grid::SetRow(PerformancePanel(), 0);
-            Grid::SetColumn(PerformancePanel(), 0);
-            Grid::SetRow(InformationPanel(), 0);
-            Grid::SetColumn(InformationPanel(), 1);
-            DetailsGrid().ColumnSpacing(
-                velocitycopy::ui::token_double(L"ExpandedColumnSpacing", 8));
             ExpandedViewport().VerticalScrollMode(ScrollMode::Disabled);
             ExpandedViewport().VerticalScrollBarVisibility(ScrollBarVisibility::Disabled);
             ExpandedViewport().IsTabStop(false);
             ExpandedRegion().ColumnSpacing(
                 velocitycopy::ui::token_double(L"ExpandedColumnSpacing", 8));
-            PerformancePanel().Margin(
+            InformationPanel().Margin(
                 velocitycopy::ui::token_thickness(L"ExpandedSectionMargin", Thickness{4.0}));
         } else {
             QueueSectionIcon().Visibility(Visibility::Visible);
@@ -432,19 +427,10 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
             Grid::SetRow(DetailsViewport(), 1);
             Grid::SetColumn(DetailsViewport(), 0);
             Grid::SetColumnSpan(DetailsViewport(), 1);
-            DetailsRow0().Height(GridLength{1.0, GridUnitType::Auto});
-            DetailsRow1().Height(GridLength{1.0, GridUnitType::Auto});
-            DetailsColumn0().Width(GridLength{1.0, GridUnitType::Star});
-            DetailsColumn1().Width(GridLength{0.0, GridUnitType::Pixel});
-            Grid::SetRow(PerformancePanel(), 0);
-            Grid::SetColumn(PerformancePanel(), 0);
-            Grid::SetRow(InformationPanel(), 1);
-            Grid::SetColumn(InformationPanel(), 0);
-            DetailsGrid().ColumnSpacing(0.0);
             ExpandedViewport().VerticalScrollMode(ScrollMode::Auto);
             ExpandedViewport().VerticalScrollBarVisibility(ScrollBarVisibility::Auto);
             ExpandedRegion().ColumnSpacing(0.0);
-            PerformancePanel().Margin(
+            InformationPanel().Margin(
                 velocitycopy::ui::token_thickness(L"ExpandedSectionMargin", Thickness{4.0}));
         }
     }
@@ -481,20 +467,18 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
     const double expanded_content_width = (std::max)(
         1.0, target_width - expanded_padding.Left - expanded_padding.Right);
     const double panel_width = expanded_layout_mode_ == ExpandedLayoutMode::ThreeColumn
-        ? (std::max)(1.0, (expanded_content_width - expanded_column_spacing * 2.0) / 3.0)
+        ? (std::max)(1.0, (expanded_content_width - expanded_column_spacing) / 2.0)
         : expanded_content_width;
 
-    PerformancePanel().Measure({
-        static_cast<float>(panel_width), std::numeric_limits<float>::infinity()});
+    // Information carries the speed graph; it is the only measured details panel.
     InformationPanel().Measure({
         static_cast<float>(panel_width), std::numeric_limits<float>::infinity()});
-    const double performance_height = PerformancePanel().DesiredSize().Height;
     const double information_height = InformationPanel().DesiredSize().Height;
 
     double expanded_region_height = 0.0;
     if (expanded_layout_mode_ == ExpandedLayoutMode::ThreeColumn) {
         const double content_height = (std::min)(
-            (std::max)({performance_height, information_height, queue_min_height}),
+            (std::max)(information_height, queue_min_height),
             (std::max)(1.0, expanded_height_cap - expanded_padding.Top - expanded_padding.Bottom));
         ExpandedRow0().Height(GridLength{content_height, GridUnitType::Pixel});
         expanded_region_height =
@@ -503,13 +487,13 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
         const double padding_height = expanded_padding.Top + expanded_padding.Bottom;
         const double content_cap = (std::max)(1.0, expanded_height_cap - padding_height);
         const double details_required_height = (std::max)(
-            details_min_height, performance_height + information_height);
+            details_min_height, information_height);
         const double required_content_height = queue_min_height + details_required_height;
         const bool constrained_height = content_cap < required_content_height;
         const double queue_height = queue_min_height;
         ExpandedRow0().Height(GridLength{queue_height, GridUnitType::Pixel});
         // Let DetailsGrid keep its measured desired height. When the combined
-        // Queue + Performance + Information extent exceeds the viewport cap,
+        // Queue + Information extent exceeds the viewport cap,
         // the outer ScrollViewer must own the overflow instead of clipping
         // Information inside a fixed 128 epx details row.
         ExpandedRow1().Height(GridLength{1.0, GridUnitType::Auto});

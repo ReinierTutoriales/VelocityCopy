@@ -2,6 +2,13 @@
 
 VelocityCopy is a compact Windows 11 copy/move utility. The window itself is the copier surface; it must stay compact, direct, and free of destination/layout chooser UI during drag/drop or shell-driven transfers.
 
+## Current design (1.2.2) — supersedes the older phase notes below where they differ
+
+- **Command row:** Pause/Resume, **Skip**, Cancel and Options form the operational cluster (in that order); Details / Hide details stays isolated at the far right. Skip is a surface button enabled only through `can_skip_current_file`; its tooltip lives on an enabled host like Pause/Cancel. **Stop** stays an Options command because it differs from Pause: Stop ends the session cleanly and keeps the queue for Resume, Pause holds the current file open mid-copy.
+- **Options menu:** Stop, Save queue, Load queue, About, Hide to tray. Skip is no longer a menu item.
+- **Expanded view:** two sections, `Queue | Information`. The Performance card is gone; its speed graph (60-sample line/area plot with the zero/half/max axis) sits compactly at the bottom of the Information card (`PerformanceGraphHeight` 56 epx) and the current speed is shown in the Information header. `ExpandedPreferredWidth` is 640 epx and the two-column threshold (`ExpandedThreeColumnThreshold`, name kept) is 560 epx; below it Queue and Information stack vertically.
+- **Material:** the main window uses `DesktopAcrylicBackdrop`, the same translucent, wallpaper-tinted material as Windows 11 menus and flyouts; Windows falls back to a solid colour when transparency effects are off.
+
 ## Window geometry
 
 > Superseded phase-0 baseline: the fixed **380 × 72 epx** collapsed surface described the pre-phase-1 compact UI. Phase 1 replaces that fixed-height contract with content-driven sizing; the old values remain in code/tests until the geometry/tokens commit that follows this documentation commit.

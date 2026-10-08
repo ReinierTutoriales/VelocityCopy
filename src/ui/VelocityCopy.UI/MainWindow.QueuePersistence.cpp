@@ -110,7 +110,6 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
                 self->RefreshQueueCommandState();
             }
         });
-        skip_menu_item_ = MenuFlyoutItem{};
         stop_menu_item_ = MenuFlyoutItem{};
         save_queue_menu_item_ = MenuFlyoutItem{};
         load_queue_menu_item_ = MenuFlyoutItem{};
@@ -119,7 +118,6 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
 
         try {
             const auto options_label = velocitycopy::localization::get_string(L"ActionQueueOptions");
-            skip_menu_item_.Text(velocitycopy::localization::get_string(L"ActionSkip"));
             stop_menu_item_.Text(velocitycopy::localization::get_string(L"ActionStop"));
             save_queue_menu_item_.Text(velocitycopy::localization::get_string(L"ActionSaveQueue"));
             load_queue_menu_item_.Text(velocitycopy::localization::get_string(L"ActionLoadQueue"));
@@ -128,7 +126,6 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
             ToolTipService::SetToolTip(options_button, box_value(options_label));
             Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(options_button, options_label);
         } catch (...) {
-            skip_menu_item_.Text(L"Skip");
             stop_menu_item_.Text(L"Stop");
             save_queue_menu_item_.Text(L"Save queue");
             load_queue_menu_item_.Text(L"Load queue");
@@ -138,7 +135,6 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
             Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(options_button, L"Options");
         }
 
-        skip_menu_item_.Click({this, &MainWindow::OnMenuSkipClick});
         stop_menu_item_.Click({this, &MainWindow::OnMenuStopClick});
         save_queue_menu_item_.Click({this, &MainWindow::OnSaveQueueClick});
         load_queue_menu_item_.Click({this, &MainWindow::OnLoadQueueClick});
@@ -147,7 +143,6 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
             if (auto self = weak.get()) self->HideToTray();
         });
 
-        menu.Items().Append(skip_menu_item_);
         menu.Items().Append(stop_menu_item_);
         menu.Items().Append(MenuFlyoutSeparator{});
         menu.Items().Append(save_queue_menu_item_);
@@ -185,22 +180,18 @@ void MainWindow::RefreshQueueCommandState() {
         !stop_requested_ && queued_sessions_.empty());
 }
 
-void MainWindow::OnMenuSkipClick(IInspectable const& sender, RoutedEventArgs const& args) {
-    OnSkipClick(sender, args);
-    RefreshExecutionMenuState();
-}
-
 void MainWindow::OnMenuStopClick(IInspectable const& sender, RoutedEventArgs const& args) {
     OnStopClick(sender, args);
     RefreshExecutionMenuState();
 }
 
 void MainWindow::RefreshExecutionMenuState() {
-    if (!skip_menu_item_ || !stop_menu_item_) return;
     const bool active = execution_control_ != nullptr;
-    skip_menu_item_.IsEnabled(velocitycopy::can_skip_current_file(
+    // Skip lives on the main surface; Stop stays an Options command.
+    SkipButton().IsEnabled(velocitycopy::can_skip_current_file(
         active, current_file_id_, current_file_skippable_,
         paused_, interrupted_session_ == InterruptedSessionState::Stopped, interrupted_session_ == InterruptedSessionState::Conflict, stop_requested_));
+    if (!stop_menu_item_) return;
     stop_menu_item_.IsEnabled(active && interrupted_session_ == InterruptedSessionState::None && !stop_requested_);
 }
 

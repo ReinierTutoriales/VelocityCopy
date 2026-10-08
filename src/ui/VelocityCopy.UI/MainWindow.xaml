@@ -232,6 +232,28 @@
                                 </Button>
                             </Grid>
 
+                            <Grid x:Name="SkipButtonHost"
+                                  Width="{StaticResource ActionButtonSize}"
+                                  Height="{StaticResource ActionButtonSize}"
+                                  Background="Transparent">
+                                <Button x:Name="SkipButton"
+                                        Click="OnSkipClick"
+                                        IsEnabled="False"
+                                        HorizontalAlignment="Stretch"
+                                        VerticalAlignment="Stretch"
+                                        Padding="0">
+                                    <Button.Resources>
+                                        <StaticResource x:Key="ButtonForeground" ResourceKey="TextFillColorPrimaryBrush" />
+                                        <StaticResource x:Key="ButtonForegroundPointerOver" ResourceKey="AccentFillColorSecondaryBrush" />
+                                        <StaticResource x:Key="ButtonForegroundPressed" ResourceKey="AccentFillColorTertiaryBrush" />
+                                        <StaticResource x:Key="ButtonForegroundDisabled" ResourceKey="TextFillColorDisabledBrush" />
+                                    </Button.Resources>
+                                    <FontIcon x:Name="SkipIcon"
+                                              Glyph="&#xE893;"
+                                              FontSize="{StaticResource ActionIconSize}" />
+                                </Button>
+                            </Grid>
+
                             <Grid x:Name="CancelButtonHost"
                                   Width="{StaticResource ActionButtonSize}"
                                   Height="{StaticResource ActionButtonSize}"
@@ -474,16 +496,7 @@
 
                 <Grid x:Name="DetailsViewport" Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2">
                     <Grid x:Name="DetailsGrid">
-                        <Grid.RowDefinitions>
-                            <RowDefinition x:Name="DetailsRow0" Height="Auto" />
-                            <RowDefinition x:Name="DetailsRow1" Height="0" />
-                        </Grid.RowDefinitions>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition x:Name="DetailsColumn0" Width="*" />
-                            <ColumnDefinition x:Name="DetailsColumn1" Width="*" />
-                        </Grid.ColumnDefinitions>
-
-                        <Grid x:Name="PerformancePanel" Grid.Row="0" Grid.Column="0" Margin="{StaticResource ExpandedSectionMargin}">
+                        <Grid x:Name="InformationPanel" Margin="{StaticResource ExpandedSectionMargin}">
                             <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                                     BorderThickness="1"
@@ -491,6 +504,7 @@
                                     Padding="{StaticResource ExpandedSectionPadding}">
                                 <Grid>
                                     <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
@@ -498,102 +512,16 @@
                                             BorderThickness="0,0,0,1"
                                             Padding="{StaticResource SectionHeaderPadding}">
                                         <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <FontIcon Glyph="&#xE9D2;"
-                                                          FontSize="{StaticResource SectionIconSize}"
-                                                          Foreground="{ThemeResource AccentFillColorDefaultBrush}"
-                                                          Margin="{StaticResource SectionIconMargin}"
-                                                          IsHitTestVisible="False"
-                                                          AutomationProperties.AccessibilityView="Raw" />
-                                                <TextBlock x:Uid="DetailsPerformanceTitle"
-                                                           FontWeight="SemiBold"
-                                                           FontSize="{StaticResource BodyFontSize}" />
-                                            </StackPanel>
-                                            <TextBlock x:Name="PerformanceCurrentSpeedText"
-                                                       Grid.Column="1"
-                                                       Foreground="{ThemeResource AccentFillColorDefaultBrush}"
-                                                       FontWeight="SemiBold"
-                                                       FontSize="{StaticResource CaptionFontSize}" />
-                                        </Grid>
-                                    </Border>
-                                    <Grid Grid.Row="1"
-                                          Margin="{StaticResource PerformanceGraphMargin}"
-                                          Height="{StaticResource PerformanceGraphHeight}"
-                                          AutomationProperties.AccessibilityView="Raw">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition x:Name="PerformanceScaleColumn" Width="Auto" MinWidth="{StaticResource PerformanceAxisLabelMinWidth}" />
                                             <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <Grid x:Name="PerformanceScaleLabels" Margin="0,0,8,0">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="*" />
-                                                <RowDefinition Height="Auto" />
-                                            </Grid.RowDefinitions>
-                                            <TextBlock x:Name="PerformanceScaleMaxText"
-                                                       AutomationProperties.AccessibilityView="Raw"
-                                                       FontSize="{StaticResource CaptionFontSize}"
-                                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-                                            <TextBlock x:Name="PerformanceScaleMidText"
-                                                       AutomationProperties.AccessibilityView="Raw"
-                                                       Grid.Row="1"
-                                                       VerticalAlignment="Center"
-                                                       FontSize="{StaticResource CaptionFontSize}"
-                                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-                                            <TextBlock x:Name="PerformanceScaleZeroText"
-                                                       AutomationProperties.AccessibilityView="Raw"
-                                                       Grid.Row="2"
-                                                       FontSize="{StaticResource CaptionFontSize}"
-                                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-                                        </Grid>
-                                        <Border Grid.Column="1"
-                                                BorderThickness="1"
-                                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                                CornerRadius="{ThemeResource ControlCornerRadius}">
-                                            <Grid>
-                                                <Border x:Name="PerformanceGraphMidline"
-                                                        Height="1"
-                                                        VerticalAlignment="Center"
-                                                        Background="{ThemeResource CardStrokeColorDefaultBrush}"
-                                                        Opacity="0.55"
-                                                        IsHitTestVisible="False"
-                                                        AutomationProperties.AccessibilityView="Raw" />
-                                                <Canvas x:Name="PerformanceGraph">
-                                                    <Polygon x:Name="PerformanceGraphArea"
-                                                             AutomationProperties.AccessibilityView="Raw"
-                                                             Fill="{ThemeResource AccentFillColorDefaultBrush}"
-                                                             Opacity="0.16" />
-                                                    <Polyline x:Name="PerformanceGraphLine"
-                                                              AutomationProperties.AccessibilityView="Raw"
-                                                              Stroke="{ThemeResource AccentFillColorDefaultBrush}"
-                                                              StrokeThickness="1.5"
-                                                              StrokeLineJoin="Round" />
-                                                </Canvas>
-                                            </Grid>
-                                        </Border>
-                                    </Grid>
-                                </Grid>
-                            </Border>
-                        </Grid>
-
-                        <Grid x:Name="InformationPanel" Grid.Row="0" Grid.Column="1" Margin="{StaticResource ExpandedSectionMargin}">
-                            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="{ThemeResource ControlCornerRadius}"
-                                    Padding="{StaticResource ExpandedSectionPadding}">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                    </Grid.RowDefinitions>
-                                    <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                            BorderThickness="0,0,0,1"
-                                            Padding="{StaticResource SectionHeaderPadding}">
+                                        <TextBlock x:Name="PerformanceCurrentSpeedText"
+                                                   Grid.Column="1"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{ThemeResource AccentFillColorDefaultBrush}"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="{StaticResource CaptionFontSize}" />
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                             <FontIcon Glyph="&#xE946;"
                                                       FontSize="{StaticResource SectionIconSize}"
@@ -606,6 +534,7 @@
                                                        FontWeight="SemiBold"
                                                        FontSize="{StaticResource BodyFontSize}" />
                                         </StackPanel>
+                                        </Grid>
                                     </Border>
 
                                     <Grid Grid.Row="1"
@@ -678,6 +607,62 @@
                                                   AutomationProperties.AccessibilityView="Raw" />
                                         <TextBlock x:Uid="DetailsEtaLabel" Grid.Row="5" Grid.Column="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
                                         <TextBlock x:Name="DetailsEtaText" Grid.Row="5" Grid.Column="2" FontSize="{StaticResource CaptionFontSize}" />
+                                    </Grid>
+                                    <Grid Grid.Row="2"
+                                          Margin="{StaticResource PerformanceGraphMargin}"
+                                          Height="{StaticResource PerformanceGraphHeight}"
+                                          AutomationProperties.AccessibilityView="Raw">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition x:Name="PerformanceScaleColumn" Width="Auto" MinWidth="{StaticResource PerformanceAxisLabelMinWidth}" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid x:Name="PerformanceScaleLabels" Margin="0,0,8,0">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="*" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+                                            <TextBlock x:Name="PerformanceScaleMaxText"
+                                                       AutomationProperties.AccessibilityView="Raw"
+                                                       FontSize="{StaticResource CaptionFontSize}"
+                                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                            <TextBlock x:Name="PerformanceScaleMidText"
+                                                       AutomationProperties.AccessibilityView="Raw"
+                                                       Grid.Row="1"
+                                                       VerticalAlignment="Center"
+                                                       FontSize="{StaticResource CaptionFontSize}"
+                                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                            <TextBlock x:Name="PerformanceScaleZeroText"
+                                                       AutomationProperties.AccessibilityView="Raw"
+                                                       Grid.Row="2"
+                                                       FontSize="{StaticResource CaptionFontSize}"
+                                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                        </Grid>
+                                        <Border Grid.Column="1"
+                                                BorderThickness="1"
+                                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                CornerRadius="{ThemeResource ControlCornerRadius}">
+                                            <Grid>
+                                                <Border x:Name="PerformanceGraphMidline"
+                                                        Height="1"
+                                                        VerticalAlignment="Center"
+                                                        Background="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                        Opacity="0.55"
+                                                        IsHitTestVisible="False"
+                                                        AutomationProperties.AccessibilityView="Raw" />
+                                                <Canvas x:Name="PerformanceGraph">
+                                                    <Polygon x:Name="PerformanceGraphArea"
+                                                             AutomationProperties.AccessibilityView="Raw"
+                                                             Fill="{ThemeResource AccentFillColorDefaultBrush}"
+                                                             Opacity="0.16" />
+                                                    <Polyline x:Name="PerformanceGraphLine"
+                                                              AutomationProperties.AccessibilityView="Raw"
+                                                              Stroke="{ThemeResource AccentFillColorDefaultBrush}"
+                                                              StrokeThickness="1.5"
+                                                              StrokeLineJoin="Round" />
+                                                </Canvas>
+                                            </Grid>
+                                        </Border>
                                     </Grid>
                                 </Grid>
                             </Border>

@@ -109,9 +109,9 @@ int main() {
         return fail(3, "telemetry must not share the caption-constrained filename row");
     }
 
-    // UI_SPEC: the compact surface has four actions total. Pause/Resume, Cancel
-    // and Options stay in the operational cluster; Details is isolated at the far
-    // right. Skip and Stop remain Options menu commands only.
+    // UI_SPEC: Pause/Resume, Skip, Cancel and Options form the operational
+    // cluster; Details is isolated at the far right. Stop remains an Options
+    // menu command only.
     const auto refresh_menu = body_of(menu, "void MainWindow::RefreshExecutionMenuState(");
     const auto cluster_start = xaml.find("x:Name=\"PrimaryActionCluster\"");
     const auto cluster_end = cluster_start == std::string::npos ? std::string::npos
@@ -119,20 +119,25 @@ int main() {
     const auto clustered_action_count = cluster_end == std::string::npos
         ? 0
         : count_occurrences(xaml.substr(cluster_start, cluster_end - cluster_start), "<Button x:Name=");
-    if (contains(xaml, "SkipButton") || contains(xaml, "StopButton") ||
-        contains(xaml, "OnSkipClick") || contains(xaml, "OnStopClick") ||
-        contains(execution, "SkipButton()") || contains(execution, "StopButton()") ||
-        contains(window, "SkipButton()") || contains(window, "StopButton()") ||
+    const auto pause_host = xaml.find("x:Name=\"PauseButtonHost\"");
+    const auto skip_host = xaml.find("x:Name=\"SkipButtonHost\"");
+    const auto cancel_host = xaml.find("x:Name=\"CancelButtonHost\"");
+    if (!contains(xaml, "x:Name=\"SkipButton\"") || !contains(xaml, "Click=\"OnSkipClick\"") ||
+        pause_host == std::string::npos || skip_host == std::string::npos || cancel_host == std::string::npos ||
+        !(pause_host < skip_host && skip_host < cancel_host) ||
+        contains(xaml, "StopButton") || contains(xaml, "OnStopClick") ||
+        contains(execution, "StopButton()") || contains(window, "StopButton()") ||
         contains(header, "RefreshExecutionButtonState") ||
         contains(tokens, "SkipIconSize") || contains(tokens, "StopIconSize") ||
-        clustered_action_count != 3 ||
+        clustered_action_count != 4 ||
         count_occurrences(xaml, "x:Name=\"DetailsButton\"") != 1 ||
-        !contains(menu, "skip_menu_item_.Click({this, &MainWindow::OnMenuSkipClick})") ||
+        contains(menu, "skip_menu_item_") ||
         !contains(menu, "stop_menu_item_.Click({this, &MainWindow::OnMenuStopClick})") ||
-        !contains(refresh_menu, "skip_menu_item_.IsEnabled(velocitycopy::can_skip_current_file(") ||
+        !contains(refresh_menu, "SkipButton().IsEnabled(velocitycopy::can_skip_current_file(") ||
         !contains(refresh_menu, "stop_menu_item_.IsEnabled(") ||
+        !contains(window, "ToolTipService::SetToolTip(SkipButtonHost()") ||
         !contains(menu, "menu.Opening")) {
-        return fail(4, "skip and stop must exist only as Options menu commands with dynamic enablement");
+        return fail(4, "Skip must sit between Pause and Cancel with dynamic enablement; Stop stays an Options command");
     }
 
     // Iconography: one glyph, one meaning. Disclosure owns the chevrons; queue
@@ -172,8 +177,8 @@ int main() {
     // DesignTokens.xaml is the single width source; C++ reads it through the
     // UiTokens.h accessor with an identical fallback.
     if (!contains(tokens, "<x:Double x:Key=\"NormalWindowMinWidth\">380</x:Double>") ||
-        !contains(tokens, "<x:Double x:Key=\"ExpandedPreferredWidth\">880</x:Double>") ||
-        !contains(tokens, "<x:Double x:Key=\"ExpandedThreeColumnThreshold\">720</x:Double>") ||
+        !contains(tokens, "<x:Double x:Key=\"ExpandedPreferredWidth\">640</x:Double>") ||
+        !contains(tokens, "<x:Double x:Key=\"ExpandedThreeColumnThreshold\">560</x:Double>") ||
         !contains(tokens, "<x:Double x:Key=\"ExpandedWorkAreaMargin\">16</x:Double>") ||
         !contains(window, "token_double(L\"NormalWindowMinWidth\", 380)") ||
         !contains(window, "const double work_width_cap = (std::max)(normal_width, work_width_epx - work_margin * 2.0);") ||
@@ -221,8 +226,7 @@ int main() {
         return fail(9, "custom drag region and whole-window append drop must remain wired");
     }
 
-    if (!contains(menu, "skip_menu_item_.Text") || !contains(menu, "stop_menu_item_.Text") ||
-        !contains(menu, "skip_menu_item_.Click({this, &MainWindow::OnMenuSkipClick})") ||
+    if (!contains(menu, "stop_menu_item_.Text") ||
         !contains(menu, "stop_menu_item_.Click({this, &MainWindow::OnMenuStopClick})") ||
         !contains(menu, "menu.Opening") || !contains(menu, "RefreshExecutionMenuState()")) {
         return fail(10, "secondary transfer commands must refresh state whenever Options opens");
@@ -393,7 +397,7 @@ int main() {
         !contains(resize_to_content, "ExpandedPreferredWidth") ||
         !contains(resize_to_content, "ExpandedThreeColumnThreshold") ||
         !contains(resize_to_content, "expanded_layout_mode_ = effective_width >= three_column_threshold") ||
-        !contains(resize_to_content, "PerformancePanel().Measure(") ||
+        contains(resize_to_content, "PerformancePanel()") ||
         !contains(resize_to_content, "InformationPanel().Measure(") ||
         !contains(resize_to_content, "ExpandedRegion().Padding()") ||
         !contains(resize_to_content, "ExpandedColumnSpacing") ||
@@ -407,15 +411,15 @@ int main() {
         !contains(three_column_branch, "ExpandedViewport().VerticalScrollBarVisibility(ScrollBarVisibility::Disabled)") ||
         !contains(three_column_branch, "ExpandedViewport().IsTabStop(false)") ||
         !contains(narrow_branch, "ExpandedRegion().ColumnSpacing(0.0)") ||
-        !contains(narrow_branch, "PerformancePanel().Margin(") ||
+        !contains(narrow_branch, "InformationPanel().Margin(") ||
         !contains(xaml, "x:Name=\"ExpandedViewport\"") ||
         !contains(xaml, "MinHeight=\"{StaticResource TransferProgressHeight}\"") ||
         !contains(xaml, "<x:Double x:Key=\"ProgressBarTrackHeight\">8</x:Double>") ||
         contains(xaml, "<ControlTemplate TargetType=\"ProgressBar\"") ||
         !contains(xaml, "Margin=\"{StaticResource TransferProgressMargin}\"") ||
         !contains(xaml, "Background=\"{ThemeResource CardBackgroundFillColorDefaultBrush}\"") ||
-        count_occurrences(xaml, "BorderBrush=\"{ThemeResource CardStrokeColorDefaultBrush}\"") < 4 ||
-        count_occurrences(xaml, "CornerRadius=\"{ThemeResource ControlCornerRadius}\"") < 4 ||
+        count_occurrences(xaml, "BorderBrush=\"{ThemeResource CardStrokeColorDefaultBrush}\"") < 3 ||
+        count_occurrences(xaml, "CornerRadius=\"{ThemeResource ControlCornerRadius}\"") < 3 ||
         !contains(narrow_branch, "Grid::SetRow(DetailsViewport(), 1)") ||
         !contains(narrow_branch, "Grid::SetColumn(DetailsViewport(), 0)") ||
         !contains(narrow_branch, "ExpandedViewport().VerticalScrollMode(ScrollMode::Auto)") ||
@@ -423,7 +427,7 @@ int main() {
         !contains(resize_to_content, "ExpandedViewport().MaxHeight(expanded_height_cap)") ||
         !contains(resize_to_content, "DetailsExpandedMinHeight") ||
         !contains(resize_to_content, "const double details_required_height = (std::max)(") ||
-        !contains(resize_to_content, "details_min_height, performance_height + information_height") ||
+        !contains(resize_to_content, "details_min_height, information_height") ||
         !contains(resize_to_content, "const double required_content_height = queue_min_height + details_required_height;") ||
         !contains(resize_to_content, "const bool constrained_height = content_cap < required_content_height;") ||
         !contains(resize_to_content, "ExpandedRow1().Height(GridLength{1.0, GridUnitType::Auto})") ||
@@ -436,7 +440,7 @@ int main() {
         contains(resize_to_content, "(std::min)(queue_min_height, content_cap - fixed_content_height)") ||
         contains(resize_to_content, "QueuePanel().Measure(") ||
         !contains(resize_to_content, "Grid::SetRow(QueuePanel()") ||
-        !contains(resize_to_content, "Grid::SetColumn(InformationPanel()") ||
+        !contains(xaml, "<Grid x:Name=\"InformationPanel\" Margin=") ||
         !contains(resize_to_content, "ResizeWindow(") ||
         contains(window, "QueueList().MaxHeight(") ||
         contains(window, "normal_surface_fallback") ||
@@ -576,7 +580,7 @@ int main() {
         contains(xaml, "x:Name=\"QueueButton\"") ||
         stray_queue_button_reference ||
         !contains(xaml, "x:Name=\"ExpandedRegion\"") ||
-        !contains(xaml, "x:Name=\"PerformancePanel\"") ||
+        contains(xaml, "x:Name=\"PerformancePanel\"") ||
         !contains(xaml, "x:Name=\"InformationPanel\"") ||
         count_occurrences(window, "ExpandedRegion().Visibility(") != 1 ||
         contains(window, "QueuePanel().Visibility(") ||

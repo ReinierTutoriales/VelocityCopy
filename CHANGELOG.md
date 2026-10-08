@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.2 — Unreleased
+
+- Cleaner, more compact window: a Skip button sits between Pause and Cancel; Skip is no longer in the Options menu (Stop stays there because it keeps the queue for later, unlike Pause).
+- Details show two sections instead of three: Queue and Information. The speed graph moved, smaller, into Information (the separate Performance card is gone), and the expanded window is 640 instead of 880 pixels wide.
+- The window uses the same translucent Windows 11 material as the system menus (acrylic) instead of the flat Mica background.
+
 ## 1.2.1 — 2026-10-08
 
 - Replacing a read-only, hidden or system file at the destination works like Explorer instead of failing with "access denied" (and no longer offers a pointless "Retry as administrator").

@@ -76,7 +76,6 @@ struct MainWindow : MainWindowT<MainWindow> {
 
     void OnSaveQueueClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnLoadQueueClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
-    void OnMenuSkipClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnMenuStopClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnAboutClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
     void OnQueueMoveUpClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&);
@@ -301,7 +300,6 @@ private:
     Microsoft::UI::Dispatching::DispatcherQueue dispatcher_{nullptr};
     Microsoft::UI::Xaml::Controls::MenuFlyoutItem save_queue_menu_item_{nullptr};
     Microsoft::UI::Xaml::Controls::MenuFlyoutItem load_queue_menu_item_{nullptr};
-    Microsoft::UI::Xaml::Controls::MenuFlyoutItem skip_menu_item_{nullptr};
     Microsoft::UI::Xaml::Controls::MenuFlyoutItem stop_menu_item_{nullptr};
     Microsoft::UI::Xaml::Controls::MenuFlyoutItem about_menu_item_{nullptr};
     Microsoft::UI::Xaml::Window about_window_{nullptr};

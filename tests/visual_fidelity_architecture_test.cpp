@@ -74,8 +74,8 @@ int main() {
     }
 
     if (!contains(tokens, "SectionHeaderPadding") ||
-        count_occurrences(xaml, "BorderThickness=\"0,0,0,1\"") < 3 ||
-        count_occurrences(xaml, "Padding=\"{StaticResource SectionHeaderPadding}\"") < 3) {
+        count_occurrences(xaml, "BorderThickness=\"0,0,0,1\"") < 2 ||
+        count_occurrences(xaml, "Padding=\"{StaticResource SectionHeaderPadding}\"") < 2) {
         return fail(7, "expanded cards must separate headers from content with the shared themed divider");
     }
 
