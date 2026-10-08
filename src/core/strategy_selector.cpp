@@ -3,6 +3,9 @@
 #include <windows.h>
 
 namespace velocitycopy {
+namespace {
+constexpr std::uint32_t kSmallFileSolidStateQueueDepth = 4;
+} // namespace
 
 StrategyRecommendation StrategySelector::choose(
     const StorageProfile& source,
@@ -22,13 +25,16 @@ StrategyRecommendation StrategySelector::choose(
         source.seek_penalty_available && destination.seek_penalty_available &&
         !source.incurs_seek_penalty && !destination.incurs_seek_penalty;
 
-    // Production 1.0 keeps a single active CopyFile2 operation per session.
-    // Storage topology can be unknown on removable, virtual and some filtered
-    // volumes, and allowing several simultaneous copies in that state can turn
-    // ordinary device latency into long apparent stalls. Parallel transfer is
-    // an optimization, not a correctness requirement; re-enable it only with
-    // measured evidence and a proven-disjoint storage topology contract.
+    // One CopyFile2 at a time unless the storage is known to profit from
+    // more. Unknown, removable, virtual, network and rotational storage stays
+    // serial: concurrent copies there turn device latency into stalls (or
+    // seek thrashing). Many small files between known solid-state fixed disks
+    // are bound by per-file open/close latency, which overlapping hides; the
+    // executor additionally requires the two disks to be proven distinct.
     recommendation.suggested_queue_depth = 1;
+    if (local_fixed && known_nonrotational && many_small_files) {
+        recommendation.suggested_queue_depth = kSmallFileSolidStateQueueDepth;
+    }
 
     if (network) {
         recommendation.copy_flags = COPY_FILE_REQUEST_COMPRESSED_TRAFFIC;

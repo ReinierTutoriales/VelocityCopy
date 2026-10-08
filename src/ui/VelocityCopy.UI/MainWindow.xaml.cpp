@@ -860,6 +860,9 @@ void MainWindow::ShowNotice(
     InfoBarSeverity const severity,
     hstring const& title,
     hstring const& message) {
+    // Only the "completed with issues" notice carries an action; any other
+    // notice replaces it without one.
+    ErrorBar().ActionButton(nullptr);
     TransferProgress().ShowError(severity == InfoBarSeverity::Error);
     if (severity == InfoBarSeverity::Error) {
         ApplyTransferVisualState(TransferVisualState::Error);

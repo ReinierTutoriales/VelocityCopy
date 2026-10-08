@@ -95,4 +95,12 @@
   <data name="ActionContinueAsAdmin" xml:space="preserve"><value>Continuar como administrador</value></data>
   <data name="ActionRetryAsAdmin" xml:space="preserve"><value>Reintentar como administrador</value></data>
   <data name="CompletedNotificationFormat" xml:space="preserve"><value>{} archivos listos — {}</value></data>
+  <data name="ActionShowIssues" xml:space="preserve"><value>Ver todos</value></data>
+  <data name="IssuesTitle" xml:space="preserve"><value>Elementos con problemas</value></data>
+  <data name="IssuesMessageFormat" xml:space="preserve"><value>{} elementos necesitan atención.</value></data>
+  <data name="ActionCopyList" xml:space="preserve"><value>Copiar lista</value></data>
+  <data name="ActionClose" xml:space="preserve"><value>Cerrar</value></data>
+  <data name="IssueFailed" xml:space="preserve"><value>Falló</value></data>
+  <data name="IssueSkipped" xml:space="preserve"><value>Omitido</value></data>
+  <data name="IssueSourceRetained" xml:space="preserve"><value>Origen conservado</value></data>
 </root>

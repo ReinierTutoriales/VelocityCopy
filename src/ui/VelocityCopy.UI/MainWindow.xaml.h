@@ -258,6 +258,7 @@ private:
     winrt::fire_and_forget AskLowSpaceAsync(
         std::shared_ptr<PreflightAnswer> answer, std::uint64_t required_bytes, std::uint64_t available_bytes);
     winrt::fire_and_forget AskElevationAsync(std::shared_ptr<PreflightAnswer> answer);
+    winrt::fire_and_forget ShowIssuesAsync();
     winrt::fire_and_forget ElevateParkedFailuresAsync();
     void ResumeParkedFailures();
     void ResolveParkedFailures();
@@ -344,6 +345,9 @@ private:
     double taskbar_fraction_{};
     std::wstring window_title_;
     hstring files_format_;
+    // Problems of the last finished transfer, for the "View all" list.
+    std::vector<velocitycopy::ItemResult> last_issues_;
+    std::uint64_t last_issue_total_{};
     hstring files_format_singular_;
     InterruptedSessionState interrupted_session_{InterruptedSessionState::None};
     bool stop_requested_{};

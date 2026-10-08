@@ -49,9 +49,19 @@ int wmain() {
         10000,
         4096,
     });
-    if (small.suggested_queue_depth != 1 ||
+    // Many small files between known solid-state fixed disks overlap copies;
+    // the same workload on rotational or unknown storage stays serial.
+    if (small.suggested_queue_depth != 4 ||
         small.suggested_buffer_bytes != 512u * 1024u) {
         return 2;
+    }
+    if (selector.choose(rotational, local, {10000ull * 4096ull, 10000, 4096}).suggested_queue_depth != 1) {
+        return 8;
+    }
+    auto removable = local;
+    removable.kind = velocitycopy::StorageKind::Removable;
+    if (selector.choose(local, removable, {10000ull * 4096ull, 10000, 4096}).suggested_queue_depth != 1) {
+        return 9;
     }
 
     const auto remote = selector.choose(network, network, {1024, 1, 1024});
