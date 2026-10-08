@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.2.1 — Unreleased
+## 1.2.1 — 2026-10-08
 
 - Replacing a read-only, hidden or system file at the destination works like Explorer instead of failing with "access denied" (and no longer offers a pointless "Retry as administrator").
 - A file briefly locked by antivirus or the indexer right after it was written is retried a few times before it counts as failed.
