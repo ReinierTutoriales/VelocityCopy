@@ -107,8 +107,10 @@ The elevated instance accepts the handoff only when the file's SHA-256 matches
 the value on its command line, holding the file without write/delete sharing
 from hashing until parsing, and deletes it afterwards. Existing Windows system
 files (owned by TrustedInstaller) stay protected even for administrators; such
-items are reported as access denied. Drive letters mapped only for the
-standard user are not visible to the elevated instance.
+items are reported as access denied. Network destinations never trigger the
+prompt: the elevated instance does not see the person's mapped drives or use
+their network credentials. `--elevated-handoff` is ignored unless the process
+is elevated and the file lies in VelocityCopy's data folder.
 
 ## Test gate
 

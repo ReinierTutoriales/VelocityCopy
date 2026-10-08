@@ -55,39 +55,25 @@ std::filesystem::path existing_ancestor(std::filesystem::path path) {
     return {};
 }
 
-// Asks Windows whether this process' token may perform `right` in `folder`,
-// without writing anything there (no temp files in synced or watched folders).
-// Returns true only for an explicit denial; an unreadable security descriptor
-// or a failed query leaves the decision to the engine.
+// Opens the folder asking for `right` (FILE_ADD_FILE / FILE_ADD_SUBDIRECTORY)
+// so the file system itself decides; nothing is written. Returns true only for
+// an explicit denial.
 bool folder_right_denied(const std::filesystem::path& folder, const DWORD right) {
-    constexpr SECURITY_INFORMATION kInformation =
-        OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION |
-        DACL_SECURITY_INFORMATION | LABEL_SECURITY_INFORMATION;
-    DWORD needed = 0;
-    (void)GetFileSecurityW(folder.c_str(), kInformation, nullptr, 0, &needed);
-    if (needed == 0 || GetLastError() != ERROR_INSUFFICIENT_BUFFER) return false;
-    std::vector<unsigned char> descriptor(needed);
-    if (!GetFileSecurityW(folder.c_str(), kInformation, descriptor.data(), needed, &needed)) return false;
+    Handle directory(CreateFileW(
+        folder.c_str(), right, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
+        OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr));
+    return !directory.valid() && GetLastError() == ERROR_ACCESS_DENIED;
+}
 
-    HANDLE process_token = nullptr;
-    if (!OpenProcessToken(GetCurrentProcess(), TOKEN_DUPLICATE | TOKEN_QUERY, &process_token)) return false;
-    Handle primary(process_token);
-    HANDLE impersonation_token = nullptr;
-    if (!DuplicateToken(primary.get(), SecurityImpersonation, &impersonation_token)) return false;
-    Handle impersonation(impersonation_token);
-
-    GENERIC_MAPPING mapping{FILE_GENERIC_READ, FILE_GENERIC_WRITE, FILE_GENERIC_EXECUTE, FILE_ALL_ACCESS};
-    DWORD desired = right;
-    MapGenericMask(&desired, &mapping);
-    PRIVILEGE_SET privileges{};
-    DWORD privileges_size = sizeof(privileges);
-    DWORD granted = 0;
-    BOOL allowed = FALSE;
-    if (!AccessCheck(descriptor.data(), impersonation.get(), desired, &mapping,
-            &privileges, &privileges_size, &granted, &allowed)) {
-        return false;
-    }
-    return allowed == FALSE;
+// Elevation cannot help on a network destination: the elevated process does
+// not see the person's mapped drives or use their network credentials.
+bool is_remote(const std::filesystem::path& folder) {
+    const auto text = folder.wstring();
+    if (text.starts_with(L"\\\\")) return true;
+    auto root = folder.root_path().wstring();
+    if (root.empty()) return false;
+    if (root.back() != L'\\') root.push_back(L'\\');
+    return GetDriveTypeW(root.c_str()) == DRIVE_REMOTE;
 }
 
 std::optional<std::wstring> sha256_of(HANDLE file) {
@@ -173,7 +159,7 @@ bool destination_requires_elevation(const CopyPlan& plan) noexcept {
     try {
         if (plan.destination_root.empty() || process_is_elevated()) return false;
         const auto anchor = existing_ancestor(plan.destination_root);
-        if (anchor.empty()) return false;
+        if (anchor.empty() || is_remote(anchor)) return false;
 
         // The first thing written into the existing folder decides which
         // permission matters: the destination root itself (a folder), or the
@@ -208,7 +194,7 @@ bool destination_requires_elevation(const std::filesystem::path& destination) no
     try {
         if (destination.empty() || process_is_elevated()) return false;
         const auto anchor = existing_ancestor(destination);
-        return !anchor.empty() && folder_right_denied(anchor, FILE_ADD_FILE);
+        return !anchor.empty() && !is_remote(anchor) && folder_right_denied(anchor, FILE_ADD_FILE);
     } catch (...) {
         return false;
     }

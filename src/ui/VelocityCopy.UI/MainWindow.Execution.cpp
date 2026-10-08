@@ -366,11 +366,28 @@ void MainWindow::StartTransfer(velocitycopy::CopyJob job, velocitycopy::StorageK
                     ? velocitycopy::launch_elevated_handoff(current_executable(), *handoff, owner)
                     : static_cast<std::int32_t>(E_FAIL);
             }
-            // Handed over or declined: this window copies nothing either way.
-            finish_without_copy(
+            // Handed over or declined: this window copies nothing of this
+            // job. Pastes that arrived meanwhile are separate work and run
+            // next here (asking again if they target the same place).
+            const auto result =
                 outcome == S_OK || outcome == static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_CANCELLED))
                     ? cancelled_result
-                    : velocitycopy::JobResult{false, false, outcome, false});
+                    : velocitycopy::JobResult{false, false, outcome, false};
+            control->request_cancel();
+            {
+                std::lock_guard gate_lock(gate->mutex);
+                gate->accepting = false;
+                gate->condition.notify_all();
+            }
+            (void)dispatcher.TryEnqueue([weak, result]() {
+                auto self = weak.get();
+                if (!self) return;
+                while (!self->deferred_same_destination_jobs_.empty()) {
+                    self->queued_sessions_.push_front({std::move(self->deferred_same_destination_jobs_.back()), {}, {}});
+                    self->deferred_same_destination_jobs_.pop_back();
+                }
+                self->FinishCopy(result);
+            });
             return;
         }
 
@@ -919,6 +936,8 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
 
 fire_and_forget MainWindow::ShowRetryDecisionAsync() {
     auto lifetime = get_strong();
+    // While a UAC prompt for this work is open, no other choice may start it.
+    if (elevation_in_flight_) co_return;
     if (interrupted_session_ != InterruptedSessionState::Decision || !live_plan_) co_return;
     try {
         // Name the files that need attention and why; a bare "some items
@@ -943,8 +962,7 @@ fire_and_forget MainWindow::ShowRetryDecisionAsync() {
         // the system) can only be retried with administrator rights.
         const bool offer_elevation = !velocitycopy::process_is_elevated() &&
             std::any_of(incidents.begin(), incidents.end(), [](const auto& incident) {
-                return incident.recovery_action == velocitycopy::RecoveryAction::RetryTransfer &&
-                    is_access_denied(incident.hresult);
+                return is_access_denied(incident.hresult);
             });
         const auto elevate_label = offer_elevation
             ? std::wstring(velocitycopy::localization::get_string(L"ActionRetryAsAdmin").c_str())
@@ -1035,16 +1053,26 @@ fire_and_forget MainWindow::AskElevationAsync(std::shared_ptr<PreflightAnswer> a
 
 fire_and_forget MainWindow::ElevateParkedFailuresAsync() {
     auto lifetime = get_strong();
-    if (interrupted_session_ != InterruptedSessionState::Decision || !live_plan_) co_return;
+    if (elevation_in_flight_ || interrupted_session_ != InterruptedSessionState::Decision || !live_plan_) co_return;
     velocitycopy::QueueArchive archive{};
     try {
-        // Everything still unresolved (the denied items) moves to the
-        // elevated instance; nothing already copied is repeated.
+        // Everything still unresolved moves to the elevated instance, the
+        // same set a saved queue holds; nothing already copied is repeated.
+        archive.source_removals = live_plan_->parked_source_removals();
         archive.current_plan = live_plan_->export_remaining_plan();
+        if (archive.current_plan->files.empty() && archive.current_plan->directories.empty()) {
+            archive.current_plan.reset();
+        }
+        archive.current_append_jobs.assign(
+            deferred_same_destination_jobs_.begin(), deferred_same_destination_jobs_.end());
+        archive.current_append_jobs.insert(archive.current_append_jobs.end(),
+            deferred_interrupted_jobs_.begin(), deferred_interrupted_jobs_.end());
     } catch (...) {
         ShowError();
         co_return;
     }
+    elevation_in_flight_ = true;
+    PauseButton().IsEnabled(false);
     const auto plan = live_plan_;
     const auto owner = hwnd_;
     auto weak = get_weak();
@@ -1059,8 +1087,11 @@ fire_and_forget MainWindow::ElevateParkedFailuresAsync() {
     }
     (void)dispatcher.TryEnqueue([weak, plan, outcome]() {
         auto self = weak.get();
-        if (!self || self->tray_exit_requested_ || self->session_ending_) return;
+        if (!self) return;
+        self->elevation_in_flight_ = false;
+        if (self->tray_exit_requested_ || self->session_ending_) return;
         if (self->interrupted_session_ != InterruptedSessionState::Decision || self->live_plan_ != plan) return;
+        self->PauseButton().IsEnabled(true);
         if (outcome == S_OK) {
             // The elevated window owns that work now; retire this session.
             self->CancelCurrentSession();

@@ -7,6 +7,7 @@
 #include "velocitycopy/process_activation.hpp"
 #include "velocitycopy/app_storage.hpp"
 #include "velocitycopy/diagnostics.hpp"
+#include "velocitycopy/elevation.hpp"
 #include "velocitycopy/transfer_router.hpp"
 
 #include <shellapi.h>
@@ -79,6 +80,18 @@ std::optional<std::pair<std::filesystem::path, std::wstring>> elevated_handoff_a
     }
     LocalFree(argv);
     return result;
+}
+
+bool handoff_in_app_data(const std::filesystem::path& file) noexcept {
+    try {
+        const auto directory = velocitycopy::app_data_directory();
+        if (!directory) return false;
+        const auto expected = std::filesystem::weakly_canonical(*directory);
+        const auto actual = std::filesystem::weakly_canonical(file.parent_path());
+        return _wcsicmp(expected.c_str(), actual.c_str()) == 0;
+    } catch (...) {
+        return false;
+    }
 }
 
 bool has_argument(const std::wstring_view expected) noexcept {
@@ -536,10 +549,13 @@ void App::ExitFromTray() noexcept {
 }
 
 void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
-    if (const auto handoff = elevated_handoff_arguments()) {
-        // Elevated copy for a protected destination. The standard instance
-        // keeps the single-instance lock, the tray icon and Explorer IPC; this
-        // process only runs the handed-over work and ends with its window.
+    // Elevated copy for a protected destination. The standard instance keeps
+    // the single-instance lock, the tray icon and Explorer IPC; this process
+    // only runs the handed-over work and ends with its window. Honoured only
+    // when actually elevated (UAC off would otherwise relaunch in a loop) and
+    // only for a handoff in VelocityCopy's own data folder.
+    if (const auto handoff = elevated_handoff_arguments();
+        handoff && velocitycopy::process_is_elevated() && handoff_in_app_data(handoff->first)) {
         elevated_handoff_ = true;
         auto main_window = CreateMainWindow();
         if (auto* implementation = winrt::get_self<MainWindow>(main_window)) {

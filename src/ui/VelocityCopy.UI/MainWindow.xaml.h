@@ -283,6 +283,8 @@ private:
     velocitycopy::StorageKey active_source_key_;
     velocitycopy::FileOperation active_operation_{velocitycopy::FileOperation::Copy};
     std::deque<velocitycopy::CopyJob> deferred_same_destination_jobs_;
+    // A UAC prompt for the parked work is open; its choices are locked.
+    bool elevation_in_flight_{};
     std::deque<velocitycopy::CopyJob> deferred_interrupted_jobs_;
     std::deque<QueuedTransfer> queued_sessions_;
     std::shared_ptr<velocitycopy::LiveCopyPlan> live_plan_;

@@ -15,11 +15,12 @@ namespace velocitycopy {
 [[nodiscard]] bool process_is_elevated() noexcept;
 
 // True when writing `plan` needs administrator rights: this process is not
-// elevated and the folder's security denies creating what the plan writes
-// first (a file or a folder) in the nearest existing destination folder. The
+// elevated and the file system denies creating what the plan writes first (a
+// file or a folder) in the nearest existing local destination folder. The
 // drive root is the usual case: standard users may create folders there but
 // not files.
-// Nothing is written by the check. Any other outcome returns false; the
+// Nothing is written by the check, and network destinations are never
+// reported (elevation cannot reach them). Any other outcome returns false; the
 // engine still reports real failures per item.
 [[nodiscard]] bool destination_requires_elevation(const CopyPlan& plan) noexcept;
 
