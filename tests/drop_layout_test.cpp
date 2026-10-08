@@ -1,5 +1,6 @@
 #include "velocitycopy/job_planner.hpp"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -55,9 +56,36 @@ int wmain() {
     const auto has_destination = [](const auto& candidate, const fs::path& expected) {
         return std::ranges::any_of(candidate.files, [&](const auto& entry) { return entry.destination == expected; });
     };
-    if (!has_destination(mixed_keep, destination / L"Novela" / L"capitulo1.mkv") ||
+    if (!has_destination(mixed_keep, destination / L"capitulo1.mkv") ||
         !has_destination(mixed_keep, destination / L"Fotos" / L"playa.jpg") ||
-        !has_destination(mixed_keep, destination / L"Library" / L"notas.txt")) return 6;
+        !has_destination(mixed_keep, destination / L"notas.txt")) return 6;
+
+    // Several loose files selected in one folder land directly in the
+    // destination, like Explorer; the source folder is never recreated.
+    const auto chapter2 = novel / L"capitulo2.mkv";
+    { std::ofstream out(chapter2, std::ios::binary); out << "chapter2"; }
+    velocitycopy::CopyJob loose_files{};
+    loose_files.sources = {file, chapter2};
+    loose_files.destination = destination;
+    loose_files.layout = velocitycopy::DestinationLayout::PreserveSourceFolder;
+    const auto loose_plan = planner.build(loose_files);
+    if (loose_plan.files.size() != 2 ||
+        !has_destination(loose_plan, destination / L"capitulo1.mkv") ||
+        !has_destination(loose_plan, destination / L"capitulo2.mkv") ||
+        !loose_plan.directories.empty()) return 7;
+
+    // Only loose files whose names collide are disambiguated by parent.
+    const auto other_notes = photos / L"notas.txt";
+    { std::ofstream out(other_notes, std::ios::binary); out << "other"; }
+    velocitycopy::CopyJob colliding{};
+    colliding.sources = {notes, other_notes, file};
+    colliding.destination = destination;
+    colliding.layout = velocitycopy::DestinationLayout::PreserveSourceFolder;
+    const auto colliding_plan = planner.build(colliding);
+    if (colliding_plan.files.size() != 3 ||
+        !has_destination(colliding_plan, destination / L"Library" / L"notas.txt") ||
+        !has_destination(colliding_plan, destination / L"Fotos" / L"notas.txt") ||
+        !has_destination(colliding_plan, destination / L"capitulo1.mkv")) return 8;
 
     fs::remove_all(base, ec);
     std::wcout << L"VelocityCopy drop layout test passed.\n";

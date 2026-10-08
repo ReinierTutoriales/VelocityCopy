@@ -328,7 +328,7 @@ jobs:
           New-Item -ItemType Directory -Force artifacts/installer | Out-Null
           $payload = (Resolve-Path artifacts/installer-payload-${{ matrix.arch }}).Path
           $output = Join-Path (Resolve-Path artifacts/installer).Path "${{ matrix.setup_name }}"
-          & $env:NSIS_MAKENSIS "/DPAYLOAD_DIR=$payload" "/DOUTPUT_FILE=$output" "/DDISPLAY_VERSION=$env:VELOCITYCOPY_VERSION" "/DPAYLOAD_ARCH=${{ matrix.platform }}" tools/VelocityCopy-Test-Installer.nsi
+          & $env:NSIS_MAKENSIS /INPUTCHARSET UTF8 "/DPAYLOAD_DIR=$payload" "/DOUTPUT_FILE=$output" "/DDISPLAY_VERSION=$env:VELOCITYCOPY_VERSION" "/DPAYLOAD_ARCH=${{ matrix.platform }}" tools/VelocityCopy-Test-Installer.nsi
           if ($LASTEXITCODE -ne 0 -or -not (Test-Path $output)) { throw "Classic ${{ matrix.arch }} installer build failed" }
 
       - name: Exercise installer Authenticode with ephemeral certificate

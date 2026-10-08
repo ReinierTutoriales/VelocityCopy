@@ -103,9 +103,7 @@ void JobPlanningWorker::run(const std::stop_token stop_token) noexcept {
                 request_stop_token.stop_requested()) {
                 result.error_code = cancellation_code();
             } else {
-                const auto code = error.code().value();
-                result.error_code = static_cast<std::int32_t>(
-                    HRESULT_FROM_WIN32(code == 0 ? ERROR_INVALID_DATA : code));
+                result.error_code = planning_error_hresult(error.code());
             }
         } catch (...) {
             result.error_code = static_cast<std::int32_t>(E_FAIL);

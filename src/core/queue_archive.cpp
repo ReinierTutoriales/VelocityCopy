@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cwctype>
 #include <fstream>
 #include <limits>
 #include <string>
@@ -66,6 +67,68 @@ bool read_path(std::ifstream& stream, std::filesystem::path& path) {
     std::wstring value;
     if (!read_wstring(stream, value)) return false;
     path = std::filesystem::path(std::move(value));
+    return true;
+}
+
+std::wstring containment_key(const std::filesystem::path& path) {
+    auto value = path.lexically_normal().wstring();
+    std::replace(value.begin(), value.end(), L'/', L'\\');
+    std::transform(value.begin(), value.end(), value.begin(), [](const wchar_t ch) {
+        return static_cast<wchar_t>(std::towlower(ch));
+    });
+    while (value.size() > 3 && value.back() == L'\\') value.pop_back();
+    return value;
+}
+
+// A queue file is user-selectable input. Its plan must describe the same kind
+// of tree the planner produces: absolute paths, every output inside the
+// destination root and every input inside one of the source roots. Otherwise
+// a crafted .vcq could write anywhere or, for Move, delete arbitrary files.
+bool same_or_inside(const std::wstring& candidate, const std::wstring& root) {
+    if (candidate.empty() || root.empty()) return false;
+    if (candidate == root) return true;
+    if (candidate.size() <= root.size() || candidate.compare(0, root.size(), root) != 0) return false;
+    return root.back() == L'\\' || candidate[root.size()] == L'\\';
+}
+
+bool has_parent_reference(const std::filesystem::path& path) {
+    for (const auto& component : path.lexically_normal()) {
+        if (component == L"..") return true;
+    }
+    return false;
+}
+
+bool plan_paths_are_contained(const CopyPlan& plan) {
+    if (!plan.destination_root.is_absolute() || has_parent_reference(plan.destination_root)) return false;
+    const auto destination_root = containment_key(plan.destination_root);
+
+    std::vector<std::wstring> source_roots;
+    source_roots.reserve(plan.source_roots.size());
+    for (const auto& root : plan.source_roots) {
+        if (!root.is_absolute() || has_parent_reference(root)) return false;
+        source_roots.push_back(containment_key(root));
+    }
+
+    for (const auto& directory : plan.directories) {
+        if (!directory.destination.is_absolute() || has_parent_reference(directory.destination) ||
+            !same_or_inside(containment_key(directory.destination), destination_root)) {
+            return false;
+        }
+    }
+    for (const auto& file : plan.files) {
+        if (!file.destination.is_absolute() || has_parent_reference(file.destination) ||
+            !file.source.is_absolute() || has_parent_reference(file.source)) {
+            return false;
+        }
+        const auto destination = containment_key(file.destination);
+        if (destination == destination_root || !same_or_inside(destination, destination_root)) return false;
+        const auto source = containment_key(file.source);
+        if (std::none_of(source_roots.begin(), source_roots.end(), [&](const std::wstring& root) {
+                return same_or_inside(source, root);
+            })) {
+            return false;
+        }
+    }
     return true;
 }
 
@@ -150,7 +213,7 @@ bool read_plan(std::ifstream& stream, CopyPlan& plan, const std::uint32_t versio
         plan.largest_file_bytes = (std::max)(plan.largest_file_bytes, file.size);
         plan.files.push_back(std::move(file));
     }
-    return true;
+    return plan_paths_are_contained(plan);
 }
 
 bool write_job(std::ofstream& stream, const CopyJob& job) {

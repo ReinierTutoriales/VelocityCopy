@@ -3,6 +3,8 @@
 #include "MainWindow.g.h"
 
 #include "velocitycopy/app_storage.hpp"
+#include "velocitycopy/destination_space.hpp"
+#include "velocitycopy/elevation.hpp"
 #include "velocitycopy/execution_control.hpp"
 #include "velocitycopy/job_executor.hpp"
 #include "velocitycopy/job_planner.hpp"
@@ -23,6 +25,8 @@
 #include <deque>
 #include <memory>
 #include <mutex>
+#include <optional>
+#include <stop_token>
 #include <utility>
 #include <variant>
 #include <winrt/Windows.UI.ViewManagement.h>
@@ -41,9 +45,14 @@ struct MainWindow : MainWindowT<MainWindow> {
     ~MainWindow();
 
     void ShowFromTray();
+    // Brings a hidden or minimized window back and flashes its taskbar
+    // button when Windows keeps the foreground elsewhere.
+    void RequestAttention() noexcept;
     void OfferRecoveryIfIdle();
     void ShowRequestError();
     void RequestAppExit() noexcept;
+    // Elevated instance: runs the work an unelevated window handed over.
+    void RunElevatedHandoff(std::filesystem::path path, std::wstring sha256);
     [[nodiscard]] bool HasActiveTransfer() const noexcept;
     [[nodiscard]] std::uint64_t WindowId() const noexcept { return window_id_; }
     [[nodiscard]] const std::wstring& SessionId() const noexcept { return session_id_; }
@@ -104,6 +113,29 @@ private:
     };
     using PendingResume = std::variant<std::monostate, StoppedResume, ConflictResume>;
 
+    // Pre-flight answer (low disk space, administrator rights) handed from the
+    // UI back to the planning thread, which blocks on it before writing
+    // anything. A stop request (Cancel, window teardown) releases the wait as
+    // "do not proceed".
+    struct PreflightAnswer {
+        std::mutex mutex;
+        std::condition_variable_any condition;
+        std::optional<bool> proceed;
+
+        void set(const bool value) {
+            {
+                std::lock_guard lock(mutex);
+                if (!proceed) proceed = value;
+            }
+            condition.notify_all();
+        }
+        [[nodiscard]] bool wait(std::stop_token stop_token) {
+            std::unique_lock lock(mutex);
+            (void)condition.wait(lock, stop_token, [this] { return proceed.has_value(); });
+            return proceed.value_or(false) && !stop_token.stop_requested();
+        }
+    };
+
     struct AppendGate {
         struct BoundedCondition {
             explicit BoundedCondition(bool* accepting_state) noexcept
@@ -141,6 +173,7 @@ private:
     winrt::fire_and_forget ShowConflictDialogAsync(velocitycopy::JobResult conflict);
     winrt::fire_and_forget SaveQueueAsync();
     winrt::fire_and_forget LoadQueueAsync();
+    winrt::fire_and_forget LoadQueueFromAsync(std::filesystem::path path, std::wstring expected_sha256);
     winrt::fire_and_forget MaybeOfferRecoveryAsync();
     void ShowAboutDialog() noexcept;
     void ConfigureQueuePersistenceMenu();
@@ -218,6 +251,10 @@ private:
     void SetExecutionButtonsStopped();
     void SetExecutionButtonsConflict();
     winrt::fire_and_forget ShowRetryDecisionAsync();
+    winrt::fire_and_forget AskLowSpaceAsync(
+        std::shared_ptr<PreflightAnswer> answer, std::uint64_t required_bytes, std::uint64_t available_bytes);
+    winrt::fire_and_forget AskElevationAsync(std::shared_ptr<PreflightAnswer> answer);
+    winrt::fire_and_forget ElevateParkedFailuresAsync();
     void ResumeParkedFailures();
     void ResolveParkedFailures();
     void StartDecisionSession(bool retry_source_removals);
@@ -249,6 +286,8 @@ private:
     velocitycopy::StorageKey active_source_key_;
     velocitycopy::FileOperation active_operation_{velocitycopy::FileOperation::Copy};
     std::deque<velocitycopy::CopyJob> deferred_same_destination_jobs_;
+    // A UAC prompt for the parked work is open; its choices are locked.
+    bool elevation_in_flight_{};
     std::deque<velocitycopy::CopyJob> deferred_interrupted_jobs_;
     std::deque<QueuedTransfer> queued_sessions_;
     std::shared_ptr<velocitycopy::LiveCopyPlan> live_plan_;

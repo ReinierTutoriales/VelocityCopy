@@ -120,6 +120,10 @@ public:
     [[nodiscard]] std::optional<PlannedFile> acquire_next();
     void complete_active(std::uint64_t file_id) noexcept;
     void release_active(std::uint64_t file_id);
+    // Keep-both conflict resolution: moves an Active item to the first free
+    // "stem (n)ext" beside its destination that exists neither on disk nor in
+    // this plan, reserves it and returns it. nullopt when none is available.
+    [[nodiscard]] std::optional<std::filesystem::path> redirect_active_destination(std::uint64_t file_id) noexcept;
     [[nodiscard]] bool skip_active(std::uint64_t file_id) noexcept;
 
     // Per-item resolution API (ItemState contract). Runs alongside the legacy
@@ -188,6 +192,9 @@ private:
         const PlannedFile& file, ItemOutcome outcome, std::int32_t hresult,
         bool destination_preexisted);
     void drop_in_flight_locked(std::uint64_t file_id) noexcept;
+    // Entries the planner could not transfer become terminal Failed items:
+    // counted, retained with their reason, and already resolved for progress.
+    void record_planning_failures_locked(const std::vector<PlanningFailure>& failures);
 
 
     std::vector<PlannedDirectory> directories_;

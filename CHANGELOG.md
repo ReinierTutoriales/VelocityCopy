@@ -1,6 +1,29 @@
 # Changelog
 
-## 1.1.0 — Unreleased
+## 1.2.0 — Unreleased
+
+Copy-correctness, protected-destination and interaction release.
+
+- Copying or moving several loose files no longer recreates their source folder at the destination; files land directly in the target folder like Explorer. A parent folder is only used to separate files whose names collide.
+- Same-volume Move renames files in place instead of copying every byte and deleting the source.
+- Planning failures report the real reason (missing source, duplicate destination, destination inside source) instead of a generic error.
+- An unreadable subfolder, junction or file that disappears while scanning no longer aborts the whole job; it is reported as a failed item and everything else is transferred.
+- Saved queue files are validated: outputs must stay inside the destination and inputs inside the declared sources.
+- The retry dialog names the failed files and why; the completion notice lists only non-zero outcomes plus the first failure. The About window sizes to its content.
+- Conflicts offer "Keep both" (writes `name (2).ext`) and show size and date of both files.
+- A transfer that cannot fit on the destination asks before writing anything.
+- Hidden/system folders keep those attributes when copied.
+- Setup enables Windows long-path support so deep folder trees no longer fail, and shows a one-time "ready" notification from the tray.
+- Finishing setup starts VelocityCopy resident in the notification area instead of leaving its window open.
+- Removed unused code: the legacy job queue, destination catalog enumeration and copy-plan editing helpers.
+- Copying to a protected destination (C:\, C:\Windows, Program Files) asks to continue as administrator before writing anything and hands the job to an elevated instance through UAC; access-denied items in the retry dialog offer "Retry as administrator".
+- Questions and problem notices come to the front on their own: Explorer hands the foreground to VelocityCopy when it sends a copy, a minimized or tray-hidden window is restored before a decision (Windows hides owned dialogs with their owner), and the taskbar button flashes when Windows keeps the focus elsewhere.
+- The "destination/drive in use" questions use plain choices ("Add to current copy", "Copy afterwards", "Copy at the same time") and explain when copying at the same time helps.
+- The notification-area icon keeps its hover text after the setup notification.
+- Setup text is compiled as UTF-8, so accented Spanish installer messages no longer show garbled characters.
+- Decision dialogs size their client area (not the outer frame) from the dialog's own monitor scale and scroll instead of clipping; the in-window notice re-fits the window whenever its height changes.
+
+## 1.1.0 — 2026-10-04
 
 VelocityCopy stabilization release.
 

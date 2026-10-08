@@ -7,6 +7,7 @@
 #include "velocitycopy/process_activation.hpp"
 #include "velocitycopy/app_storage.hpp"
 #include "velocitycopy/diagnostics.hpp"
+#include "velocitycopy/elevation.hpp"
 #include "velocitycopy/transfer_router.hpp"
 
 #include <shellapi.h>
@@ -63,24 +64,53 @@ std::optional<velocitycopy::ShellRequest> inherited_shell_request() noexcept {
     return request;
 }
 
+// `--elevated-handoff <file> <sha256>`: written by a standard VelocityCopy
+// window that hit a protected destination and started this process via UAC.
+std::optional<std::pair<std::filesystem::path, std::wstring>> elevated_handoff_arguments() noexcept {
+    int argc = 0;
+    auto* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+    if (argv == nullptr) return std::nullopt;
+    std::optional<std::pair<std::filesystem::path, std::wstring>> result;
+    try {
+        if (argc == 4 && std::wstring_view(argv[1]) == L"--elevated-handoff") {
+            result.emplace(std::filesystem::path(argv[2]), std::wstring(argv[3]));
+        }
+    } catch (...) {
+        result.reset();
+    }
+    LocalFree(argv);
+    return result;
+}
+
+bool handoff_in_app_data(const std::filesystem::path& file) noexcept {
+    try {
+        const auto directory = velocitycopy::app_data_directory();
+        if (!directory) return false;
+        const auto expected = std::filesystem::weakly_canonical(*directory);
+        const auto actual = std::filesystem::weakly_canonical(file.parent_path());
+        return _wcsicmp(expected.c_str(), actual.c_str()) == 0;
+    } catch (...) {
+        return false;
+    }
+}
+
+bool has_argument(const std::wstring_view expected) noexcept {
+    int argc = 0;
+    auto* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+    if (argv == nullptr) return false;
+    bool found = false;
+    for (int index = 1; index < argc && !found; ++index) {
+        found = std::wstring_view(argv[index]) == expected;
+    }
+    LocalFree(argv);
+    return found;
+}
+
 // Classic deployment receives startup intent explicitly via --startup.
 bool is_startup_activation() noexcept {
     // Classic/unpackaged startup is explicit. The installer is the only component
     // allowed to register the HKCU Run entry; runtime code must never repair it.
-    int argc = 0;
-    auto* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
-    if (argv == nullptr) {
-        return false;
-    }
-    bool startup = false;
-    for (int index = 1; index < argc; ++index) {
-        if (std::wstring_view(argv[index]) == L"--startup") {
-            startup = true;
-            break;
-        }
-    }
-    LocalFree(argv);
-    return startup;
+    return has_argument(L"--startup");
 }
 
 bool deliver_to_primary(const velocitycopy::ShellRequest& request) noexcept {
@@ -494,7 +524,14 @@ void App::OnWindowDestroyed(const std::uint64_t window_id) noexcept {
         auto weak = get_weak();
         (void)Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread().TryEnqueue(
             [weak] {
-                if (auto self = weak.get()) self->retiring_windows_.clear();
+                auto self = weak.get();
+                if (!self) return;
+                self->retiring_windows_.clear();
+                // Without a tray icon nothing can reopen a window: end the
+                // elevated process with its last window.
+                if (self->elevated_handoff_ && self->windows_.empty()) {
+                    Microsoft::UI::Xaml::Application::Current().Exit();
+                }
             });
     } catch (...) {}
 }
@@ -512,6 +549,22 @@ void App::ExitFromTray() noexcept {
 }
 
 void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
+    // Elevated copy for a protected destination. The standard instance keeps
+    // the single-instance lock, the tray icon and Explorer IPC; this process
+    // only runs the handed-over work and ends with its window. Honoured only
+    // when actually elevated (UAC off would otherwise relaunch in a loop) and
+    // only for a handoff in VelocityCopy's own data folder.
+    if (const auto handoff = elevated_handoff_arguments();
+        handoff && velocitycopy::process_is_elevated() && handoff_in_app_data(handoff->first)) {
+        elevated_handoff_ = true;
+        auto main_window = CreateMainWindow();
+        if (auto* implementation = winrt::get_self<MainWindow>(main_window)) {
+            implementation->ShowFromTray();
+            implementation->RunElevatedHandoff(handoff->first, handoff->second);
+        }
+        return;
+    }
+
     const bool startup_activation = is_startup_activation();
     const auto initial_request = inherited_shell_request();
 
@@ -549,6 +602,15 @@ void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
     if (!tray_.Initialize(this)) {
         const auto error = GetLastError();
         velocitycopy::log_diagnostic(L"tray: initialization failed (Win32 " + std::to_wstring(error) + L")");
+    } else if (startup_activation && has_argument(L"--installed")) {
+        // Setup starts VelocityCopy hidden in the notification area; say so
+        // once, otherwise finishing the installer looks like nothing happened.
+        try {
+            const auto title = velocitycopy::localization::get_string(L"InstalledNotificationTitle");
+            const auto text = velocitycopy::localization::get_string(L"InstalledNotificationText");
+            tray_.ShowNotification(title.c_str(), text.c_str());
+        } catch (...) {
+        }
     }
     if (!startup_activation) {
         if (auto* implementation = winrt::get_self<MainWindow>(main_window)) {

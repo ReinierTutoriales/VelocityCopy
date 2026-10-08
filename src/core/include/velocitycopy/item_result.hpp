@@ -57,10 +57,6 @@ inline constexpr std::uint64_t kMinimumResolutionWeight = 1;
     return std::max(size_bytes, kMinimumResolutionWeight);
 }
 
-[[nodiscard]] constexpr bool is_terminal(ItemState state) noexcept {
-    return state == ItemState::Terminal;
-}
-
 [[nodiscard]] constexpr bool is_successful_transfer(ItemOutcome outcome) noexcept {
     return outcome == ItemOutcome::Succeeded || outcome == ItemOutcome::CopiedSourceRetained;
 }
