@@ -12,6 +12,29 @@ using namespace winrt;
 using namespace Microsoft::UI::Xaml;
 using namespace Microsoft::UI::Xaml::Controls;
 
+namespace {
+
+std::filesystem::path current_executable() {
+    std::wstring buffer(MAX_PATH, L'\0');
+    for (int attempt = 0; attempt < 6; ++attempt) {
+        const auto length = GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
+        if (length == 0) return {};
+        if (length < buffer.size()) {
+            buffer.resize(length);
+            return buffer;
+        }
+        buffer.resize(buffer.size() * 2);
+    }
+    return {};
+}
+
+bool is_access_denied(const std::int32_t hresult) noexcept {
+    return hresult == static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_ACCESS_DENIED)) ||
+        hresult == static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_PRIVILEGE_NOT_HELD));
+}
+
+} // namespace
+
 namespace winrt::VelocityCopyUI::implementation {
 
 void MainWindow::ClearLiveTelemetry() {
@@ -259,15 +282,21 @@ void MainWindow::StartTransfer(velocitycopy::CopyJob job, velocitycopy::StorageK
     auto dispatcher = dispatcher_;
     auto control = execution_control_;
     auto gate = append_gate_;
-    copy_thread_ = std::jthread([this, weak, dispatcher, control, gate, job = std::move(job)](std::stop_token stop_token) mutable {
+    const auto owner = hwnd_;
+    copy_thread_ = std::jthread([this, weak, dispatcher, control, gate, owner, job = std::move(job)](std::stop_token stop_token) mutable {
         std::shared_ptr<velocitycopy::LiveCopyPlan> plan;
+        bool needs_elevation = false;
         // The planner reports *why* a job cannot run (destination inside the
         // source, two entries resolving to the same file, missing source...).
         // Carry that reason to FinishCopy instead of a generic E_FAIL so the
         // notice tells the user what to fix.
         std::int32_t planning_error = static_cast<std::int32_t>(E_FAIL);
         try {
-            plan = std::make_shared<velocitycopy::LiveCopyPlan>(planner_.build(job, stop_token));
+            auto built = planner_.build(job, stop_token);
+            // Probe before anything is written: a protected destination
+            // (C:\, C:\Windows, Program Files) would otherwise fail item by item.
+            needs_elevation = velocitycopy::destination_requires_elevation(built);
+            plan = std::make_shared<velocitycopy::LiveCopyPlan>(std::move(built));
         } catch (const std::system_error& error) {
             planning_error = velocitycopy::planning_error_hresult(error.code());
         } catch (const std::bad_alloc&) {
@@ -300,11 +329,56 @@ void MainWindow::StartTransfer(velocitycopy::CopyJob job, velocitycopy::StorageK
             return;
         }
 
+        const auto finish_without_copy = [&](const velocitycopy::JobResult& result) {
+            control->request_cancel();
+            {
+                std::lock_guard gate_lock(gate->mutex);
+                gate->accepting = false;
+                gate->condition.notify_all();
+            }
+            (void)dispatcher.TryEnqueue([weak, result]() {
+                if (auto self = weak.get()) self->FinishCopy(result);
+            });
+        };
+        const velocitycopy::JobResult cancelled_result{
+            false, true, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED)), false};
+
+        // Windows denies this destination to a standard token. Offer to hand
+        // the job to an elevated VelocityCopy (UAC) instead of failing every
+        // item; the elevated instance plans and copies it on its own.
+        if (needs_elevation) {
+            auto answer = std::make_shared<PreflightAnswer>();
+            if (!dispatcher.TryEnqueue([weak, answer]() {
+                    if (auto self = weak.get()) self->AskElevationAsync(answer);
+                    else answer->set(false);
+                })) {
+                answer->set(false);
+            }
+            std::int32_t outcome = static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_CANCELLED));
+            if (answer->wait(stop_token)) {
+                velocitycopy::QueueArchive archive{};
+                archive.queued_jobs.push_back(job);
+                const auto directory = velocitycopy::app_data_directory();
+                const auto handoff = directory
+                    ? velocitycopy::write_elevated_handoff(*directory, archive)
+                    : std::nullopt;
+                outcome = handoff
+                    ? velocitycopy::launch_elevated_handoff(current_executable(), *handoff, owner)
+                    : static_cast<std::int32_t>(E_FAIL);
+            }
+            // Handed over or declined: this window copies nothing either way.
+            finish_without_copy(
+                outcome == S_OK || outcome == static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_CANCELLED))
+                    ? cancelled_result
+                    : velocitycopy::JobResult{false, false, outcome, false});
+            return;
+        }
+
         // Ask before writing anything when the destination clearly cannot
         // hold the transfer, instead of discovering a full disk half-way.
         if (const auto shortage = velocitycopy::find_space_shortage(
                 plan->source_roots(), plan->destination_root(), plan->operation(), plan->total_bytes())) {
-            auto answer = std::make_shared<SpaceAnswer>();
+            auto answer = std::make_shared<PreflightAnswer>();
             const auto required = shortage->required_bytes;
             const auto available = shortage->available_bytes;
             if (!dispatcher.TryEnqueue([weak, answer, required, available]() {
@@ -314,15 +388,7 @@ void MainWindow::StartTransfer(velocitycopy::CopyJob job, velocitycopy::StorageK
                 answer->set(false);
             }
             if (!answer->wait(stop_token)) {
-                control->request_cancel();
-                {
-                    std::lock_guard gate_lock(gate->mutex);
-                    gate->accepting = false;
-                    gate->condition.notify_all();
-                }
-                (void)dispatcher.TryEnqueue([weak]() {
-                    if (auto self = weak.get()) self->FinishCopy({false, true, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED)), false});
-                });
+                finish_without_copy(cancelled_result);
                 return;
             }
         }
@@ -873,6 +939,16 @@ fire_and_forget MainWindow::ShowRetryDecisionAsync() {
         if (incidents.size() > kListedIncidents) {
             detail.append(std::format(L"\n(+{})", incidents.size() - kListedIncidents));
         }
+        // Access denied by Windows (protected folder, existing file owned by
+        // the system) can only be retried with administrator rights.
+        const bool offer_elevation = !velocitycopy::process_is_elevated() &&
+            std::any_of(incidents.begin(), incidents.end(), [](const auto& incident) {
+                return incident.recovery_action == velocitycopy::RecoveryAction::RetryTransfer &&
+                    is_access_denied(incident.hresult);
+            });
+        const auto elevate_label = offer_elevation
+            ? std::wstring(velocitycopy::localization::get_string(L"ActionRetryAsAdmin").c_str())
+            : std::wstring{};
         const auto decision = velocitycopy::ui::decode_decision(co_await RequestDecisionAsync({
             hwnd_,
             velocitycopy::localization::get_string(L"RetryDecisionTitle").c_str(),
@@ -884,11 +960,13 @@ fire_and_forget MainWindow::ShowRetryDecisionAsync() {
             {},
             true,
             velocitycopy::ui::DecisionTone::Error,
+            elevate_label,
         }));
         if (tray_exit_requested_ || session_ending_) co_return;
         if (interrupted_session_ != InterruptedSessionState::Decision || !live_plan_) co_return;
         if (decision.choice == velocitycopy::ui::DecisionChoice::Primary) ResumeParkedFailures();
         else if (decision.choice == velocitycopy::ui::DecisionChoice::Secondary) ResolveParkedFailures();
+        else if (decision.choice == velocitycopy::ui::DecisionChoice::Tertiary) ElevateParkedFailuresAsync();
         // Closing/cancelling is non-destructive; parked work remains available.
     } catch (...) {
         // Preserve Decision state and all unresolved work.
@@ -896,7 +974,7 @@ fire_and_forget MainWindow::ShowRetryDecisionAsync() {
 }
 
 fire_and_forget MainWindow::AskLowSpaceAsync(
-    std::shared_ptr<SpaceAnswer> answer,
+    std::shared_ptr<PreflightAnswer> answer,
     const std::uint64_t required_bytes,
     const std::uint64_t available_bytes) {
     auto lifetime = get_strong();
@@ -929,6 +1007,68 @@ fire_and_forget MainWindow::AskLowSpaceAsync(
         proceed = false;
     }
     answer->set(proceed);
+}
+
+fire_and_forget MainWindow::AskElevationAsync(std::shared_ptr<PreflightAnswer> answer) {
+    auto lifetime = get_strong();
+    bool proceed = false;
+    try {
+        const auto decision = velocitycopy::ui::decode_decision(co_await RequestDecisionAsync({
+            hwnd_,
+            velocitycopy::localization::get_string(L"ElevationTitle").c_str(),
+            velocitycopy::localization::get_string(L"ElevationMessage").c_str(),
+            active_destination_.wstring(),
+            velocitycopy::localization::get_string(L"ActionContinueAsAdmin").c_str(),
+            velocitycopy::localization::get_string(L"ActionCancel").c_str(),
+            {},
+            {},
+            false,
+            velocitycopy::ui::DecisionTone::Warning,
+        }));
+        proceed = decision.choice == velocitycopy::ui::DecisionChoice::Primary &&
+            !tray_exit_requested_ && !session_ending_;
+    } catch (...) {
+        proceed = false;
+    }
+    answer->set(proceed);
+}
+
+fire_and_forget MainWindow::ElevateParkedFailuresAsync() {
+    auto lifetime = get_strong();
+    if (interrupted_session_ != InterruptedSessionState::Decision || !live_plan_) co_return;
+    velocitycopy::QueueArchive archive{};
+    try {
+        // Everything still unresolved (the denied items) moves to the
+        // elevated instance; nothing already copied is repeated.
+        archive.current_plan = live_plan_->export_remaining_plan();
+    } catch (...) {
+        ShowError();
+        co_return;
+    }
+    const auto plan = live_plan_;
+    const auto owner = hwnd_;
+    auto weak = get_weak();
+    auto dispatcher = dispatcher_;
+    // The UAC prompt blocks ShellExecuteEx until it is answered.
+    co_await resume_background();
+    std::int32_t outcome = static_cast<std::int32_t>(E_FAIL);
+    if (const auto directory = velocitycopy::app_data_directory()) {
+        if (const auto handoff = velocitycopy::write_elevated_handoff(*directory, archive)) {
+            outcome = velocitycopy::launch_elevated_handoff(current_executable(), *handoff, owner);
+        }
+    }
+    (void)dispatcher.TryEnqueue([weak, plan, outcome]() {
+        auto self = weak.get();
+        if (!self || self->tray_exit_requested_ || self->session_ending_) return;
+        if (self->interrupted_session_ != InterruptedSessionState::Decision || self->live_plan_ != plan) return;
+        if (outcome == S_OK) {
+            // The elevated window owns that work now; retire this session.
+            self->CancelCurrentSession();
+        } else if (outcome != static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_CANCELLED))) {
+            self->ShowError(self->FormatFailureReason(outcome));
+        }
+        // Declined UAC prompt: the Decision stays open with all work parked.
+    });
 }
 
 void MainWindow::ResumeParkedFailures() {

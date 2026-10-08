@@ -22,6 +22,8 @@ VelocityCopy stabilization release.
 - Setup enables Windows long-path support so deep folder trees no longer fail, and shows a one-time "ready" notification from the tray.
 - Finishing setup starts VelocityCopy resident in the notification area instead of leaving its window open.
 - Removed unused code: the legacy job queue, destination catalog enumeration and copy-plan editing helpers.
+- Copying to a protected destination (C:\, C:\Windows, Program Files) asks to continue as administrator before writing anything and hands the job to an elevated instance through UAC; access-denied items in the retry dialog offer "Retry as administrator".
+- Setup text is compiled as UTF-8, so accented Spanish installer messages no longer show garbled characters.
 - Decision dialogs size their client area (not the outer frame) from the dialog's own monitor scale and scroll instead of clipping; the in-window notice re-fits the window whenever its height changes.
 
 ## 1.0.0 — 2026-09-22

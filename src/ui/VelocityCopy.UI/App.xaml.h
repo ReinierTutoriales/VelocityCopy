@@ -33,6 +33,7 @@ struct App : AppT<App> {
     void OnWindowDestroyed(std::uint64_t window_id) noexcept;
     std::optional<std::filesystem::path> TakeRecoveryFile() noexcept;
     void ReturnRecoveryFile(std::filesystem::path path) noexcept;
+    [[nodiscard]] bool IsElevatedHandoff() const noexcept { return elevated_handoff_; }
 
 private:
     static inline App* s_instance = nullptr;
@@ -50,6 +51,7 @@ private:
     velocitycopy::RoutePreferences route_preferences_;
     bool request_in_flight_{};
     bool recovery_files_initialized_{};
+    bool elevated_handoff_{};
     AppTray tray_;
     std::unique_ptr<velocitycopy::SingleInstance> instance_;
     std::shared_ptr<velocitycopy::ShellIpcServer> server_;

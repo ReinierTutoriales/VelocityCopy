@@ -63,6 +63,24 @@ std::optional<velocitycopy::ShellRequest> inherited_shell_request() noexcept {
     return request;
 }
 
+// `--elevated-handoff <file> <sha256>`: written by a standard VelocityCopy
+// window that hit a protected destination and started this process via UAC.
+std::optional<std::pair<std::filesystem::path, std::wstring>> elevated_handoff_arguments() noexcept {
+    int argc = 0;
+    auto* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+    if (argv == nullptr) return std::nullopt;
+    std::optional<std::pair<std::filesystem::path, std::wstring>> result;
+    try {
+        if (argc == 4 && std::wstring_view(argv[1]) == L"--elevated-handoff") {
+            result.emplace(std::filesystem::path(argv[2]), std::wstring(argv[3]));
+        }
+    } catch (...) {
+        result.reset();
+    }
+    LocalFree(argv);
+    return result;
+}
+
 bool has_argument(const std::wstring_view expected) noexcept {
     int argc = 0;
     auto* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
@@ -493,7 +511,14 @@ void App::OnWindowDestroyed(const std::uint64_t window_id) noexcept {
         auto weak = get_weak();
         (void)Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread().TryEnqueue(
             [weak] {
-                if (auto self = weak.get()) self->retiring_windows_.clear();
+                auto self = weak.get();
+                if (!self) return;
+                self->retiring_windows_.clear();
+                // Without a tray icon nothing can reopen a window: end the
+                // elevated process with its last window.
+                if (self->elevated_handoff_ && self->windows_.empty()) {
+                    Microsoft::UI::Xaml::Application::Current().Exit();
+                }
             });
     } catch (...) {}
 }
@@ -511,6 +536,19 @@ void App::ExitFromTray() noexcept {
 }
 
 void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
+    if (const auto handoff = elevated_handoff_arguments()) {
+        // Elevated copy for a protected destination. The standard instance
+        // keeps the single-instance lock, the tray icon and Explorer IPC; this
+        // process only runs the handed-over work and ends with its window.
+        elevated_handoff_ = true;
+        auto main_window = CreateMainWindow();
+        if (auto* implementation = winrt::get_self<MainWindow>(main_window)) {
+            implementation->ShowFromTray();
+            implementation->RunElevatedHandoff(handoff->first, handoff->second);
+        }
+        return;
+    }
+
     const bool startup_activation = is_startup_activation();
     const auto initial_request = inherited_shell_request();
 

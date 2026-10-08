@@ -28,6 +28,7 @@ add_library(velocitycopy_core STATIC
     src/core/destination_catalog.cpp
     src/core/destination_space.cpp
     src/core/diagnostics.cpp
+    src/core/elevation.cpp
     src/core/efficiency_coordinator.cpp
     src/core/execution_control.cpp
     src/core/ipc_protocol.cpp
@@ -50,7 +51,7 @@ add_library(velocitycopy_core STATIC
 
 target_include_directories(velocitycopy_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/core/include)
 target_compile_definitions(velocitycopy_core PUBLIC UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0A00 WINVER=0x0A00)
-target_link_libraries(velocitycopy_core PUBLIC shell32 advapi32 ole32)
+target_link_libraries(velocitycopy_core PUBLIC shell32 advapi32 ole32 bcrypt)
 
 if(MSVC)
     target_compile_options(velocitycopy_core PRIVATE /W4 /permissive- /EHsc /utf-8)
@@ -111,6 +112,7 @@ add_velocitycopy_test(VelocityCopyItemResultContractTest tests/item_result_contr
 add_velocitycopy_test(VelocityCopyLivePlanResolutionTest tests/live_plan_resolution_test.cpp velocitycopy_live_plan_resolution)
 add_velocitycopy_test(VelocityCopyItemFailureTest tests/job_executor_item_failure_test.cpp velocitycopy_item_failure)
 add_velocitycopy_test(VelocityCopyMoveFileRootTest tests/job_executor_move_file_root_test.cpp velocitycopy_move_file_root)
+add_velocitycopy_test(VelocityCopyElevationTest tests/elevation_test.cpp velocitycopy_elevation)
 add_velocitycopy_test(VelocityCopyKeepBothTest tests/job_executor_keep_both_test.cpp velocitycopy_keep_both)
 add_velocitycopy_test(VelocityCopySourceRemovalRecoveryTest tests/source_removal_recovery_test.cpp velocitycopy_source_removal_recovery)
 add_velocitycopy_test(VelocityCopyUiTokenArchitectureTest tests/ui_token_architecture_test.cpp velocitycopy_ui_token_architecture)

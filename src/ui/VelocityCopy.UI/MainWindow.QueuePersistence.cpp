@@ -297,15 +297,26 @@ fire_and_forget MainWindow::LoadQueueAsync() {
         co_return;
     }
     if (!selected_path) co_return;
+    LoadQueueFromAsync(std::move(*selected_path), {});
+}
 
+void MainWindow::RunElevatedHandoff(std::filesystem::path path, std::wstring sha256) {
+    if (sha256.empty()) return;
+    LoadQueueFromAsync(std::move(path), std::move(sha256));
+}
+
+fire_and_forget MainWindow::LoadQueueFromAsync(std::filesystem::path path, std::wstring expected_sha256) {
+    auto lifetime = get_strong();
     auto dispatcher = dispatcher_;
     auto weak = get_weak();
-    const auto path = std::move(*selected_path);
     co_await resume_background();
 
     // Tell the person why a queue could not be loaded: an unreadable or
     // tampered file is not the same as a saved queue whose sources were moved.
-    auto archive = velocitycopy::QueueArchiveStore{}.load(path);
+    // An elevated handoff is only accepted byte-for-byte as it was written.
+    auto archive = expected_sha256.empty()
+        ? velocitycopy::QueueArchiveStore{}.load(path)
+        : velocitycopy::take_elevated_handoff(path, expected_sha256);
     std::int32_t load_error = static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_INVALID_DATA));
     if (archive) {
         try {

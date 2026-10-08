@@ -97,6 +97,11 @@ void MainWindow::HideToTray() noexcept {
     if (tray_exit_requested_ || hwnd_ == nullptr) {
         return;
     }
+    if (auto* app = App::Instance(); app != nullptr && app->IsElevatedHandoff()) {
+        // The elevated instance has no tray icon to come back from.
+        ShowWindow(hwnd_, SW_MINIMIZE);
+        return;
+    }
 
     try {
         AppWindow().IsShownInSwitchers(false);

@@ -251,5 +251,12 @@ int main() {
         return fail(15, "an asynchronous drop must remain bound to its accepted session");
     }
 
+    // makensis reads BOM-less scripts in the build machine's ANSI code page, which turns the
+    // Spanish strings into mojibake; both the BOM and the explicit charset keep them UTF-8.
+    if (!installer_exe.starts_with("\xEF\xBB\xBF") ||
+        !contains(package_workflow, "/INPUTCHARSET UTF8")) {
+        return fail(18, "the installer script must be compiled as UTF-8");
+    }
+
     return 0;
 }

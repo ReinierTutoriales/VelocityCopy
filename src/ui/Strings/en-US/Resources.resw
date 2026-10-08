@@ -96,4 +96,8 @@
   <data name="LowSpaceMessageFormat" xml:space="preserve"><value>This transfer needs {} but the destination has only {} free. If you continue, it stops when the disk is full.</value></data>
   <data name="InstalledNotificationTitle" xml:space="preserve"><value>VelocityCopy is ready</value></data>
   <data name="InstalledNotificationText" xml:space="preserve"><value>It runs in the notification area. Copy or move files from Explorer to use it.</value></data>
+  <data name="ElevationTitle" xml:space="preserve"><value>Administrator permission required</value></data>
+  <data name="ElevationMessage" xml:space="preserve"><value>Windows protects this destination. To copy here, VelocityCopy continues as administrator and asks for permission first. Existing Windows system files stay protected even then.</value></data>
+  <data name="ActionContinueAsAdmin" xml:space="preserve"><value>Continue as administrator</value></data>
+  <data name="ActionRetryAsAdmin" xml:space="preserve"><value>Retry as administrator</value></data>
 </root>

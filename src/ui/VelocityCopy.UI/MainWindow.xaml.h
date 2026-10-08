@@ -4,6 +4,7 @@
 
 #include "velocitycopy/app_storage.hpp"
 #include "velocitycopy/destination_space.hpp"
+#include "velocitycopy/elevation.hpp"
 #include "velocitycopy/execution_control.hpp"
 #include "velocitycopy/job_executor.hpp"
 #include "velocitycopy/job_planner.hpp"
@@ -47,6 +48,8 @@ struct MainWindow : MainWindowT<MainWindow> {
     void OfferRecoveryIfIdle();
     void ShowRequestError();
     void RequestAppExit() noexcept;
+    // Elevated instance: runs the work an unelevated window handed over.
+    void RunElevatedHandoff(std::filesystem::path path, std::wstring sha256);
     [[nodiscard]] bool HasActiveTransfer() const noexcept;
     [[nodiscard]] std::uint64_t WindowId() const noexcept { return window_id_; }
     [[nodiscard]] const std::wstring& SessionId() const noexcept { return session_id_; }
@@ -107,10 +110,11 @@ private:
     };
     using PendingResume = std::variant<std::monostate, StoppedResume, ConflictResume>;
 
-    // Low-disk-space answer handed from the UI back to the planning thread,
-    // which blocks on it before writing anything. A stop request (Cancel,
-    // window teardown) releases the wait as "do not proceed".
-    struct SpaceAnswer {
+    // Pre-flight answer (low disk space, administrator rights) handed from the
+    // UI back to the planning thread, which blocks on it before writing
+    // anything. A stop request (Cancel, window teardown) releases the wait as
+    // "do not proceed".
+    struct PreflightAnswer {
         std::mutex mutex;
         std::condition_variable_any condition;
         std::optional<bool> proceed;
@@ -166,6 +170,7 @@ private:
     winrt::fire_and_forget ShowConflictDialogAsync(velocitycopy::JobResult conflict);
     winrt::fire_and_forget SaveQueueAsync();
     winrt::fire_and_forget LoadQueueAsync();
+    winrt::fire_and_forget LoadQueueFromAsync(std::filesystem::path path, std::wstring expected_sha256);
     winrt::fire_and_forget MaybeOfferRecoveryAsync();
     void ShowAboutDialog() noexcept;
     void ConfigureQueuePersistenceMenu();
@@ -244,7 +249,9 @@ private:
     void SetExecutionButtonsConflict();
     winrt::fire_and_forget ShowRetryDecisionAsync();
     winrt::fire_and_forget AskLowSpaceAsync(
-        std::shared_ptr<SpaceAnswer> answer, std::uint64_t required_bytes, std::uint64_t available_bytes);
+        std::shared_ptr<PreflightAnswer> answer, std::uint64_t required_bytes, std::uint64_t available_bytes);
+    winrt::fire_and_forget AskElevationAsync(std::shared_ptr<PreflightAnswer> answer);
+    winrt::fire_and_forget ElevateParkedFailuresAsync();
     void ResumeParkedFailures();
     void ResolveParkedFailures();
     void StartDecisionSession(bool retry_source_removals);

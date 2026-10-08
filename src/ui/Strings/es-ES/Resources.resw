@@ -96,4 +96,8 @@
   <data name="LowSpaceMessageFormat" xml:space="preserve"><value>Esta transferencia necesita {} y el destino solo tiene {} libres. Si continúas, se detendrá cuando el disco se llene.</value></data>
   <data name="InstalledNotificationTitle" xml:space="preserve"><value>VelocityCopy está listo</value></data>
   <data name="InstalledNotificationText" xml:space="preserve"><value>Se ejecuta en el área de notificación. Copia o mueve archivos desde el Explorador para usarlo.</value></data>
+  <data name="ElevationTitle" xml:space="preserve"><value>Se necesita permiso de administrador</value></data>
+  <data name="ElevationMessage" xml:space="preserve"><value>Windows protege este destino. Para copiar aquí, VelocityCopy continúa como administrador y antes pide permiso. Aun así, los archivos de sistema de Windows existentes siguen protegidos.</value></data>
+  <data name="ActionContinueAsAdmin" xml:space="preserve"><value>Continuar como administrador</value></data>
+  <data name="ActionRetryAsAdmin" xml:space="preserve"><value>Reintentar como administrador</value></data>
 </root>

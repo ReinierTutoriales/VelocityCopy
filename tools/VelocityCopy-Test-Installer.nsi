@@ -1,4 +1,4 @@
-Unicode true
+﻿Unicode true
 RequestExecutionLevel admin
 SetCompressor /SOLID lzma
 
