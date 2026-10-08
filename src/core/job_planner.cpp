@@ -355,7 +355,10 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
 
         ensure_plan_capacity(plan, source);
         outputs.add_directory(root);
-        plan.directories.push_back({root});
+        // ContentsOnly maps the folder onto the destination itself, which must
+        // never inherit the source folder's Hidden/System state.
+        plan.directories.push_back({
+            root, job.layout == DestinationLayout::ContentsOnly ? std::filesystem::path{} : source});
 
         // Walk the tree with an explicit stack so one unreadable folder, a
         // junction/symlink or a file that vanished mid-scan is recorded as a
@@ -417,7 +420,7 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
                 if (std::filesystem::is_directory(entry_status)) {
                     ensure_plan_capacity(plan, entry.path());
                     outputs.add_directory(target);
-                    plan.directories.push_back({target});
+                    plan.directories.push_back({target, entry.path()});
                     subdirectories.emplace_back(entry.path(), target);
                     continue;
                 }

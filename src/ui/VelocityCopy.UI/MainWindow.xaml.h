@@ -3,6 +3,7 @@
 #include "MainWindow.g.h"
 
 #include "velocitycopy/app_storage.hpp"
+#include "velocitycopy/destination_space.hpp"
 #include "velocitycopy/execution_control.hpp"
 #include "velocitycopy/job_executor.hpp"
 #include "velocitycopy/job_planner.hpp"
@@ -23,6 +24,8 @@
 #include <deque>
 #include <memory>
 #include <mutex>
+#include <optional>
+#include <stop_token>
 #include <utility>
 #include <variant>
 #include <winrt/Windows.UI.ViewManagement.h>
@@ -103,6 +106,28 @@ private:
         ConflictResumeIntent intent;
     };
     using PendingResume = std::variant<std::monostate, StoppedResume, ConflictResume>;
+
+    // Low-disk-space answer handed from the UI back to the planning thread,
+    // which blocks on it before writing anything. A stop request (Cancel,
+    // window teardown) releases the wait as "do not proceed".
+    struct SpaceAnswer {
+        std::mutex mutex;
+        std::condition_variable_any condition;
+        std::optional<bool> proceed;
+
+        void set(const bool value) {
+            {
+                std::lock_guard lock(mutex);
+                if (!proceed) proceed = value;
+            }
+            condition.notify_all();
+        }
+        [[nodiscard]] bool wait(std::stop_token stop_token) {
+            std::unique_lock lock(mutex);
+            (void)condition.wait(lock, stop_token, [this] { return proceed.has_value(); });
+            return proceed.value_or(false) && !stop_token.stop_requested();
+        }
+    };
 
     struct AppendGate {
         struct BoundedCondition {
@@ -218,6 +243,8 @@ private:
     void SetExecutionButtonsStopped();
     void SetExecutionButtonsConflict();
     winrt::fire_and_forget ShowRetryDecisionAsync();
+    winrt::fire_and_forget AskLowSpaceAsync(
+        std::shared_ptr<SpaceAnswer> answer, std::uint64_t required_bytes, std::uint64_t available_bytes);
     void ResumeParkedFailures();
     void ResolveParkedFailures();
     void StartDecisionSession(bool retry_source_removals);

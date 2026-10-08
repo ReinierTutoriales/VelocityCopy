@@ -211,6 +211,11 @@ Section "$(InstallSectionName)" SEC_INSTALL
   CreateShortcut "$SMPROGRAMS\VelocityCopy\VelocityCopy.lnk" "$INSTDIR\VelocityCopy.WinUI.exe" "" "$INSTDIR\VelocityCopy.WinUI.exe" 0
 
   WriteUninstaller "$INSTDIR\Uninstall.exe"
+  ; Paths longer than 260 characters only work in long-path-aware apps
+  ; (VelocityCopy's manifest declares it) once this system policy is on.
+  ; Off by default; deep folder trees otherwise fail mid-copy. Left enabled on
+  ; uninstall because other applications may rely on it.
+  WriteRegDWORD HKLM "SYSTEM\CurrentControlSet\Control\FileSystem" "LongPathsEnabled" 1
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "DisplayName" "VelocityCopy"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "Publisher" "ReinierTutoriales"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy" "UninstallString" '"$INSTDIR\Uninstall.exe"'

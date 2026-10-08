@@ -13,6 +13,10 @@ namespace velocitycopy {
 
 struct PlannedDirectory {
     std::filesystem::path destination;
+    // Folder this directory mirrors, when known. Used to carry the Hidden /
+    // System attributes to a directory the transfer creates. Empty for plans
+    // restored from a queue archive.
+    std::filesystem::path source;
 };
 
 struct PlannedFile {

@@ -26,6 +26,7 @@ add_library(velocitycopy_core STATIC
     src/core/app_storage.cpp
     src/core/copy_engine.cpp
     src/core/destination_catalog.cpp
+    src/core/destination_space.cpp
     src/core/diagnostics.cpp
     src/core/efficiency_coordinator.cpp
     src/core/execution_control.cpp

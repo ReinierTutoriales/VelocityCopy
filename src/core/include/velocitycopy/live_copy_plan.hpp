@@ -120,6 +120,10 @@ public:
     [[nodiscard]] std::optional<PlannedFile> acquire_next();
     void complete_active(std::uint64_t file_id) noexcept;
     void release_active(std::uint64_t file_id);
+    // Keep-both conflict resolution: moves an Active item to the first free
+    // "stem (n)ext" beside its destination that exists neither on disk nor in
+    // this plan, reserves it and returns it. nullopt when none is available.
+    [[nodiscard]] std::optional<std::filesystem::path> redirect_active_destination(std::uint64_t file_id) noexcept;
     [[nodiscard]] bool skip_active(std::uint64_t file_id) noexcept;
 
     // Per-item resolution API (ItemState contract). Runs alongside the legacy

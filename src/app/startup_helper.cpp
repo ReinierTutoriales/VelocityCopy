@@ -269,7 +269,7 @@ HRESULT shell_execute_unelevated(const std::wstring& executable, const wchar_t* 
 DWORD launch_resident(const std::wstring& executable) noexcept {
     const HRESULT initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
     if (FAILED(initialized)) return static_cast<DWORD>(initialized);
-    const HRESULT launched = shell_execute_unelevated(executable, L"--startup");
+    const HRESULT launched = shell_execute_unelevated(executable, L"--startup --installed");
     CoUninitialize();
     return SUCCEEDED(launched) ? ERROR_SUCCESS : static_cast<DWORD>(launched);
 }

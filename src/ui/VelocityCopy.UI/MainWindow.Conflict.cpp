@@ -67,12 +67,50 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
             const auto filename = conflict.conflict_destination.filename();
             detail = filename.empty() ? conflict.conflict_destination.wstring() : filename.wstring();
         }
+        // Size and last-modified time of both files, like Explorer's conflict
+        // dialog, so Replace / Keep both is an informed choice.
+        auto describe = [](const std::filesystem::path& path) -> std::wstring {
+            WIN32_FILE_ATTRIBUTE_DATA data{};
+            if (path.empty() || !GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &data)) return {};
+            ULARGE_INTEGER size{};
+            size.LowPart = data.nFileSizeLow;
+            size.HighPart = data.nFileSizeHigh;
+            std::wstring text = FormatBytes(size.QuadPart).c_str();
+            SYSTEMTIME utc{};
+            SYSTEMTIME local{};
+            if (FileTimeToSystemTime(&data.ftLastWriteTime, &utc) &&
+                SystemTimeToTzSpecificLocalTime(nullptr, &utc, &local)) {
+                wchar_t date[80]{};
+                wchar_t time[80]{};
+                if (GetDateFormatEx(LOCALE_NAME_USER_DEFAULT, DATE_SHORTDATE, &local, nullptr, date, 80, nullptr) &&
+                    GetTimeFormatEx(LOCALE_NAME_USER_DEFAULT, TIME_NOSECONDS, &local, nullptr, time, 80)) {
+                    text.append(L" · ");
+                    text.append(date);
+                    text.append(L" ");
+                    text.append(time);
+                }
+            }
+            return text;
+        };
+        const auto existing = describe(conflict.conflict_destination);
+        const auto incoming = describe(conflict.conflict_source);
+        if (!existing.empty() && !incoming.empty()) {
+            detail.append(L"\n");
+            detail.append(velocitycopy::localization::get_string(L"ConflictExistingLabel").c_str());
+            detail.append(L": ");
+            detail.append(existing);
+            detail.append(L"\n");
+            detail.append(velocitycopy::localization::get_string(L"ConflictIncomingLabel").c_str());
+            detail.append(L": ");
+            detail.append(incoming);
+        }
+        const std::wstring keep_both_label = velocitycopy::localization::get_string(L"ActionKeepBoth").c_str();
 
         const std::wstring apply_to_all_label =
             velocitycopy::localization::get_string(L"ConflictApplyToAll").c_str();
         const auto decision = velocitycopy::ui::decode_decision(co_await RequestDecisionAsync({
             hwnd_, title, message, detail, replace_label, skip_label, cancel_label,
-            apply_to_all_label, true, velocitycopy::ui::DecisionTone::Warning,
+            apply_to_all_label, true, velocitycopy::ui::DecisionTone::Warning, keep_both_label,
         }));
 
         if (tray_exit_requested_ || session_ending_) co_return;
@@ -97,6 +135,11 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
             }
             RefreshQueue();
             ResumeConflictCopy(0, velocitycopy::ConflictPolicy::Prompt);
+            co_return;
+        case velocitycopy::ui::DecisionChoice::Tertiary:
+            ResumeConflictCopy(
+                apply_to_all ? 0 : conflict.conflict_file_id,
+                apply_to_all ? velocitycopy::ConflictPolicy::KeepBothAll : velocitycopy::ConflictPolicy::KeepBoth);
             co_return;
         case velocitycopy::ui::DecisionChoice::Cancel:
         default:

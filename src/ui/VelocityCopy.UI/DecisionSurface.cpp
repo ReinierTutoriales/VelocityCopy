@@ -207,6 +207,13 @@ Windows::Foundation::IAsyncOperation<std::uint32_t> show_decision_async(Decision
     secondary.Content(box_value(hstring(options.secondary_label)));
     AutomationProperties::SetName(secondary, hstring(options.secondary_label));
 
+    Button tertiary{nullptr};
+    if (!options.tertiary_label.empty()) {
+        tertiary = Button{};
+        tertiary.Content(box_value(hstring(options.tertiary_label)));
+        AutomationProperties::SetName(tertiary, hstring(options.tertiary_label));
+    }
+
     Button cancel;
     if (options.include_cancel) {
         cancel.Content(box_value(hstring(options.cancel_label)));
@@ -220,10 +227,12 @@ Windows::Foundation::IAsyncOperation<std::uint32_t> show_decision_async(Decision
     };
     primary.Click([complete](auto const&, auto const&) { complete(DecisionChoice::Primary); });
     secondary.Click([complete](auto const&, auto const&) { complete(DecisionChoice::Secondary); });
+    if (tertiary) tertiary.Click([complete](auto const&, auto const&) { complete(DecisionChoice::Tertiary); });
     if (options.include_cancel) cancel.Click([complete](auto const&, auto const&) { complete(DecisionChoice::Cancel); });
 
     actions.Children().Append(primary);
     actions.Children().Append(secondary);
+    if (tertiary) actions.Children().Append(tertiary);
     if (options.include_cancel) actions.Children().Append(cancel);
     content.Children().Append(actions);
 

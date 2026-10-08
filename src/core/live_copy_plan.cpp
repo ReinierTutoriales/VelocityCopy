@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cwctype>
 #include <limits>
+#include <string>
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
@@ -431,6 +432,37 @@ void LiveCopyPlan::release_active(const std::uint64_t file_id) {
     pending_files_.emplace_front();
     pending_files_.front() = std::move(*it);
     active_files_.erase(it);
+}
+
+std::optional<std::filesystem::path> LiveCopyPlan::redirect_active_destination(
+    const std::uint64_t file_id) noexcept {
+    constexpr std::uint32_t kMaxAlternates = 9999;
+    try {
+        std::lock_guard lock(mutex_);
+        auto it = find_active(file_id);
+        if (it == active_files_.end()) return std::nullopt;
+
+        const auto parent = it->destination.parent_path();
+        const auto stem = it->destination.stem().wstring();
+        const auto extension = it->destination.extension().wstring();
+        for (std::uint32_t index = 2; index <= kMaxAlternates; ++index) {
+            auto candidate = parent / (stem + L" (" + std::to_wstring(index) + L")" + extension);
+            auto key = normalized_path_key(candidate);
+            if (reserved_destination_keys_.contains(key)) continue;
+            std::error_code ec;
+            const bool taken = std::filesystem::exists(std::filesystem::symlink_status(candidate, ec));
+            if (ec && ec != std::errc::no_such_file_or_directory) continue;
+            if (taken) continue;
+
+            reserved_destination_keys_.insert(std::move(key));
+            reserved_destination_keys_.erase(normalized_path_key(it->destination));
+            it->destination = candidate;
+            return candidate;
+        }
+        return std::nullopt;
+    } catch (...) {
+        return std::nullopt;
+    }
 }
 
 bool LiveCopyPlan::skip_active(const std::uint64_t file_id) noexcept {

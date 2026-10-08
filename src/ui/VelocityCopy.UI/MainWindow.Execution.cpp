@@ -300,6 +300,33 @@ void MainWindow::StartTransfer(velocitycopy::CopyJob job, velocitycopy::StorageK
             return;
         }
 
+        // Ask before writing anything when the destination clearly cannot
+        // hold the transfer, instead of discovering a full disk half-way.
+        if (const auto shortage = velocitycopy::find_space_shortage(
+                plan->source_roots(), plan->destination_root(), plan->operation(), plan->total_bytes())) {
+            auto answer = std::make_shared<SpaceAnswer>();
+            const auto required = shortage->required_bytes;
+            const auto available = shortage->available_bytes;
+            if (!dispatcher.TryEnqueue([weak, answer, required, available]() {
+                    if (auto self = weak.get()) self->AskLowSpaceAsync(answer, required, available);
+                    else answer->set(false);
+                })) {
+                answer->set(false);
+            }
+            if (!answer->wait(stop_token)) {
+                control->request_cancel();
+                {
+                    std::lock_guard gate_lock(gate->mutex);
+                    gate->accepting = false;
+                    gate->condition.notify_all();
+                }
+                (void)dispatcher.TryEnqueue([weak]() {
+                    if (auto self = weak.get()) self->FinishCopy({false, true, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED)), false});
+                });
+                return;
+            }
+        }
+
         const auto result = RunLivePlanSession(plan, control, gate, stop_token, true, 0);
         (void)dispatcher.TryEnqueue([weak, result]() {
             if (auto self = weak.get()) self->FinishCopy(result);
@@ -866,6 +893,42 @@ fire_and_forget MainWindow::ShowRetryDecisionAsync() {
     } catch (...) {
         // Preserve Decision state and all unresolved work.
     }
+}
+
+fire_and_forget MainWindow::AskLowSpaceAsync(
+    std::shared_ptr<SpaceAnswer> answer,
+    const std::uint64_t required_bytes,
+    const std::uint64_t available_bytes) {
+    auto lifetime = get_strong();
+    bool proceed = false;
+    try {
+        const auto pattern = velocitycopy::localization::get_string(L"LowSpaceMessageFormat");
+        const auto required_text = FormatBytes(required_bytes);
+        const auto available_text = FormatBytes(available_bytes);
+        // make_wformat_args binds lvalues only (C++23).
+        const std::wstring_view required{required_text.c_str(), required_text.size()};
+        const std::wstring_view available{available_text.c_str(), available_text.size()};
+        const std::wstring message = std::vformat(
+            std::wstring_view{pattern.c_str(), pattern.size()},
+            std::make_wformat_args(required, available));
+        const auto decision = velocitycopy::ui::decode_decision(co_await RequestDecisionAsync({
+            hwnd_,
+            velocitycopy::localization::get_string(L"LowSpaceTitle").c_str(),
+            message,
+            active_destination_.wstring(),
+            velocitycopy::localization::get_string(L"ActionContinue").c_str(),
+            velocitycopy::localization::get_string(L"ActionCancel").c_str(),
+            {},
+            {},
+            false,
+            velocitycopy::ui::DecisionTone::Warning,
+        }));
+        proceed = decision.choice == velocitycopy::ui::DecisionChoice::Primary &&
+            !tray_exit_requested_ && !session_ending_;
+    } catch (...) {
+        proceed = false;
+    }
+    answer->set(proceed);
 }
 
 void MainWindow::ResumeParkedFailures() {

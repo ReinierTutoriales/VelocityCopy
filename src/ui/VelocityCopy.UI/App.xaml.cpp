@@ -63,24 +63,23 @@ std::optional<velocitycopy::ShellRequest> inherited_shell_request() noexcept {
     return request;
 }
 
+bool has_argument(const std::wstring_view expected) noexcept {
+    int argc = 0;
+    auto* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+    if (argv == nullptr) return false;
+    bool found = false;
+    for (int index = 1; index < argc && !found; ++index) {
+        found = std::wstring_view(argv[index]) == expected;
+    }
+    LocalFree(argv);
+    return found;
+}
+
 // Classic deployment receives startup intent explicitly via --startup.
 bool is_startup_activation() noexcept {
     // Classic/unpackaged startup is explicit. The installer is the only component
     // allowed to register the HKCU Run entry; runtime code must never repair it.
-    int argc = 0;
-    auto* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
-    if (argv == nullptr) {
-        return false;
-    }
-    bool startup = false;
-    for (int index = 1; index < argc; ++index) {
-        if (std::wstring_view(argv[index]) == L"--startup") {
-            startup = true;
-            break;
-        }
-    }
-    LocalFree(argv);
-    return startup;
+    return has_argument(L"--startup");
 }
 
 bool deliver_to_primary(const velocitycopy::ShellRequest& request) noexcept {
@@ -549,6 +548,15 @@ void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
     if (!tray_.Initialize(this)) {
         const auto error = GetLastError();
         velocitycopy::log_diagnostic(L"tray: initialization failed (Win32 " + std::to_wstring(error) + L")");
+    } else if (startup_activation && has_argument(L"--installed")) {
+        // Setup starts VelocityCopy hidden in the notification area; say so
+        // once, otherwise finishing the installer looks like nothing happened.
+        try {
+            const auto title = velocitycopy::localization::get_string(L"InstalledNotificationTitle");
+            const auto text = velocitycopy::localization::get_string(L"InstalledNotificationText");
+            tray_.ShowNotification(title.c_str(), text.c_str());
+        } catch (...) {
+        }
     }
     if (!startup_activation) {
         if (auto* implementation = winrt::get_self<MainWindow>(main_window)) {

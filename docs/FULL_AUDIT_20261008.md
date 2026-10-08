@@ -61,6 +61,21 @@ still requires green Windows CI and manual Windows validation.
 - `CopyPlan::move_file/_up/_down/remove_file` (plan editing moved to
   `LiveCopyPlan`) and its test; unused `is_terminal`, `App::HasPendingRecovery`.
 
+### Copy behaviour (second pass)
+- **Keep both.** Conflicts offer Replace / Skip / Keep both / Cancel (with
+  "apply to all"). Keep both retargets the item to the first `name (n).ext`
+  free on disk and in the plan (`LiveCopyPlan::redirect_active_destination`).
+  The dialog shows size and modified time of both files.
+- **Free space.** Before the first write, `find_space_shortage` compares the
+  planned bytes with free space on the destination volume (skipped for a
+  same-volume Move) and asks Continue / Cancel.
+- **Folder attributes.** Folders created by a transfer keep the source's
+  Hidden / System / not-indexed attributes.
+- **Long paths.** Setup enables `LongPathsEnabled`; the app manifest is already
+  long-path aware, so trees deeper than 260 characters copy.
+- **Setup feedback.** The tray shows a one-time "ready" notification after
+  setup starts the app hidden.
+
 ## Reviewed, no change
 
 - Queue view: already incremental, capped at 256 rows, preserves selection,
@@ -77,11 +92,7 @@ still requires green Windows CI and manual Windows validation.
 | High | 250,000-entry cap in planner and archive. | Stream planning into the live plan instead of materialising the whole tree. |
 | Medium | Single worker for every topology (`suggested_queue_depth = 1`, pinned by tests). | Use `tools/Run-VelocityCopy-BenchmarkMatrix.ps1`; enable 2–4 workers only for proven-disjoint SSD/NVMe with many small files. |
 | Medium | A destination conflict cancels all workers and discards partial files. | Park conflicts like other item failures and prompt at the end or on demand. |
-| Medium | No "keep both / rename" conflict choice. | Add a third action generating `name (2).ext`. |
 | Medium | Whole tree is planned before the first byte moves. | Same as the streaming item above. |
 | Low | Same-volume Move renames file by file. | Rename a whole directory when its destination does not exist. |
-| Medium | Paths over 260 characters need the system `LongPathsEnabled` policy (off by default); the manifest is already `longPathAware`. | Offer an installer option to enable it, or convert engine paths to `\\?\` form. |
-| Low | Directory attributes/timestamps (hidden, read-only folders) are not copied; files keep theirs via CopyFile2. | Apply source directory attributes and times after the last file of each folder. |
-| Low | No free-space pre-check; a full disk is detected mid-copy. | Warn (not block) when remaining bytes exceed free space on a different volume. |
 | Low | No post-copy verification option. | Optional hash verification for critical copies. |
 | Low | Planner failures are not saved in `.vcq`/recovery archives. | Persist them if post-recovery reporting matters. |

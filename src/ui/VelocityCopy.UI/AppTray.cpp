@@ -107,6 +107,16 @@ void AppTray::RestoreIcon() noexcept {
     }
 }
 
+void AppTray::ShowNotification(const wchar_t* title, const wchar_t* text) noexcept {
+    if (!added_ || title == nullptr || text == nullptr) return;
+    auto notification = data_;
+    notification.uFlags = NIF_INFO;
+    notification.dwInfoFlags = NIIF_INFO | NIIF_RESPECT_QUIET_TIME;
+    wcsncpy_s(notification.szInfoTitle, title, _TRUNCATE);
+    wcsncpy_s(notification.szInfo, text, _TRUNCATE);
+    (void)Shell_NotifyIconW(NIM_MODIFY, &notification);
+}
+
 void AppTray::Remove() noexcept {
     if (added_) (void)Shell_NotifyIconW(NIM_DELETE, &data_);
     added_ = false; v4_ = false;
