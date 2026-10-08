@@ -1,8 +1,16 @@
+// The shell automation headers (exdisp.h/shldisp.h) need the full COM/OLE
+// declarations that WIN32_LEAN_AND_MEAN strips from windows.h; with it, MSVC
+// rejects their interface typedefs (C2371). This helper is tiny, so build it
+// against the complete header set.
+#ifdef WIN32_LEAN_AND_MEAN
+#undef WIN32_LEAN_AND_MEAN
+#endif
 #include <windows.h>
-#include <exdisp.h>
-#include <shldisp.h>
+#include <ole2.h>
 #include <shlobj.h>
 #include <shlwapi.h>
+#include <exdisp.h>
+#include <shldisp.h>
 #include <wrl/client.h>
 
 #include <filesystem>
