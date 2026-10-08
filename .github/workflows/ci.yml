@@ -15,7 +15,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -40,7 +40,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Configure ${{ matrix.arch }} Release
         run: cmake -S . -B build/${{ matrix.cmake_arch }} -A ${{ matrix.cmake_arch }}
@@ -57,7 +57,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Configure x64 RelWithDebInfo ASan
         run: cmake -S . -B build/asan -A x64 -DVELOCITYCOPY_ENABLE_ASAN=ON
@@ -70,10 +70,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
+        uses: microsoft/setup-msbuild@v3
 
       - name: Build UI
         run: msbuild src/ui/VelocityCopy.UI/VelocityCopy.UI.vcxproj /restore /m /p:Configuration=Release /p:Platform=x64
@@ -98,7 +98,7 @@ jobs:
 
       - name: Upload launch diagnostic log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: VelocityCopy-launch-diagnostic-ci-x64-${{ github.run_id }}
           path: ${{ runner.temp }}/velocitycopy-unhandled.log

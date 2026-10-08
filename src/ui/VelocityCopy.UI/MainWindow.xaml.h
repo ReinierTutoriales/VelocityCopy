@@ -30,6 +30,7 @@
 #include <utility>
 #include <variant>
 #include <winrt/Windows.UI.ViewManagement.h>
+#include <shobjidl_core.h>
 
 namespace winrt::VelocityCopyUI::implementation {
 // A session interrupted by Stop or by a destination conflict. The two are
@@ -241,6 +242,9 @@ private:
     bool ApplyTelemetryReserves();
     void ScheduleTelemetryReserveSettle();
     [[nodiscard]] double RequiredNormalWindowWidth();
+    void SetTaskbarState(TBPFLAG state) noexcept;
+    void RefreshTaskbarProgress() noexcept;
+    void RefreshWindowTitle() noexcept;
     void SetProgressFraction(double fraction);
     void ResetCurrentItemState() noexcept;
     void ClearLiveTelemetry();
@@ -254,6 +258,7 @@ private:
     winrt::fire_and_forget AskLowSpaceAsync(
         std::shared_ptr<PreflightAnswer> answer, std::uint64_t required_bytes, std::uint64_t available_bytes);
     winrt::fire_and_forget AskElevationAsync(std::shared_ptr<PreflightAnswer> answer);
+    winrt::fire_and_forget ShowIssuesAsync();
     winrt::fire_and_forget ElevateParkedFailuresAsync();
     void ResumeParkedFailures();
     void ResolveParkedFailures();
@@ -333,6 +338,17 @@ private:
     Windows::UI::ViewManagement::UISettings ui_settings_{nullptr};
     Windows::UI::ViewManagement::UISettings::TextScaleFactorChanged_revoker text_scale_changed_revoker_{};
     bool paused_{};
+    // Windows 11 taskbar button progress (fill, paused yellow, error red).
+    winrt::com_ptr<ITaskbarList3> taskbar_;
+    bool taskbar_unavailable_{};
+    TBPFLAG taskbar_state_{TBPF_NOPROGRESS};
+    double taskbar_fraction_{};
+    std::wstring window_title_;
+    hstring files_format_;
+    // Problems of the last finished transfer, for the "View all" list.
+    std::vector<velocitycopy::ItemResult> last_issues_;
+    std::uint64_t last_issue_total_{};
+    hstring files_format_singular_;
     InterruptedSessionState interrupted_session_{InterruptedSessionState::None};
     bool stop_requested_{};
     bool current_file_skippable_{};

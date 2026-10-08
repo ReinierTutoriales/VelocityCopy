@@ -5,9 +5,6 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <data name="AppDisplayName" xml:space="preserve"><value>VelocityCopy</value></data>
-  <data name="StatusPreparing" xml:space="preserve"><value>Preparando copia…</value></data>
-  <data name="StatusCopying" xml:space="preserve"><value>Copiando</value></data>
-  <data name="StatusPaused" xml:space="preserve"><value>Pausado</value></data>
   <data name="StatusCompleted" xml:space="preserve"><value>Copia completada</value></data>
   <data name="StatusMoveCompleted" xml:space="preserve"><value>Movimiento completado</value></data>
   <data name="StatusCancelled" xml:space="preserve"><value>Operación cancelada</value></data>
@@ -16,7 +13,6 @@
   <data name="OutcomeFailed" xml:space="preserve"><value>Fallidos</value></data>
   <data name="OutcomeSkipped" xml:space="preserve"><value>Omitidos</value></data>
   <data name="OutcomeSourceRetained" xml:space="preserve"><value>Origen no eliminado</value></data>
-  <data name="QueuePendingFormat" xml:space="preserve"><value>{0} archivos pendientes</value></data>
   <data name="ActionPause" xml:space="preserve"><value>Pausar</value></data>
   <data name="ActionResume" xml:space="preserve"><value>Reanudar</value></data>
   <data name="ActionSkip" xml:space="preserve"><value>Saltar</value></data>
@@ -51,8 +47,6 @@
   <data name="AboutPublisher" xml:space="preserve"><value>ReinierTutoriales</value></data>
   <data name="AboutLicense" xml:space="preserve"><value>Licencia MIT</value></data>
   <data name="AboutRepositoryLabel" xml:space="preserve"><value>Ver proyecto en GitHub</value></data>
-  <data name="ActionShowQueue" xml:space="preserve"><value>Mostrar cola</value></data>
-  <data name="ActionHideQueue" xml:space="preserve"><value>Ocultar cola</value></data>
   <data name="TrayOpen" xml:space="preserve"><value>Abrir VelocityCopy</value></data>
   <data name="TrayExit" xml:space="preserve"><value>Salir</value></data>
   <data name="RecoveryTitle" xml:space="preserve"><value>¿Reanudar la transferencia interrumpida?</value></data>
@@ -100,4 +94,13 @@
   <data name="ElevationMessage" xml:space="preserve"><value>Windows protege este destino. Para copiar aquí, VelocityCopy continúa como administrador y antes pide permiso. Aun así, los archivos de sistema de Windows existentes siguen protegidos.</value></data>
   <data name="ActionContinueAsAdmin" xml:space="preserve"><value>Continuar como administrador</value></data>
   <data name="ActionRetryAsAdmin" xml:space="preserve"><value>Reintentar como administrador</value></data>
+  <data name="CompletedNotificationFormat" xml:space="preserve"><value>{} archivos listos — {}</value></data>
+  <data name="ActionShowIssues" xml:space="preserve"><value>Ver todos</value></data>
+  <data name="IssuesTitle" xml:space="preserve"><value>Elementos con problemas</value></data>
+  <data name="IssuesMessageFormat" xml:space="preserve"><value>{} elementos necesitan atención.</value></data>
+  <data name="ActionCopyList" xml:space="preserve"><value>Copiar lista</value></data>
+  <data name="ActionClose" xml:space="preserve"><value>Cerrar</value></data>
+  <data name="IssueFailed" xml:space="preserve"><value>Falló</value></data>
+  <data name="IssueSkipped" xml:space="preserve"><value>Omitido</value></data>
+  <data name="IssueSourceRetained" xml:space="preserve"><value>Origen conservado</value></data>
 </root>

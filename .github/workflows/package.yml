@@ -37,7 +37,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Version
         shell: pwsh
@@ -179,7 +179,7 @@ jobs:
           $files | Sort-Object Length -Descending | Select-Object -First 15 Name,Length | Format-Table
 
       - name: Upload payload size inventory
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: VelocityCopy-payload-inventory-${{ matrix.arch }}-${{ github.run_id }}
           path: artifacts/payload-inventory-${{ matrix.arch }}.json
@@ -294,19 +294,20 @@ jobs:
 
       - name: Cache pinned NSIS
         id: cache-nsis
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
-          path: ${{ runner.temp }}/nsis-3.11.zip
-          key: nsis-3.11-${{ matrix.arch }}-c7d27f780ddb6cffb4730138cd1591e841f4b7edb155856901cdf5f214394fa1
+          path: ${{ runner.temp }}/nsis-3.13.zip
+          key: nsis-3.13-${{ matrix.arch }}-ba63dffc4410ee89193e1cb5a41989991bd77c61068da17e3156d136b7b0b3d8
 
       - name: Fetch and verify pinned NSIS
         shell: pwsh
         run: |
-          $version = "3.11"
-          $expected = "c7d27f780ddb6cffb4730138cd1591e841f4b7edb155856901cdf5f214394fa1"
+          $version = "3.13"
+          $expected = "ba63dffc4410ee89193e1cb5a41989991bd77c61068da17e3156d136b7b0b3d8"
           $zip = Join-Path $env:RUNNER_TEMP "nsis-$version.zip"
           if (-not (Test-Path $zip)) {
-            $url = "https://github.com/tauri-apps/binary-releases/releases/download/nsis-$version/nsis-$version.zip"
+            # Official NSIS distribution; the SHA-256 below pins the exact archive.
+            $url = "https://downloads.sourceforge.net/project/nsis/NSIS%203/$version/nsis-$version.zip"
             & curl.exe -L --fail --retry 4 --retry-all-errors --output $zip $url
             if ($LASTEXITCODE -ne 0 -or -not (Test-Path $zip)) { throw "Pinned NSIS download failed" }
           }
@@ -550,7 +551,7 @@ jobs:
 
       - name: Upload PRI evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: VelocityCopy-PRI-evidence-${{ matrix.arch }}-${{ github.run_id }}
           path: artifacts/pri-evidence-${{ matrix.arch }}
@@ -558,7 +559,7 @@ jobs:
           retention-days: 14
 
       - name: Upload validated installer
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: VelocityCopy-Setup-${{ matrix.arch }}-${{ env.VELOCITYCOPY_VERSION }}
           path: artifacts/installer/${{ matrix.setup_name }}
@@ -567,7 +568,7 @@ jobs:
 
       - name: Upload launch diagnostic log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: VelocityCopy-launch-diagnostic-package-${{ matrix.arch }}-${{ github.run_id }}
           path: ${{ runner.temp }}/velocitycopy-unhandled.log

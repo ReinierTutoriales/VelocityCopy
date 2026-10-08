@@ -58,6 +58,7 @@ void MainWindow::ResetInterruptedSessionState() noexcept {
 }
 
 void MainWindow::SetExecutionButtonsPlanning() {
+    SetTaskbarState(TBPF_INDETERMINATE);
     performance_sampling_state_ = PerformanceSamplingState::Planning;
     ApplyTransferVisualState(TransferVisualState::Active);
     TransferProgress().ShowPaused(false);
@@ -72,6 +73,7 @@ void MainWindow::SetExecutionButtonsPlanning() {
 }
 
 void MainWindow::SetExecutionButtonsRunning() {
+    SetTaskbarState(TBPF_NORMAL);
     performance_sampling_state_ = PerformanceSamplingState::Copying;
     ApplyTransferVisualState(TransferVisualState::Active);
     TransferProgress().ShowPaused(false);
@@ -90,6 +92,7 @@ void MainWindow::SetExecutionButtonsRunning() {
 }
 
 void MainWindow::SetExecutionButtonsIdle() {
+    SetTaskbarState(TBPF_NOPROGRESS);
     performance_sampling_state_ = PerformanceSamplingState::Idle;
     TransferProgress().ShowPaused(false);
     PauseButton().IsEnabled(false);
@@ -108,6 +111,7 @@ void MainWindow::SetExecutionButtonsIdle() {
 }
 
 void MainWindow::SetExecutionButtonsStopped() {
+    SetTaskbarState(TBPF_PAUSED);
     performance_sampling_state_ = PerformanceSamplingState::Stopped;
     TransferProgress().ShowPaused(true);
     TransferProgress().ShowError(false);
@@ -125,6 +129,7 @@ void MainWindow::SetExecutionButtonsStopped() {
 }
 
 void MainWindow::SetExecutionButtonsConflict() {
+    SetTaskbarState(TBPF_PAUSED);
     performance_sampling_state_ = PerformanceSamplingState::Conflict;
     ApplyTransferVisualState(TransferVisualState::Warning);
     TransferProgress().ShowPaused(false);
@@ -509,6 +514,7 @@ void MainWindow::OnPauseClick(IInspectable const&, RoutedEventArgs const&) {
     }
     TransferProgress().ShowPaused(paused_);
     TransferProgress().ShowError(false);
+    SetTaskbarState(paused_ ? TBPF_PAUSED : TBPF_NORMAL);
     PauseIcon().Glyph(paused_ ? L"\xE768" : L"\xE769");
     try {
         const auto label = velocitycopy::localization::get_string(paused_ ? L"ActionResume" : L"ActionPause");
@@ -620,10 +626,12 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
 
     hstring files_text;
     try {
-        const auto pattern = velocitycopy::localization::get_string(
-            snapshot.completed_files == 1
-                ? L"TransferCompletedSingularFormat"
-                : L"TransferCompletedFormat");
+        // Resolved once per window: this runs on every progress snapshot.
+        if (files_format_.empty()) {
+            files_format_ = velocitycopy::localization::get_string(L"TransferCompletedFormat");
+            files_format_singular_ = velocitycopy::localization::get_string(L"TransferCompletedSingularFormat");
+        }
+        const auto& pattern = snapshot.completed_files == 1 ? files_format_singular_ : files_format_;
         files_text = hstring(std::vformat(
             std::wstring_view{pattern.c_str(), pattern.size()},
             std::make_wformat_args(snapshot.completed_files, snapshot.total_files)));
@@ -853,13 +861,35 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     // Keep the first failed/skipped item before the plan is released so the
     // notice can say which file needs attention and why.
     std::optional<velocitycopy::ItemResult> first_issue;
+    last_issues_.clear();
+    last_issue_total_ = 0;
     if (live_plan_) {
         const auto issues = live_plan_->retained_results();
         const auto failed = std::find_if(issues.begin(), issues.end(), [](const velocitycopy::ItemResult& item) {
             return item.outcome != velocitycopy::ItemOutcome::Skipped;
         });
         if (failed != issues.end()) first_issue = *failed;
+        // Keep a bounded copy for "View all"; failures first, then the rest.
+        constexpr std::size_t kListedIssues = 1000;
+        try {
+            for (const auto& item : issues) {
+                if (item.outcome == velocitycopy::ItemOutcome::Succeeded) continue;
+                ++last_issue_total_;
+            }
+            last_issues_.reserve((std::min)(static_cast<std::size_t>(last_issue_total_), kListedIssues));
+            for (const bool failures_pass : {true, false}) {
+                for (const auto& item : issues) {
+                    if (last_issues_.size() >= kListedIssues) break;
+                    if (item.outcome == velocitycopy::ItemOutcome::Succeeded) continue;
+                    if ((item.outcome == velocitycopy::ItemOutcome::Skipped) == failures_pass) continue;
+                    last_issues_.push_back(item);
+                }
+            }
+        } catch (...) {
+            last_issues_.clear();
+        }
     }
+    const auto finished_destination = active_destination_;
     live_plan_.reset();
     active_destination_.clear();
     RefreshQueue();
@@ -905,6 +935,14 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
                         : InfoBarSeverity::Error,
                     completed_with_issues_title,
                     hstring(summary));
+                if (!last_issues_.empty()) {
+                    Button view_all;
+                    view_all.Content(box_value(velocitycopy::localization::get_string(L"ActionShowIssues")));
+                    view_all.Click([weak = get_weak()](IInspectable const&, RoutedEventArgs const&) {
+                        if (auto self = weak.get()) self->ShowIssuesAsync();
+                    });
+                    ErrorBar().ActionButton(view_all);
+                }
             } else {
                 CurrentItemText().Text(velocitycopy::localization::get_string(
                     active_operation_ == velocitycopy::FileOperation::Move
@@ -917,6 +955,26 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
             // Keep the terminal surface visible so per-item failures/skips cannot
             // masquerade as a clean transfer that immediately disappears.
             return;
+        }
+        // The window closes itself on a clean finish; when it was not in front
+        // (minimized, in the tray, another app in use) say so with a Windows
+        // notification, otherwise the copy just silently disappears.
+        if (hwnd_ != nullptr && GetForegroundWindow() != hwnd_ && !session_ending_) {
+            try {
+                const auto title = velocitycopy::localization::get_string(
+                    active_operation_ == velocitycopy::FileOperation::Move
+                        ? L"StatusMoveCompleted"
+                        : L"StatusCompleted");
+                const auto pattern = velocitycopy::localization::get_string(L"CompletedNotificationFormat");
+                const auto count = result.outcomes.succeeded;
+                const auto folder_text = finished_destination.wstring();
+                const std::wstring_view folder{folder_text};
+                const std::wstring text = std::vformat(
+                    std::wstring_view{pattern.c_str(), pattern.size()},
+                    std::make_wformat_args(count, folder));
+                if (auto* app = App::Instance()) app->ShowTrayNotification(title.c_str(), text.c_str());
+            } catch (...) {
+            }
         }
         // Clean completed transfer windows are session surfaces, not recovery owners.
         // Recovery remains available through ShowFromTray() when the app is opened
@@ -1025,6 +1083,61 @@ fire_and_forget MainWindow::AskLowSpaceAsync(
         proceed = false;
     }
     answer->set(proceed);
+}
+
+fire_and_forget MainWindow::ShowIssuesAsync() {
+    auto lifetime = get_strong();
+    if (last_issues_.empty()) co_return;
+    std::wstring list;
+    try {
+        const auto failed_label = velocitycopy::localization::get_string(L"IssueFailed");
+        const auto skipped_label = velocitycopy::localization::get_string(L"IssueSkipped");
+        const auto retained_label = velocitycopy::localization::get_string(L"IssueSourceRetained");
+        for (const auto& item : last_issues_) {
+            if (!list.empty()) list.push_back(L'\n');
+            const auto& label = item.outcome == velocitycopy::ItemOutcome::Skipped
+                ? skipped_label
+                : item.outcome == velocitycopy::ItemOutcome::CopiedSourceRetained ? retained_label : failed_label;
+            list.append(label.c_str());
+            list.append(L": ");
+            list.append(item.source.wstring());
+            const auto reason = FormatFailureReason(item.hresult);
+            if (!reason.empty()) {
+                list.append(L" \u2014 ");
+                list.append(reason.c_str());
+            }
+        }
+        if (last_issue_total_ > last_issues_.size()) {
+            list.append(std::format(L"\n(+{})", last_issue_total_ - last_issues_.size()));
+        }
+    } catch (...) {
+        co_return;
+    }
+    try {
+        const auto count = last_issue_total_;
+        const auto pattern = velocitycopy::localization::get_string(L"IssuesMessageFormat");
+        const std::wstring message = std::vformat(
+            std::wstring_view{pattern.c_str(), pattern.size()}, std::make_wformat_args(count));
+        const auto decision = velocitycopy::ui::decode_decision(co_await RequestDecisionAsync({
+            hwnd_,
+            velocitycopy::localization::get_string(L"IssuesTitle").c_str(),
+            message,
+            list,
+            velocitycopy::localization::get_string(L"ActionCopyList").c_str(),
+            velocitycopy::localization::get_string(L"ActionClose").c_str(),
+            {},
+            {},
+            false,
+            velocitycopy::ui::DecisionTone::Neutral,
+        }));
+        if (decision.choice == velocitycopy::ui::DecisionChoice::Primary) {
+            Windows::ApplicationModel::DataTransfer::DataPackage package;
+            package.SetText(list);
+            Windows::ApplicationModel::DataTransfer::Clipboard::SetContent(package);
+            Windows::ApplicationModel::DataTransfer::Clipboard::Flush();
+        }
+    } catch (...) {
+    }
 }
 
 fire_and_forget MainWindow::AskElevationAsync(std::shared_ptr<PreflightAnswer> answer) {

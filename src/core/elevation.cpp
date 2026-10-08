@@ -190,16 +190,6 @@ bool destination_requires_elevation(const CopyPlan& plan) noexcept {
     }
 }
 
-bool destination_requires_elevation(const std::filesystem::path& destination) noexcept {
-    try {
-        if (destination.empty() || process_is_elevated()) return false;
-        const auto anchor = existing_ancestor(destination);
-        return !anchor.empty() && !is_remote(anchor) && folder_right_denied(anchor, FILE_ADD_FILE);
-    } catch (...) {
-        return false;
-    }
-}
-
 std::optional<ElevatedHandoff> write_elevated_handoff(
     const std::filesystem::path& directory,
     const QueueArchive& archive) noexcept {

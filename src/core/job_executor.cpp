@@ -264,6 +264,7 @@ JobExecutionOptions recommend_for_roots(
     std::uint32_t shared_buffer_bytes = 0;
     bool first_recommendation = true;
     bool source_destination_share_disk = false;
+    bool disks_proven_distinct = true;
 
     for (const auto& source_path : source_roots) {
         const auto source = profiler.inspect(source_path);
@@ -272,6 +273,8 @@ JobExecutionOptions recommend_for_roots(
 
         source_destination_share_disk = source_destination_share_disk ||
             physical_storage_relationship(source, destination) == PhysicalStorageRelationship::SharedDisk;
+        disks_proven_distinct = disks_proven_distinct &&
+            physical_storage_relationship(source, destination) == PhysicalStorageRelationship::DisjointDisks;
 
         if (first_recommendation) {
             shared_copy_flags = recommendation.copy_flags;
@@ -283,7 +286,9 @@ JobExecutionOptions recommend_for_roots(
         }
     }
 
-    if (source_destination_share_disk) {
+    // Concurrent copies only between disks known to be different devices;
+    // a shared or undetermined topology stays serial.
+    if (source_destination_share_disk || !disks_proven_distinct) {
         worker_count = 1;
     }
 
@@ -524,6 +529,8 @@ JobResult JobExecutor::execute(
         for (std::uint32_t worker_index = 0; worker_index < worker_count; ++worker_index) {
             workers.emplace_back([&, worker_index] {
                 std::uint64_t held_file_id = 0;
+                // Released when this worker ends, i.e. with the session.
+                DestinationLease destination_lease;
                 for (;;) {
                 try {
                     for (;;) {
@@ -646,6 +653,7 @@ JobResult JobExecutor::execute(
                                     existing_policy,
                                     options.copy_flags,
                                     options.suggested_buffer_bytes,
+                                    &destination_lease,
                                 },
                                 [&](const CopyProgress& file_progress) {
                                     plan.record_attempt_bytes(file_id, file_progress.transferred_bytes);

@@ -115,7 +115,7 @@ int main() {
         !contains(package_workflow, "VelocityCopy-Setup-x64.exe") ||
         !contains(package_workflow, "VelocityCopy-Setup-ARM64.exe") ||
         !contains(package_workflow, "PAYLOAD_ARCH") ||
-        !contains(package_workflow, "nsis-3.11.zip") ||
+        !contains(package_workflow, "nsis-3.13.zip") ||
         !contains(package_workflow, "Smoke install classic x64 installer") ||
         !contains(package_workflow, "Smoke uninstall classic x64 installer") ||
         !contains(package_workflow, "Exercise Authenticode pipeline with ephemeral certificate") ||

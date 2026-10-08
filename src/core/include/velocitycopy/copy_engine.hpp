@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <memory>
 #include <functional>
 
 namespace velocitycopy {
@@ -26,11 +27,31 @@ enum class ExistingDestinationPolicy {
     Replace,
 };
 
+// Keeps the destination folder chain of the previous file opened and locked
+// (no delete sharing, so it cannot be renamed or swapped for a junction) and
+// reuses it when the next file goes to the same folder, instead of reopening
+// every ancestor folder for each file. One per copy worker; destroying it
+// releases the folders.
+class DestinationLease final {
+public:
+    DestinationLease();
+    ~DestinationLease();
+    DestinationLease(const DestinationLease&) = delete;
+    DestinationLease& operator=(const DestinationLease&) = delete;
+
+private:
+    friend class CopyEngine;
+    struct State;
+    std::unique_ptr<State> state_;
+};
+
 struct CopyOptions {
     bool resume_from_pause{};
     ExistingDestinationPolicy existing_destination{ExistingDestinationPolicy::Fail};
     std::uint32_t copy_flags{};
     std::uint32_t io_size_bytes{};
+    // Optional; without it the folder chain is locked for this file only.
+    DestinationLease* lease{};
 };
 
 struct CopyResult {
