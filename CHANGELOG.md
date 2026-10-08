@@ -8,7 +8,7 @@
 - A copy that finishes while the window is minimized, in the tray or behind another app shows a Windows notification instead of disappearing silently.
 - The taskbar button shows copy progress (yellow while paused or waiting for a decision, red on errors).
 - Setup is DPI-aware (sharp at 125-200% scaling) and registers size, links and a silent uninstall command in Settings > Apps.
-- C++/WinRT 2.0.250303.1, Windows App SDK 2.5.1 component set, NSIS 3.13 from the official distribution, and GitHub Actions on Node 24 (checkout v6, upload-artifact v6, cache v5, setup-msbuild v3).
+- C++/WinRT 3.0.260818.1, Windows App SDK 2.5.1 component set, NSIS 3.13 from the official distribution, and GitHub Actions on Node 24 (checkout v6, upload-artifact v6, cache v5, setup-msbuild v3).
 
 ## 1.2.0 — 2026-10-08
 
