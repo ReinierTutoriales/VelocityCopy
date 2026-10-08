@@ -223,4 +223,36 @@ CopyResult CopyEngine::copy_file(
     }
 }
 
+CopyResult CopyEngine::rename_file(
+    const std::filesystem::path& source,
+    const std::filesystem::path& destination,
+    const ExistingDestinationPolicy existing_destination) const noexcept {
+    try {
+        detail::DestinationPathGuard destination_guard;
+        std::error_code directory_error;
+        const auto parent = destination.parent_path();
+        if (source_is_unsafe_reparse_point(source) ||
+            (!parent.empty() && !destination_guard.prepare_directory(parent, directory_error))) {
+            const auto native = directory_error
+                ? static_cast<DWORD>(directory_error.value())
+                : ERROR_CANT_ACCESS_FILE;
+            return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(native))};
+        }
+
+        const DWORD flags = existing_destination == ExistingDestinationPolicy::Replace
+            ? MOVEFILE_REPLACE_EXISTING
+            : 0;
+        if (MoveFileExW(source.c_str(), destination.c_str(), flags) != FALSE) {
+            return {true, static_cast<std::int32_t>(S_OK)};
+        }
+        return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(GetLastError()))};
+    } catch (const std::bad_alloc&) {
+        return {false, static_cast<std::int32_t>(E_OUTOFMEMORY)};
+    } catch (const std::system_error& error) {
+        return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(error.code().value()))};
+    } catch (...) {
+        return {false, static_cast<std::int32_t>(E_FAIL)};
+    }
+}
+
 } // namespace velocitycopy

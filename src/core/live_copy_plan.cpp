@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cwctype>
 #include <limits>
+#include <string>
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
@@ -53,6 +54,19 @@ LiveCopyPlan::LiveCopyPlan(CopyPlan plan)
         }
         reserved_destination_keys_.insert(normalized_path_key(file.destination));
         counters_.resolution_total += item_resolution_weight(file.size);
+    }
+    record_planning_failures_locked(plan.failures);
+}
+
+void LiveCopyPlan::record_planning_failures_locked(const std::vector<PlanningFailure>& failures) {
+    retained_results_.reserve(retained_results_.size() + failures.size());
+    for (const auto& failure : failures) {
+        retained_results_.push_back(ItemResult{
+            0, ItemOutcome::Failed, failure.hresult, failure.source, failure.destination, false});
+        const auto weight = item_resolution_weight(0);
+        counters_.resolution_total += weight;
+        counters_.resolution_weight += weight;
+        ++outcomes_.failed;
     }
 }
 
@@ -149,6 +163,9 @@ LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan, const bool allow_draine
 
         directories_.reserve(directories_.size() + plan.directories.size());
         source_roots_.reserve(source_roots_.size() + plan.source_roots.size());
+        // Reserve now so recording the planner's failures after the commit
+        // below cannot throw and leave a half-applied append.
+        retained_results_.reserve(retained_results_.size() + plan.failures.size());
 
         auto staged_destination_keys = reserved_destination_keys_;
         staged_destination_keys.reserve(staged_destination_keys.size() + incoming_keys.size());
@@ -190,6 +207,7 @@ LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan, const bool allow_draine
         total_files_ += static_cast<std::uint64_t>(plan.files.size());
         counters_.resolution_total += incoming_weight;
         largest_file_bytes_ = std::max(largest_file_bytes_, plan.largest_file_bytes);
+        record_planning_failures_locked(plan.failures);
         return LivePlanAppendResult::Appended;
     } catch (...) {
         return LivePlanAppendResult::InternalFailure;
@@ -414,6 +432,37 @@ void LiveCopyPlan::release_active(const std::uint64_t file_id) {
     pending_files_.emplace_front();
     pending_files_.front() = std::move(*it);
     active_files_.erase(it);
+}
+
+std::optional<std::filesystem::path> LiveCopyPlan::redirect_active_destination(
+    const std::uint64_t file_id) noexcept {
+    constexpr std::uint32_t kMaxAlternates = 9999;
+    try {
+        std::lock_guard lock(mutex_);
+        auto it = find_active(file_id);
+        if (it == active_files_.end()) return std::nullopt;
+
+        const auto parent = it->destination.parent_path();
+        const auto stem = it->destination.stem().wstring();
+        const auto extension = it->destination.extension().wstring();
+        for (std::uint32_t index = 2; index <= kMaxAlternates; ++index) {
+            auto candidate = parent / (stem + L" (" + std::to_wstring(index) + L")" + extension);
+            auto key = normalized_path_key(candidate);
+            if (reserved_destination_keys_.contains(key)) continue;
+            std::error_code ec;
+            const bool taken = std::filesystem::exists(std::filesystem::symlink_status(candidate, ec));
+            if (ec && ec != std::errc::no_such_file_or_directory) continue;
+            if (taken) continue;
+
+            reserved_destination_keys_.insert(std::move(key));
+            reserved_destination_keys_.erase(normalized_path_key(it->destination));
+            it->destination = candidate;
+            return candidate;
+        }
+        return std::nullopt;
+    } catch (...) {
+        return std::nullopt;
+    }
 }
 
 bool LiveCopyPlan::skip_active(const std::uint64_t file_id) noexcept {

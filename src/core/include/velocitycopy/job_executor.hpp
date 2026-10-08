@@ -58,6 +58,11 @@ enum class ConflictPolicy : std::uint8_t {
     Prompt,
     ReplaceAll,
     SkipAll,
+    // Keep the existing file and write the incoming one as "name (2).ext".
+    // KeepBoth applies to JobExecutionOptions::replace_file_id only (the file
+    // the conflict decision was made for); KeepBothAll to every conflict.
+    KeepBoth,
+    KeepBothAll,
 };
 
 struct JobExecutionOptions {
@@ -65,6 +70,8 @@ struct JobExecutionOptions {
     std::uint32_t copy_flags{};
     std::uint32_t suggested_buffer_bytes{};
     ExistingDestinationPolicy existing_destination{ExistingDestinationPolicy::Fail};
+    // File the last conflict decision applies to: replaced, or kept beside the
+    // existing file when conflict_policy is KeepBoth.
     std::uint64_t replace_file_id{};
     ConflictPolicy conflict_policy{ConflictPolicy::Prompt};
     bool retry_source_removals{};

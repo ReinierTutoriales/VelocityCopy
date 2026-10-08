@@ -97,6 +97,11 @@ void MainWindow::HideToTray() noexcept {
     if (tray_exit_requested_ || hwnd_ == nullptr) {
         return;
     }
+    if (auto* app = App::Instance(); app != nullptr && app->IsElevatedHandoff()) {
+        // The elevated instance has no tray icon to come back from.
+        ShowWindow(hwnd_, SW_MINIMIZE);
+        return;
+    }
 
     try {
         AppWindow().IsShownInSwitchers(false);
@@ -156,6 +161,20 @@ void MainWindow::ShowFromTray() {
     Activate();
     tray_window_hidden_ = false;
     RefreshEfficiencyMode();
+}
+
+void MainWindow::RequestAttention() noexcept {
+    if (tray_exit_requested_ || session_ending_ || hwnd_ == nullptr) return;
+    try {
+        if (!IsWindowVisible(hwnd_) || IsIconic(hwnd_)) ShowFromTray();
+    } catch (...) {
+    }
+    if (hwnd_ != nullptr && GetForegroundWindow() != hwnd_) {
+        FLASHWINFO flash{sizeof(flash)};
+        flash.hwnd = hwnd_;
+        flash.dwFlags = FLASHW_ALL | FLASHW_TIMERNOFG;
+        (void)FlashWindowEx(&flash);
+    }
 }
 
 void MainWindow::ShowRequestError() {

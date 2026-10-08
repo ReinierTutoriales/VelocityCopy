@@ -37,6 +37,28 @@ void remove_partial_destination(const std::filesystem::path& destination) noexce
     (void)std::filesystem::remove(destination, ec);
 }
 
+void carry_directory_attributes(
+    const std::filesystem::path& source,
+    const std::filesystem::path& destination) noexcept {
+    constexpr DWORD kCarried =
+        FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_NOT_CONTENT_INDEXED;
+    const DWORD source_attributes = GetFileAttributesW(source.c_str());
+    if (source_attributes == INVALID_FILE_ATTRIBUTES || (source_attributes & kCarried) == 0) return;
+    const DWORD destination_attributes = GetFileAttributesW(destination.c_str());
+    if (destination_attributes == INVALID_FILE_ATTRIBUTES) return;
+    (void)SetFileAttributesW(destination.c_str(), destination_attributes | (source_attributes & kCarried));
+}
+
+bool replaces_existing(const JobExecutionOptions& options, const std::uint64_t file_id) noexcept {
+    return options.conflict_policy == ConflictPolicy::ReplaceAll ||
+        (options.replace_file_id == file_id && options.conflict_policy != ConflictPolicy::KeepBoth);
+}
+
+bool keeps_both(const JobExecutionOptions& options, const std::uint64_t file_id) noexcept {
+    return options.conflict_policy == ConflictPolicy::KeepBothAll ||
+        (options.replace_file_id == file_id && options.conflict_policy == ConflictPolicy::KeepBoth);
+}
+
 bool destination_is_safe_to_discard(const std::filesystem::path& destination) noexcept {
     std::error_code ec;
     const bool existed = std::filesystem::exists(destination, ec);
@@ -434,6 +456,12 @@ JobResult JobExecutor::execute(
                 // as file parents. Empty directories therefore cannot be
                 // materialized through a junction/symlink outside the target.
                 (void)plan.fail_pending_under(directory.destination, code);
+            } else if (!directory.source.empty() && !directory_guard.handles.empty() &&
+                       directory_guard.handles.back().created) {
+                // A folder this transfer created keeps the source's Hidden /
+                // System / not-indexed state (files keep theirs via CopyFile2).
+                // The guard still pins the new non-reparse leaf here.
+                carry_directory_attributes(directory.source, directory.destination);
             }
         }
         plan.mark_directories_materialized(directory_batch.through_index);
@@ -555,7 +583,7 @@ JobResult JobExecutor::execute(
                             }
                         }
 
-                        const bool skip_allowed = destination_is_safe_to_discard(file->destination);
+                        bool skip_allowed = destination_is_safe_to_discard(file->destination);
                         if (skip_allowed && control.consume_skip(file_id)) {
 
                             if (!plan.resolve_active(file_id, ItemOutcome::Skipped, S_OK, false)) {
@@ -588,11 +616,25 @@ JobResult JobExecutor::execute(
                         bool skipped = false;
                         bool failed = false;
 
-                        for (;;) {
+                        // Same-volume Move: a rename moves the file instantly
+                        // instead of copying every byte and deleting the
+                        // source. Any failure (other volume, sharing
+                        // violation, existing destination under Fail policy)
+                        // falls back to the regular copy path below, which
+                        // also owns conflict reporting.
+                        bool renamed = false;
+                        if (plan.operation() == FileOperation::Move) {
+                            const auto rename_policy =
+                                replaces_existing(options, file_id)
+                                    ? ExistingDestinationPolicy::Replace
+                                    : options.existing_destination;
+                            renamed = engine_.rename_file(file->source, file->destination, rename_policy).success;
+                        }
+
+                        while (!renamed) {
                             bool skip_requested = false;
                             const auto existing_policy =
-                                options.replace_file_id == file_id ||
-                                options.conflict_policy == ConflictPolicy::ReplaceAll
+                                replaces_existing(options, file_id)
                                     ? ExistingDestinationPolicy::Replace
                                     : options.existing_destination;
 
@@ -692,6 +734,26 @@ JobResult JobExecutor::execute(
 
 
                             const bool cancelled = aborted;
+                            if (!cancelled && keeps_both(options, file_id) &&
+                                is_destination_conflict(result.native_code)) {
+                                // Keep the existing file: retarget this item to
+                                // a free "name (n).ext" reserved in the plan and
+                                // copy again from the start.
+                                auto alternate = plan.redirect_active_destination(file_id);
+                                if (!alternate) {
+                                    plan.release_active(file_id);
+                                    result_state.record_error(result.native_code, &*file);
+                                    control.request_cancel();
+                                    worker_results[worker_index] = {false, false, result.native_code, false};
+                                    return;
+                                }
+                                file->destination = std::move(*alternate);
+                                // The new name did not exist when reserved, so a
+                                // partial copy there is ours to discard.
+                                skip_allowed = true;
+                                resume_from_pause = false;
+                                continue;
+                            }
                             if (!cancelled &&
                                 options.conflict_policy == ConflictPolicy::SkipAll &&
                                 is_destination_conflict(result.native_code)) {
@@ -749,7 +811,7 @@ JobResult JobExecutor::execute(
                             continue;
                         }
 
-                        if (plan.operation() == FileOperation::Move) {
+                        if (plan.operation() == FileOperation::Move && !renamed) {
                             const auto remove_source = remove_moved_source_file(file->source);
                             if (remove_source != S_OK) {
                                 const auto source_fingerprint = probe_file_fingerprint(file->source);

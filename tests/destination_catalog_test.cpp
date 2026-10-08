@@ -7,17 +7,6 @@
 namespace fs = std::filesystem;
 
 int wmain() {
-    velocitycopy::DestinationCatalog catalog;
-
-    const std::vector<fs::path> recent = {
-        L"C:\\VelocityCopyRecent",
-        L"C:\\VelocityCopyRecent\\",
-    };
-    const auto entries = catalog.enumerate(recent);
-    if (entries.empty()) {
-        return 1;
-    }
-
     const std::vector<fs::path> sources = {L"C:\\Source\\Novela"};
     if (velocitycopy::DestinationCatalog::validate(sources, L"") != velocitycopy::DestinationValidation::Empty) {
         return 2;

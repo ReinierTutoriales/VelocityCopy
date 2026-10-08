@@ -1,5 +1,7 @@
 #include "velocitycopy/job_planner.hpp"
 
+#include <algorithm>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -114,6 +116,40 @@ int wmain() {
         fs::remove_all(base, ec);
         return 6;
     }
+
+    // A junction inside a selected folder is reported as one failed entry and
+    // never traversed; the rest of the folder is still planned.
+    const auto tree = base / L"Tree";
+    const auto outside = base / L"Outside";
+    write_text(tree / L"keep.txt", "keep");
+    write_text(outside / L"secret.txt", "secret");
+    const auto junction = tree / L"link";
+    const auto command = L"cmd /c mklink /J \"" + junction.wstring() + L"\" \"" + outside.wstring() + L"\" >nul";
+    if (_wsystem(command.c_str()) != 0) {
+        fs::remove_all(base, ec);
+        return 7;
+    }
+    CopyJob with_junction{};
+    with_junction.sources = {tree};
+    with_junction.destination = safe_destination;
+    with_junction.layout = DestinationLayout::PreserveSourceFolder;
+    try {
+        const auto plan = velocitycopy::JobPlanner{}.build(with_junction);
+        const bool traversed = std::ranges::any_of(plan.files, [&](const auto& file) {
+            return file.source.filename() == L"secret.txt";
+        });
+        if (plan.files.size() != 1 || plan.failures.size() != 1 || traversed ||
+            plan.failures.front().source != junction) {
+            fs::remove(junction, ec);
+            fs::remove_all(base, ec);
+            return 8;
+        }
+    } catch (...) {
+        fs::remove(junction, ec);
+        fs::remove_all(base, ec);
+        return 9;
+    }
+    fs::remove(junction, ec);
 
     fs::remove_all(base, ec);
     std::wcout << L"VelocityCopy planner safety test passed.\n";

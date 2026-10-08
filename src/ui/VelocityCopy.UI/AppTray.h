@@ -15,6 +15,9 @@ public:
 
     bool Initialize(App* owner) noexcept;
     void Remove() noexcept;
+    // One-off informational balloon/toast from the tray icon (respects the
+    // user's quiet hours / Focus).
+    void ShowNotification(const wchar_t* title, const wchar_t* text) noexcept;
     [[nodiscard]] HWND hwnd() const noexcept { return hwnd_; }
 
 private:

@@ -50,6 +50,16 @@ public:
         const std::filesystem::path& destination,
         const CopyOptions& options,
         const ProgressCallback& progress = {}) const noexcept;
+
+    // Same-volume Move fast path: renames the file in place (MoveFileExW
+    // without MOVEFILE_COPY_ALLOWED), so no data is copied. Fails with
+    // ERROR_NOT_SAME_DEVICE across volumes; callers then fall back to
+    // copy_file + source removal. The destination parent chain is locked with
+    // the same non-reparse guard as copy_file.
+    [[nodiscard]] CopyResult rename_file(
+        const std::filesystem::path& source,
+        const std::filesystem::path& destination,
+        ExistingDestinationPolicy existing_destination) const noexcept;
 };
 
 } // namespace velocitycopy

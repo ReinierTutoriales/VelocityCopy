@@ -107,6 +107,18 @@ void AppTray::RestoreIcon() noexcept {
     }
 }
 
+void AppTray::ShowNotification(const wchar_t* title, const wchar_t* text) noexcept {
+    if (!added_ || title == nullptr || text == nullptr) return;
+    auto notification = data_;
+    // Every NIM_MODIFY restates NIF_SHOWTIP: under NOTIFYICON_VERSION_4 a
+    // modify without it switches the hover text off until the next refresh.
+    notification.uFlags = NIF_INFO | NIF_TIP | NIF_SHOWTIP;
+    notification.dwInfoFlags = NIIF_INFO | NIIF_RESPECT_QUIET_TIME;
+    wcsncpy_s(notification.szInfoTitle, title, _TRUNCATE);
+    wcsncpy_s(notification.szInfo, text, _TRUNCATE);
+    (void)Shell_NotifyIconW(NIM_MODIFY, &notification);
+}
+
 void AppTray::Remove() noexcept {
     if (added_) (void)Shell_NotifyIconW(NIM_DELETE, &data_);
     added_ = false; v4_ = false;

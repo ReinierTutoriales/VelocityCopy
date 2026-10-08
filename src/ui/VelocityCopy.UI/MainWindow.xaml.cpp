@@ -71,6 +71,17 @@ MainWindow::MainWindow() {
     ErrorBar().Closed([weak = get_weak()](InfoBar const&, InfoBarClosedEventArgs const&) {
         if (auto self = weak.get()) self->ResizeWindowToContent();
     });
+    // ShowNotice measures the InfoBar right after IsOpen(true), before its
+    // template and wrapped message have necessarily been laid out, and a later
+    // Message/Title change or Text Size change alters its height without any
+    // resize request. Re-fit whenever the open notice's real height changes so
+    // the banner is never cut off at the bottom of the fixed-size window.
+    ErrorBar().SizeChanged([weak = get_weak()](IInspectable const&, SizeChangedEventArgs const& args) {
+        if (auto self = weak.get(); self && self->ErrorBar().IsOpen() &&
+            std::abs(args.NewSize().Height - args.PreviousSize().Height) > 0.5f) {
+            self->ResizeWindowToContent(true);
+        }
+    });
     PerformanceGraph().SizeChanged([weak = get_weak()](IInspectable const&, SizeChangedEventArgs const&) {
         if (auto self = weak.get()) self->UpdatePerformanceGraph();
     });
@@ -813,6 +824,8 @@ void MainWindow::ShowNotice(
     ErrorBar().Message(message);
     ErrorBar().IsOpen(true);
     ResizeWindowToContent();
+    // A notice inside a hidden or minimized window is never seen.
+    if (severity == InfoBarSeverity::Error || severity == InfoBarSeverity::Warning) RequestAttention();
 
     auto weak = get_weak();
     (void)dispatcher_.TryEnqueue([weak]() {

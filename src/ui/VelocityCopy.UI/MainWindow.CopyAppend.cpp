@@ -120,10 +120,10 @@ void MainWindow::EnqueueAppend(
                 if (target_gate->planning_count != 0) --target_gate->planning_count;
                 target_gate->condition.notify_all();
             };
-            auto notify_failure = [weak, dispatcher, target_gate]() {
-                (void)dispatcher.TryEnqueue([weak, target_gate]() {
+            auto notify_failure = [weak, dispatcher, target_gate](const std::int32_t error_code) {
+                (void)dispatcher.TryEnqueue([weak, target_gate, error_code]() {
                     if (auto self = weak.get(); self && self->append_gate_ == target_gate) {
-                        self->ShowError();
+                        self->ShowError(FormatFailureReason(error_code));
                         self->ContinueInterruptedSessionAfterPlanning();
                     }
                 });
@@ -137,7 +137,7 @@ void MainWindow::EnqueueAppend(
                     // the compact UI must not surface a spurious error banner.
                     return;
                 }
-                notify_failure();
+                notify_failure(result.error_code);
                 return;
             }
 
@@ -170,7 +170,12 @@ void MainWindow::EnqueueAppend(
                     case velocitycopy::LivePlanAppendResult::DestinationCollision:
                     case velocitycopy::LivePlanAppendResult::SizeOverflow:
                     case velocitycopy::LivePlanAppendResult::InternalFailure:
-                        self->ShowError();
+                        // A collision means the appended items would overwrite
+                        // files already queued in this session: say so instead
+                        // of a bare "Failed" banner.
+                        self->ShowError(append_result == velocitycopy::LivePlanAppendResult::DestinationCollision
+                            ? FormatFailureReason(static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_FILE_EXISTS)))
+                            : hstring{});
                         self->ContinueInterruptedSessionAfterPlanning();
                         return;
                     }

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.28)
 
-project(VelocityCopy VERSION 1.1.0 LANGUAGES CXX)
+project(VelocityCopy VERSION 1.2.0 LANGUAGES CXX)
 
 if(NOT WIN32)
     message(FATAL_ERROR "VelocityCopy currently targets Windows only.")
@@ -26,7 +26,9 @@ add_library(velocitycopy_core STATIC
     src/core/app_storage.cpp
     src/core/copy_engine.cpp
     src/core/destination_catalog.cpp
+    src/core/destination_space.cpp
     src/core/diagnostics.cpp
+    src/core/elevation.cpp
     src/core/efficiency_coordinator.cpp
     src/core/execution_control.cpp
     src/core/ipc_protocol.cpp
@@ -34,7 +36,6 @@ add_library(velocitycopy_core STATIC
     src/core/job_executor.cpp
     src/core/job_planner.cpp
     src/core/job_planning_worker.cpp
-    src/core/job_queue.cpp
     src/core/live_copy_plan.cpp
     src/core/live_copy_plan_export.cpp
     src/core/process_activation.cpp
@@ -50,7 +51,7 @@ add_library(velocitycopy_core STATIC
 
 target_include_directories(velocitycopy_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/core/include)
 target_compile_definitions(velocitycopy_core PUBLIC UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0A00 WINVER=0x0A00)
-target_link_libraries(velocitycopy_core PUBLIC shell32 advapi32 ole32)
+target_link_libraries(velocitycopy_core PUBLIC shell32 advapi32 ole32 bcrypt user32)
 
 if(MSVC)
     target_compile_options(velocitycopy_core PRIVATE /W4 /permissive- /EHsc /utf-8)
@@ -61,7 +62,7 @@ target_link_libraries(VelocityCopyCli PRIVATE velocitycopy_core)
 
 add_executable(VelocityCopyStartupHelper src/app/startup_helper.cpp)
 target_compile_definitions(VelocityCopyStartupHelper PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
-target_link_libraries(VelocityCopyStartupHelper PRIVATE advapi32 user32)
+target_link_libraries(VelocityCopyStartupHelper PRIVATE advapi32 user32 ole32 oleaut32 shlwapi uuid)
 set_target_properties(VelocityCopyStartupHelper PROPERTIES OUTPUT_NAME "VelocityCopy.StartupHelper")
 
 add_executable(VelocityCopyBenchmark tools/benchmark.cpp)
@@ -97,8 +98,6 @@ endfunction()
 add_velocitycopy_test(VelocityCopyAppStorageTest tests/app_storage_test.cpp velocitycopy_app_storage)
 add_velocitycopy_test(VelocityCopyDiagnosticsTest tests/diagnostics_test.cpp velocitycopy_diagnostics)
 add_velocitycopy_test(VelocityCopySmokeTest tests/smoke_test.cpp velocitycopy_smoke)
-add_velocitycopy_test(VelocityCopyQueueTest tests/queue_test.cpp velocitycopy_queue)
-add_velocitycopy_test(VelocityCopyPlanEditTest tests/plan_edit_test.cpp velocitycopy_plan_edit)
 add_velocitycopy_test(VelocityCopyLivePlanTest tests/live_copy_plan_test.cpp velocitycopy_live_plan)
 add_velocitycopy_test(VelocityCopyLivePlanStructureTest tests/live_plan_structure_test.cpp velocitycopy_live_plan_structure)
 add_velocitycopy_test(VelocityCopyLivePlanSnapshotContractTest tests/live_plan_snapshot_contract_test.cpp velocitycopy_live_plan_snapshot_contract)
@@ -113,6 +112,8 @@ add_velocitycopy_test(VelocityCopyItemResultContractTest tests/item_result_contr
 add_velocitycopy_test(VelocityCopyLivePlanResolutionTest tests/live_plan_resolution_test.cpp velocitycopy_live_plan_resolution)
 add_velocitycopy_test(VelocityCopyItemFailureTest tests/job_executor_item_failure_test.cpp velocitycopy_item_failure)
 add_velocitycopy_test(VelocityCopyMoveFileRootTest tests/job_executor_move_file_root_test.cpp velocitycopy_move_file_root)
+add_velocitycopy_test(VelocityCopyElevationTest tests/elevation_test.cpp velocitycopy_elevation)
+add_velocitycopy_test(VelocityCopyKeepBothTest tests/job_executor_keep_both_test.cpp velocitycopy_keep_both)
 add_velocitycopy_test(VelocityCopySourceRemovalRecoveryTest tests/source_removal_recovery_test.cpp velocitycopy_source_removal_recovery)
 add_velocitycopy_test(VelocityCopyUiTokenArchitectureTest tests/ui_token_architecture_test.cpp velocitycopy_ui_token_architecture)
 add_velocitycopy_test(VelocityCopyTelemetryProbeTest tests/telemetry_probe_test.cpp velocitycopy_telemetry_probe)

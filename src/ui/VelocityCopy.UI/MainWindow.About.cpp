@@ -238,6 +238,32 @@ void MainWindow::ShowAboutDialog() noexcept {
         root.Children().Append(panel);
         about.Content(root);
 
+        // Size the CLIENT area (AppWindow::Resize includes the frame, which used
+        // to clip the bottom of the window) and grow the height to the measured
+        // content, so a longer translation or a larger Text Size never cuts the
+        // repository link. Re-run on Loaded, when templates and the window's own
+        // monitor scale are known.
+        const auto owner_hwnd = hwnd_;
+        auto fit_about = [about, root, owner_hwnd]() noexcept {
+            try {
+                double scale = 0.0;
+                if (const auto xaml_root = root.XamlRoot()) scale = xaml_root.RasterizationScale();
+                if (!(scale > 0.0)) {
+                    const UINT dpi = owner_hwnd != nullptr ? GetDpiForWindow(owner_hwnd) : 0;
+                    scale = static_cast<double>(dpi == 0 ? USER_DEFAULT_SCREEN_DPI : dpi) / USER_DEFAULT_SCREEN_DPI;
+                }
+                const double width = velocitycopy::ui::token_double(L"AboutWindowWidth", 388);
+                const double min_height = velocitycopy::ui::token_double(L"AboutWindowHeight", 288);
+                root.Measure(Size{static_cast<float>(width), std::numeric_limits<float>::infinity()});
+                const double height = (std::max)(min_height, static_cast<double>(root.DesiredSize().Height));
+                about.AppWindow().ResizeClient(Windows::Graphics::SizeInt32{
+                    static_cast<std::int32_t>(std::ceil(width * scale)),
+                    static_cast<std::int32_t>(std::ceil(height * scale))});
+            } catch (...) {
+            }
+        };
+        root.Loaded([fit_about](auto const&, auto const&) { fit_about(); });
+
         try {
             about.SystemBackdrop(Microsoft::UI::Xaml::Media::MicaBackdrop{});
         } catch (...) {
@@ -266,10 +292,7 @@ void MainWindow::ShowAboutDialog() noexcept {
             }
             app_window.SetIcon(velocitycopy::ui::application_icon_path());
 
-            const UINT dpi = hwnd_ != nullptr ? GetDpiForWindow(hwnd_) : USER_DEFAULT_SCREEN_DPI;
-            const int width = MulDiv(velocitycopy::ui::token_int(L"AboutWindowWidth", 388), dpi == 0 ? USER_DEFAULT_SCREEN_DPI : static_cast<int>(dpi), USER_DEFAULT_SCREEN_DPI);
-            const int height = MulDiv(velocitycopy::ui::token_int(L"AboutWindowHeight", 288), dpi == 0 ? USER_DEFAULT_SCREEN_DPI : static_cast<int>(dpi), USER_DEFAULT_SCREEN_DPI);
-            app_window.Resize(Windows::Graphics::SizeInt32{width, height});
+            fit_about();
 
             // About is an independent top-level auxiliary window. Do not attach or
             // position it relative to the compact transfer surface.
