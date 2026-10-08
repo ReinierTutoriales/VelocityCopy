@@ -23,6 +23,9 @@ VelocityCopy stabilization release.
 - Finishing setup starts VelocityCopy resident in the notification area instead of leaving its window open.
 - Removed unused code: the legacy job queue, destination catalog enumeration and copy-plan editing helpers.
 - Copying to a protected destination (C:\, C:\Windows, Program Files) asks to continue as administrator before writing anything and hands the job to an elevated instance through UAC; access-denied items in the retry dialog offer "Retry as administrator".
+- Questions and problem notices come to the front on their own: Explorer hands the foreground to VelocityCopy when it sends a copy, a minimized or tray-hidden window is restored before a decision (Windows hides owned dialogs with their owner), and the taskbar button flashes when Windows keeps the focus elsewhere.
+- The "destination/drive in use" questions use plain choices ("Add to current copy", "Copy afterwards", "Copy at the same time") and explain when copying at the same time helps.
+- The notification-area icon keeps its hover text after the setup notification.
 - Setup text is compiled as UTF-8, so accented Spanish installer messages no longer show garbled characters.
 - Decision dialogs size their client area (not the outer frame) from the dialog's own monitor scale and scroll instead of clipping; the in-window notice re-fits the window whenever its height changes.
 

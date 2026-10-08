@@ -824,6 +824,8 @@ void MainWindow::ShowNotice(
     ErrorBar().Message(message);
     ErrorBar().IsOpen(true);
     ResizeWindowToContent();
+    // A notice inside a hidden or minimized window is never seen.
+    if (severity == InfoBarSeverity::Error || severity == InfoBarSeverity::Warning) RequestAttention();
 
     auto weak = get_weak();
     (void)dispatcher_.TryEnqueue([weak]() {

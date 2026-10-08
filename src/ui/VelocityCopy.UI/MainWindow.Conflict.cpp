@@ -25,6 +25,10 @@ Windows::Foundation::IAsyncOperation<std::uint32_t> MainWindow::RequestDecisionA
         co_return velocitycopy::ui::encode_decision({velocitycopy::ui::DecisionChoice::Cancel, false});
     }
 
+    // A decision is owned by this window, and Windows hides owned windows
+    // while their owner is minimized or in the tray: bring the owner back
+    // first or the question stays invisible until the person restores it.
+    RequestAttention();
     options.owner = hwnd_;
     decision_operation_ = velocitycopy::ui::show_decision_async(std::move(options));
     const auto result = co_await velocitycopy::ui::await_decision(decision_operation_);

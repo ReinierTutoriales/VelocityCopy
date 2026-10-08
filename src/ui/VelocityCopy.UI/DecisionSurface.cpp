@@ -287,6 +287,17 @@ Windows::Foundation::IAsyncOperation<std::uint32_t> show_decision_async(Decision
     dialog.Closed([state](auto const&, auto const&) { state->complete(DecisionChoice::Cancel, false); });
     dialog.Activate();
     center_owned_window(options.owner, dialog_hwnd);
+    if (dialog_hwnd) {
+        (void)SetForegroundWindow(dialog_hwnd);
+        // Windows may still refuse the foreground (another app is in use);
+        // flash the taskbar button until the person switches here.
+        if (GetForegroundWindow() != dialog_hwnd) {
+            FLASHWINFO flash{sizeof(flash)};
+            flash.hwnd = options.owner ? options.owner : dialog_hwnd;
+            flash.dwFlags = FLASHW_ALL | FLASHW_TIMERNOFG;
+            (void)FlashWindowEx(&flash);
+        }
+    }
 
     co_await resume_on_signal(state->event.get());
     co_await ui_context;

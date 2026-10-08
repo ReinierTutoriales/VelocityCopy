@@ -396,6 +396,14 @@ IpcSendResult send_shell_request(
         if (!pipe.valid()) {
             return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(GetLastError()))};
         }
+        // The sender (Explorer after a paste or drop, or a second launch) owns
+        // the foreground; VelocityCopy runs in the background. Without this
+        // grant Windows blocks its window or decision from coming to the
+        // front and only flashes the taskbar button.
+        ULONG server_process = 0;
+        if (GetNamedPipeServerProcessId(pipe.get(), &server_process) && server_process != 0) {
+            (void)AllowSetForegroundWindow(server_process);
+        }
 
         const auto payload_size = static_cast<std::uint32_t>(payload->size());
         std::vector<std::uint8_t> frame(sizeof(payload_size) + payload->size());

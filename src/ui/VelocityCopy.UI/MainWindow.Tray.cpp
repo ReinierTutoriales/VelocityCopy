@@ -163,6 +163,20 @@ void MainWindow::ShowFromTray() {
     RefreshEfficiencyMode();
 }
 
+void MainWindow::RequestAttention() noexcept {
+    if (tray_exit_requested_ || session_ending_ || hwnd_ == nullptr) return;
+    try {
+        if (!IsWindowVisible(hwnd_) || IsIconic(hwnd_)) ShowFromTray();
+    } catch (...) {
+    }
+    if (hwnd_ != nullptr && GetForegroundWindow() != hwnd_) {
+        FLASHWINFO flash{sizeof(flash)};
+        flash.hwnd = hwnd_;
+        flash.dwFlags = FLASHW_ALL | FLASHW_TIMERNOFG;
+        (void)FlashWindowEx(&flash);
+    }
+}
+
 void MainWindow::ShowRequestError() {
     ShowFromTray();
     ShowError();

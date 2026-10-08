@@ -45,6 +45,9 @@ struct MainWindow : MainWindowT<MainWindow> {
     ~MainWindow();
 
     void ShowFromTray();
+    // Brings a hidden or minimized window back and flashes its taskbar
+    // button when Windows keeps the foreground elsewhere.
+    void RequestAttention() noexcept;
     void OfferRecoveryIfIdle();
     void ShowRequestError();
     void RequestAppExit() noexcept;
