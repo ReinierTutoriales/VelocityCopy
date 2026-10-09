@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.2.2 — Unreleased
+## 1.2.2 — 2026-10-09
 
 - Cleaner, more compact window: a Skip button sits between Pause and Cancel; Skip is no longer in the Options menu (Stop stays there because it keeps the queue for later, unlike Pause).
 - Details show two sections instead of three: Queue and Information. The speed graph moved, smaller, into Information (the separate Performance card is gone), and the expanded window is 640 instead of 880 pixels wide.
