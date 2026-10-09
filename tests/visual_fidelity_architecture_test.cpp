@@ -74,8 +74,8 @@ int main() {
     }
 
     if (!contains(tokens, "SectionHeaderPadding") ||
-        count_occurrences(xaml, "BorderThickness=\"0,0,0,1\"") < 3 ||
-        count_occurrences(xaml, "Padding=\"{StaticResource SectionHeaderPadding}\"") < 3) {
+        count_occurrences(xaml, "BorderThickness=\"0,0,0,1\"") < 2 ||
+        count_occurrences(xaml, "Padding=\"{StaticResource SectionHeaderPadding}\"") < 2) {
         return fail(7, "expanded cards must separate headers from content with the shared themed divider");
     }
 
@@ -139,7 +139,9 @@ int main() {
 
     if (!contains(xaml, "x:Name=\"OptionsIcon\"") ||
         !contains(xaml, "x:Name=\"DetailsChevronIcon\"") ||
-        count_occurrences(xaml, "x:Key=\"ButtonForegroundPointerOver\" ResourceKey=\"TextFillColorPrimaryBrush\"") < 5) {
+        count_occurrences(xaml, "x:Key=\"ButtonForegroundPointerOver\" ResourceKey=\"TextFillColorPrimaryBrush\"") < 4 ||
+        // Cancel and the queue trash are the only critical hovers.
+        count_occurrences(xaml, "<StaticResource x:Key=\"ButtonForegroundPointerOver\" ResourceKey=\"SystemFillColorCriticalBrush\" />") != 2) {
         return fail(14, "secondary commands must stay subordinate while retaining native interaction states");
     }
 

@@ -35,7 +35,7 @@
   <data name="DialogRememberChoice" xml:space="preserve"><value>Remember my choice</value></data>
   <data name="ActionMoveUp" xml:space="preserve"><value>Move up</value></data>
   <data name="ActionMoveDown" xml:space="preserve"><value>Move down</value></data>
-  <data name="ActionRemove" xml:space="preserve"><value>Remove</value></data>
+  <data name="ActionRemove" xml:space="preserve"><value>Remove from queue (files are not deleted)</value></data>
   <data name="ActionSaveQueue" xml:space="preserve"><value>Save queue</value></data>
   <data name="ActionLoadQueue" xml:space="preserve"><value>Load queue</value></data>
   <data name="ActionQueueOptions" xml:space="preserve"><value>Options</value></data>

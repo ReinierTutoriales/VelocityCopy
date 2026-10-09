@@ -236,6 +236,21 @@ LRESULT CALLBACK MainWindow::TraySubclassProc(
         }
         break;
 
+    case WM_SIZE:
+        // Restoring one copy from the taskbar brings the other minimized
+        // copies back too, so simultaneous transfers are seen together.
+        if (wparam == SIZE_MINIMIZED) {
+            self->taskbar_minimized_ = true;
+        } else if (std::exchange(self->taskbar_minimized_, false) && self->HasActiveTransfer()) {
+            auto weak = self->get_weak();
+            (void)self->dispatcher_.TryEnqueue([weak]() {
+                if (auto window = weak.get()) {
+                    if (auto* app = App::Instance()) app->RestoreMinimizedTransfers(window->window_id_);
+                }
+            });
+        }
+        break;
+
     case WM_CLOSE:
         if (!self->tray_exit_requested_) {
             if (self->HasActiveTransfer()) {
