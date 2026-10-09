@@ -15,6 +15,10 @@
 namespace winrt::VelocityCopyUI::implementation {
 namespace {
 
+// CLSID_DragDropHelper; spelled out because the shell headers only declare it
+// in the full (non-LEAN) shobjidl.h and it would otherwise need uuid.lib.
+constexpr CLSID kDragDropHelper{0x4657278A, 0x411B, 0x11D2, {0x83, 0x9A, 0x00, 0xC0, 0x4F, 0xD9, 0x18, 0xD0}};
+
 std::vector<std::filesystem::path> dropped_paths(IDataObject* data) {
     std::vector<std::filesystem::path> paths;
     if (data == nullptr) return paths;
@@ -48,7 +52,7 @@ bool has_files(IDataObject* data) {
 struct CaptionDropTarget : winrt::implements<CaptionDropTarget, ::IDropTarget> {
     CaptionDropTarget(winrt::weak_ref<MainWindow> owner, HWND hwnd) : owner_(std::move(owner)), hwnd_(hwnd) {
         // Explorer's drag image follows the pointer over the title bar too.
-        (void)CoCreateInstance(__uuidof(DragDropHelper), nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(helper_.put()));
+        (void)CoCreateInstance(kDragDropHelper, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(helper_.put()));
     }
 
     HRESULT __stdcall DragEnter(IDataObject* data, DWORD, POINTL point, DWORD* effect) noexcept override {
