@@ -20,4 +20,3 @@ VelocityCopy keeps its visual layer replaceable and lightweight.
 - Source/destination tooltips mutate only when their displayed path changes. Inactive live telemetry is cleared in both normal and expanded views.
 - Async external drops capture gate/destination/operation before reading StorageItems and revalidate after suspension. A retired/cancelled session cannot redirect a pending drop into its replacement.
 
-See [UI audit and Microsoft references](UI_AUDIT_20261005.md).
