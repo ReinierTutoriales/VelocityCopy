@@ -489,6 +489,34 @@ void App::ShowPrimaryWindowError() noexcept {
     }
 }
 
+void App::RestoreMinimizedTransfers(const std::uint64_t restored_window_id) noexcept {
+    if (restoring_transfers_) return;
+    restoring_transfers_ = true;
+    HWND restored{};
+    try {
+        for (auto& [id, window] : windows_) {
+            auto main_window = window.try_as<VelocityCopyUI::MainWindow>();
+            auto* implementation = main_window ? get_self<MainWindow>(main_window) : nullptr;
+            if (implementation == nullptr) continue;
+            const HWND hwnd = implementation->NativeOwner();
+            if (id == restored_window_id) {
+                restored = hwnd;
+                continue;
+            }
+            // Only copies the person minimized; windows hidden to the tray
+            // stay there until the tray icon is used.
+            if (hwnd != nullptr && implementation->HasActiveTransfer() && IsWindowVisible(hwnd) && IsIconic(hwnd)) {
+                ShowWindow(hwnd, SW_SHOWNOACTIVATE);
+            }
+        }
+        if (restored != nullptr) {
+            SetWindowPos(restored, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        }
+    } catch (...) {
+    }
+    restoring_transfers_ = false;
+}
+
 void App::ShowPrimaryWindow() {
     velocitycopy::log_diagnostic(
         L"tray: show primary pid=" + std::to_wstring(GetCurrentProcessId()) +

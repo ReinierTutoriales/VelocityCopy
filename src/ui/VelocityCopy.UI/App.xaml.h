@@ -28,6 +28,9 @@ struct App : AppT<App> {
     std::uint64_t NextWindowId() noexcept;
     void ShowPrimaryWindow();
     void ShowPrimaryWindowError() noexcept;
+    // A copy window came back from the taskbar: the other minimized copies
+    // come back with it, without taking the focus from it.
+    void RestoreMinimizedTransfers(std::uint64_t restored_window_id) noexcept;
     void ExitFromTray() noexcept;
     // Windows notification from the tray icon (no-op without one).
     void ShowTrayNotification(const wchar_t* title, const wchar_t* text) noexcept { tray_.ShowNotification(title, text); }
@@ -52,6 +55,7 @@ private:
     velocitycopy::ShellSession shell_session_;
     velocitycopy::RoutePreferences route_preferences_;
     bool request_in_flight_{};
+    bool restoring_transfers_{};
     bool recovery_files_initialized_{};
     bool elevated_handoff_{};
     AppTray tray_;
