@@ -69,6 +69,8 @@ void MainWindow::InitializeTrayIntegration() {
         // taskbar representation of individual transfer windows.
         try { AppWindow().IsShownInSwitchers(true); } catch (...) {}
 
+        RegisterCaptionDropTarget();
+
         tray_window_hidden_ = IsWindowVisible(hwnd_) == FALSE;
         RefreshEfficiencyMode();
     } catch (...) { RemoveTrayIntegration(); }
@@ -78,6 +80,7 @@ void MainWindow::RemoveTrayIntegration() noexcept {
     if (window_id_ != 0) {
         if (auto* app = App::Instance()) app->RemoveEfficiencyVote(window_id_);
     }
+    RevokeCaptionDropTarget();
     if (hwnd_ != nullptr) (void)RemoveWindowSubclass(hwnd_, &MainWindow::TraySubclassProc, kTraySubclassId);
     hwnd_ = nullptr;
 }

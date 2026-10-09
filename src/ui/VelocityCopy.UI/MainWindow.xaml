@@ -93,16 +93,12 @@
                     </Grid>
 
                     <Grid x:Name="TransferDetailGrid" Grid.Row="1" Margin="{StaticResource TransferDetailMargin}">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <FontIcon x:Name="CurrentItemIcon"
-                                  Grid.RowSpan="2"
                                   Glyph="&#xE8A5;"
                                   FontSize="{StaticResource TransferItemIconSize}"
                                   Style="{StaticResource AccentIconStyle}"
@@ -112,14 +108,15 @@
                                   AutomationProperties.AccessibilityView="Raw" />
                         <TextBlock x:Name="TransferBytesText"
                                    Grid.Column="1"
+                                   VerticalAlignment="Center"
                                    FontSize="{StaticResource BodyFontSize}"
                                    FontWeight="SemiBold"
                                    TextTrimming="CharacterEllipsis"
                                    MaxLines="1" />
                         <TextBlock x:Name="TransferFilesText"
-                                   Grid.Row="1"
-                                   Grid.Column="1"
+                                   Grid.Column="2"
                                    Margin="{StaticResource TransferFilesMargin}"
+                                   VerticalAlignment="Center"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                    FontSize="{StaticResource CaptionFontSize}"
                                    TextTrimming="CharacterEllipsis"
@@ -220,6 +217,14 @@
                                         VerticalAlignment="Stretch"
                                         Padding="0">
                                     <Button.Resources>
+                                        <StaticResource x:Key="ButtonBackground" ResourceKey="SubtleFillColorTransparentBrush" />
+                                        <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="SubtleFillColorSecondaryBrush" />
+                                        <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="SubtleFillColorTertiaryBrush" />
+                                        <StaticResource x:Key="ButtonBackgroundDisabled" ResourceKey="SubtleFillColorTransparentBrush" />
+                                        <StaticResource x:Key="ButtonBorderBrush" ResourceKey="SubtleFillColorTransparentBrush" />
+                                        <StaticResource x:Key="ButtonBorderBrushPointerOver" ResourceKey="SubtleFillColorTransparentBrush" />
+                                        <StaticResource x:Key="ButtonBorderBrushPressed" ResourceKey="SubtleFillColorTransparentBrush" />
+                                        <StaticResource x:Key="ButtonBorderBrushDisabled" ResourceKey="SubtleFillColorTransparentBrush" />
                                         <StaticResource x:Key="ButtonForeground" ResourceKey="AccentFillColorDefaultBrush" />
                                         <StaticResource x:Key="ButtonForegroundPointerOver" ResourceKey="AccentFillColorSecondaryBrush" />
                                         <StaticResource x:Key="ButtonForegroundPressed" ResourceKey="AccentFillColorTertiaryBrush" />
@@ -243,6 +248,14 @@
                                         VerticalAlignment="Stretch"
                                         Padding="0">
                                     <Button.Resources>
+                                        <StaticResource x:Key="ButtonBackground" ResourceKey="SubtleFillColorTransparentBrush" />
+                                        <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="SubtleFillColorSecondaryBrush" />
+                                        <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="SubtleFillColorTertiaryBrush" />
+                                        <StaticResource x:Key="ButtonBackgroundDisabled" ResourceKey="SubtleFillColorTransparentBrush" />
+                                        <StaticResource x:Key="ButtonBorderBrush" ResourceKey="SubtleFillColorTransparentBrush" />
+                                        <StaticResource x:Key="ButtonBorderBrushPointerOver" ResourceKey="SubtleFillColorTransparentBrush" />
+                                        <StaticResource x:Key="ButtonBorderBrushPressed" ResourceKey="SubtleFillColorTransparentBrush" />
+                                        <StaticResource x:Key="ButtonBorderBrushDisabled" ResourceKey="SubtleFillColorTransparentBrush" />
                                         <StaticResource x:Key="ButtonForeground" ResourceKey="TextFillColorPrimaryBrush" />
                                         <StaticResource x:Key="ButtonForegroundPointerOver" ResourceKey="AccentFillColorSecondaryBrush" />
                                         <StaticResource x:Key="ButtonForegroundPressed" ResourceKey="AccentFillColorTertiaryBrush" />
@@ -265,6 +278,14 @@
                                         VerticalAlignment="Stretch"
                                         Padding="0">
                                     <Button.Resources>
+                                        <StaticResource x:Key="ButtonBackground" ResourceKey="SubtleFillColorTransparentBrush" />
+                                        <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="SubtleFillColorSecondaryBrush" />
+                                        <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="SubtleFillColorTertiaryBrush" />
+                                        <StaticResource x:Key="ButtonBackgroundDisabled" ResourceKey="SubtleFillColorTransparentBrush" />
+                                        <StaticResource x:Key="ButtonBorderBrush" ResourceKey="SubtleFillColorTransparentBrush" />
+                                        <StaticResource x:Key="ButtonBorderBrushPointerOver" ResourceKey="SubtleFillColorTransparentBrush" />
+                                        <StaticResource x:Key="ButtonBorderBrushPressed" ResourceKey="SubtleFillColorTransparentBrush" />
+                                        <StaticResource x:Key="ButtonBorderBrushDisabled" ResourceKey="SubtleFillColorTransparentBrush" />
                                         <StaticResource x:Key="ButtonForeground" ResourceKey="SystemFillColorCriticalBrush" />
                                         <StaticResource x:Key="ButtonForegroundPointerOver" ResourceKey="SystemFillColorCriticalBrush" />
                                         <StaticResource x:Key="ButtonForegroundPressed" ResourceKey="SystemFillColorCriticalBrush" />
@@ -282,6 +303,14 @@
                                     Height="{StaticResource ActionButtonSize}"
                                     Padding="0">
                                 <Button.Resources>
+                                    <StaticResource x:Key="ButtonBackground" ResourceKey="SubtleFillColorTransparentBrush" />
+                                    <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="SubtleFillColorSecondaryBrush" />
+                                    <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="SubtleFillColorTertiaryBrush" />
+                                    <StaticResource x:Key="ButtonBackgroundDisabled" ResourceKey="SubtleFillColorTransparentBrush" />
+                                    <StaticResource x:Key="ButtonBorderBrush" ResourceKey="SubtleFillColorTransparentBrush" />
+                                    <StaticResource x:Key="ButtonBorderBrushPointerOver" ResourceKey="SubtleFillColorTransparentBrush" />
+                                    <StaticResource x:Key="ButtonBorderBrushPressed" ResourceKey="SubtleFillColorTransparentBrush" />
+                                    <StaticResource x:Key="ButtonBorderBrushDisabled" ResourceKey="SubtleFillColorTransparentBrush" />
                                     <StaticResource x:Key="ButtonForeground" ResourceKey="TextFillColorSecondaryBrush" />
                                     <StaticResource x:Key="ButtonForegroundPointerOver" ResourceKey="TextFillColorPrimaryBrush" />
                                     <StaticResource x:Key="ButtonForegroundPressed" ResourceKey="TextFillColorSecondaryBrush" />
@@ -300,6 +329,14 @@
                                 Height="{StaticResource ActionButtonSize}"
                                 HorizontalAlignment="Right">
                             <Button.Resources>
+                                <StaticResource x:Key="ButtonBackground" ResourceKey="SubtleFillColorTransparentBrush" />
+                                <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="SubtleFillColorSecondaryBrush" />
+                                <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="SubtleFillColorTertiaryBrush" />
+                                <StaticResource x:Key="ButtonBackgroundDisabled" ResourceKey="SubtleFillColorTransparentBrush" />
+                                <StaticResource x:Key="ButtonBorderBrush" ResourceKey="SubtleFillColorTransparentBrush" />
+                                <StaticResource x:Key="ButtonBorderBrushPointerOver" ResourceKey="SubtleFillColorTransparentBrush" />
+                                <StaticResource x:Key="ButtonBorderBrushPressed" ResourceKey="SubtleFillColorTransparentBrush" />
+                                <StaticResource x:Key="ButtonBorderBrushDisabled" ResourceKey="SubtleFillColorTransparentBrush" />
                                 <StaticResource x:Key="ButtonForeground" ResourceKey="TextFillColorSecondaryBrush" />
                                 <StaticResource x:Key="ButtonForegroundPointerOver" ResourceKey="TextFillColorPrimaryBrush" />
                                 <StaticResource x:Key="ButtonForegroundPressed" ResourceKey="TextFillColorSecondaryBrush" />

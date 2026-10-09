@@ -63,6 +63,9 @@ struct MainWindow : MainWindowT<MainWindow> {
     [[nodiscard]] std::optional<velocitycopy::ActiveSession> SessionSnapshot();
     [[nodiscard]] bool IsVisibleForRouting() const noexcept;
     [[nodiscard]] HWND NativeOwner() const noexcept { return hwnd_; }
+    // Files dropped on the title bar (a non-client region XAML never sees).
+    [[nodiscard]] bool AcceptsDroppedSources() const noexcept;
+    bool AppendDroppedSources(std::vector<std::filesystem::path> sources);
     void MoveNativeWindow(int x, int y) noexcept;
     winrt::Windows::Foundation::IAsyncOperation<std::uint32_t> RequestDecisionAsync(velocitycopy::ui::DecisionOptions options);
     void OnDragEnter(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
@@ -179,6 +182,8 @@ private:
     void ConfigureQueuePersistenceMenu();
     void InitializeTrayIntegration();
     void RemoveTrayIntegration() noexcept;
+    void RegisterCaptionDropTarget() noexcept;
+    void RevokeCaptionDropTarget() noexcept;
     void HideToTray() noexcept;
     void CancelAndCloseWindow() noexcept;
     void DestroyCompletedWindow() noexcept;
@@ -361,6 +366,7 @@ private:
     velocitycopy::ui::PerformanceScaleState performance_scale_state_{};
     PendingResume pending_resume_{};
     HWND hwnd_{};
+    winrt::com_ptr<::IUnknown> caption_drop_target_;
     bool tray_exit_requested_{};
     bool tray_window_hidden_{};
     bool taskbar_minimized_{};

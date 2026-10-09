@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Files can be dropped anywhere on the title bar (logo, file name and the empty band up to the window buttons), not only on the window body.
+- Pause, Skip, Cancel, Options and Details are Windows 11 subtle buttons: no frame or fill until the pointer is over them.
+- More compact window: the transferred size and the file count share one line, and the spacing between rows is tighter.
+
 ## 1.2.2 — 2026-10-09
 
 - Cleaner, more compact window: a Skip button sits between Pause and Cancel; Skip is no longer in the Options menu (Stop stays there because it keeps the queue for later, unlike Pause).
