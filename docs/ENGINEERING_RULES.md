@@ -148,7 +148,6 @@ Documentation authority for active work:
 3. `docs/UI_SPEC.md` + `docs/UI_ARCHITECTURE.md`
 4. `docs/SYSTEM_INTEGRATION.md` + `docs/EXPLORER_INTEGRATION.md` + `docs/IPC.md`
 5. `docs/RELEASE_GATES.md`
-6. `docs/PRETEST_AUDIT.md`
 
 ### Regression lesson: structural UI deletion must include the linked WinUI surface
 
