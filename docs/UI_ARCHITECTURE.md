@@ -19,5 +19,3 @@ VelocityCopy keeps its visual layer replaceable and lightweight.
 - RefreshQueue does not enumerate or create queue items while Details is collapsed. Existing lightweight items/selection can remain retained between disclosure toggles; the next expansion refreshes from the authoritative plan.
 - Source/destination tooltips mutate only when their displayed path changes. Inactive live telemetry is cleared in both normal and expanded views.
 - Async external drops capture gate/destination/operation before reading StorageItems and revalidate after suspension. A retired/cancelled session cannot redirect a pending drop into its replacement.
-
-See [UI audit and Microsoft references](UI_AUDIT_20261005.md).
