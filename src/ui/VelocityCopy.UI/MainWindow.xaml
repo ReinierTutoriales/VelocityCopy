@@ -403,8 +403,8 @@
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <Grid x:Name="QueueMoveUpButtonHost"
-                                              Width="{StaticResource ActionButtonSize}"
-                                              Height="{StaticResource ActionButtonSize}"
+                                              Width="{StaticResource QueueCommandSize}"
+                                              Height="{StaticResource QueueCommandSize}"
                                               Margin="{StaticResource QueueCommandGapMargin}"
                                               Background="Transparent">
                                             <Button x:Name="QueueMoveUpButton"
@@ -413,18 +413,26 @@
                                                     VerticalAlignment="Stretch"
                                                     Padding="0">
                                             <Button.Resources>
+                                                <StaticResource x:Key="ButtonBackground" ResourceKey="SubtleFillColorTransparentBrush" />
+                                                <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="SubtleFillColorSecondaryBrush" />
+                                                <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="SubtleFillColorTertiaryBrush" />
+                                                <StaticResource x:Key="ButtonBackgroundDisabled" ResourceKey="SubtleFillColorTransparentBrush" />
+                                                <StaticResource x:Key="ButtonBorderBrush" ResourceKey="SubtleFillColorTransparentBrush" />
+                                                <StaticResource x:Key="ButtonBorderBrushPointerOver" ResourceKey="SubtleFillColorTransparentBrush" />
+                                                <StaticResource x:Key="ButtonBorderBrushPressed" ResourceKey="SubtleFillColorTransparentBrush" />
+                                                <StaticResource x:Key="ButtonBorderBrushDisabled" ResourceKey="SubtleFillColorTransparentBrush" />
                                                 <StaticResource x:Key="ButtonForeground" ResourceKey="TextFillColorSecondaryBrush" />
                                                 <StaticResource x:Key="ButtonForegroundPointerOver" ResourceKey="TextFillColorPrimaryBrush" />
                                                 <StaticResource x:Key="ButtonForegroundPressed" ResourceKey="TextFillColorSecondaryBrush" />
                                                 <StaticResource x:Key="ButtonForegroundDisabled" ResourceKey="TextFillColorDisabledBrush" />
                                             </Button.Resources>
-                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74A;" FontSize="{StaticResource ActionIconSize}" />
+                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE96D;" FontSize="{StaticResource QueueCommandIconSize}" />
                                             </Button>
                                         </Grid>
                                         <Grid x:Name="QueueMoveDownButtonHost"
                                               Grid.Column="1"
-                                              Width="{StaticResource ActionButtonSize}"
-                                              Height="{StaticResource ActionButtonSize}"
+                                              Width="{StaticResource QueueCommandSize}"
+                                              Height="{StaticResource QueueCommandSize}"
                                               Margin="{StaticResource QueueCommandGapMargin}"
                                               Background="Transparent">
                                             <Button x:Name="QueueMoveDownButton"
@@ -433,18 +441,26 @@
                                                     VerticalAlignment="Stretch"
                                                     Padding="0">
                                             <Button.Resources>
+                                                <StaticResource x:Key="ButtonBackground" ResourceKey="SubtleFillColorTransparentBrush" />
+                                                <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="SubtleFillColorSecondaryBrush" />
+                                                <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="SubtleFillColorTertiaryBrush" />
+                                                <StaticResource x:Key="ButtonBackgroundDisabled" ResourceKey="SubtleFillColorTransparentBrush" />
+                                                <StaticResource x:Key="ButtonBorderBrush" ResourceKey="SubtleFillColorTransparentBrush" />
+                                                <StaticResource x:Key="ButtonBorderBrushPointerOver" ResourceKey="SubtleFillColorTransparentBrush" />
+                                                <StaticResource x:Key="ButtonBorderBrushPressed" ResourceKey="SubtleFillColorTransparentBrush" />
+                                                <StaticResource x:Key="ButtonBorderBrushDisabled" ResourceKey="SubtleFillColorTransparentBrush" />
                                                 <StaticResource x:Key="ButtonForeground" ResourceKey="TextFillColorSecondaryBrush" />
                                                 <StaticResource x:Key="ButtonForegroundPointerOver" ResourceKey="TextFillColorPrimaryBrush" />
                                                 <StaticResource x:Key="ButtonForegroundPressed" ResourceKey="TextFillColorSecondaryBrush" />
                                                 <StaticResource x:Key="ButtonForegroundDisabled" ResourceKey="TextFillColorDisabledBrush" />
                                             </Button.Resources>
-                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74B;" FontSize="{StaticResource ActionIconSize}" />
+                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE96E;" FontSize="{StaticResource QueueCommandIconSize}" />
                                             </Button>
                                         </Grid>
                                         <Grid x:Name="QueueRemoveButtonHost"
                                               Grid.Column="2"
-                                              Width="{StaticResource ActionButtonSize}"
-                                              Height="{StaticResource ActionButtonSize}"
+                                              Width="{StaticResource QueueCommandSize}"
+                                              Height="{StaticResource QueueCommandSize}"
                                               Background="Transparent">
                                             <Button x:Name="QueueRemoveButton"
                                                     Click="OnQueueRemoveClick"
@@ -452,12 +468,20 @@
                                                     VerticalAlignment="Stretch"
                                                     Padding="0">
                                             <Button.Resources>
+                                                <StaticResource x:Key="ButtonBackground" ResourceKey="SubtleFillColorTransparentBrush" />
+                                                <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="SubtleFillColorSecondaryBrush" />
+                                                <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="SubtleFillColorTertiaryBrush" />
+                                                <StaticResource x:Key="ButtonBackgroundDisabled" ResourceKey="SubtleFillColorTransparentBrush" />
+                                                <StaticResource x:Key="ButtonBorderBrush" ResourceKey="SubtleFillColorTransparentBrush" />
+                                                <StaticResource x:Key="ButtonBorderBrushPointerOver" ResourceKey="SubtleFillColorTransparentBrush" />
+                                                <StaticResource x:Key="ButtonBorderBrushPressed" ResourceKey="SubtleFillColorTransparentBrush" />
+                                                <StaticResource x:Key="ButtonBorderBrushDisabled" ResourceKey="SubtleFillColorTransparentBrush" />
                                                 <StaticResource x:Key="ButtonForeground" ResourceKey="TextFillColorSecondaryBrush" />
-                                                <StaticResource x:Key="ButtonForegroundPointerOver" ResourceKey="TextFillColorPrimaryBrush" />
+                                                <StaticResource x:Key="ButtonForegroundPointerOver" ResourceKey="SystemFillColorCriticalBrush" />
                                                 <StaticResource x:Key="ButtonForegroundPressed" ResourceKey="TextFillColorSecondaryBrush" />
                                                 <StaticResource x:Key="ButtonForegroundDisabled" ResourceKey="TextFillColorDisabledBrush" />
                                             </Button.Resources>
-                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE738;" FontSize="{StaticResource ActionIconSize}" />
+                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74D;" FontSize="{StaticResource QueueCommandIconSize}" />
                                             </Button>
                                         </Grid>
                                     </Grid>

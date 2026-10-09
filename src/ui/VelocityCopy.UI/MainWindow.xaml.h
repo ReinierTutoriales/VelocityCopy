@@ -363,6 +363,7 @@ private:
     HWND hwnd_{};
     bool tray_exit_requested_{};
     bool tray_window_hidden_{};
+    bool taskbar_minimized_{};
     bool session_ending_{};
     std::jthread copy_thread_;
 };

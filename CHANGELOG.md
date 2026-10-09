@@ -5,6 +5,8 @@
 - Cleaner, more compact window: a Skip button sits between Pause and Cancel; Skip is no longer in the Options menu (Stop stays there because it keeps the queue for later, unlike Pause).
 - Details show two sections instead of three: Queue and Information. The speed graph moved, smaller, into Information (the separate Performance card is gone), and the expanded window is 640 instead of 880 pixels wide.
 - The window uses the same translucent Windows 11 material as the system menus (acrylic) instead of the flat Mica background.
+- Queue edit commands are smaller Windows 11 toolbar buttons (no frame until hovered): fine chevrons to move items up and down, and a trash icon that turns red on hover. Its tooltip, "Remove from queue (files are not deleted)", says that no file is deleted.
+- Restoring one copy from the taskbar brings back every other copy that is still running and minimized, so two simultaneous copies are seen together. The clicked window stays in front.
 
 ## 1.2.1 — 2026-10-08
 

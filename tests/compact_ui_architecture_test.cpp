@@ -140,9 +140,10 @@ int main() {
         return fail(4, "Skip must sit between Pause and Cancel with dynamic enablement; Stop stays an Options command");
     }
 
-    // Iconography: one glyph, one meaning. Disclosure owns the chevrons; queue
-    // reordering uses arrows; removing a queue entry must not read as deleting a
-    // file; Cancel must not reuse the window-close X.
+    // Iconography: one glyph, one meaning. Disclosure owns the full chevrons;
+    // queue reordering uses the small chevrons; removing a queue entry uses the
+    // trash glyph only on the Queue header, and its tooltip says no file is
+    // deleted; Cancel must not reuse the window-close X.
     const auto glyph_of = [&](const std::string& button) {
         const auto start = xaml.find("x:Name=\"" + button + "\"");
         if (start == std::string::npos) return std::string{};
@@ -152,11 +153,15 @@ int main() {
         return glyph == std::string::npos ? std::string{} : element.substr(glyph + 7, 8);
     };
     if (
-        glyph_of("QueueMoveUpButton") != "&#xE74A;" ||
-        glyph_of("QueueMoveDownButton") != "&#xE74B;" ||
-        glyph_of("QueueRemoveButton") != "&#xE738;" ||
+        glyph_of("QueueMoveUpButton") != "&#xE96D;" ||
+        glyph_of("QueueMoveDownButton") != "&#xE96E;" ||
+        glyph_of("QueueRemoveButton") != "&#xE74D;" ||
         glyph_of("CancelButton") != "&#xE71A;" ||
-        contains(xaml, "&#xE74D;") || contains(xaml, "&#xE711;") || contains(xaml, "&#xE8BB;")) {
+        count_occurrences(xaml, "&#xE74D;") != 1 ||
+        !contains(read_source(root / "src/ui/Strings/es-ES/Resources.resw"),
+                  "<data name=\"ActionRemove\" xml:space=\"preserve\"><value>Quitar de la cola (no borra archivos)</value>") ||
+        contains(xaml, "&#xE74A;") || contains(xaml, "&#xE74B;") ||
+        contains(xaml, "&#xE711;") || contains(xaml, "&#xE8BB;")) {
         return fail(16, "action glyphs must be unambiguous and match their command semantics");
     }
 
@@ -320,6 +325,9 @@ int main() {
         contains(body_of(xaml, "<Button x:Name=\"QueueMoveUpButton\""), "BorderThickness=\"0\"") ||
         contains(body_of(xaml, "<Button x:Name=\"QueueMoveDownButton\""), "BorderThickness=\"0\"") ||
         contains(body_of(xaml, "<Button x:Name=\"QueueRemoveButton\""), "BorderThickness=\"0\"") ||
+        count_occurrences(xaml, "<StaticResource x:Key=\"ButtonBackground\" ResourceKey=\"SubtleFillColorTransparentBrush\" />") != 3 ||
+        count_occurrences(xaml, "Height=\"{StaticResource QueueCommandSize}\"") != 3 ||
+        !contains(tokens, "<x:Double x:Key=\"QueueCommandSize\">28</x:Double>") ||
         !contains(window, "ToolTipService::SetToolTip(PauseButtonHost()") ||
         !contains(window, "ToolTipService::SetToolTip(CancelButtonHost()") ||
         contains(window, "ToolTipService::SetToolTip(PauseButton()") ||
@@ -598,6 +606,24 @@ int main() {
         !contains(execution, "performance_sampling_state_ = PerformanceSamplingState::Paused") ||
         !contains(execution, "performance_sampling_state_ = PerformanceSamplingState::Copying")) {
         return fail(45, "phase 2 sampling and expanded presentation contracts must remain bounded, presentation-only, and separate from Queue execution semantics");
+    }
+
+    // Two simultaneous copies minimized to the taskbar come back together:
+    // restoring one restores the other busy, minimized (not tray-hidden)
+    // copies without activation, and the clicked one stays on top.
+    {
+        const auto tray = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Tray.cpp");
+        const auto app = read_source(root / "src/ui/VelocityCopy.UI/App.xaml.cpp");
+        const auto restore = body_of(app, "void App::RestoreMinimizedTransfers(");
+        if (!contains(tray, "case WM_SIZE:") || !contains(tray, "wparam == SIZE_MINIMIZED") ||
+            !contains(tray, "std::exchange(self->taskbar_minimized_, false)") ||
+            !contains(tray, "app->RestoreMinimizedTransfers(window->window_id_)") ||
+            !contains(restore, "if (restoring_transfers_) return;") ||
+            !contains(restore, "HasActiveTransfer() && IsWindowVisible(hwnd) && IsIconic(hwnd)") ||
+            !contains(restore, "ShowWindow(hwnd, SW_SHOWNOACTIVATE)") ||
+            !contains(restore, "SWP_NOACTIVATE")) {
+            return fail(50, "restoring one copy from the taskbar must restore the other minimized copies");
+        }
     }
 
     return 0;
