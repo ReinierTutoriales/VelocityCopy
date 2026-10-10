@@ -152,14 +152,20 @@ void query_device_number(const std::filesystem::path& volume_root, StorageProfil
 }
 
 void query_seek_penalty(const std::filesystem::path& volume_root, StorageProfile& profile) {
-    const auto root = volume_root.wstring();
-    if (root.size() < 2 || root[1] != L':') {
+    // Same volume GUID path as query_device_number: a disk mounted in a folder
+    // (C:\mnt\hdd\) must be probed itself, not the drive that holds the folder.
+    std::array<wchar_t, 64> volume_name{};
+    if (GetVolumeNameForVolumeMountPointW(
+            volume_root.c_str(),
+            volume_name.data(),
+            static_cast<DWORD>(volume_name.size())) == 0) {
         return;
     }
 
-    std::wstring device_path = L"\\\\.\\";
-    device_path.push_back(root[0]);
-    device_path.push_back(L':');
+    std::wstring device_path = volume_name.data();
+    if (!device_path.empty() && device_path.back() == L'\\') {
+        device_path.pop_back();
+    }
 
     const HANDLE volume = CreateFileW(
         device_path.c_str(),

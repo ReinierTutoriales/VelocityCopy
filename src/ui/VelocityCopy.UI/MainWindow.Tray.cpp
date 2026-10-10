@@ -69,6 +69,8 @@ void MainWindow::InitializeTrayIntegration() {
         // taskbar representation of individual transfer windows.
         try { AppWindow().IsShownInSwitchers(true); } catch (...) {}
 
+        RegisterCaptionDropTarget();
+
         tray_window_hidden_ = IsWindowVisible(hwnd_) == FALSE;
         RefreshEfficiencyMode();
     } catch (...) { RemoveTrayIntegration(); }
@@ -78,6 +80,7 @@ void MainWindow::RemoveTrayIntegration() noexcept {
     if (window_id_ != 0) {
         if (auto* app = App::Instance()) app->RemoveEfficiencyVote(window_id_);
     }
+    RevokeCaptionDropTarget();
     if (hwnd_ != nullptr) (void)RemoveWindowSubclass(hwnd_, &MainWindow::TraySubclassProc, kTraySubclassId);
     hwnd_ = nullptr;
 }
@@ -226,6 +229,12 @@ LRESULT CALLBACK MainWindow::TraySubclassProc(
         return DefSubclassProc(hwnd, message, wparam, lparam);
     }
 
+    static const UINT taskbar_button_created = RegisterWindowMessageW(L"TaskbarButtonCreated");
+    if (taskbar_button_created != 0 && message == taskbar_button_created) {
+        self->OnTaskbarButtonCreated();
+        return DefSubclassProc(hwnd, message, wparam, lparam);
+    }
+
     switch (message) {
     case WM_SYSCOMMAND:
         // Minimize must remain a native Windows minimize operation. Do not convert it
@@ -258,6 +267,8 @@ LRESULT CALLBACK MainWindow::TraySubclassProc(
                 return 0;
             }
             self->tray_exit_requested_ = true;
+            // An open recovery or issues dialog belongs to this window.
+            self->CancelDecisionQueue();
             self->RefreshEfficiencyMode();
             break;
         }

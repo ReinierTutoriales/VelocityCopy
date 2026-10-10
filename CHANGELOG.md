@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+- Files can be dropped anywhere on the title bar (logo, file name and the empty band up to the window buttons), not only on the window body.
+- Pause, Skip, Cancel, Options and Details are Windows 11 subtle buttons: no frame or fill until the pointer is over them.
+- More compact window: the transferred size and the file count share one line, and the spacing between rows is tighter.
+- Move: read-only source files on another drive are deleted after copying instead of staying parked forever; a junction, unreadable or read-only empty folder left in the source no longer turns a finished Move into "failed"; empty source folders appended to a running Move are kept until they exist at the destination.
+- Move with "Keep both" on the same drive renames into "name (2)" instead of copying every byte.
+- "Replace" over a symbolic link in the destination replaces the link instead of overwriting the file it points to.
+- Disks mounted in a folder are detected as hard disks or SSDs correctly; large trees plan faster.
+- A saved queue cannot make "Retry" delete the only copy of a file.
+- The window buttons follow light/dark changes while VelocityCopy is open; High Contrast keeps the system buttons.
+- Closing a window while its copy was finishing no longer leaves a hidden window behind; restoring several minimized copies keeps the clicked one in front.
+- The conflict dialog no longer freezes on slow network drives; the queue refreshes at most twice a second; dialogs and the About window are released when closed; the taskbar progress survives hiding to the tray or an Explorer restart.
+- An instance running as administrator only accepts requests from administrator processes; Explorer requests during a cold start are queued; elevation with another account's password (standard users) works; uninstall removes a shell extension still loaded by Explorer at the next restart.
+
 ## 1.2.2 — 2026-10-09
 
 - Cleaner, more compact window: a Skip button sits between Pause and Cancel; Skip is no longer in the Options menu (Stop stays there because it keeps the queue for later, unlike Pause).

@@ -227,6 +227,20 @@ CopyResult CopyEngine::copy_file(
             };
         }
 
+        // Replace must replace the entry inside the destination folder. CopyFile2
+        // follows a symlink at the destination path and would overwrite the file
+        // it points to, outside the destination tree; remove the link instead.
+        if (options.existing_destination == ExistingDestinationPolicy::Replace) {
+            const DWORD attributes = GetFileAttributesW(destination.c_str());
+            if (attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0 &&
+                (attributes & FILE_ATTRIBUTE_DIRECTORY) == 0 && !DeleteFileW(destination.c_str())) {
+                const DWORD native = GetLastError();
+                if (native != ERROR_FILE_NOT_FOUND) {
+                    return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(native))};
+                }
+            }
+        }
+
         const auto source_size = source_size_no_throw(source);
         CallbackContext callback_context{&progress};
         callback_context.last_progress = {source_size, 0};

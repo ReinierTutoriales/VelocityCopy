@@ -63,6 +63,12 @@ struct MainWindow : MainWindowT<MainWindow> {
     [[nodiscard]] std::optional<velocitycopy::ActiveSession> SessionSnapshot();
     [[nodiscard]] bool IsVisibleForRouting() const noexcept;
     [[nodiscard]] HWND NativeOwner() const noexcept { return hwnd_; }
+    // Restored together with another copy: its own WM_SIZE must not restore
+    // the group again and put itself above the window that was clicked.
+    void ClearTaskbarMinimized() noexcept { taskbar_minimized_ = false; }
+    // Files dropped on the title bar (a non-client region XAML never sees).
+    [[nodiscard]] bool AcceptsDroppedSources() const noexcept;
+    bool AppendDroppedSources(std::vector<std::filesystem::path> sources);
     void MoveNativeWindow(int x, int y) noexcept;
     winrt::Windows::Foundation::IAsyncOperation<std::uint32_t> RequestDecisionAsync(velocitycopy::ui::DecisionOptions options);
     void OnDragEnter(IInspectable const&, Microsoft::UI::Xaml::DragEventArgs const&);
@@ -179,6 +185,9 @@ private:
     void ConfigureQueuePersistenceMenu();
     void InitializeTrayIntegration();
     void RemoveTrayIntegration() noexcept;
+    void RegisterCaptionDropTarget() noexcept;
+    void RevokeCaptionDropTarget() noexcept;
+    void OnTaskbarButtonCreated() noexcept;
     void HideToTray() noexcept;
     void CancelAndCloseWindow() noexcept;
     void DestroyCompletedWindow() noexcept;
@@ -341,6 +350,9 @@ private:
     bool taskbar_unavailable_{};
     TBPFLAG taskbar_state_{TBPF_NOPROGRESS};
     double taskbar_fraction_{};
+    bool taskbar_sent_{};
+    TBPFLAG taskbar_sent_state_{TBPF_NOPROGRESS};
+    ULONGLONG taskbar_sent_value_{};
     std::wstring window_title_;
     hstring files_format_;
     // Problems of the last finished transfer, for the "View all" list.
@@ -354,6 +366,7 @@ private:
     bool recovery_prompt_active_{};
     std::uint64_t next_job_id_{1};
     std::uint64_t last_queue_completed_files_{};
+    std::uint64_t last_queue_refresh_ms_{};
     std::uint64_t current_file_id_{};
     PerformanceSamplingState performance_sampling_state_{PerformanceSamplingState::Idle};
     std::uint64_t last_performance_sample_ms_{};
@@ -361,9 +374,11 @@ private:
     velocitycopy::ui::PerformanceScaleState performance_scale_state_{};
     PendingResume pending_resume_{};
     HWND hwnd_{};
+    winrt::com_ptr<::IUnknown> caption_drop_target_;
     bool tray_exit_requested_{};
     bool tray_window_hidden_{};
     bool taskbar_minimized_{};
+    bool retry_decision_open_{};
     bool session_ending_{};
     std::jthread copy_thread_;
 };

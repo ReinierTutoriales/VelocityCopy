@@ -256,12 +256,9 @@ Section "Uninstall"
   !insertmacro CloseRunningApp
   Delete "$SMPROGRAMS\VelocityCopy\VelocityCopy.lnk"
   RMDir "$SMPROGRAMS\VelocityCopy"
-  ${If} ${FileExists} "$INSTDIR\VelocityCopy.StartupHelper.exe"
-    !insertmacro ConfigureInteractiveStartup remove
-  ${Else}
-    DetailPrint "$(HelperMissing)"
-  ${EndIf}
 
+  ; Unregister from Explorer first: if the startup step below stops the
+  ; uninstall, no menu entry is left pointing at a half-removed install.
   !insertmacro RemoveLegacyShell
   DeleteRegKey HKLM "Software\Classes\Directory\shellex\DragDropHandlers\VelocityCopy"
   DeleteRegKey HKLM "Software\Classes\Drive\shellex\DragDropHandlers\VelocityCopy"
@@ -270,6 +267,14 @@ Section "Uninstall"
   DeleteRegValue HKLM "Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved" "{6BD80C35-7CE8-4A63-92D4-51AF4DACB821}"
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
 
+  ${If} ${FileExists} "$INSTDIR\VelocityCopy.StartupHelper.exe"
+    !insertmacro ConfigureInteractiveStartup remove
+  ${Else}
+    DetailPrint "$(HelperMissing)"
+  ${EndIf}
+
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VelocityCopy"
-  RMDir /r "$INSTDIR"
+  ; Explorer keeps VelocityCopy.Shell.dll mapped after any right-drag; what
+  ; cannot be deleted now is removed at the next restart.
+  RMDir /r /REBOOTOK "$INSTDIR"
 SectionEnd

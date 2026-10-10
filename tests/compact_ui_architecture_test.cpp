@@ -325,7 +325,7 @@ int main() {
         contains(body_of(xaml, "<Button x:Name=\"QueueMoveUpButton\""), "BorderThickness=\"0\"") ||
         contains(body_of(xaml, "<Button x:Name=\"QueueMoveDownButton\""), "BorderThickness=\"0\"") ||
         contains(body_of(xaml, "<Button x:Name=\"QueueRemoveButton\""), "BorderThickness=\"0\"") ||
-        count_occurrences(xaml, "<StaticResource x:Key=\"ButtonBackground\" ResourceKey=\"SubtleFillColorTransparentBrush\" />") != 3 ||
+        count_occurrences(xaml, "<StaticResource x:Key=\"ButtonBackground\" ResourceKey=\"SubtleFillColorTransparentBrush\" />") != 16 ||
         count_occurrences(xaml, "Height=\"{StaticResource QueueCommandSize}\"") != 3 ||
         !contains(tokens, "<x:Double x:Key=\"QueueCommandSize\">28</x:Double>") ||
         !contains(window, "ToolTipService::SetToolTip(PauseButtonHost()") ||
@@ -623,6 +623,22 @@ int main() {
             !contains(restore, "ShowWindow(hwnd, SW_SHOWNOACTIVATE)") ||
             !contains(restore, "SWP_NOACTIVATE")) {
             return fail(50, "restoring one copy from the taskbar must restore the other minimized copies");
+        }
+    }
+
+    // The title bar is a non-client drag region XAML never sees: a native OLE
+    // drop target on the top-level window accepts files dropped anywhere on it
+    // and uses the same append path as the content.
+    {
+        const auto drop = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.CaptionDrop.cpp");
+        const auto tray = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.Tray.cpp");
+        const auto project = read_source(root / "src/ui/VelocityCopy.UI/VelocityCopy.UI.vcxproj");
+        if (!contains(drop, "RegisterDragDrop(hwnd_,") || !contains(drop, "RevokeDragDrop(hwnd_)") ||
+            !contains(drop, "DragQueryFileW(") || !contains(drop, "AppendTransfer(std::move(job))") ||
+            !contains(drop, "IDropTargetHelper") ||
+            !contains(tray, "RegisterCaptionDropTarget();") || !contains(tray, "RevokeCaptionDropTarget();") ||
+            !contains(project, "ClCompile Include=\"MainWindow.CaptionDrop.cpp\"")) {
+            return fail(51, "files dropped on the title bar must be accepted like the rest of the window");
         }
     }
 

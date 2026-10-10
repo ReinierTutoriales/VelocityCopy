@@ -72,7 +72,6 @@
 
   <data name="DetailsInformationTitle.Text" xml:space="preserve"><value>Information</value></data>
 
-  <data name="DetailsPerformanceTitle.Text" xml:space="preserve"><value>Performance</value></data>
 
   <data name="DetailsSourceLabel.Text" xml:space="preserve"><value>Source</value></data>
 
@@ -94,7 +93,7 @@
   <data name="ElevationMessage" xml:space="preserve"><value>Windows protects this destination. To copy here, VelocityCopy continues as administrator and asks for permission first. Existing Windows system files stay protected even then.</value></data>
   <data name="ActionContinueAsAdmin" xml:space="preserve"><value>Continue as administrator</value></data>
   <data name="ActionRetryAsAdmin" xml:space="preserve"><value>Retry as administrator</value></data>
-  <data name="CompletedNotificationFormat" xml:space="preserve"><value>{} files done — {}</value></data>
+  <data name="CompletedNotificationFormat" xml:space="preserve"><value>Files: {} — {}</value></data>
   <data name="ActionShowIssues" xml:space="preserve"><value>View all</value></data>
   <data name="IssuesTitle" xml:space="preserve"><value>Items with problems</value></data>
   <data name="IssuesMessageFormat" xml:space="preserve"><value>{} items need attention.</value></data>
