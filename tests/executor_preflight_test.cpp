@@ -77,11 +77,15 @@ int wmain() {
     const auto nested_command = L"cmd /c mklink /J \"" + nested.wstring() + L"\" \"" +
         (root / L"external").wstring() + L"\" >nul";
     if (_wsystem(nested_command.c_str()) != 0) return 7;
+    // A junction below the root is left untouched (the planner reports it as
+    // an item of its own); it is never followed, and it does not turn an
+    // otherwise finished Move into a failure.
     {
         LiveCopyPlan plan(raw_plan());
         ExecutionControl control;
-        if (JobExecutor{}.execute(plan, control, JobExecutionOptions{1}, {}).success ||
-            !fs::exists(root / L"external" / L"keep")) return 8;
+        if (!JobExecutor{}.execute(plan, control, JobExecutionOptions{1}, {}).success ||
+            !fs::exists(root / L"external" / L"keep") ||
+            !fs::exists(fs::symlink_status(nested, ec))) return 8;
     }
     fs::remove(nested, ec);
     fs::remove(junction, ec);
