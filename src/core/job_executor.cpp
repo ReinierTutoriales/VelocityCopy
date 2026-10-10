@@ -82,7 +82,19 @@ bool is_session_fatal(const std::int32_t code) noexcept {
 
 std::int32_t remove_moved_source_file(const std::filesystem::path& source) noexcept {
     std::error_code ec;
-    const bool removed = std::filesystem::remove(source, ec);
+    bool removed = std::filesystem::remove(source, ec);
+    if (ec.value() == ERROR_ACCESS_DENIED) {
+        // DeleteFile refuses read-only files; the copy already succeeded, so
+        // clear the bit like Explorer does and delete once more.
+        const DWORD attributes = GetFileAttributesW(source.c_str());
+        if (attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_READONLY) != 0 &&
+            (attributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0 &&
+            SetFileAttributesW(source.c_str(), attributes & ~FILE_ATTRIBUTE_READONLY)) {
+            ec.clear();
+            removed = std::filesystem::remove(source, ec);
+            if (ec) (void)SetFileAttributesW(source.c_str(), attributes);
+        }
+    }
     if (ec) {
         return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
     }
@@ -158,16 +170,38 @@ std::int32_t remove_empty_source_directories(
                     frame.cursor.increment(ec);
                     if (ec && !is_already_gone(ec)) return native_hresult(ec);
                     ec.clear();
-                    if (directory && !descend(child) && !is_already_gone(ec)) return native_hresult(ec);
+                    // A junction/symlink (reported as an item by the planner) or a
+                    // folder this user cannot open stays; its parent is then not
+                    // empty and is kept too. Every file already moved, so this is
+                    // not a failure of the Move.
+                    if (directory && !descend(child) && !is_already_gone(ec) &&
+                        ec.value() != ERROR_CANT_ACCESS_FILE && ec.value() != ERROR_ACCESS_DENIED) {
+                        return native_hresult(ec);
+                    }
+                    ec.clear();
                 } else {
                     // Close enumeration before marking this pinned directory for deletion.
                     frame.cursor = {};
                     FILE_DISPOSITION_INFO disposition{TRUE};
-                    if (!SetFileInformationByHandle(frame.handle, FileDispositionInfo,
-                            &disposition, sizeof(disposition))) {
-                        const auto native = GetLastError();
-                        if (native != ERROR_DIR_NOT_EMPTY && native != ERROR_FILE_NOT_FOUND &&
-                            native != ERROR_PATH_NOT_FOUND) return HRESULT_FROM_WIN32(native);
+                    BOOL deleted = SetFileInformationByHandle(frame.handle, FileDispositionInfo,
+                        &disposition, sizeof(disposition));
+                    auto native = deleted ? ERROR_SUCCESS : GetLastError();
+                    if (native == ERROR_ACCESS_DENIED) {
+                        // NTFS refuses to delete a read-only folder (Explorer marks
+                        // folders customised in Properties). The pinned handle denies
+                        // rename, so the path still names this folder.
+                        FILE_BASIC_INFO basic{};
+                        if (GetFileInformationByHandleEx(frame.handle, FileBasicInfo, &basic, sizeof(basic)) &&
+                            (basic.FileAttributes & FILE_ATTRIBUTE_READONLY) != 0 &&
+                            SetFileAttributesW(frame.path.c_str(), basic.FileAttributes & ~FILE_ATTRIBUTE_READONLY)) {
+                            deleted = SetFileInformationByHandle(frame.handle, FileDispositionInfo,
+                                &disposition, sizeof(disposition));
+                            native = deleted ? ERROR_SUCCESS : GetLastError();
+                        }
+                    }
+                    if (!deleted && native != ERROR_DIR_NOT_EMPTY && native != ERROR_FILE_NOT_FOUND &&
+                        native != ERROR_PATH_NOT_FOUND && native != ERROR_ACCESS_DENIED) {
+                        return HRESULT_FROM_WIN32(native);
                     }
                     stack.pop_back();
                 }
@@ -479,7 +513,10 @@ JobResult JobExecutor::execute(
             // for an explicit retry decision. Do not touch source directories
             // until every item has reached a terminal outcome.
             if (const auto result = check_control()) return *result;
-            if (plan.operation() == FileOperation::Move && plan.unresolved_files() == 0) {
+            // Folders appended to a running Move that are not created at the
+            // destination yet must not lose their (empty) sources.
+            if (plan.operation() == FileOperation::Move && plan.unresolved_files() == 0 &&
+                !plan.has_pending_directories()) {
                 const auto cleanup = remove_empty_source_directories(plan.source_roots(), control);
                 if (const auto result = check_control()) return *result;
                 if (cleanup != S_OK) {
@@ -760,6 +797,15 @@ JobResult JobExecutor::execute(
                                 // partial copy there is ours to discard.
                                 skip_allowed = true;
                                 resume_from_pause = false;
+                                // Same-volume Move: rename to the free name
+                                // instead of copying every byte (and needing
+                                // the space for a second copy).
+                                if (plan.operation() == FileOperation::Move &&
+                                    engine_.rename_file(file->source, file->destination,
+                                        ExistingDestinationPolicy::Fail).success) {
+                                    renamed = true;
+                                    break;
+                                }
                                 continue;
                             }
                             if (!cancelled &&
@@ -945,7 +991,10 @@ JobResult JobExecutor::execute(
             }
         }
         if (const auto result = check_control()) return *result;
-        if (plan.operation() == FileOperation::Move && plan.unresolved_files() == 0) {
+        // Folders appended to a running Move that are not created at the
+        // destination yet must not lose their (empty) sources.
+        if (plan.operation() == FileOperation::Move && plan.unresolved_files() == 0 &&
+            !plan.has_pending_directories()) {
             const auto cleanup = remove_empty_source_directories(plan.source_roots(), control);
             if (const auto result = check_control()) return *result;
             if (cleanup != S_OK) {

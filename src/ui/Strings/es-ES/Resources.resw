@@ -72,7 +72,6 @@
 
   <data name="DetailsInformationTitle.Text" xml:space="preserve"><value>Información</value></data>
 
-  <data name="DetailsPerformanceTitle.Text" xml:space="preserve"><value>Rendimiento</value></data>
 
   <data name="DetailsSourceLabel.Text" xml:space="preserve"><value>Origen</value></data>
 
@@ -94,7 +93,7 @@
   <data name="ElevationMessage" xml:space="preserve"><value>Windows protege este destino. Para copiar aquí, VelocityCopy continúa como administrador y antes pide permiso. Aun así, los archivos de sistema de Windows existentes siguen protegidos.</value></data>
   <data name="ActionContinueAsAdmin" xml:space="preserve"><value>Continuar como administrador</value></data>
   <data name="ActionRetryAsAdmin" xml:space="preserve"><value>Reintentar como administrador</value></data>
-  <data name="CompletedNotificationFormat" xml:space="preserve"><value>{} archivos listos — {}</value></data>
+  <data name="CompletedNotificationFormat" xml:space="preserve"><value>Archivos: {} — {}</value></data>
   <data name="ActionShowIssues" xml:space="preserve"><value>Ver todos</value></data>
   <data name="IssuesTitle" xml:space="preserve"><value>Elementos con problemas</value></data>
   <data name="IssuesMessageFormat" xml:space="preserve"><value>{} elementos necesitan atención.</value></data>

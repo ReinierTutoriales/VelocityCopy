@@ -3,6 +3,7 @@
 #include <windows.h>
 
 #include <algorithm>
+#include <cwchar>
 #include <iterator>
 
 namespace velocitycopy {
@@ -83,6 +84,16 @@ SourceRemovalValidation validate_source_removal_recovery(
         return SourceRemovalValidation::AlreadyRemoved;
     }
     if (!same_fingerprint(recovery.source_fingerprint, source.fingerprint)) {
+        return SourceRemovalValidation::ChangedOrMissing;
+    }
+    // The "source" must be a different file from the verified copy; a queue
+    // file naming one file as both would otherwise delete the only copy.
+    if (source.fingerprint.has_identity && destination.fingerprint.has_identity &&
+        source.fingerprint.identity.volume_serial == destination.fingerprint.identity.volume_serial &&
+        source.fingerprint.identity.file_id == destination.fingerprint.identity.file_id) {
+        return SourceRemovalValidation::ChangedOrMissing;
+    }
+    if (_wcsicmp(recovery.source.lexically_normal().c_str(), recovery.destination.lexically_normal().c_str()) == 0) {
         return SourceRemovalValidation::ChangedOrMissing;
     }
     return SourceRemovalValidation::Verified;

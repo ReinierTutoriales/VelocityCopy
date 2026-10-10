@@ -515,6 +515,7 @@ void App::RestoreMinimizedTransfers(const std::uint64_t restored_window_id) noex
             // Only copies the person minimized; windows hidden to the tray
             // stay there until the tray icon is used.
             if (hwnd != nullptr && implementation->HasActiveTransfer() && IsWindowVisible(hwnd) && IsIconic(hwnd)) {
+                implementation->ClearTaskbarMinimized();
                 ShowWindow(hwnd, SW_SHOWNOACTIVATE);
             }
         }
