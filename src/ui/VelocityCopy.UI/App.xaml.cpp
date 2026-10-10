@@ -82,13 +82,22 @@ std::optional<std::pair<std::filesystem::path, std::wstring>> elevated_handoff_a
     return result;
 }
 
+// The handoff lives in the requesting user's %LOCALAPPDATA%\VelocityCopy.
+// With over-the-shoulder UAC (a standard user typing an administrator's
+// password) the elevated process runs as the administrator, whose own data
+// folder differs, so any <profile>\AppData\Local\VelocityCopy folder is
+// accepted. Its content is still bound by the SHA-256 on the command line.
 bool handoff_in_app_data(const std::filesystem::path& file) noexcept {
     try {
-        const auto directory = velocitycopy::app_data_directory();
-        if (!directory) return false;
-        const auto expected = std::filesystem::weakly_canonical(*directory);
         const auto actual = std::filesystem::weakly_canonical(file.parent_path());
-        return _wcsicmp(expected.c_str(), actual.c_str()) == 0;
+        if (const auto directory = velocitycopy::app_data_directory()) {
+            const auto expected = std::filesystem::weakly_canonical(*directory);
+            if (_wcsicmp(expected.c_str(), actual.c_str()) == 0) return true;
+        }
+        const auto local = actual.parent_path();
+        return _wcsicmp(actual.filename().c_str(), L"VelocityCopy") == 0 &&
+            _wcsicmp(local.filename().c_str(), L"Local") == 0 &&
+            _wcsicmp(local.parent_path().filename().c_str(), L"AppData") == 0;
     } catch (...) {
         return false;
     }
@@ -648,6 +657,44 @@ void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
         return;
     }
 
+    auto deliver = [weak = get_weak()](const velocitycopy::ShellRequest& request) {
+        if (auto self = weak.get()) self->DeliverShellRequest(request);
+    };
+
+    // Listen before the window and tray are built: a second launch or an
+    // Explorer drop during a cold start (WinUI initialisation can take
+    // seconds right after logon) is queued instead of timing out. Requests
+    // run on the dispatcher, after this function has created the window.
+    server_ = std::make_shared<velocitycopy::ShellIpcServer>();
+    if (!server_->valid()) {
+        velocitycopy::log_diagnostic(L"ipc: shell pipe server could not be created");
+        server_.reset();
+    } else {
+        const auto dispatcher = Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
+        auto server = server_;
+        ipc_thread_ = std::jthread(
+            [server, dispatcher, deliver = std::move(deliver)](std::stop_token stop_token) mutable {
+                while (!stop_token.stop_requested() && !server->stopping()) {
+                    auto request = server->receive();
+                    if (!request) {
+                        if (stop_token.stop_requested() || server->stopping()) {
+                            return;
+                        }
+                        // A malformed/aborted client must not permanently stop Explorer integration.
+                        continue;
+                    }
+
+                    auto value = std::move(*request);
+                    if (!dispatcher.TryEnqueue([deliver, value = std::move(value)]() mutable {
+                            deliver(value);
+                        })) {
+                        server->stop();
+                        return;
+                    }
+                }
+            });
+    }
+
     auto main_window = CreateMainWindow();
     if (!tray_.Initialize(this)) {
         const auto error = GetLastError();
@@ -671,42 +718,8 @@ void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
         }
     }
 
-    auto deliver = [weak = get_weak()](const velocitycopy::ShellRequest& request) {
-        if (auto self = weak.get()) self->DeliverShellRequest(request);
-    };
-
     if (initial_request) {
-        deliver(*initial_request);
+        DeliverShellRequest(*initial_request);
     }
-
-    server_ = std::make_shared<velocitycopy::ShellIpcServer>();
-    if (!server_->valid()) {
-        server_.reset();
-        return;
-    }
-
-    const auto dispatcher = Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
-    auto server = server_;
-    ipc_thread_ = std::jthread(
-        [server, dispatcher, deliver = std::move(deliver)](std::stop_token stop_token) mutable {
-            while (!stop_token.stop_requested() && !server->stopping()) {
-                auto request = server->receive();
-                if (!request) {
-                    if (stop_token.stop_requested() || server->stopping()) {
-                        return;
-                    }
-                    // A malformed/aborted client must not permanently stop Explorer integration.
-                    continue;
-                }
-
-                auto value = std::move(*request);
-                if (!dispatcher.TryEnqueue([deliver, value = std::move(value)]() mutable {
-                        deliver(value);
-                    })) {
-                    server->stop();
-                    return;
-                }
-            }
-        });
 }
 }
