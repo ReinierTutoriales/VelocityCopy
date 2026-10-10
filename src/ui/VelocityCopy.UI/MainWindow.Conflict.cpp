@@ -73,9 +73,29 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
         }
         // Size and last-modified time of both files, like Explorer's conflict
         // dialog, so Replace / Keep both is an informed choice.
-        auto describe = [](const std::filesystem::path& path) -> std::wstring {
+        // Read on a worker thread: on a sleeping NAS or an offline mapped drive
+        // these calls can block for the SMB timeout and would freeze the window.
+        const auto read_attributes = [](const std::filesystem::path& path) {
+            std::optional<WIN32_FILE_ATTRIBUTE_DATA> result;
             WIN32_FILE_ATTRIBUTE_DATA data{};
-            if (path.empty() || !GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &data)) return {};
+            if (!path.empty() && GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &data)) result = data;
+            return result;
+        };
+        std::optional<WIN32_FILE_ATTRIBUTE_DATA> existing_data;
+        std::optional<WIN32_FILE_ATTRIBUTE_DATA> incoming_data;
+        {
+            winrt::apartment_context ui_thread;
+            const auto destination_path = conflict.conflict_destination;
+            const auto source_path = conflict.conflict_source;
+            co_await winrt::resume_background();
+            existing_data = read_attributes(destination_path);
+            incoming_data = read_attributes(source_path);
+            co_await ui_thread;
+        }
+        if (tray_exit_requested_ || session_ending_ || interrupted_session_ != InterruptedSessionState::Conflict) co_return;
+        auto describe = [](const std::optional<WIN32_FILE_ATTRIBUTE_DATA>& attributes) -> std::wstring {
+            if (!attributes) return {};
+            const auto& data = *attributes;
             ULARGE_INTEGER size{};
             size.LowPart = data.nFileSizeLow;
             size.HighPart = data.nFileSizeHigh;
@@ -96,8 +116,8 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
             }
             return text;
         };
-        const auto existing = describe(conflict.conflict_destination);
-        const auto incoming = describe(conflict.conflict_source);
+        const auto existing = describe(existing_data);
+        const auto incoming = describe(incoming_data);
         if (!existing.empty() && !incoming.empty()) {
             detail.append(L"\n");
             detail.append(velocitycopy::localization::get_string(L"ConflictExistingLabel").c_str());

@@ -256,7 +256,16 @@ Windows::Foundation::IAsyncOperation<std::uint32_t> show_decision_async(Decision
     // Loaded is the first point where WinUI templates/theme resources have been applied
     // and the dialog's own XamlRoot (monitor scale) is known. Resize again there so
     // Button/CheckBox desired sizes cannot be clipped.
-    root.Loaded([primary, root, dialog, actions, content_padding, owner = options.owner](auto const&, auto const&) {
+    // Weak captures: root owns this handler, so strong references to root or
+    // the window would form a cycle that keeps every closed dialog alive.
+    root.Loaded([weak_primary = winrt::make_weak(primary), weak_root = winrt::make_weak(root),
+                 weak_dialog = winrt::make_weak(dialog), weak_actions = winrt::make_weak(actions),
+                 content_padding, owner = options.owner](auto const&, auto const&) {
+        const auto primary = weak_primary.get();
+        const auto root = weak_root.get();
+        const auto dialog = weak_dialog.get();
+        const auto actions = weak_actions.get();
+        if (!primary || !root || !dialog || !actions) return;
         fit_dialog_to_content(dialog, root, actions, content_padding, owner);
         (void)primary.Focus(FocusState::Programmatic);
     });

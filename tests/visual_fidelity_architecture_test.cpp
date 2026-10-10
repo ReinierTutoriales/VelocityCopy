@@ -141,7 +141,7 @@ int main() {
         !contains(xaml, "x:Name=\"DetailsChevronIcon\"") ||
         count_occurrences(xaml, "x:Key=\"ButtonForegroundPointerOver\" ResourceKey=\"TextFillColorPrimaryBrush\"") < 4 ||
         // Cancel and the queue trash are the only critical hovers.
-        count_occurrences(xaml, "<StaticResource x:Key=\"ButtonForegroundPointerOver\" ResourceKey=\"SystemFillColorCriticalBrush\" />") != 2) {
+        count_occurrences(xaml, "<StaticResource x:Key=\"ButtonForegroundPointerOver\" ResourceKey=\"SystemFillColorCriticalBrush\" />") != 4) {
         return fail(14, "secondary commands must stay subordinate while retaining native interaction states");
     }
 

@@ -244,6 +244,9 @@ fire_and_forget MainWindow::SaveQueueAsync() {
 
     auto dispatcher = dispatcher_;
     auto weak = get_weak();
+    // The background part only uses locals; release the window here, on the
+    // UI thread, so its destructor never runs on a thread-pool thread.
+    lifetime = nullptr;
     co_await resume_background();
 
     bool saved = false;
@@ -300,6 +303,9 @@ fire_and_forget MainWindow::LoadQueueFromAsync(std::filesystem::path path, std::
     auto lifetime = get_strong();
     auto dispatcher = dispatcher_;
     auto weak = get_weak();
+    // The background part only uses locals; release the window here, on the
+    // UI thread, so its destructor never runs on a thread-pool thread.
+    lifetime = nullptr;
     co_await resume_background();
 
     // Tell the person why a queue could not be loaded: an unreadable or

@@ -325,7 +325,7 @@ int main() {
         contains(body_of(xaml, "<Button x:Name=\"QueueMoveUpButton\""), "BorderThickness=\"0\"") ||
         contains(body_of(xaml, "<Button x:Name=\"QueueMoveDownButton\""), "BorderThickness=\"0\"") ||
         contains(body_of(xaml, "<Button x:Name=\"QueueRemoveButton\""), "BorderThickness=\"0\"") ||
-        count_occurrences(xaml, "<StaticResource x:Key=\"ButtonBackground\" ResourceKey=\"SubtleFillColorTransparentBrush\" />") != 8 ||
+        count_occurrences(xaml, "<StaticResource x:Key=\"ButtonBackground\" ResourceKey=\"SubtleFillColorTransparentBrush\" />") != 16 ||
         count_occurrences(xaml, "Height=\"{StaticResource QueueCommandSize}\"") != 3 ||
         !contains(tokens, "<x:Double x:Key=\"QueueCommandSize\">28</x:Double>") ||
         !contains(window, "ToolTipService::SetToolTip(PauseButtonHost()") ||

@@ -560,11 +560,25 @@ void MainWindow::RefreshTaskbarProgress() noexcept {
             return;
         }
     }
+    // Each call is a cross-process message to Explorer; send only changes.
+    constexpr ULONGLONG kScale = 10000;
+    const auto value = static_cast<ULONGLONG>(taskbar_fraction_ * kScale);
+    const bool has_value = taskbar_state_ != TBPF_NOPROGRESS && taskbar_state_ != TBPF_INDETERMINATE;
+    if (taskbar_sent_ && taskbar_sent_state_ == taskbar_state_ && (!has_value || taskbar_sent_value_ == value)) return;
     (void)taskbar_->SetProgressState(hwnd_, taskbar_state_);
-    if (taskbar_state_ != TBPF_NOPROGRESS && taskbar_state_ != TBPF_INDETERMINATE) {
-        constexpr ULONGLONG kScale = 10000;
-        (void)taskbar_->SetProgressValue(hwnd_, static_cast<ULONGLONG>(taskbar_fraction_ * kScale), kScale);
-    }
+    if (has_value) (void)taskbar_->SetProgressValue(hwnd_, value, kScale);
+    taskbar_sent_ = true;
+    taskbar_sent_state_ = taskbar_state_;
+    taskbar_sent_value_ = value;
+}
+
+void MainWindow::OnTaskbarButtonCreated() noexcept {
+    // The button was (re)created: first show, back from the tray, or an
+    // Explorer restart. Whatever was sent before is gone; send it again.
+    taskbar_ = nullptr;
+    taskbar_unavailable_ = false;
+    taskbar_sent_ = false;
+    RefreshTaskbarProgress();
 }
 
 hstring MainWindow::FormatProgressPercent(const double fraction) {

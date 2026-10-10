@@ -244,8 +244,13 @@ void MainWindow::ShowAboutDialog() noexcept {
         // repository link. Re-run on Loaded, when templates and the window's own
         // monitor scale are known.
         const auto owner_hwnd = hwnd_;
-        auto fit_about = [about, root, owner_hwnd]() noexcept {
+        // Weak captures: root owns the Loaded handler below, so strong
+        // references would keep every closed About window alive.
+        auto fit_about = [weak_about = winrt::make_weak(about), weak_root = winrt::make_weak(root), owner_hwnd]() noexcept {
             try {
+                const auto about = weak_about.get();
+                const auto root = weak_root.get();
+                if (!about || !root) return;
                 double scale = 0.0;
                 if (const auto xaml_root = root.XamlRoot()) scale = xaml_root.RasterizationScale();
                 if (!(scale > 0.0)) {

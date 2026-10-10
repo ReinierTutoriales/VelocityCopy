@@ -68,7 +68,9 @@ std::wstring normalized_path_key(const std::filesystem::path& input) {
         return {};
     }
 
-    std::array<wchar_t, 32768> buffer{};
+    // Not zeroed: GetFullPathNameW writes the result and its terminator, and
+    // this runs once per path component of every planned file.
+    std::array<wchar_t, 32768> buffer;
     const DWORD length = GetFullPathNameW(
         input.c_str(),
         static_cast<DWORD>(buffer.size()),
@@ -153,7 +155,10 @@ public:
             if (files_.contains(key)) {
                 throw_collision(cursor);
             }
-            directories_.insert(key);
+            // Ancestors of a known folder were checked when it was added.
+            if (!directories_.insert(key).second) {
+                break;
+            }
 
             const auto parent = cursor.parent_path();
             if (parent.empty() || parent == cursor) {

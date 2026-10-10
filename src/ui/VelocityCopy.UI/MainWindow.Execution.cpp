@@ -686,9 +686,16 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
     }
     ObservePerformanceSample(snapshot.bytes_per_second);
 
+    // Many small files finish several per snapshot; rebuilding and laying out
+    // the queue at most twice a second keeps the UI thread free. FinishCopy
+    // refreshes it once more with the final state.
     if (expanded_ && snapshot.completed_files != last_queue_completed_files_) {
-        last_queue_completed_files_ = snapshot.completed_files;
-        RefreshQueue();
+        const auto now = GetTickCount64();
+        if (now - last_queue_refresh_ms_ >= 500) {
+            last_queue_refresh_ms_ = now;
+            last_queue_completed_files_ = snapshot.completed_files;
+            RefreshQueue();
+        }
     }
 }
 
@@ -698,6 +705,13 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
     deferred_same_destination_jobs_.clear();
 
     if (result.stopped && cancel_requested_.load(std::memory_order_relaxed)) {
+        result = {false, true, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED)), false};
+    }
+    // The window was closed (X) while the worker was finishing: a stop,
+    // conflict, parked failure or error would otherwise leave a hidden window
+    // waiting on a decision nobody can see. Closing the window cancels.
+    if (tray_exit_requested_ && !session_ending_ && !result.cancelled &&
+        (!result.success || result.stopped || result.destination_conflict || result.parked_files != 0)) {
         result = {false, true, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED)), false};
     }
 
@@ -951,9 +965,10 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
             }
         } catch (...) {
         }
-        if (completed_with_issues) {
+        if (completed_with_issues && !tray_exit_requested_) {
             // Keep the terminal surface visible so per-item failures/skips cannot
-            // masquerade as a clean transfer that immediately disappears.
+            // masquerade as a clean transfer that immediately disappears. A
+            // window the person already closed has no surface left to keep.
             return;
         }
         // The window closes itself on a clean finish; when it was not in front
@@ -997,6 +1012,14 @@ fire_and_forget MainWindow::ShowRetryDecisionAsync() {
     // While a UAC prompt for this work is open, no other choice may start it.
     if (elevation_in_flight_) co_return;
     if (interrupted_session_ != InterruptedSessionState::Decision || !live_plan_) co_return;
+    // "Resolve failures" while the automatic dialog is still open must not
+    // queue a second, stale copy of it.
+    if (retry_decision_open_) co_return;
+    retry_decision_open_ = true;
+    struct ResetOnExit {
+        bool& flag;
+        ~ResetOnExit() { flag = false; }
+    } reset_on_exit{retry_decision_open_};
     try {
         // Name the files that need attention and why; a bare "some items
         // failed" gives no basis for choosing Retry over Skip.
@@ -1191,6 +1214,9 @@ fire_and_forget MainWindow::ElevateParkedFailuresAsync() {
     auto weak = get_weak();
     auto dispatcher = dispatcher_;
     // The UAC prompt blocks ShellExecuteEx until it is answered.
+    // The background part only uses locals; release the window here, on the
+    // UI thread, so its destructor never runs on a thread-pool thread.
+    lifetime = nullptr;
     co_await resume_background();
     std::int32_t outcome = static_cast<std::int32_t>(E_FAIL);
     if (const auto directory = velocitycopy::app_data_directory()) {
