@@ -99,7 +99,13 @@ jobs:
               "Windows may display an unknown-publisher or SmartScreen prompt. Verify downloads against SHA256SUMS.txt.\n\n"
               f"Source: {sha} ({tag}).\n"
               f"Windows Package passed on this exact commit (run {run_id}); assets are that run's artifacts, not rebuilt or modified.\n")
-          subprocess.run(["gh", "release", "create", tag, *files, "--target", sha, "--title", f"VelocityCopy {tag}", "--notes-file", str(notes), "--latest"], check=True)
+          # Only the highest version becomes "Latest"; a patch for an older line does not.
+          def key(name):
+              m = re.fullmatch(r"v(\d+)\.(\d+)\.(\d+)", name)
+              return tuple(map(int, m.groups())) if m else None
+          others = [k for k in (key(t["name"]) for t in api(f"repos/{repo}/tags?per_page=100")) if k]
+          latest = "--latest" if not others or key(tag) >= max(others) else "--latest=false"
+          subprocess.run(["gh", "release", "create", tag, *files, "--target", sha, "--title", f"VelocityCopy {tag}", "--notes-file", str(notes), latest], check=True)
           release = api(f"repos/{repo}/releases/tags/{tag}")
           names = {a["name"] for a in release["assets"]}
           assert all(pathlib.Path(f).name in names for f in files), "Release asset verification failed"

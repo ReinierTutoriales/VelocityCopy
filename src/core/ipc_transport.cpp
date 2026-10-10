@@ -1,4 +1,5 @@
 #include "velocitycopy/ipc_transport.hpp"
+#include "velocitycopy/elevation.hpp"
 
 #include "velocitycopy/ipc_protocol.hpp"
 
@@ -62,8 +63,13 @@ public:
         }
 
         try {
+            // An elevated instance only takes requests from elevated callers:
+            // the user's medium-integrity processes share its SID, so without
+            // a High no-write-up label any of them could make it copy into
+            // protected folders without a UAC prompt.
             const std::wstring sddl =
-                L"D:P(A;;GA;;;SY)(A;;GA;;;" + std::wstring(sid_text) + L")";
+                L"D:P(A;;GA;;;SY)(A;;GA;;;" + std::wstring(sid_text) + L")" +
+                (process_is_elevated() ? L"S:(ML;;NW;;;HI)" : L"");
             LocalFree(sid_text);
             sid_text = nullptr;
 
