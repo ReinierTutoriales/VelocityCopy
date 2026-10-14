@@ -4,6 +4,103 @@ Status: canonical ordered execution line for stabilization and UI work.
 
 This document answers one question: **what do we change next, and what evidence is required before moving on?** It complements the engineering rules; it does not replace them.
 
+## Product scope and remaining work — agreed 2026-10-14
+
+This section is the **current product priority and decision record**, not a second roadmap.
+The gate order and release evidence below remain mandatory. An implementation
+commit is not evidence of a successful Windows build or real-device behavior.
+
+### Product decisions (do not regress)
+
+- VelocityCopy is a **fast, compact Windows 11 file copier**, not a dashboard.
+  Do not add a feature without identifying a real user problem, data source,
+  interaction cost, scaling behavior and acceptance criteria.
+- **Compact:** target approximately 460 x 72 effective pixels, one exterior
+  contour, same HWND when expanded; no nested decorative cards, second queue
+  window, or per-file progress bars in compact mode.
+- **Global progress:** integrated into the copier body, not an additional
+  strip. Preserve legibility, native Accent, dark/light and High Contrast.
+- **Expanded:** bounded height; no growth proportional to file count.
+  Display a small **active transfers** section with per-file progress only
+  where the engine has authoritative per-file bytes; display pending files
+  as lightweight rows in a bounded/virtualized list. Do not fabricate per-file
+  percentages or speed from global counters.
+- **Thousands of files:** keep a fixed UI budget, bounded queue snapshots
+  and bounded refresh rate. A large number of tiny files should primarily
+  update aggregate counters; do not animate a bar for every completed file.
+- **Attention states:** surface conflicts, unavailable destination, failures
+  and actionable recovery only when they occur. Completed/skipped counts
+  belong in aggregate status unless detailed inspection is explicitly needed.
+- **Windows:** taskbar progress and completion notification are conditional
+  on actual execution state and user-facing utility; avoid duplicate or
+  noisy notifications. Reuse existing implementations where present.
+- **No speculative rewrites:** preserve copy/move safety, active worker
+  concurrency, append/resume/cancel semantics, shell integration and existing
+  handlers. Avoid UI-only state that can disagree with the engine.
+
+### Verified scope vs implementation claims
+
+- The recent Queue changes introduced bounded offset-based `queue_view`,
+  page navigation and controls, selection by stable file ID, and
+  `reorder_pending_page` for page-scoped drag ordering.
+- Those commits **have not been established as Windows-build-green or
+  hardware-tested in this decision record**. Treat them as implemented
+  source changes requiring exact-SHA CI, architecture and runtime review.
+- The compact body, its measured size, integrated progress and expanded
+  geometry have **not** been changed by that Queue sequence. Earlier UI
+  work exists, but its final visual acceptance is not established.
+- Taskbar, notifications, Explorer and destination recovery must be audited
+  before being labeled absent or reimplemented. Do not turn "not verified"
+  into "not implemented".
+
+### Remaining implementation blocks (priority order)
+
+1. **Queue integrity and recent-change review.** Inspect exact-HEAD Windows
+   CI and fix actual compile/test failures. Exercise page navigation, stale
+   drag snapshots, reorder while workers acquire files, multiple selection,
+   queue shrink/drain and large-queue performance. Preserve hidden rows.
+2. **Compact body and geometry.** Inspect existing XAML and window-sizing
+   code, reconcile with the approved one-contour design, eliminate clipping,
+   measure real compact dimensions on Windows at supported DPI values.
+   Do not introduce a second progress strip or enlarge the compact window
+   to accommodate Queue.
+3. **Expanded layout.** Same HWND, bounded queue viewport, correct responsive
+   columns, scroll/focus retention and visible controls without clipping.
+4. **Active transfer presentation.** First audit whether the engine exposes
+   authoritative per-file progress (ID, bytes done/total, lifecycle). Only
+   then add a bounded active-files projection to Queue and a thin progress
+   indicator for active files. No bar for each pending file; no unbounded
+   history of successful files in memory.
+5. **Actionable states.** Integrate existing conflict, skipped, failed,
+   destination-unavailable and completion outcomes into concise aggregate
+   and exception UI. Recovery controls must map to real engine transitions.
+6. **Windows shell and system behavior.** Audit before changes: Explorer
+   Copy/Move/append, taskbar progress/pause/error, tray, notification on
+   completion, theme, keyboard, accessibility, DPI and monitor restore.
+7. **Performance and reliability.** Benchmark planner, queue snapshots and
+   transfer responsiveness with realistic large trees and big files;
+   optimize only measured bottlenecks, preserving data-safety invariants.
+8. **Release readiness.** Exact-SHA x64 CI and Package, x64 real-Windows
+   smoke and failure matrix, ARM64 compilation/installer plus separate
+   physical-device sign-off. Publish only through `docs/RELEASE_GATES.md`.
+
+### Deliberately excluded
+
+- A progress bar for every pending file, unbounded completed-file rows,
+  a giant expanded window, decorative nested cards, per-file animations for
+  tiny files, redundant controls and a second window for the queue.
+- Invented throughput/ETA per file without reliable engine telemetry.
+- Calling source changes "tested", "finished" or "released" before the
+  corresponding evidence exists.
+
+### Acceptance rule for every proposed enhancement
+
+Describe the user problem; identify existing code/data and dependencies;
+specify bounded behavior at 10 / 1,000 / 100,000 files; state copy/move
+safety and accessibility invariants; implement a coherent block; inspect
+diff and exact-SHA Windows CI; record real-Windows measurements separately.
+If it adds visual noise or runtime cost without measurable utility, omit it.
+
 ## Gate 0 — baseline before every work block
 
 1. Read the current HEAD and the relevant canonical docs.
