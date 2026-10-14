@@ -291,7 +291,19 @@ int main() {
         if (active.active_files[0].transferred_bytes != 1) return 109;
         progress_plan.release_active(first->id);
         active = progress_plan.active_queue_view(0);
-        if (!active.active_files.empty() || active.active_count != 1) return 110;
+        if (!active.active_files.empty() || active.active_count != 1 ||
+            active.pending_count != 2) return 110;
+        // A released file is queued again; acquiring it must reset the
+        // attempt counter rather than leaking the previous attempt's bytes.
+        const auto retried = progress_plan.acquire_next();
+        if (!retried || retried->id != first->id) return 111;
+        active = progress_plan.active_queue_view(2);
+        if (active.active_files.size() != 2 ||
+            active.active_files[1].file.id != first->id ||
+            active.active_files[1].transferred_bytes != 0) return 112;
+        progress_plan.record_attempt_bytes(first->id, 2);
+        active = progress_plan.active_queue_view(2);
+        if (active.active_files[1].transferred_bytes != 2) return 113;
     }
 
     // Removing or skipping the largest remaining file must immediately update
