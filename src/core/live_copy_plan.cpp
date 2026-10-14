@@ -100,14 +100,15 @@ LiveCopyPlanSnapshot LiveCopyPlan::snapshot() const {
     return snapshot;
 }
 
-LiveQueueView LiveCopyPlan::queue_view(const std::size_t max_items) const {
+LiveQueueView LiveCopyPlan::queue_view(const std::size_t max_items, const std::size_t offset) const {
     std::lock_guard lock(mutex_);
-    const auto count = std::min(max_items, pending_files_.size());
+    const auto start = std::min(offset, pending_files_.size());
+    const auto count = std::min(max_items, pending_files_.size() - start);
     LiveQueueView view{};
     view.pending_files.reserve(count);
     view.pending_files.insert(
-        view.pending_files.end(), pending_files_.begin(),
-        pending_files_.begin() + static_cast<std::ptrdiff_t>(count));
+        view.pending_files.end(), pending_files_.begin() + static_cast<std::ptrdiff_t>(start),
+        pending_files_.begin() + static_cast<std::ptrdiff_t>(start + count));
     view.pending_count = static_cast<std::uint64_t>(pending_files_.size());
     view.active_count = static_cast<std::uint64_t>(active_files_.size());
     view.parked_count = static_cast<std::uint64_t>(parked_files_.size());
