@@ -102,6 +102,7 @@ void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
 
     constexpr std::size_t kVisibleQueueItems = 256;
     auto view = live_plan_->queue_view(kVisibleQueueItems, queue_page_offset_);
+    if (view.pending_count == 0) queue_page_offset_ = 0;
     if (view.pending_files.empty() && view.pending_count != 0 && queue_page_offset_ != 0) {
         queue_page_offset_ = static_cast<std::size_t>(((view.pending_count - 1) / kVisibleQueueItems) * kVisibleQueueItems);
         view = live_plan_->queue_view(kVisibleQueueItems, queue_page_offset_);
