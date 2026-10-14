@@ -304,6 +304,18 @@ int main() {
         progress_plan.record_attempt_bytes(first->id, 2);
         active = progress_plan.active_queue_view(2);
         if (active.active_files[1].transferred_bytes != 2) return 113;
+        // A callback for a non-active file must not create phantom progress.
+        progress_plan.record_attempt_bytes(3, 4);
+        active = progress_plan.active_queue_view(2);
+        if (active.active_files.size() != 2 ||
+            active.active_files[0].file.id != second->id ||
+            active.active_files[0].transferred_bytes != second->size ||
+            active.active_files[1].transferred_bytes != 2) return 114;
+        progress_plan.complete_active(first->id);
+        active = progress_plan.active_queue_view(2);
+        if (active.active_count != 1 || active.active_files.size() != 1 ||
+            active.active_files[0].file.id != second->id ||
+            active.completed_files != 1) return 115;
     }
 
     // Removing or skipping the largest remaining file must immediately update
