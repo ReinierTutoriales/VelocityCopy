@@ -343,7 +343,7 @@ private:
     bool paused_{};
     // Windows 11 taskbar button progress (fill, paused yellow, error red).
     winrt::com_ptr<ITaskbarList3> taskbar_;
-    bool taskbar_unavailable_{};
+    ULONGLONG next_taskbar_attempt_tick_{};
     TBPFLAG taskbar_state_{TBPF_NOPROGRESS};
     double taskbar_fraction_{};
     std::wstring window_title_;
