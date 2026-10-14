@@ -392,9 +392,26 @@
                                             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                                             BorderThickness="1"
                                             CornerRadius="{ThemeResource ControlCornerRadius}">
-                                        <TextBlock x:Name="QueueCountText"
-                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                   FontSize="{StaticResource CaptionFontSize}" />
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <Button x:Name="QueuePreviousPageButton"
+                                                    Click="OnQueuePreviousPageClick"
+                                                    ToolTipService.ToolTip="Previous 256 pending files"
+                                                    AutomationProperties.Name="Previous queue page"
+                                                    MinWidth="28" MinHeight="28" Padding="4,0">
+                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE76B;" FontSize="12" />
+                                            </Button>
+                                            <TextBlock x:Name="QueueCountText"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                       FontSize="{StaticResource CaptionFontSize}" />
+                                            <Button x:Name="QueueNextPageButton"
+                                                    Click="OnQueueNextPageClick"
+                                                    ToolTipService.ToolTip="Next 256 pending files"
+                                                    AutomationProperties.Name="Next queue page"
+                                                    MinWidth="28" MinHeight="28" Padding="4,0">
+                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE76C;" FontSize="12" />
+                                            </Button>
+                                        </StackPanel>
                                     </Border>
                                     <Grid Grid.Column="2">
                                         <Grid.ColumnDefinitions>
