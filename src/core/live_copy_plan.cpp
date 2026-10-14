@@ -368,15 +368,12 @@ bool LiveCopyPlan::reorder_pending_page(
         }
         if (!changed) return false;
 
-        std::vector<PlannedFile> reordered;
-        reordered.reserve(ordered_file_ids.size());
+        // Build the permutation before mutating the live deque. A failed
+        // allocation or path copy must leave the pending queue untouched.
+        std::vector<PlannedFile> sorted(ordered_file_ids.size());
         for (std::size_t i = 0; i < ordered_file_ids.size(); ++i) {
-            reordered.push_back(std::move(pending_files_[offset + i]));
-        }
-        std::vector<PlannedFile> sorted(reordered.size());
-        for (auto& file : reordered) {
-            const auto target = rank.at(file.id);
-            sorted[target] = std::move(file);
+            const auto& file = pending_files_[offset + i];
+            sorted[rank.at(file.id)] = file;
         }
         for (std::size_t i = 0; i < sorted.size(); ++i) {
             pending_files_[offset + i] = std::move(sorted[i]);
