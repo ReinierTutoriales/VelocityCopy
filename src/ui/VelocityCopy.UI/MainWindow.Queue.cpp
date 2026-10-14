@@ -71,6 +71,8 @@ void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
     };
 
     if (!live_plan_) {
+        QueuePreviousPageButton().IsEnabled(false);
+        QueueNextPageButton().IsEnabled(false);
         queue_page_offset_ = 0;
         queue_snapshot_.clear();
         items.Clear();
@@ -107,6 +109,8 @@ void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
         queue_page_offset_ = static_cast<std::size_t>(((view.pending_count - 1) / kVisibleQueueItems) * kVisibleQueueItems);
         view = live_plan_->queue_view(kVisibleQueueItems, queue_page_offset_);
     }
+    QueuePreviousPageButton().IsEnabled(queue_page_offset_ != 0);
+    QueueNextPageButton().IsEnabled(queue_page_offset_ + view.pending_files.size() < view.pending_count);
     const bool unchanged = view.pending_files.size() == queue_snapshot_.size() &&
         std::equal(view.pending_files.begin(), view.pending_files.end(), queue_snapshot_.begin(),
             [](const velocitycopy::PlannedFile& left, const velocitycopy::PlannedFile& right) {
@@ -251,6 +255,24 @@ void MainWindow::RefreshQueueEditCommandState() {
 
 void MainWindow::OnQueueSelectionChanged(IInspectable const&, SelectionChangedEventArgs const&) {
     RefreshQueueEditCommandState();
+}
+
+void MainWindow::OnQueuePreviousPageClick(IInspectable const&, RoutedEventArgs const&) {
+    constexpr std::size_t kPageSize = 256;
+    if (!live_plan_ || queue_page_offset_ == 0) return;
+    queue_page_offset_ = queue_page_offset_ >= kPageSize ? queue_page_offset_ - kPageSize : 0;
+    RefreshQueue(true);
+}
+
+void MainWindow::OnQueueNextPageClick(IInspectable const&, RoutedEventArgs const&) {
+    constexpr std::size_t kPageSize = 256;
+    if (!live_plan_) return;
+    const auto count = live_plan_->queue_view(0).pending_count;
+    if (count == 0) return;
+    const auto last_page = static_cast<std::size_t>(((count - 1) / kPageSize) * kPageSize);
+    if (queue_page_offset_ >= last_page) return;
+    queue_page_offset_ = (std::min)(queue_page_offset_ + kPageSize, last_page);
+    RefreshQueue(true);
 }
 
 void MainWindow::OnQueueKeyDown(IInspectable const&, KeyRoutedEventArgs const& args) {
