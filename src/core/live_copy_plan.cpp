@@ -342,6 +342,46 @@ bool LiveCopyPlan::reorder_pending_files(const std::vector<std::uint64_t>& order
     }
 }
 
+bool LiveCopyPlan::reorder_pending_page(
+    const std::size_t offset, const std::vector<std::uint64_t>& ordered_file_ids) noexcept {
+    try {
+        if (ordered_file_ids.size() < 2) return false;
+        std::unordered_map<std::uint64_t, std::size_t> rank;
+        rank.reserve(ordered_file_ids.size());
+        for (std::size_t i = 0; i < ordered_file_ids.size(); ++i) {
+            if (!rank.emplace(ordered_file_ids[i], i).second) return false;
+        }
+
+        std::lock_guard lock(mutex_);
+        if (offset > pending_files_.size() ||
+            ordered_file_ids.size() > pending_files_.size() - offset) return false;
+
+        // A concurrent acquisition/removal must never turn a stale drag into
+        // a reorder of unrelated files. Validate the entire page before writing.
+        for (std::size_t i = 0; i < ordered_file_ids.size(); ++i) {
+            if (!rank.contains(pending_files_[offset + i].id)) return false;
+        }
+
+        bool changed = false;
+        for (std::size_t i = 0; i < ordered_file_ids.size(); ++i) {
+            changed = changed || pending_files_[offset + i].id != ordered_file_ids[i];
+        }
+        if (!changed) return false;
+
+        std::vector<PlannedFile> reordered;
+        reordered.reserve(ordered_file_ids.size());
+        for (std::size_t i = 0; i < ordered_file_ids.size(); ++i) {
+            reordered.push_back(std::move(pending_files_[offset + i]));
+        }
+        for (std::size_t i = 0; i < reordered.size(); ++i) {
+            pending_files_[offset + i] = std::move(reordered[rank.at(reordered[i].id)]);
+        }
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
 bool LiveCopyPlan::remove_pending_file(const std::uint64_t file_id) noexcept {
     try { return remove_pending_files({file_id}) != 0; } catch (...) { return false; }
 }
