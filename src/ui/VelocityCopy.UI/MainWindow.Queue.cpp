@@ -495,6 +495,17 @@ void MainWindow::OnQueueDragItemsCompleted(
     // core rejects a stale drag (an item was acquired or removed meanwhile).
     // Always reconcile from the authoritative pending plan after a drag.
     if (valid_drag_page) {
+        // Reject duplicate or substituted visual IDs before reaching the core.
+        // A drag is only valid when it permutes exactly the displayed page.
+        auto expected_ids = ordered_ids;
+        std::sort(expected_ids.begin(), expected_ids.end());
+        std::vector<std::uint64_t> snapshot_ids;
+        snapshot_ids.reserve(queue_snapshot_.size());
+        for (const auto& file : queue_snapshot_) snapshot_ids.push_back(file.id);
+        std::sort(snapshot_ids.begin(), snapshot_ids.end());
+        valid_drag_page = expected_ids == snapshot_ids;
+    }
+    if (valid_drag_page) {
         (void)live_plan_->reorder_pending_page(queue_page_offset_, ordered_ids);
     }
     RefreshQueue(true);
