@@ -46,6 +46,50 @@ bool MainWindow::ApplyQueueItemStyle(const bool narrow) {
     }
 }
 
+void MainWindow::RefreshActiveQueue() {
+    constexpr std::size_t kVisibleActiveFiles = 8;
+    auto rows = ActiveQueueRows().Children();
+    if (!live_plan_) {
+        rows.Clear();
+        ActiveQueuePanel().Visibility(Visibility::Collapsed);
+        return;
+    }
+    const auto view = live_plan_->active_queue_view(kVisibleActiveFiles);
+    if (view.active_count == 0) {
+        rows.Clear();
+        ActiveQueuePanel().Visibility(Visibility::Collapsed);
+        return;
+    }
+    ActiveQueuePanel().Visibility(Visibility::Visible);
+    ActiveQueueHeading().Text(hstring(std::format(L"Transferring ({})", view.active_count)));
+    while (rows.Size() > view.active_files.size()) rows.RemoveAtEnd();
+    while (rows.Size() < view.active_files.size()) {
+        StackPanel row;
+        row.Spacing(2);
+        TextBlock label;
+        label.TextTrimming(TextTrimming::CharacterEllipsis);
+        ProgressBar progress;
+        progress.Minimum(0);
+        progress.Maximum(100);
+        row.Children().Append(label);
+        row.Children().Append(progress);
+        rows.Append(row);
+    }
+    for (std::uint32_t index = 0; index < view.active_files.size(); ++index) {
+        const auto& active = view.active_files[index];
+        auto row = rows.GetAt(index).as<StackPanel>();
+        auto label = row.Children().GetAt(0).as<TextBlock>();
+        auto progress = row.Children().GetAt(1).as<ProgressBar>();
+        const double percent = active.file.size == 0 ? 0.0 :
+            100.0 * static_cast<double>(active.transferred_bytes) /
+            static_cast<double>(active.file.size);
+        label.Text(hstring(std::format(L"{} — {} / {} bytes",
+            active.file.source.filename().wstring(),
+            active.transferred_bytes, active.file.size)));
+        progress.Value(percent);
+    }
+}
+
 void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
     if (queue_drag_active_) {
         queue_refresh_force_rebuild_ = queue_refresh_force_rebuild_ || force_visual_rebuild;
@@ -58,6 +102,8 @@ void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
         RefreshQueueCommandState();
         return;
     }
+
+    RefreshActiveQueue();
 
     // A container style only applies to containers created after it is set, so a style change
     // is handled exactly like a forced visual rebuild.
