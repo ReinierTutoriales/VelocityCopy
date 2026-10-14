@@ -116,6 +116,25 @@ LiveQueueView LiveCopyPlan::queue_view(const std::size_t max_items, const std::s
     return view;
 }
 
+LiveQueueView LiveCopyPlan::active_queue_view(const std::size_t max_active_items) const {
+    std::lock_guard lock(mutex_);
+    LiveQueueView view{};
+    view.pending_count = static_cast<std::uint64_t>(pending_files_.size());
+    view.active_count = static_cast<std::uint64_t>(active_files_.size());
+    view.parked_count = static_cast<std::uint64_t>(parked_files_.size());
+    view.completed_files = completed_files_;
+    const auto count = std::min(max_active_items, active_files_.size());
+    view.active_files.reserve(count);
+    for (std::size_t index = 0; index < count; ++index) {
+        const auto& file = active_files_[index];
+        const auto progress = attempt_bytes_.find(file.id);
+        const auto transferred = progress == attempt_bytes_.end()
+            ? std::uint64_t{0} : std::min(progress->second, file.size);
+        view.active_files.push_back(ActiveQueueFile{file, transferred});
+    }
+    return view;
+}
+
 LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan, const bool allow_drained) noexcept {
     try {
         std::lock_guard lock(mutex_);
