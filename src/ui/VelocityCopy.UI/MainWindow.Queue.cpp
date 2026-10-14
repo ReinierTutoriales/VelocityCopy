@@ -297,7 +297,13 @@ void MainWindow::OnQueueKeyDown(IInspectable const&, KeyRoutedEventArgs const& a
         args.Handled(true);
         return;
     }
-    if (SelectedPendingIds().empty()) return;
+    // Keep native ListView navigation intact: only Alt+Up/Down are
+    // queue-edit shortcuts, while plain arrows belong to keyboard focus.
+    const bool alt_pressed = (GetKeyState(VK_MENU) & 0x8000) != 0;
+    const bool queue_edit_key = args.Key() == Windows::System::VirtualKey::Delete ||
+        (alt_pressed && (args.Key() == Windows::System::VirtualKey::Up ||
+                         args.Key() == Windows::System::VirtualKey::Down));
+    if (!queue_edit_key || SelectedPendingIds().empty()) return;
 
     switch (args.Key()) {
     case Windows::System::VirtualKey::Delete:
@@ -305,13 +311,13 @@ void MainWindow::OnQueueKeyDown(IInspectable const&, KeyRoutedEventArgs const& a
         args.Handled(true);
         break;
     case Windows::System::VirtualKey::Up:
-        if ((GetKeyState(VK_MENU) & 0x8000) != 0) {
+        if (alt_pressed) {
             OnQueueMoveUpClick(nullptr, nullptr);
             args.Handled(true);
         }
         break;
     case Windows::System::VirtualKey::Down:
-        if ((GetKeyState(VK_MENU) & 0x8000) != 0) {
+        if (alt_pressed) {
             OnQueueMoveDownClick(nullptr, nullptr);
             args.Handled(true);
         }
