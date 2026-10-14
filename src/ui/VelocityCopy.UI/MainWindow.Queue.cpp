@@ -112,7 +112,10 @@ void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
                 return left.id == right.id && left.source == right.source && left.destination == right.destination && left.size == right.size;
             });
     if (unchanged && !rebuild_visuals) {
-        QueueCountText().Text(hstring(std::format(L"{}", view.pending_count)));
+        QueueCountText().Text(hstring(queue_page_offset_ == 0 && view.pending_count <= kVisibleQueueItems
+            ? std::format(L"{}", view.pending_count)
+            : std::format(L"{}–{} / {}", queue_page_offset_ + 1,
+                queue_page_offset_ + view.pending_files.size(), view.pending_count)));
         RefreshQueueCommandState();
         RefreshQueueEditCommandState();
         return;
@@ -217,7 +220,10 @@ void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
             true);
     }
 
-    QueueCountText().Text(hstring(std::format(L"{}", view.pending_count)));
+    QueueCountText().Text(hstring(queue_page_offset_ == 0 && view.pending_count <= kVisibleQueueItems
+            ? std::format(L"{}", view.pending_count)
+            : std::format(L"{}–{} / {}", queue_page_offset_ + 1,
+                queue_page_offset_ + view.pending_files.size(), view.pending_count)));
     RefreshQueueCommandState();
     RefreshQueueEditCommandState();
 }
