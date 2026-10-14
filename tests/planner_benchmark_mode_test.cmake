@@ -50,12 +50,12 @@ if(destination_entries)
     message(FATAL_ERROR "Planner-only mode modified destination: ${destination_entries}")
 endif()
 execute_process(
-    COMMAND "${BENCHMARK}" "${root}/source" "${root}/destination" --plan-only --workers=2
+    COMMAND "${BENCHMARK}" "${root}/missing-source" "${root}/destination" --plan-only --workers=2
     RESULT_VARIABLE invalid_result
     OUTPUT_QUIET
-    ERROR_QUIET
+    ERROR_VARIABLE invalid_error
 )
-if(invalid_result STREQUAL "0")
-    message(FATAL_ERROR "--plan-only accepted inapplicable --workers option")
+if(invalid_result STREQUAL "0" OR NOT invalid_error MATCHES "--workers is not applicable to --plan-only")
+    message(FATAL_ERROR "Invalid options were not rejected before source planning: ${invalid_result}: ${invalid_error}")
 endif()
 file(REMOVE_RECURSE "${root}")
