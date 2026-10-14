@@ -219,16 +219,12 @@ void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
 
 std::vector<std::uint64_t> MainWindow::SelectedPendingIds() {
     std::vector<std::uint64_t> ids;
-    const auto ranges = QueueList().SelectedRanges();
-    for (const auto& range : ranges) {
-        const auto first = static_cast<std::size_t>(range.FirstIndex());
-        const auto last = static_cast<std::size_t>(range.LastIndex());
-        if (first >= queue_snapshot_.size()) {
-            continue;
-        }
-        const auto bounded_last = std::min(last, queue_snapshot_.size() - 1);
-        for (std::size_t index = first; index <= bounded_last; ++index) {
-            ids.push_back(queue_snapshot_[index].id);
+    // Selection follows the QueueItem identity, not a snapshot index. During
+    // native ListView drag/reorder the visual indexes can change before the
+    // authoritative pending snapshot is refreshed.
+    for (const auto& selected : QueueList().SelectedItems()) {
+        if (auto item = selected.try_as<VelocityCopyUI::QueueItem>()) {
+            if (item.Id() != 0) ids.push_back(item.Id());
         }
     }
     return ids;
