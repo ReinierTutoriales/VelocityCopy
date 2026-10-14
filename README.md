@@ -12,7 +12,7 @@
 
 ## Status
 
-VelocityCopy 1.2.2 is published as an unsigned release (see [CHANGELOG](CHANGELOG.md)). Every change is validated by Windows CI and Windows Package before integration.
+VelocityCopy 1.2.2 is the latest published unsigned release. `main` is the 1.2.3 development line (see [CHANGELOG](CHANGELOG.md)). Every change is validated by Windows CI and Windows Package before integration.
 
 Current automated baseline (`main`):
 
@@ -31,7 +31,7 @@ Download installers from Releases. Use the setup that matches the PC: x64 setup 
 - Pause, resume, skip, stop and cancel
 - Save and load copy queues
 - Native per-session shutdown recovery with Resume/Discard decisions
-- Explorer transfer handler with SuperCopier-style default selection
+- Explorer right-button transfer handler with explicit Copy here / Move here commands
 - Silent startup via an installer-owned HKCU Run entry (`--startup`)
 - One process-owned tray icon with EcoQoS while eligible and idle
 

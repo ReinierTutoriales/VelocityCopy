@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.3 — Unreleased
+
+- Explorer integration now uses only the documented right-button `DragDropHandlers` surface with explicit **Copy here** / **Move here** commands. VelocityCopy no longer changes Explorer's native default using undocumented numeric command IDs, and ordinary Explorer Ctrl+V is explicitly treated as Windows-owned behavior rather than a release gate.
+- Release publication has one authoritative path: the Release workflow reuses the exact x64/ARM64 installers from a successful Windows Package run on the selected `main` commit, generates SHA-256 checksums, and publishes without rebuilding the binaries.
+- Engineering/release contracts were consolidated so exact-SHA CI, Package, source inspection and physical Windows validation remain separate evidence levels.
+
 ## 1.2.2 — 2026-10-09
 
 - Cleaner, more compact window: a Skip button sits between Pause and Cancel; Skip is no longer in the Options menu (Stop stays there because it keeps the queue for later, unlike Pause).
