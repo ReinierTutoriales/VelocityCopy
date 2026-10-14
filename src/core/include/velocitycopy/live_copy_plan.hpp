@@ -114,6 +114,8 @@ public:
     [[nodiscard]] bool move_pending_files_up(const std::vector<std::uint64_t>& file_ids) noexcept;
     [[nodiscard]] bool move_pending_files_down(const std::vector<std::uint64_t>& file_ids) noexcept;
     [[nodiscard]] bool reorder_pending_files(const std::vector<std::uint64_t>& ordered_file_ids) noexcept;
+    // Reorder only an exact, still-pending page; rejects stale snapshots atomically.
+    [[nodiscard]] bool reorder_pending_page(std::size_t offset, const std::vector<std::uint64_t>& ordered_file_ids) noexcept;
     [[nodiscard]] bool remove_pending_file(std::uint64_t file_id) noexcept;
     [[nodiscard]] std::size_t remove_pending_files(const std::vector<std::uint64_t>& file_ids) noexcept;
 
