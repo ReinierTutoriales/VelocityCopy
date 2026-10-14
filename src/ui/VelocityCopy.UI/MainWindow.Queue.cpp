@@ -74,6 +74,7 @@ void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
         QueuePreviousPageButton().IsEnabled(false);
         QueueNextPageButton().IsEnabled(false);
         queue_page_offset_ = 0;
+        queue_rendered_page_offset_ = 0;
         queue_snapshot_.clear();
         items.Clear();
 
@@ -111,7 +112,8 @@ void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
     }
     QueuePreviousPageButton().IsEnabled(queue_page_offset_ != 0);
     QueueNextPageButton().IsEnabled(queue_page_offset_ + view.pending_files.size() < view.pending_count);
-    const bool unchanged = view.pending_files.size() == queue_snapshot_.size() &&
+    const bool page_changed = queue_rendered_page_offset_ != queue_page_offset_;
+    const bool unchanged = !page_changed && view.pending_files.size() == queue_snapshot_.size() &&
         std::equal(view.pending_files.begin(), view.pending_files.end(), queue_snapshot_.begin(),
             [](const velocitycopy::PlannedFile& left, const velocitycopy::PlannedFile& right) {
                 return left.id == right.id && left.source == right.source && left.destination == right.destination && left.size == right.size;
@@ -129,7 +131,7 @@ void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
     const auto selected_ids = SelectedPendingIds();
     const auto queue_scroll_viewer = find_scroll_viewer(QueueList());
     const std::optional<double> previous_vertical_offset =
-        queue_scroll_viewer ? std::optional<double>{queue_scroll_viewer.VerticalOffset()} : std::nullopt;
+        queue_scroll_viewer ? std::optional<double>{page_changed ? 0.0 : queue_scroll_viewer.VerticalOffset()} : std::nullopt;
     std::optional<std::uint64_t> focused_id;
     const auto xaml_root = RootGrid().XamlRoot();
     const auto focused_element = xaml_root ? FocusManager::GetFocusedElement(xaml_root) : IInspectable{nullptr};
@@ -151,6 +153,7 @@ void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
 
     const auto previous_snapshot = std::move(queue_snapshot_);
     queue_snapshot_ = std::move(view.pending_files);
+    queue_rendered_page_offset_ = queue_page_offset_;
 
     std::size_t completed_prefix = 0;
     if (!previous_snapshot.empty() && items.Size() == previous_snapshot.size()) {
