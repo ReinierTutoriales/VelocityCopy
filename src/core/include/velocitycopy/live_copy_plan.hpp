@@ -103,7 +103,7 @@ public:
     [[nodiscard]] const std::filesystem::path& destination_root() const noexcept;
     [[nodiscard]] FileOperation operation() const noexcept;
     [[nodiscard]] LiveCopyPlanSnapshot snapshot() const;
-    [[nodiscard]] LiveQueueView queue_view(std::size_t max_items) const;
+    [[nodiscard]] LiveQueueView queue_view(std::size_t max_items, std::size_t offset = 0) const;
     [[nodiscard]] CopyPlan export_remaining_plan() const;
 
     [[nodiscard]] LivePlanAppendResult append(CopyPlan plan, bool allow_drained = false) noexcept;
