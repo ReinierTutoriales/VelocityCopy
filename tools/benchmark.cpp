@@ -79,6 +79,11 @@ int wmain(int argc, wchar_t* argv[]) {
         return 1;
     }
 
+    if (plan_only && forced_workers != 0) {
+        std::wcerr << L"--workers is not applicable to --plan-only.\n";
+        return 1;
+    }
+
     velocitycopy::CopyJob job{};
     job.id = 1;
     job.sources = {std::filesystem::path(argv[1])};
@@ -106,10 +111,6 @@ int wmain(int argc, wchar_t* argv[]) {
     }
 
     if (plan_only) {
-        if (forced_workers != 0) {
-            std::wcerr << L"--workers is not applicable to --plan-only.\n";
-            return 1;
-        }
         if (json_output) {
             std::wcout << std::fixed << std::setprecision(6)
                        << L"{\"mode\":\"plan-only\",\"planning_seconds\":" << planning_elapsed.count()
