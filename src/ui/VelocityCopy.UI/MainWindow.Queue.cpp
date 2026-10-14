@@ -112,6 +112,9 @@ void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
     }
     QueuePreviousPageButton().IsEnabled(queue_page_offset_ != 0);
     QueueNextPageButton().IsEnabled(queue_page_offset_ + view.pending_files.size() < view.pending_count);
+    // Native ListView drag exposes only the visible page. Reordering that
+    // subset through the global core API would move it ahead of hidden files.
+    QueueList().CanReorderItems(queue_page_offset_ == 0 && view.pending_count <= kVisibleQueueItems);
     const bool page_changed = queue_rendered_page_offset_ != queue_page_offset_;
     const bool unchanged = !page_changed && view.pending_files.size() == queue_snapshot_.size() &&
         std::equal(view.pending_files.begin(), view.pending_files.end(), queue_snapshot_.begin(),
@@ -402,6 +405,12 @@ void MainWindow::OnQueueDragItemsCompleted(
 
     if (!live_plan_) {
         RefreshQueue(force_visual_rebuild);
+        return;
+    }
+    // Guard the completion event too: a transfer may grow or shrink the
+    // pending queue after drag started, invalidating the full-queue premise.
+    if (queue_page_offset_ != 0 || live_plan_->queue_view(0).pending_count > 256) {
+        RefreshQueue(true);
         return;
     }
 
