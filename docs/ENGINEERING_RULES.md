@@ -185,6 +185,127 @@ Running planning off the UI thread is not enough if directory enumeration ignore
 
 If the engine is reporting transferred bytes, the UI must not round a positive fraction back to `0%`. For large jobs this makes a healthy transfer look stalled even while throughput and ETA are updating. Preserve a visible sub-percent state until whole-number percentages become meaningful.
 
+
+## 14. Principal engineer operating protocol
+
+VelocityCopy engineering must optimize for production quality, not merely for a
+passing implementation. The default decision process for every material change
+is:
+
+`risk analysis -> compare alternatives -> choose the strongest native/documented solution -> implement the smallest coherent change -> verify the exact SHA -> close with measured vs physically unverified behavior`
+
+### Native Windows first
+
+- Prefer native Windows, Win32 and WinUI mechanisms when the platform already
+  provides the required capability.
+- Use stable, documented APIs and system metrics instead of reimplementing
+  platform behavior.
+- Avoid WebViews, generic cross-platform abstractions and third-party libraries
+  when a native Windows solution is sufficient.
+- A third-party dependency requires an explicit benefit in correctness,
+  performance, maintainability or capability that the native stack cannot
+  reasonably provide.
+
+### Improve the requested solution when a better one exists
+
+- Treat a requested implementation as a product requirement, not necessarily as
+  the optimal technical design.
+- When a simpler, safer or more efficient design exists, compare the viable
+  alternatives and choose the strongest production design.
+- State what was improved and why the selected design is superior.
+- Prefer removing duplicated mechanisms and obsolete state over adding another
+  compatibility layer.
+- Do not add speculative complexity for hypothetical future requirements.
+
+### One implementation line
+
+- Keep one authoritative implementation path for each production behavior.
+- Do not maintain parallel branches, duplicated release mechanisms, fallback
+  engines or alternate UI flows unless a documented compatibility requirement
+  makes them necessary.
+- Temporary isolation is allowed only when needed to protect `main`; once the
+  change is integrated, obsolete temporary branches and duplicated paths should
+  be retired.
+- Product semantics must come from the engine/controller contract. UI must not
+  present actions, states or guarantees that the underlying implementation does
+  not actually support.
+
+### No arbitrary heuristics when Windows exposes the truth
+
+- Prefer operating-system metrics, capabilities, topology and measured runtime
+  state over guessed constants.
+- A fixed threshold is acceptable only when it is part of an explicit product
+  policy, documented platform contract, protocol limit, or measured tuning
+  decision.
+- If an estimate is temporarily unavoidable, identify it as an estimate,
+  isolate it behind a named policy/token, and require physical measurement
+  before treating it as stable behavior.
+- Never present inferred performance, geometry or capability as a measured fact.
+
+### Upgrade deliberately, not automatically
+
+Before changing Windows App SDK, C++/WinRT, toolchains, NSIS, actions, APIs or
+other platform dependencies, evaluate:
+
+1. compatibility with the current unpackaged/self-contained architecture;
+2. concrete correctness, security, performance or UX benefit;
+3. migration and regression surface;
+4. package size/runtime implications;
+5. CI, installer and ARM64 impact;
+6. rollback cost.
+
+Do not upgrade solely because a newer version exists. During stabilization or a
+release candidate, reliability takes precedence over modernization that has no
+demonstrated release benefit.
+
+### Tests are contracts, not obstacles
+
+- Never weaken a correct test merely to accommodate an implementation.
+- When an old contract is genuinely obsolete, explain the product/architecture
+  change and replace it with a stronger behavior-oriented invariant.
+- Prefer tests that constrain observable semantics, ownership and safety over
+  exact source spelling or incidental implementation details.
+- A new optimization must preserve correctness contracts before performance
+  claims are considered.
+
+### Performance and UX require evidence
+
+- Optimize algorithmic complexity, allocation behavior, I/O concurrency and UI
+  work where source inspection establishes a clear structural improvement.
+- Do not claim throughput, memory, latency or fluidity gains without measurement
+  when the claim depends on hardware/runtime behavior.
+- UI must preserve native input, focus, accessibility, DPI/text scaling,
+  localization, taskbar/tray behavior and error/decision reachability.
+- Visual polish must not compromise transfer correctness, shell integration or
+  installer reliability.
+
+### Release-candidate discipline
+
+When the project is in stabilization or release-candidate state:
+
+- fix confirmed defects and release blockers before adding features;
+- prefer the smallest complete correction over redesign;
+- avoid dependency/API migrations unless they directly remove a release risk;
+- do not widen scope for cosmetic improvements that can safely wait;
+- require the exact candidate SHA to pass its relevant Windows CI and Package
+  workflows before calling the code gate complete;
+- require physical Windows validation for behavior that automation cannot prove.
+
+### Required evidence at closeout
+
+Every material change must close with explicit evidence levels:
+
+- **Verified in source** — implementation/source inspection proves the invariant.
+- **Verified by tests** — relevant automated contracts executed successfully.
+- **Verified by CI** — the exact commit SHA passed the applicable Windows CI.
+- **Verified by Package** — the exact commit SHA passed packaging, payload and
+  installer smoke gates.
+- **Verified on Windows** — the behavior was physically exercised on Windows.
+- **Not yet verified** — identify the remaining runtime/device/manual gate.
+
+Never collapse these levels into a generic "done" or "stable" statement.
+
+
 ## Engine audit invariants
 
 - Observe Pause/Stop/Cancel before materializing directories or retrying source deletion, including jobs with no transfer files.
