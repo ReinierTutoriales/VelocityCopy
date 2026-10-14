@@ -5,7 +5,11 @@ Optimized: `2ba9836b7e6573b9bb95c6556aa0f8bd6c8e6ab1`.
 
 ## Important measurement limitation
 
-`VelocityCopyBenchmark <source> <destination> --json` performs a **real copy** after planning. Never run it against valuable destination data. Use disposable, initially empty destinations outside the source tree, one per trial. The old baseline does not expose `planning_seconds`, so the two commits cannot yet be compared by simply reading identical JSON keys. First obtain a like-for-like planning measurement (e.g. a dedicated plan-only harness on both revisions) before claiming speedup.
+`VelocityCopyBenchmark <source> <destination> --json` performs a **real copy** after planning. Never run it against valuable destination data. Use disposable, initially empty destinations outside the source tree, one per trial. The original baseline does not expose `planning_seconds`. The dedicated `--plan-only --json` mode was introduced after the optimization. For a valid comparison, apply the **same measurement-only harness** to both historical revisions without altering their planner implementations; use separate worktrees and identical build settings. Never compare the optimized plan-only time to a baseline full-copy elapsed time.
+
+## Current planner-only command
+
+`VelocityCopyBenchmark <source> <destination> --plan-only --json` reports `mode`, `planning_seconds`, `file_count`, `directory_count` and `total_bytes` without copying files or profiling storage. The destination path must still be valid for planner semantics. `--workers` is not accepted in plan-only mode. The CTest smoke test `velocitycopy_planner_benchmark_mode` checks the JSON counts and confirms that no destination files are created.
 
 ## Workloads
 
