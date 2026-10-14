@@ -94,6 +94,9 @@ void MainWindow::RefreshActiveQueue() {
 
 void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
     if (queue_drag_active_) {
+        // The pending ListView is frozen during native drag, but active file
+        // progress must continue to update independently.
+        if (expanded_) RefreshActiveQueue();
         queue_refresh_force_rebuild_ = queue_refresh_force_rebuild_ || force_visual_rebuild;
         return;
     }
