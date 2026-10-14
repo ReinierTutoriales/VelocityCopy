@@ -68,11 +68,6 @@ set_target_properties(VelocityCopyStartupHelper PROPERTIES OUTPUT_NAME "Velocity
 add_executable(VelocityCopyBenchmark tools/benchmark.cpp)
 target_link_libraries(VelocityCopyBenchmark PRIVATE velocitycopy_core psapi)
 
-add_test(NAME velocitycopy_planner_benchmark_mode
-    COMMAND ${CMAKE_COMMAND}
-        "-DBENCHMARK=$<TARGET_FILE:VelocityCopyBenchmark>"
-        -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/planner_benchmark_mode_test.cmake")
-
 add_executable(VelocityCopyAppendBenchmark tools/benchmark_append.cpp)
 target_link_libraries(VelocityCopyAppendBenchmark PRIVATE velocitycopy_core)
 
@@ -90,6 +85,12 @@ if(MSVC)
 endif()
 
 enable_testing()
+
+add_test(NAME velocitycopy_planner_benchmark_mode
+    COMMAND ${CMAKE_COMMAND}
+        "-DBENCHMARK=$<TARGET_FILE:VelocityCopyBenchmark>"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/planner_benchmark_mode_test.cmake")
+
 
 function(add_velocitycopy_test target source name)
     add_executable(${target} ${source})
