@@ -296,6 +296,7 @@ private:
     std::deque<QueuedTransfer> queued_sessions_;
     std::shared_ptr<velocitycopy::LiveCopyPlan> live_plan_;
     std::vector<velocitycopy::PlannedFile> queue_snapshot_;
+    std::size_t queue_page_offset_{};
     std::vector<std::filesystem::path> planning_sources_;
     Microsoft::UI::Dispatching::DispatcherQueue dispatcher_{nullptr};
     Microsoft::UI::Xaml::Controls::MenuFlyoutItem save_queue_menu_item_{nullptr};
