@@ -26,7 +26,13 @@ struct LiveCopyPlanSnapshot {
     std::uint64_t completed_files{};
 };
 
+struct ActiveQueueFile {
+    PlannedFile file;
+    std::uint64_t transferred_bytes{}; // Current attempt, capped at file size.
+};
+
 struct LiveQueueView {
+    std::vector<ActiveQueueFile> active_files;
     std::vector<PlannedFile> pending_files;
     std::uint64_t pending_count{};
     std::uint64_t active_count{};
@@ -104,6 +110,8 @@ public:
     [[nodiscard]] FileOperation operation() const noexcept;
     [[nodiscard]] LiveCopyPlanSnapshot snapshot() const;
     [[nodiscard]] LiveQueueView queue_view(std::size_t max_items, std::size_t offset = 0) const;
+    // Bounded active projection; never enumerate all pending files for progress UI.
+    [[nodiscard]] LiveQueueView active_queue_view(std::size_t max_active_items) const;
     [[nodiscard]] CopyPlan export_remaining_plan() const;
 
     [[nodiscard]] LivePlanAppendResult append(CopyPlan plan, bool allow_drained = false) noexcept;
