@@ -407,6 +407,9 @@ void MainWindow::OnQueueDragItemsCompleted(
         return;
     }
     const auto items = QueueList().Items();
+    // Native drag must preserve the exact set of IDs displayed at drag start.
+    // If a worker acquired a file while dragging, the core rejects the stale
+    // page atomically instead of applying the new order to a shifted page.
     std::vector<std::uint64_t> ordered_ids;
     ordered_ids.reserve(items.Size());
     for (std::uint32_t index = 0; index < items.Size(); ++index) {
