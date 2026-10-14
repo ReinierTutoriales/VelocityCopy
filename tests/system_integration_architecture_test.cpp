@@ -242,9 +242,11 @@ int main() {
     if (!contains(shell, "SHGetPathFromIDListEx") ||
         !contains(shell, "CF_HDROP") || !contains(shell, "IContextMenu") ||
         contains(shell, "IExplorerCommand") ||
+        contains(shell, "SetMenuDefaultItem") ||
+        contains(shell, "CFSTR_PREFERREDDROPEFFECT") ||
         contains(installer_exe, "ExplorerCommandHandler") ||
         !contains(installer_exe, "DragDropHandlers")) {
-        return fail(15, "only the drop-handler registration and data-object contract may remain");
+        return fail(15, "only explicit documented drag/drop-handler commands may remain; do not replace Explorer defaults with undocumented IDs");
     }
 
     if (contains(recovery, "ContentDialog") || contains(recovery, "XamlRoot(") ||

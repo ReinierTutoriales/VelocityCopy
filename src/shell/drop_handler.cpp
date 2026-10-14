@@ -93,7 +93,6 @@ class DropHandler final : public IShellExtInit, public IContextMenu {
     bool ready_{};
     bool offered_{};
     bool invoked_{};
-    bool shell_source_{};
 public:
     DropHandler() { ++objects; }
     ~DropHandler() { --objects; }
@@ -111,7 +110,6 @@ public:
     }
     IFACEMETHODIMP Initialize(PCIDLIST_ABSOLUTE folder, IDataObject* data, HKEY) override {
         ready_ = offered_ = invoked_ = false;
-        shell_source_ = false;
         request_ = {};
         if (!folder || !data) return E_INVALIDARG;
         try {
@@ -120,23 +118,8 @@ public:
                 return E_INVALIDARG;
             request_.action = velocitycopy::ShellAction::Transfer;
             request_.destination = target.data();
-            FORMATETC shell_items{static_cast<CLIPFORMAT>(RegisterClipboardFormatW(CFSTR_SHELLIDLIST)),
-                nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL};
-            shell_source_ = data->QueryGetData(&shell_items) == S_OK;
             HRESULT hr = read_sources(data, request_.sources);
             if (FAILED(hr)) { request_ = {}; return hr; }
-            // Explicit commands decide Copy/Move. Preference is only a hint for
-            // the historical default-command path, never permission to delete.
-            FORMATETC effect{static_cast<CLIPFORMAT>(RegisterClipboardFormatW(CFSTR_PREFERREDDROPEFFECT)),
-                nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL};
-            Medium medium;
-            if (SUCCEEDED(data->GetData(&effect, &medium.value)) && medium.value.tymed == TYMED_HGLOBAL &&
-                medium.value.hGlobal && GlobalSize(medium.value.hGlobal) >= sizeof(DWORD)) {
-                GlobalView view(medium.value.hGlobal);
-                DWORD preferred{};
-                if (view.data) std::memcpy(&preferred, view.data, sizeof(preferred));
-                if (preferred == DROPEFFECT_MOVE) request_.operation = velocitycopy::FileOperation::Move;
-            }
             ready_ = velocitycopy::shell_request_valid(request_);
             return ready_ ? S_OK : E_INVALIDARG;
         } catch (...) { request_ = {}; return E_OUTOFMEMORY; }
@@ -145,10 +128,6 @@ public:
         offered_ = false;
         if (!ready_ || invoked_ || (flags & CMF_DEFAULTONLY) || first > last || last - first < 1)
             return MAKE_HRESULT(SEVERITY_SUCCESS, 0, 0);
-        // SuperCopier2's compatibility technique: Explorer historically used
-        // default command 1 for Copy and 2 for Move. These IDs are NOT a public
-        // Windows contract. Unknown IDs leave the native default untouched.
-        const UINT native_default = GetMenuDefaultItem(menu, FALSE, 0);
         std::array<wchar_t, 128> copy{}, move{};
         if (!LoadStringW(module, IDS_SHELL_COPY_HERE, copy.data(), static_cast<int>(copy.size())) ||
             !LoadStringW(module, IDS_SHELL_MOVE_HERE, move.data(), static_cast<int>(move.size()))) return E_FAIL;
@@ -157,9 +136,6 @@ public:
             DeleteMenu(menu, index, MF_BYPOSITION); return E_FAIL;
         }
         offered_ = true;
-        if (shell_source_ && (native_default == 1 || native_default == 2)) {
-            (void)SetMenuDefaultItem(menu, first + (native_default - 1), FALSE);
-        }
         return MAKE_HRESULT(SEVERITY_SUCCESS, 0, 2);
     }
     IFACEMETHODIMP GetCommandString(UINT_PTR command, UINT flags, UINT*, LPSTR text, UINT count) override {

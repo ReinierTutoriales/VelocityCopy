@@ -73,7 +73,7 @@ Explorer integration uses an unpackaged in-process COM server:
 - all enumeration, planning, conflicts, queue state and I/O remain in the VelocityCopy app process
 - IPC or launch failure must never destabilize Explorer
 
-The shell uses the SuperCopier-style default drop-menu selection technique described in EXPLORER_INTEGRATION.md. The command-ID mapping is historical and not a documented Windows 11 guarantee. Automatic Ctrl+V remains a required installed-Windows validation gate. No global hooks, injection or resident clipboard staging are used.
+The shell exposes only explicit Copy here / Move here commands on the documented right-button DragDropHandlers menu. It does not replace Explorer's native default command or depend on historical numeric command IDs. Windows exposes no supported third-party interception point for ordinary Explorer Ctrl+V, so transparent paste replacement is not a VelocityCopy release gate. No global hooks, injection, Explorer patching or resident clipboard staging are used. See EXPLORER_INTEGRATION.md for the platform analysis and supported scope.
 ## Process model
 
 ```text

@@ -16,7 +16,6 @@ class Data final : public IDataObject {
 public:
     bool malformed{};
     bool ansi{};
-    DWORD preferred{DROPEFFECT_MOVE};
     unsigned sets{};
     IFACEMETHODIMP QueryInterface(REFIID id, void** out) override {
         if (!out) return E_POINTER; *out = nullptr;
@@ -29,10 +28,10 @@ public:
         if (!f || !out) return E_POINTER;
         *out = {};
         const bool drop = f->cfFormat == CF_HDROP;
-        if (!drop && f->cfFormat != RegisterClipboardFormatW(CFSTR_PREFERREDDROPEFFECT)) return DV_E_FORMATETC;
+        if (!drop) return DV_E_FORMATETC;
         const wchar_t paths[] = L"C:\\Source\\a.txt\0C:\\Source\\Folder\0";
         const char narrow[] = "C:\\Source\\a.txt\0C:\\Source\\Folder\0";
-        SIZE_T bytes = drop ? sizeof(DROPFILES) + (ansi ? sizeof(narrow) : sizeof(paths)) : sizeof(DWORD);
+        SIZE_T bytes = sizeof(DROPFILES) + (ansi ? sizeof(narrow) : sizeof(paths));
         HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE | GMEM_ZEROINIT, bytes);
         if (!memory) return E_OUTOFMEMORY;
         auto* raw = static_cast<unsigned char*>(GlobalLock(memory));
@@ -44,15 +43,13 @@ public:
             std::memcpy(raw, &header, sizeof(header));
             if (ansi) std::memcpy(raw + sizeof(header), narrow, sizeof(narrow));
             else std::memcpy(raw + sizeof(header), paths, sizeof(paths));
-        } else std::memcpy(raw, &preferred, sizeof(preferred));
+        }
         GlobalUnlock(memory);
         out->tymed = TYMED_HGLOBAL; out->hGlobal = memory;
         return S_OK;
     }
     IFACEMETHODIMP GetDataHere(FORMATETC*, STGMEDIUM*) override { return E_NOTIMPL; }
-    IFACEMETHODIMP QueryGetData(FORMATETC* f) override {
-        return f && f->cfFormat == RegisterClipboardFormatW(CFSTR_SHELLIDLIST) ? S_OK : DV_E_FORMATETC;
-    }
+    IFACEMETHODIMP QueryGetData(FORMATETC*) override { return DV_E_FORMATETC; }
     IFACEMETHODIMP GetCanonicalFormatEtc(FORMATETC*, FORMATETC*) override { return E_NOTIMPL; }
     IFACEMETHODIMP SetData(FORMATETC*, STGMEDIUM*, BOOL) override { ++sets; return E_NOTIMPL; }
     IFACEMETHODIMP EnumFormatEtc(DWORD, IEnumFORMATETC**) override { return E_NOTIMPL; }
@@ -79,39 +76,40 @@ bool run(GetClass get, CanUnload unload) {
     };
     bool ok = true;
     HMENU menu = CreatePopupMenu();
-    // Exercise the exact historical default switching separately from a claim
-    // about whether Windows 11 Explorer calls this path for Ctrl+V.
-    for (UINT native : {1u, 2u, 3u, 99u}) {
-        for (bool ansi : {false, true}) {
+    // The supported DragDropHandlers contract exposes explicit Copy/Move
+    // commands only. VelocityCopy must never replace Explorer's native default
+    // using undocumented numeric command IDs.
+    for (bool ansi : {false, true}) {
+        for (UINT command : {0u, 1u}) {
             data->ansi = ansi;
             ok &= check(SUCCEEDED(init->Initialize(target, data, nullptr)), "Initialize");
-            InsertMenuW(menu, 0, MF_BYPOSITION | MF_STRING, native, L"Native");
-            SetMenuDefaultItem(menu, native, FALSE);
+            InsertMenuW(menu, 0, MF_BYPOSITION | MF_STRING, 77, L"Native");
+            SetMenuDefaultItem(menu, 77, FALSE);
             HRESULT hr = context->QueryContextMenu(menu, 1, 100, 101, 0);
             ok &= check(SUCCEEDED(hr) && HRESULT_CODE(hr) == 2, "two menu IDs");
-            ok &= check(GetMenuDefaultItem(menu, FALSE, 0) == (native <= 2 ? 100 + native - 1 : native), "default selection");
+            ok &= check(GetMenuDefaultItem(menu, FALSE, 0) == 77, "native default preserved");
             char verb[40]{};
-            ok &= check(SUCCEEDED(context->GetCommandString(0, GCS_VERBA, nullptr, verb, 40)) &&
-                std::strcmp(verb, "velocitycopy.copy") == 0, "canonical verb");
-            if (native <= 2) {
-                velocitycopy::ShellIpcServer server;
-                if (!server.valid()) return false;
-                std::optional<velocitycopy::ShellRequest> received;
-                std::jthread receiver([&] { received = server.receive(); });
-                CMINVOKECOMMANDINFO info{};
-                info.cbSize = sizeof(info);
-                info.lpVerb = MAKEINTRESOURCEA(native - 1);
-                HRESULT result = context->InvokeCommand(&info);
-                if (FAILED(result)) server.stop();
-                receiver.join();
-                ok &= check(SUCCEEDED(result) && received &&
-                    received->sources.size() == 2 && received->destination == path &&
-                    received->sources[0] == L"C:\\Source\\a.txt" &&
-                    received->operation == (native == 2 ? velocitycopy::FileOperation::Move : velocitycopy::FileOperation::Copy),
-                    "COM to IPC Copy/Move snapshot");
-                ok &= check(FAILED(context->InvokeCommand(&info)), "duplicate invocation rejected");
-                ok &= check(data->sets == 0, "no premature completion or source deletion");
-            }
+            ok &= check(SUCCEEDED(context->GetCommandString(command, GCS_VERBA, nullptr, verb, 40)) &&
+                std::strcmp(verb, command ? "velocitycopy.move" : "velocitycopy.copy") == 0,
+                "canonical verb");
+
+            velocitycopy::ShellIpcServer server;
+            if (!server.valid()) return false;
+            std::optional<velocitycopy::ShellRequest> received;
+            std::jthread receiver([&] { received = server.receive(); });
+            CMINVOKECOMMANDINFO info{};
+            info.cbSize = sizeof(info);
+            info.lpVerb = MAKEINTRESOURCEA(command);
+            HRESULT result = context->InvokeCommand(&info);
+            if (FAILED(result)) server.stop();
+            receiver.join();
+            ok &= check(SUCCEEDED(result) && received &&
+                received->sources.size() == 2 && received->destination == path &&
+                received->sources[0] == L"C:\\Source\\a.txt" &&
+                received->operation == (command ? velocitycopy::FileOperation::Move : velocitycopy::FileOperation::Copy),
+                "COM to IPC explicit Copy/Move snapshot");
+            ok &= check(FAILED(context->InvokeCommand(&info)), "duplicate invocation rejected");
+            ok &= check(data->sets == 0, "no premature completion or source deletion");
             while (GetMenuItemCount(menu) > 0) DeleteMenu(menu, 0, MF_BYPOSITION);
         }
     }

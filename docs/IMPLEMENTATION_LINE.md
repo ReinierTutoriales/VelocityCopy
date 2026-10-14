@@ -18,8 +18,8 @@ This document answers one question: **what do we change next, and what evidence 
 Before broad UI redesign, verify and stabilize:
 - copy/move correctness and data-safety paths;
 - queue/append/stop/resume/cancel/conflict semantics;
-- Explorer command target resolution;
-- complete IDataObject transfer snapshots and explicit Copy/Move;
+- Explorer right-button DragDropHandlers target resolution;
+- complete IDataObject transfer snapshots and explicit Copy/Move commands;
 - IPC single-instance dispatch;
 - tray/startup behavior;
 - drag/drop append-to-active-session semantics.
@@ -97,8 +97,8 @@ Each UI block follows: `green HEAD -> inspect -> complete block -> review diff -
 ## Gate 4 — real Windows validation
 
 Automated tests do not prove Explorer/taskbar/tray integration. On an installed x64 build verify:
-- Explorer context commands;
-- Ctrl+C/Ctrl+X -> ordinary Ctrl+V through the default handler; this gate is not proven by synthetic COM tests;
+- Explorer right-button drop commands (Copy here / Move here);
+- ordinary Ctrl+C/Ctrl+X -> Ctrl+V remains Explorer-owned and is not an interception gate;
 - tray startup/hide/restore/Explorer restart;
 - installed application/taskbar/tray icon;
 - active-transfer drag/drop append;
