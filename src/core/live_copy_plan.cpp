@@ -373,8 +373,13 @@ bool LiveCopyPlan::reorder_pending_page(
         for (std::size_t i = 0; i < ordered_file_ids.size(); ++i) {
             reordered.push_back(std::move(pending_files_[offset + i]));
         }
-        for (std::size_t i = 0; i < reordered.size(); ++i) {
-            pending_files_[offset + i] = std::move(reordered[rank.at(reordered[i].id)]);
+        std::vector<PlannedFile> sorted(reordered.size());
+        for (auto& file : reordered) {
+            const auto target = rank.at(file.id);
+            sorted[target] = std::move(file);
+        }
+        for (std::size_t i = 0; i < sorted.size(); ++i) {
+            pending_files_[offset + i] = std::move(sorted[i]);
         }
         return true;
     } catch (...) {
