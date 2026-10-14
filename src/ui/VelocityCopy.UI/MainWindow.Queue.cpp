@@ -367,8 +367,11 @@ void MainWindow::OnQueueDragItemsCompleted(
         }
     }
 
+    // ListView may have reordered its visual Items collection even when the
+    // core rejects a stale drag (an item was acquired or removed meanwhile).
+    // Always reconcile from the authoritative pending plan after a drag.
     (void)live_plan_->reorder_pending_files(ordered_ids);
-    RefreshQueue(force_visual_rebuild);
+    RefreshQueue(true);
 }
 
 } // namespace winrt::VelocityCopyUI::implementation
