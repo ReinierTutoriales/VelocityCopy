@@ -473,6 +473,13 @@ void MainWindow::OnQueueDragItemsCompleted(
         RefreshQueue(force_visual_rebuild);
         return;
     }
+    // A drag may finish after Details was collapsed. Do not apply a visual
+    // reorder to an undisplayed page; rebuild from the core when expanded.
+    if (!expanded_) {
+        queue_refresh_force_rebuild_ = true;
+        RefreshQueue(true);
+        return;
+    }
     const auto items = QueueList().Items();
     // Native drag must preserve the exact set of IDs displayed at drag start.
     // If a worker acquired a file while dragging, the core rejects the stale
