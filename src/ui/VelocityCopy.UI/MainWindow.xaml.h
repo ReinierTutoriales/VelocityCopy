@@ -224,6 +224,7 @@ private:
         bool retry_source_removals = false);
     void PublishLivePlan(std::shared_ptr<velocitycopy::LiveCopyPlan> plan);
     void RefreshQueue(bool force_visual_rebuild = false);
+    void RefreshActiveQueue();
     // Applies the compact container style in Narrow mode only; returns true when the style changed
     // (existing containers keep their old style, so the visuals must be rebuilt).
     bool ApplyQueueItemStyle(bool narrow);
