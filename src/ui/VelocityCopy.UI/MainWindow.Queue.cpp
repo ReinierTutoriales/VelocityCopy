@@ -71,6 +71,7 @@ void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
     };
 
     if (!live_plan_) {
+        queue_page_offset_ = 0;
         queue_snapshot_.clear();
         items.Clear();
 
@@ -100,7 +101,11 @@ void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
     planning_sources_.clear();
 
     constexpr std::size_t kVisibleQueueItems = 256;
-    auto view = live_plan_->queue_view(kVisibleQueueItems);
+    auto view = live_plan_->queue_view(kVisibleQueueItems, queue_page_offset_);
+    if (view.pending_files.empty() && view.pending_count != 0 && queue_page_offset_ != 0) {
+        queue_page_offset_ = static_cast<std::size_t>(((view.pending_count - 1) / kVisibleQueueItems) * kVisibleQueueItems);
+        view = live_plan_->queue_view(kVisibleQueueItems, queue_page_offset_);
+    }
     const bool unchanged = view.pending_files.size() == queue_snapshot_.size() &&
         std::equal(view.pending_files.begin(), view.pending_files.end(), queue_snapshot_.begin(),
             [](const velocitycopy::PlannedFile& left, const velocitycopy::PlannedFile& right) {
@@ -242,7 +247,23 @@ void MainWindow::OnQueueSelectionChanged(IInspectable const&, SelectionChangedEv
 }
 
 void MainWindow::OnQueueKeyDown(IInspectable const&, KeyRoutedEventArgs const& args) {
-    if (!live_plan_ || SelectedPendingIds().empty()) return;
+    if (!live_plan_) return;
+    if (args.Key() == Windows::System::VirtualKey::PageDown ||
+        args.Key() == Windows::System::VirtualKey::PageUp) {
+        constexpr std::size_t kPageSize = 256;
+        const auto count = live_plan_->queue_view(0).pending_count;
+        const auto last_page = count == 0 ? 0 : static_cast<std::size_t>(((count - 1) / kPageSize) * kPageSize);
+        const auto next = args.Key() == Windows::System::VirtualKey::PageDown
+            ? (std::min)(queue_page_offset_ + kPageSize, last_page)
+            : queue_page_offset_ >= kPageSize ? queue_page_offset_ - kPageSize : 0;
+        if (next != queue_page_offset_) {
+            queue_page_offset_ = next;
+            RefreshQueue(true);
+        }
+        args.Handled(true);
+        return;
+    }
+    if (SelectedPendingIds().empty()) return;
 
     switch (args.Key()) {
     case Windows::System::VirtualKey::Delete:
