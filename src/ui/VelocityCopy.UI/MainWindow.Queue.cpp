@@ -323,14 +323,14 @@ void MainWindow::OnQueueSelectionChanged(IInspectable const&, SelectionChangedEv
 
 void MainWindow::OnQueuePreviousPageClick(IInspectable const&, RoutedEventArgs const&) {
     constexpr std::size_t kPageSize = 256;
-    if (!live_plan_ || queue_page_offset_ == 0) return;
+    if (!live_plan_ || queue_drag_active_ || queue_page_offset_ == 0) return;
     queue_page_offset_ = queue_page_offset_ >= kPageSize ? queue_page_offset_ - kPageSize : 0;
     RefreshQueue(true);
 }
 
 void MainWindow::OnQueueNextPageClick(IInspectable const&, RoutedEventArgs const&) {
     constexpr std::size_t kPageSize = 256;
-    if (!live_plan_) return;
+    if (!live_plan_ || queue_drag_active_) return;
     const auto count = live_plan_->queue_view(0).pending_count;
     if (count == 0) return;
     const auto last_page = static_cast<std::size_t>(((count - 1) / kPageSize) * kPageSize);
@@ -340,7 +340,7 @@ void MainWindow::OnQueueNextPageClick(IInspectable const&, RoutedEventArgs const
 }
 
 void MainWindow::OnQueueKeyDown(IInspectable const&, KeyRoutedEventArgs const& args) {
-    if (!live_plan_) return;
+    if (!live_plan_ || queue_drag_active_) return;
     if (args.Key() == Windows::System::VirtualKey::PageDown ||
         args.Key() == Windows::System::VirtualKey::PageUp) {
         constexpr std::size_t kPageSize = 256;
