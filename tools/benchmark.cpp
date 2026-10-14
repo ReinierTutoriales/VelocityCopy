@@ -52,11 +52,14 @@ void write_disk_numbers(std::wostream& stream, const velocitycopy::StorageProfil
 
 int wmain(int argc, wchar_t* argv[]) {
     bool json_output = false;
+    bool plan_only = false;
     std::uint32_t forced_workers = 0;
     for (int index = 3; index < argc; ++index) {
         const std::wstring_view arg(argv[index]);
         if (arg == L"--json") {
             json_output = true;
+        } else if (arg == L"--plan-only") {
+            plan_only = true;
         } else if (arg.starts_with(L"--workers=")) {
             try {
                 const auto parsed = std::stoul(std::wstring(arg.substr(10)));
@@ -72,7 +75,7 @@ int wmain(int argc, wchar_t* argv[]) {
         }
     }
     if (argc < 3) {
-        std::wcout << L"Usage: VelocityCopyBenchmark <source> <destination> [--workers=1..4] [--json]\n";
+        std::wcout << L"Usage: VelocityCopyBenchmark <source> <destination> [--workers=1..4] [--json] [--plan-only]\n";
         return 1;
     }
 
@@ -100,6 +103,27 @@ int wmain(int argc, wchar_t* argv[]) {
     workload.file_count = plan.files.size();
     for (const auto& file : plan.files) {
         workload.largest_file_bytes = std::max(workload.largest_file_bytes, file.size);
+    }
+
+    if (plan_only) {
+        if (forced_workers != 0) {
+            std::wcerr << L"--workers is not applicable to --plan-only.\n";
+            return 1;
+        }
+        if (json_output) {
+            std::wcout << std::fixed << std::setprecision(6)
+                       << L"{\"mode\":\"plan-only\",\"planning_seconds\":" << planning_elapsed.count()
+                       << L",\"file_count\":" << workload.file_count
+                       << L",\"directory_count\":" << planned_directory_count
+                       << L",\"total_bytes\":" << plan.total_bytes << L"}\n";
+        } else {
+            std::wcout << std::fixed << std::setprecision(6)
+                       << L"Planning: " << planning_elapsed.count() << L" s"
+                       << L" | files " << workload.file_count
+                       << L" | directories " << planned_directory_count
+                       << L" | bytes " << plan.total_bytes << L"\n";
+        }
+        return 0;
     }
 
     velocitycopy::StorageProfiler profiler;
