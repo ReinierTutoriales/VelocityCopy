@@ -10,8 +10,6 @@ on:
   pull_request:
   push:
     branches: [main]
-    tags:
-      - "v*"
 
 concurrency:
   group: windows-package-${{ github.ref }}
@@ -229,29 +227,6 @@ jobs:
             Remove-Item $fixture -Recurse -Force -ErrorAction SilentlyContinue
           }
 
-      - name: Sign stable-tag payload
-        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-        shell: pwsh
-        env:
-          SIGNING_PFX_BASE64: ${{ secrets.VELOCITYCOPY_SIGNING_PFX_BASE64 }}
-          SIGNING_PFX_PASSWORD: ${{ secrets.VELOCITYCOPY_SIGNING_PFX_PASSWORD }}
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:SIGNING_PFX_BASE64) -or
-              [string]::IsNullOrWhiteSpace($env:SIGNING_PFX_PASSWORD)) {
-            throw "Stable tags require VELOCITYCOPY_SIGNING_PFX_BASE64 and VELOCITYCOPY_SIGNING_PFX_PASSWORD"
-          }
-          $pfx = Join-Path $env:RUNNER_TEMP "velocitycopy-stable-signing.pfx"
-          try {
-            [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:SIGNING_PFX_BASE64))
-            $payload = (Resolve-Path "artifacts/installer-payload-${{ matrix.arch }}").Path
-            foreach ($name in @("VelocityCopy.WinUI.exe", "VelocityCopy.Shell.dll", "VelocityCopy.StartupHelper.exe")) {
-              $binary = Join-Path $payload $name
-              & ./tools/ci/Sign-VelocityCopyBinary.ps1 -Path $binary -PfxPath $pfx -PfxPassword $env:SIGNING_PFX_PASSWORD
-            }
-          } finally {
-            Remove-Item $pfx -Force -ErrorAction SilentlyContinue
-          }
-
       - name: Validate application PRI in payload
         shell: pwsh
         run: |
@@ -344,26 +319,6 @@ jobs:
             & ./tools/ci/Test-AuthenticodePipeline.ps1 -Path $fixture
           } finally {
             Remove-Item $fixture -Force -ErrorAction SilentlyContinue
-          }
-
-      - name: Sign stable-tag installer
-        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-        shell: pwsh
-        env:
-          SIGNING_PFX_BASE64: ${{ secrets.VELOCITYCOPY_SIGNING_PFX_BASE64 }}
-          SIGNING_PFX_PASSWORD: ${{ secrets.VELOCITYCOPY_SIGNING_PFX_PASSWORD }}
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:SIGNING_PFX_BASE64) -or
-              [string]::IsNullOrWhiteSpace($env:SIGNING_PFX_PASSWORD)) {
-            throw "Stable tags require Authenticode signing secrets"
-          }
-          $pfx = Join-Path $env:RUNNER_TEMP "velocitycopy-stable-signing.pfx"
-          $setup = (Resolve-Path "artifacts/installer/${{ matrix.setup_name }}").Path
-          try {
-            [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:SIGNING_PFX_BASE64))
-            & ./tools/ci/Sign-VelocityCopyBinary.ps1 -Path $setup -PfxPath $pfx -PfxPassword $env:SIGNING_PFX_PASSWORD
-          } finally {
-            Remove-Item $pfx -Force -ErrorAction SilentlyContinue
           }
 
       - name: Smoke upgrade from v1.1.0 with write-locked shell DLL

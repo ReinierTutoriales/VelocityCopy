@@ -1,46 +1,112 @@
 # VelocityCopy release gates
 
-These gates define the 1.1.0 stable release pipeline and must remain aligned with the engineering and implementation rules.
+These gates define the current release pipeline and must remain aligned with the
+engineering and implementation rules.
 
-## Stable release gate
+## Release model
 
-- `main` must pass Windows CI: x64 Release configure, build and `ctest`.
-- Windows Package runs on pull requests, every main commit, `v*` tags and `workflow_dispatch`; commit CI stays free of packaging while package validation remains a separate workflow.
-- x64 and ARM64 classic installers are built with payload verification, including PE-machine checks for both `VelocityCopy.WinUI.exe` and `VelocityCopy.Shell.dll`; smoke install/uninstall runs on x64.
-- A stable tag is cut only from a main commit whose CI and Package runs are green.
-- Package CI exercises deterministic Authenticode signing on disposable copies with an ephemeral self-signed code-signing certificate that is deliberately not added to a trust store. The PR gate verifies the expected signer and proves content integrity by tampering with the signed copy and requiring `HashMismatch`; it does not depend on external timestamp services. The ephemeral certificate and private key are removed afterward and are never packaged.
-- Stable `v*` tag packaging requires valid Authenticode signatures and RFC3161 timestamps on `VelocityCopy.WinUI.exe`, `VelocityCopy.Shell.dll`, `VelocityCopy.StartupHelper.exe` and both installers. Tag jobs fail closed when signing secrets are absent or verification fails.
+VelocityCopy currently publishes unsigned classic installers for x64 and ARM64.
+The official publication path is `.github/workflows/release.yml`; there is no
+second tag-driven packaging path.
 
-The upgrade fixture is the published unsigned x64 v1.1.0 installer, pinned to SHA256 `21647db6ca0b98b8c523c7f68ec56fb14b0151d536d97d5eb3677d17a6da22a7`. The historical v1.0.0 asset now returns HTTP 404; it is not silently substituted with a rebuilt payload. Two upgrades with independently write-locked shell generations remain required. Historical 1.0.0 upgrade coverage needs its original external fixture and remains a manual check.
+A release candidate is a specific commit on `main` whose Windows CI and Windows
+Package runs are green. The release workflow:
+
+- runs only by explicit owner-triggered `workflow_dispatch` from `main`;
+- requires a semantic version matching `Version.h` on the selected commit;
+- requires the selected commit to be contained in `main`;
+- finds a successful `Windows Package` push run for that exact commit;
+- downloads the x64 and ARM64 installer artifacts from that run;
+- verifies each artifact contains exactly the expected PE installer;
+- renames the installers for the release, generates `SHA256SUMS.txt`, and
+  publishes those exact bytes without rebuilding or modifying them;
+- creates the release tag on the same commit and verifies the published assets
+  and tag target.
+
+`Windows Package` is a validation/build workflow. It runs on pull requests,
+`main` pushes and explicit manual dispatch. It must not publish releases or
+implement a separate tag policy.
+
+If production Authenticode signing is introduced later, it must be added to the
+single release path with explicit credential handling, signature verification
+and timestamp verification before publication. Do not keep a second signing
+pipeline in parallel with the official release workflow.
+
+## Required automated gate
+
+Before publication, the exact candidate commit must pass:
+
+- Windows CI x64 Release configure/build/ctest;
+- ARM64 core compilation;
+- ASan RelWithDebInfo compilation;
+- self-contained WinUI x64 build and launch smoke;
+- Windows Package x64 and ARM64 payload/build validation;
+- PE-machine checks for `VelocityCopy.WinUI.exe`, `VelocityCopy.Shell.dll`
+  and `VelocityCopy.StartupHelper.exe`;
+- PRI/resource and application-icon validation;
+- deterministic Authenticode pipeline tests on disposable copies using an
+  ephemeral self-signed certificate (test-only; never packaged);
+- classic installer generation for x64 and ARM64;
+- x64 upgrade, install, installed-launch and uninstall smoke;
+- payload inventory and forbidden-component checks.
+
+The upgrade fixture is the published unsigned x64 v1.1.0 installer, pinned to
+SHA256 `21647db6ca0b98b8c523c7f68ec56fb14b0151d536d97d5eb3677d17a6da22a7`.
+Historical v1.0.0 upgrade coverage requires its original external fixture and
+remains a manual check.
 
 ## Required real-Windows sign-off
 
-CI and Package are necessary but do not authorize a stable tag by themselves.
+CI and Package are necessary but do not prove every shell/UI/device path.
 
-- Before `v1.1.0`, an x64 Windows 11 machine must pass Explorer end-to-end checks with the shell extension loaded: Ctrl+C/V, Ctrl+X/V, drag/drop, Explorer restart, upgrade from 1.0.0, resident uninstall, OneDrive/cloud-file hydration and junction rejection.
-- The x64 sign-off must include destructive/fault cases for Move: destination full or unavailable and removal/disconnect of a USB destination during transfer. The source must never be deleted before the copied destination has passed the engine's completion validation.
-- ARM64 may be published as a 1.1.0 release asset only after a real Windows ARM64 install/launch/shell-integration smoke. Cross-compilation and PE validation alone do not satisfy this gate.
-- Record the exact `main` SHA used for the real-Windows sign-off. The stable tag must point to that exact SHA after its CI and Package runs are green.
-- Do not infer Explorer runtime safety from the write-locked DLL fixture: that fixture proves file-replacement mechanics, not that an already-loaded Explorer process switched to the new COM image.
+Before declaring a release fully validated on hardware, test on x64 Windows 11:
+
+- Explorer Ctrl+C/V, Ctrl+X/V and drag/drop with the shell extension loaded;
+- Explorer restart while VelocityCopy is resident;
+- upgrade from the oldest supported published fixture;
+- resident uninstall;
+- OneDrive/cloud-file hydration;
+- junction/reparse-point rejection;
+- Move with destination-full/unavailable conditions;
+- destination removal/disconnect during transfer;
+- DPI/text-size, keyboard/focus, notification/tray and taskbar behavior relevant
+  to the release.
+
+Source deletion for Move must never occur before the copied destination has
+passed the engine completion rules.
+
+ARM64 compilation and PE validation do not prove ARM64 runtime behavior. Record
+physical ARM64 install/launch/shell-integration validation separately when a
+real ARM64 device is available.
 
 ## Packaging rules
 
 - Distribution is classic self-contained NSIS, not MSIX.
+- Supported release architectures are x64 and ARM64 only.
 - No x86 and no portable distribution.
-- WinUI remains unpackaged and self-contained (`WindowsAppSDKSelfContained=true`, `AppxPackage=false`).
-- Each x64/ARM64 payload includes `VelocityCopy.WinUI.exe` and `VelocityCopy.Shell.dll`.
+- WinUI remains unpackaged and self-contained
+  (`WindowsAppSDKSelfContained=true`, `AppxPackage=false`).
+- Each payload includes `VelocityCopy.WinUI.exe`,
+  `VelocityCopy.Shell.dll` and `VelocityCopy.StartupHelper.exe`.
 - Registered installer payloads must be asserted before NSIS runs.
-- The x64 package gate smoke-installs and uninstalls the classic setup.
-- Gate 4 on real Windows must verify unpackaged `x:Uid` resource resolution with Procmon evidence for `.pri` access; CI resource validation does not close this runtime route.
-- Do not add Chocolatey or AppX/MSIX deployment to the required path. Production signing credentials are supplied only as GitHub secrets at stable-tag time and must never be committed or packaged.
+- The x64 package gate smoke-installs, launches and uninstalls the classic setup.
+- Do not add Chocolatey, AppX or MSIX to the required release path unless product
+  requirements explicitly change.
 
 ## Workflow-change safety
 
-Architecture tests validate durable workflow behavior.
+Changes to CI, Package or Release workflows are production changes.
 
-Required commit-CI behavior: x64 configure/build/ctest; ARM64 core compile; ASan RelWithDebInfo compile; WinUI x64 build; no AppX installation; no packaging in commit CI.
+Required commit-CI behavior: x64 configure/build/ctest; ARM64 core compile; ASan
+RelWithDebInfo compile; WinUI x64 build/launch; no installer publication.
 
-Required package behavior: main-push, `v*` tag and manual triggers; self-contained WinUI payload; classic x64 and ARM64 VelocityCopy installers; payload verification; smoke install/uninstall.
+Required Package behavior: pull-request, `main`-push and manual triggers;
+self-contained WinUI payload; classic x64/ARM64 installers; payload/resource
+verification; x64 upgrade/install/launch/uninstall smoke; artifact upload.
+
+Required Release behavior: owner-only explicit dispatch from `main`; exact
+version/SHA validation; reuse of an already successful Package run on that exact
+commit; checksum generation; no binary rebuild; verified tag and assets.
 
 ## Branch and commit hygiene
 
@@ -52,4 +118,7 @@ Required package behavior: main-push, `v*` tag and manual triggers; self-contain
 
 ## Failure triage
 
-If CI/package is red, read the actual failing job/log before editing and classify it as configure/build, production test, architecture contract, payload/package, installer smoke or runtime integration.
+If CI, Package or Release is red, inspect the exact failing job/log before
+editing and classify the failure as configure/build, production test,
+architecture contract, payload/package, installer smoke, publication or
+runtime/integration.
