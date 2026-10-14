@@ -15,11 +15,17 @@ commit is not evidence of a successful Windows build or real-device behavior.
 - VelocityCopy is a **fast, compact Windows 11 file copier**, not a dashboard.
   Do not add a feature without identifying a real user problem, data source,
   interaction cost, scaling behavior and acceptance criteria.
-- **Compact:** target approximately 460 x 72 effective pixels, one exterior
-  contour, same HWND when expanded; no nested decorative cards, second queue
-  window, or per-file progress bars in compact mode.
-- **Global progress:** integrated into the copier body, not an additional
-  strip. Preserve legibility, native Accent, dark/light and High Contrast.
+- **Compact:** content-measured height and a width that accommodates the approved
+  command row; one exterior contour, same HWND when expanded. The older
+  approximately 460 x 72 epx sketch is not an immutable sizing contract.
+  Do not add nested decorative cards, a second queue window, or per-file
+  progress bars in compact mode. See the superseding phase-1 geometry in
+  `docs/UI_SPEC.md`.
+- **Global progress:** exactly one native WinUI `ProgressBar` in the normal
+  transfer surface, as specified by the later PR #57 contract in
+  `docs/UI_SPEC.md`. Do not revive the superseded proportional surface-fill
+  Border or add a second progress bar. Preserve UI Automation, legibility,
+  system Accent, dark/light and High Contrast.
 - **Expanded:** bounded height; no growth proportional to file count.
   Display a small **active transfers** section with per-file progress only
   where the engine has authoritative per-file bytes; display pending files
@@ -60,10 +66,10 @@ commit is not evidence of a successful Windows build or real-device behavior.
    drag snapshots, reorder while workers acquire files, multiple selection,
    queue shrink/drain and large-queue performance. Preserve hidden rows.
 2. **Compact body and geometry.** Inspect existing XAML and window-sizing
-   code, reconcile with the approved one-contour design, eliminate clipping,
-   measure real compact dimensions on Windows at supported DPI values.
-   Do not introduce a second progress strip or enlarge the compact window
-   to accommodate Queue.
+   code, preserve the one-contour design and the single native ProgressBar,
+   eliminate clipping, and measure content-derived client/outer HWND
+   dimensions on Windows at supported DPI and text scales. Do not impose
+   the obsolete fixed 460 x 72 epx sketch or enlarge compact mode for Queue.
 3. **Expanded layout.** Same HWND, bounded queue viewport, correct responsive
    columns, scroll/focus retention and visible controls without clipping.
 4. **Active transfer presentation.** First audit whether the engine exposes
@@ -83,6 +89,18 @@ commit is not evidence of a successful Windows build or real-device behavior.
 8. **Release readiness.** Exact-SHA x64 CI and Package, x64 real-Windows
    smoke and failure matrix, ARM64 compilation/installer plus separate
    physical-device sign-off. Publish only through `docs/RELEASE_GATES.md`.
+
+### Contract reconciliation
+
+The newer `docs/UI_SPEC.md` phase-1 contract supersedes earlier phase-0
+geometry and surface-fill descriptions. Specifically, compact height is
+content-driven through `ResizeWindowToContent()` and aggregate progress uses
+one native WinUI `ProgressBar` with accessible RangeValue and native
+paused/error states. The former approximate 460 x 72 epx target and the
+proportional body-fill requirement are historical design concepts, **not**
+acceptance gates. Preserve these newer contracts unless a measured defect
+justifies an explicit product change. This reconciliation does not assert
+that current Windows geometry or the latest commits have passed CI.
 
 ### Deliberately excluded
 
@@ -149,14 +167,14 @@ Only start from a green x64 baseline.
 - no progress redesign or unrelated logic rewrite in this block.
 
 ### Block B — sizing and expansion
-- compact target remains approximately 460x72 epx;
+- compact height is content-driven; width must fit the approved controls and accessibility requirements (see `docs/UI_SPEC.md`);
 - queue/destination content expands the same HWND downward;
 - eliminate clipping caused by compact-shell sizing;
 - do not create a second application window merely to show the queue.
 
 ### Block C — integrated progress
-- no separate visible progress strip in compact mode;
-- progress is the proportional left-to-right fill of the copier/window body;
+- keep exactly one native WinUI `ProgressBar` in the compact transfer surface;
+- do not revive the superseded proportional body-fill implementation;
 - use system Accent and theme resources;
 - preserve readable content, light/dark behavior and High Contrast;
 - no neon/glow or continuous decorative animation.
