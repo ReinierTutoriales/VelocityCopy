@@ -315,6 +315,9 @@ void MainWindow::RefreshQueueEditCommandState() {
     QueueMoveUpButton().IsEnabled(has_selection);
     QueueMoveDownButton().IsEnabled(has_selection);
     QueueRemoveButton().IsEnabled(has_selection);
+    QueuePreviousPageButton().IsEnabled(!queue_drag_active_ && queue_page_offset_ != 0 &&
+        live_plan_ != nullptr);
+    if (queue_drag_active_) QueueNextPageButton().IsEnabled(false);
 }
 
 void MainWindow::OnQueueSelectionChanged(IInspectable const&, SelectionChangedEventArgs const&) {
