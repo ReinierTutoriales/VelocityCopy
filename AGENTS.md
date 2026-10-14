@@ -43,4 +43,5 @@ Installers are produced only by GitHub Actions (Windows Package workflow). Do no
 - Prefer the simplest correct change that solves the requested task.
 
 ## Skills to prefer
-When the task matches, use the relevant skill from `.agents/skills/` (e.g. code-quality, native-ui, testing-discipline).
+When the task matches, use the relevant skill from `.agents/skills/` (e.g. precise-coding, code-quality, native-ui, testing-discipline).
+Especially use `precise-coding` whenever writing or modifying code to reduce hallucinations.
