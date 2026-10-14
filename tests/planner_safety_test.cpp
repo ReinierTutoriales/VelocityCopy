@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iostream>
 #include <stop_token>
+#include <string>
 #include <system_error>
 
 namespace fs = std::filesystem;
@@ -117,6 +118,31 @@ int wmain() {
         return 6;
     }
 
+    // Many siblings share one destination-parent reservation. Planning must
+    // preserve every item and byte while reusing the already-known ancestor
+    // chain rather than changing collision semantics.
+    const auto siblings = base / L"Siblings";
+    constexpr std::size_t sibling_count = 64;
+    for (std::size_t index = 0; index < sibling_count; ++index) {
+        write_text(siblings / (L"file-" + std::to_wstring(index) + L".txt"), "x");
+    }
+    CopyJob sibling_job{};
+    sibling_job.sources = {siblings};
+    sibling_job.destination = safe_destination;
+    sibling_job.layout = DestinationLayout::PreserveSourceFolder;
+    try {
+        const auto plan = velocitycopy::JobPlanner{}.build(sibling_job);
+        if (plan.files.size() != sibling_count ||
+            plan.directories.size() != 1 ||
+            plan.total_bytes != sibling_count) {
+            fs::remove_all(base, ec);
+            return 7;
+        }
+    } catch (...) {
+        fs::remove_all(base, ec);
+        return 8;
+    }
+
     // A junction inside a selected folder is reported as one failed entry and
     // never traversed; the rest of the folder is still planned.
     const auto tree = base / L"Tree";
@@ -127,7 +153,7 @@ int wmain() {
     const auto command = L"cmd /c mklink /J \"" + junction.wstring() + L"\" \"" + outside.wstring() + L"\" >nul";
     if (_wsystem(command.c_str()) != 0) {
         fs::remove_all(base, ec);
-        return 7;
+        return 9;
     }
     CopyJob with_junction{};
     with_junction.sources = {tree};
@@ -142,12 +168,12 @@ int wmain() {
             plan.failures.front().source != junction) {
             fs::remove(junction, ec);
             fs::remove_all(base, ec);
-            return 8;
+            return 10;
         }
     } catch (...) {
         fs::remove(junction, ec);
         fs::remove_all(base, ec);
-        return 9;
+        return 11;
     }
     fs::remove(junction, ec);
 

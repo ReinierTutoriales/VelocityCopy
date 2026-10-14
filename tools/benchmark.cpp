@@ -84,12 +84,16 @@ int wmain(int argc, wchar_t* argv[]) {
 
     velocitycopy::JobPlanner planner;
     velocitycopy::CopyPlan plan;
+    const auto planning_start = std::chrono::steady_clock::now();
     try {
         plan = planner.build(job);
     } catch (const std::exception&) {
         std::wcerr << L"Unable to build copy plan.\n";
         return 2;
     }
+    const auto planning_end = std::chrono::steady_clock::now();
+    const std::chrono::duration<double> planning_elapsed = planning_end - planning_start;
+    const auto planned_directory_count = plan.directories.size();
 
     velocitycopy::WorkloadProfile workload{};
     workload.total_bytes = plan.total_bytes;
@@ -122,6 +126,10 @@ int wmain(int argc, wchar_t* argv[]) {
                    << destination_profile.physical_sector_bytes << L" | disks ";
         write_disk_numbers(std::wcout, destination_profile);
         std::wcout << L" | shared physical disk " << (shared_physical_disk ? L"yes" : (topology_known ? L"no" : L"unknown")) << L"\n";
+        std::wcout << L"Planning: " << std::fixed << std::setprecision(6)
+                   << planning_elapsed.count() << L" s"
+                   << L" | files " << workload.file_count
+                   << L" | directories " << planned_directory_count << L"\n";
         std::wcout << L"Strategy candidate: CopyFile2 (buffered)"
                    << L" | suggested QD " << recommendation.suggested_queue_depth
                    << L" | I/O request " << recommendation.suggested_buffer_bytes << L" bytes\n";
@@ -186,8 +194,10 @@ int wmain(int argc, wchar_t* argv[]) {
                    << L",\"destination_topology_known\":" << (destination_profile.physical_disk_extents_available ? L"true" : L"false")
                    << L",\"shared_physical_disk\":" << (shared_physical_disk ? L"true" : L"false")
                    << L",\"topology_scenario\":\"" << topology_scenario << L"\""
+                   << L",\"planning_seconds\":" << planning_elapsed.count()
                    << L",\"total_bytes\":" << total_bytes
                    << L",\"file_count\":" << workload.file_count
+                   << L",\"directory_count\":" << planned_directory_count
                    << L",\"largest_file_bytes\":" << workload.largest_file_bytes
                    << L",\"strategy\":\"CopyFile2 (buffered)\""
                    << L",\"workers\":" << execution_options.worker_count

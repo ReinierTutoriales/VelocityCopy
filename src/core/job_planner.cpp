@@ -153,7 +153,12 @@ public:
             if (files_.contains(key)) {
                 throw_collision(cursor);
             }
-            directories_.insert(key);
+            // Registering a directory also registers its complete ancestor
+            // chain. Once an ancestor is already known, walking higher would
+            // only normalize and hash paths that are already reserved.
+            if (!directories_.insert(key).second) {
+                break;
+            }
 
             const auto parent = cursor.parent_path();
             if (parent.empty() || parent == cursor) {
