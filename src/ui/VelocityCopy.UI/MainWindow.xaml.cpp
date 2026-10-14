@@ -551,12 +551,15 @@ void MainWindow::RefreshTaskbarProgress() noexcept {
     RefreshWindowTitle();
     if (hwnd_ == nullptr || taskbar_unavailable_) return;
     if (!taskbar_) {
-        // Explorer can be restarted or absent; failing once disables the
-        // feature for this window instead of retrying on every tick.
+        // Explorer may be temporarily unavailable at startup. Retry with a
+        // bounded cadence instead of permanently losing taskbar progress.
+        static ULONGLONG next_taskbar_attempt = 0;
+        const auto now = GetTickCount64();
+        if (now < next_taskbar_attempt) return;
+        next_taskbar_attempt = now + 30000;
         if (FAILED(CoCreateInstance(__uuidof(TaskbarList), nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(taskbar_.put()))) ||
             FAILED(taskbar_->HrInit())) {
             taskbar_ = nullptr;
-            taskbar_unavailable_ = true;
             return;
         }
     }
