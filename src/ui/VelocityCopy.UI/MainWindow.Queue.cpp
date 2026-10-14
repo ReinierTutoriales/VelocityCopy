@@ -235,9 +235,24 @@ std::vector<std::uint64_t> MainWindow::SelectedPendingIds() {
 }
 
 void MainWindow::RefreshQueueEditCommandState() {
-    const bool has_selection = live_plan_ && !SelectedPendingIds().empty();
-    QueueMoveUpButton().IsEnabled(has_selection);
-    QueueMoveDownButton().IsEnabled(has_selection);
+    const auto selected_ids = SelectedPendingIds();
+    const bool has_selection = live_plan_ && !selected_ids.empty();
+    // Queue edits are limited to the visible pending window. Do not offer a
+    // move that cannot change order at the corresponding boundary.
+    bool can_move_up = false;
+    bool can_move_down = false;
+    if (has_selection && !queue_snapshot_.empty()) {
+        const auto is_selected = [&selected_ids](const std::uint64_t id) {
+            return std::find(selected_ids.begin(), selected_ids.end(), id) != selected_ids.end();
+        };
+        for (std::size_t index = 0; index < queue_snapshot_.size(); ++index) {
+            if (!is_selected(queue_snapshot_[index].id)) continue;
+            if (index > 0 && !is_selected(queue_snapshot_[index - 1].id)) can_move_up = true;
+            if (index + 1 < queue_snapshot_.size() && !is_selected(queue_snapshot_[index + 1].id)) can_move_down = true;
+        }
+    }
+    QueueMoveUpButton().IsEnabled(can_move_up);
+    QueueMoveDownButton().IsEnabled(can_move_down);
     QueueRemoveButton().IsEnabled(has_selection);
 }
 
