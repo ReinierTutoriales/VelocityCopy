@@ -83,10 +83,12 @@ void MainWindow::RefreshActiveQueue() {
         const double percent = active.file.size == 0 ? 0.0 :
             100.0 * static_cast<double>(active.transferred_bytes) /
             static_cast<double>(active.file.size);
+        const auto name = active.file.source.filename().wstring();
         label.Text(hstring(std::format(L"{} — {} / {} bytes",
-            active.file.source.filename().wstring(),
-            active.transferred_bytes, active.file.size)));
+            name, active.transferred_bytes, active.file.size)));
         progress.Value(percent);
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(
+            progress, hstring(std::format(L"{}: {:.0f}%", name, percent)));
     }
 }
 
