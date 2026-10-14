@@ -39,6 +39,7 @@ int main() {
     const auto conflict = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.Conflict.cpp");
     const auto ci_workflow = read_all(root / ".github/workflows/ci.yml");
     const auto package_workflow = read_all(root / ".github/workflows/package.yml");
+    const auto release_workflow = read_all(root / ".github/workflows/release.yml");
     const auto installer_exe = read_all(root / "tools/VelocityCopy-Test-Installer.nsi");
     const auto installer_smoke = read_all(root / "tools/Install-VelocityCopy-Test.ps1");
     const auto signing_script = read_all(root / "tools/ci/Sign-VelocityCopyBinary.ps1");
@@ -49,7 +50,8 @@ int main() {
 
     if (app.empty() || shell.empty() || ipc.empty() ||
         window.empty() || window_xaml.empty() || tray.empty() || app_tray.empty() || persistence.empty() || recovery.empty() || conflict.empty() ||
-        ci_workflow.empty() || package_workflow.empty() || installer_exe.empty() || installer_smoke.empty() ||
+        ci_workflow.empty() || package_workflow.empty() || release_workflow.empty() ||
+        installer_exe.empty() || installer_smoke.empty() ||
         signing_script.empty() || signing_test.empty() ||
         startup_helper.empty() || startup_profile_test.empty() || docs.empty()) {
         return fail(1, "required integration source missing");
@@ -110,7 +112,10 @@ int main() {
     }
 
     if (!contains(package_workflow, "workflow_dispatch:") ||
+        !contains(package_workflow, "pull_request:") ||
         !contains(package_workflow, "branches: [main]") ||
+        contains(package_workflow, "tags:") ||
+        contains(package_workflow, "refs/tags/") ||
         !contains(package_workflow, "WindowsAppSDKSelfContained=true") ||
         !contains(package_workflow, "VelocityCopy-Setup-x64.exe") ||
         !contains(package_workflow, "VelocityCopy-Setup-ARM64.exe") ||
@@ -119,9 +124,9 @@ int main() {
         !contains(package_workflow, "Smoke install classic x64 installer") ||
         !contains(package_workflow, "Smoke uninstall classic x64 installer") ||
         !contains(package_workflow, "Exercise Authenticode pipeline with ephemeral certificate") ||
-        !contains(package_workflow, "Sign stable-tag payload") ||
-        !contains(package_workflow, "Sign stable-tag installer") ||
-        !contains(package_workflow, "VELOCITYCOPY_SIGNING_PFX_BASE64") ||
+        contains(package_workflow, "Sign stable-tag") ||
+        contains(package_workflow, "VELOCITYCOPY_SIGNING_PFX_BASE64") ||
+        contains(package_workflow, "VELOCITYCOPY_SIGNING_PFX_PASSWORD") ||
         !contains(signing_script, "signtool") ||
         !contains(signing_script, "TimeStamperCertificate") ||
         !contains(signing_script, "SkipTimestamp") ||
@@ -130,7 +135,22 @@ int main() {
         contains(package_workflow, "choco ") ||
         contains(package_workflow, "Add-AppxPackage") ||
         contains(package_workflow, "VelocityCopy.msixbundle")) {
-        return fail(9, "packaging must run on main without Chocolatey and stay classic for x64 and ARM64");
+        return fail(9, "Package must validate classic x64/ARM64 builds on PR/main/manual only, with no tag publication or production signing path");
+    }
+
+    if (!contains(release_workflow, "workflow_dispatch:") ||
+        !contains(release_workflow, "github.actor == github.repository_owner") ||
+        !contains(release_workflow, "github.ref == 'refs/heads/main'") ||
+        !contains(release_workflow, "actions/workflows/package.yml/runs?head_sha=") ||
+        !contains(release_workflow, "No successful Windows Package run on main for this commit") ||
+        !contains(release_workflow, "artifacts if a[") ||
+        !contains(release_workflow, "SHA256SUMS.txt") ||
+        !contains(release_workflow, "\"gh\", \"release\", \"create\"") ||
+        !contains(release_workflow, "Release tag points at the wrong commit") ||
+        contains(release_workflow, "cmake --build") ||
+        contains(release_workflow, "msbuild") ||
+        contains(release_workflow, "makensis")) {
+        return fail(20, "Release must be the single owner-only publication path and reuse an exact successful Package run without rebuilding");
     }
 
     const auto occurrences = [](const std::string& text, const std::string& value) {
@@ -138,15 +158,14 @@ int main() {
         for (auto at = text.find(value); at != std::string::npos; at = text.find(value, at + value.size())) ++count;
         return count;
     };
-    // Signing scripts report failure by exception. A child `pwsh -File` turns
-    // that into an exit code nobody checks, and inside a loop a later success
-    // resets $LASTEXITCODE: an unsigned binary would pass. They must run
-    // in-process so the exception fails the step.
-    if (contains(package_workflow, "pwsh -NoProfile -File tools/ci/Sign-VelocityCopyBinary.ps1") ||
-        contains(package_workflow, "pwsh -NoProfile -File tools/ci/Test-AuthenticodePipeline.ps1") ||
-        occurrences(package_workflow, "& ./tools/ci/Sign-VelocityCopyBinary.ps1") != 2 ||
-        occurrences(package_workflow, "& ./tools/ci/Test-AuthenticodePipeline.ps1") != 2) {
-        return fail(18, "signing scripts must run in-process so a failure inside a loop cannot be masked");
+    // The Package gate still proves the Authenticode helper on disposable
+    // copies. Run the test helper in-process so exceptions cannot be masked by
+    // a child PowerShell exit code; production signing belongs to no Package
+    // path while releases are explicitly unsigned.
+    if (contains(package_workflow, "pwsh -NoProfile -File tools/ci/Test-AuthenticodePipeline.ps1") ||
+        occurrences(package_workflow, "& ./tools/ci/Test-AuthenticodePipeline.ps1") != 2 ||
+        contains(package_workflow, "& ./tools/ci/Sign-VelocityCopyBinary.ps1")) {
+        return fail(18, "Package must exercise ephemeral Authenticode in-process without a production signing path");
     }
 
     if (!contains(window_xaml, "<ProgressBar x:Name=\"TransferProgress\"") ||
