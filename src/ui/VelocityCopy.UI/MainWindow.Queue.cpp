@@ -412,18 +412,26 @@ void MainWindow::OnQueueDragItemsCompleted(
     // page atomically instead of applying the new order to a shifted page.
     std::vector<std::uint64_t> ordered_ids;
     ordered_ids.reserve(items.Size());
-    for (std::uint32_t index = 0; index < items.Size(); ++index) {
+    bool valid_drag_page = items.Size() == queue_snapshot_.size();
+    for (std::uint32_t index = 0; valid_drag_page && index < items.Size(); ++index) {
         try {
             const auto item = items.GetAt(index).as<VelocityCopyUI::QueueItem>();
+            if (item.Id() == 0) {
+                valid_drag_page = false;
+                break;
+            }
             ordered_ids.push_back(item.Id());
         } catch (...) {
+            valid_drag_page = false;
         }
     }
 
     // ListView may have reordered its visual Items collection even when the
     // core rejects a stale drag (an item was acquired or removed meanwhile).
     // Always reconcile from the authoritative pending plan after a drag.
-    (void)live_plan_->reorder_pending_page(queue_page_offset_, ordered_ids);
+    if (valid_drag_page) {
+        (void)live_plan_->reorder_pending_page(queue_page_offset_, ordered_ids);
+    }
     RefreshQueue(true);
 }
 
