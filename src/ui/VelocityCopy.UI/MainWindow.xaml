@@ -356,6 +356,7 @@
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
 
@@ -505,9 +506,13 @@
                                 </Grid>
                             </Border>
 
+                            <StackPanel x:Name="ActiveQueuePanel" Grid.Row="1" Spacing="6" Margin="8,4,8,8" Visibility="Collapsed">
+                                <TextBlock x:Name="ActiveQueueHeading" Text="Transferring" FontWeight="SemiBold" />
+                                <StackPanel x:Name="ActiveQueueRows" Spacing="6" />
+                            </StackPanel>
                             <ListView x:Name="QueueList"
                                       ItemTemplate="{StaticResource QueueItemTemplate}"
-                                      Grid.Row="1"
+                                      Grid.Row="2"
                                       Margin="{StaticResource QueueListMargin}"
                                       SelectionMode="Extended"
                                       SelectionChanged="OnQueueSelectionChanged"
