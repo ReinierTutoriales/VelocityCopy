@@ -466,6 +466,7 @@ void MainWindow::OnQueueDragItemsCompleted(
     ListViewBase const&,
     DragItemsCompletedEventArgs const&) {
     queue_drag_active_ = false;
+    RefreshQueueEditCommandState();
     const bool force_visual_rebuild = std::exchange(queue_refresh_force_rebuild_, false);
 
     if (!live_plan_) {
