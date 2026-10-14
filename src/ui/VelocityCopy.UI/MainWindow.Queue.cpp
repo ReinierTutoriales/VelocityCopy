@@ -311,7 +311,7 @@ std::vector<std::uint64_t> MainWindow::SelectedPendingIds() {
 }
 
 void MainWindow::RefreshQueueEditCommandState() {
-    const bool has_selection = live_plan_ && !SelectedPendingIds().empty();
+    const bool has_selection = live_plan_ && !queue_drag_active_ && !SelectedPendingIds().empty();
     QueueMoveUpButton().IsEnabled(has_selection);
     QueueMoveDownButton().IsEnabled(has_selection);
     QueueRemoveButton().IsEnabled(has_selection);
@@ -387,7 +387,7 @@ void MainWindow::OnQueueKeyDown(IInspectable const&, KeyRoutedEventArgs const& a
 }
 
 void MainWindow::OnQueueMoveUpClick(IInspectable const&, RoutedEventArgs const&) {
-    if (!live_plan_) {
+    if (!live_plan_ || queue_drag_active_) {
         return;
     }
     (void)live_plan_->move_pending_files_up(SelectedPendingIds());
@@ -395,7 +395,7 @@ void MainWindow::OnQueueMoveUpClick(IInspectable const&, RoutedEventArgs const&)
 }
 
 void MainWindow::OnQueueMoveDownClick(IInspectable const&, RoutedEventArgs const&) {
-    if (!live_plan_) {
+    if (!live_plan_ || queue_drag_active_) {
         return;
     }
     (void)live_plan_->move_pending_files_down(SelectedPendingIds());
@@ -403,7 +403,7 @@ void MainWindow::OnQueueMoveDownClick(IInspectable const&, RoutedEventArgs const
 }
 
 void MainWindow::OnQueueRemoveClick(IInspectable const&, RoutedEventArgs const&) {
-    if (!live_plan_) {
+    if (!live_plan_ || queue_drag_active_) {
         return;
     }
     (void)live_plan_->remove_pending_files(SelectedPendingIds());
@@ -459,6 +459,7 @@ void MainWindow::OnQueueDragItemsStarting(
     IInspectable const&,
     DragItemsStartingEventArgs const&) {
     queue_drag_active_ = true;
+    RefreshQueueEditCommandState();
 }
 
 void MainWindow::OnQueueDragItemsCompleted(
