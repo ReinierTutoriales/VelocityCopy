@@ -249,6 +249,51 @@ int main() {
         edit_plan.release_active(3);
     }
 
+    // Page reorders must preserve off-page rows and reject stale drag snapshots.
+    {
+        LiveCopyPlan page_plan(make_edit_plan(source, destination));
+        if (!page_plan.reorder_pending_page(1, {4, 3, 2})) return 101;
+        auto page = page_plan.queue_view(5);
+        if (page.pending_files.size() != 5 ||
+            page.pending_files[0].id != 1 || page.pending_files[1].id != 4 ||
+            page.pending_files[2].id != 3 || page.pending_files[3].id != 2 ||
+            page.pending_files[4].id != 5) return 102;
+        if (page_plan.reorder_pending_page(1, {4, 4, 2}) ||
+            page_plan.reorder_pending_page(1, {4, 3, 999}) ||
+            page_plan.reorder_pending_page(4, {1, 2})) return 103;
+        const auto acquired = page_plan.acquire_next();
+        if (!acquired || acquired->id != 1 ||
+            page_plan.reorder_pending_page(1, {4, 3, 2})) return 104;
+        page = page_plan.queue_view(5);
+        if (page.pending_files.size() != 4 ||
+            page.pending_files[0].id != 4 || page.pending_files[1].id != 3 ||
+            page.pending_files[2].id != 2 || page.pending_files[3].id != 5) return 105;
+    }
+
+    // Active projection uses current-attempt bytes and never exposes pending rows.
+    {
+        LiveCopyPlan progress_plan(make_plan(source, destination));
+        const auto first = progress_plan.acquire_next();
+        const auto second = progress_plan.acquire_next();
+        if (!first || !second) return 106;
+        progress_plan.record_attempt_bytes(first->id, 3);
+        progress_plan.record_attempt_bytes(second->id, 99);
+        auto active = progress_plan.active_queue_view(1);
+        if (active.active_files.size() != 1 || active.active_count != 2 ||
+            active.pending_count != 1 || active.active_files[0].file.id != first->id ||
+            active.active_files[0].transferred_bytes != 3) return 107;
+        active = progress_plan.active_queue_view(2);
+        if (active.active_files.size() != 2 ||
+            active.active_files[1].file.id != second->id ||
+            active.active_files[1].transferred_bytes != second->size) return 108;
+        progress_plan.record_attempt_bytes(first->id, 1);
+        active = progress_plan.active_queue_view(2);
+        if (active.active_files[0].transferred_bytes != 1) return 109;
+        progress_plan.release_active(first->id);
+        active = progress_plan.active_queue_view(0);
+        if (!active.active_files.empty() || active.active_count != 1) return 110;
+    }
+
     // Removing or skipping the largest remaining file must immediately update
     // adaptive workload metrics and release the destination reservation.
     {
