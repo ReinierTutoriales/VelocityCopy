@@ -119,7 +119,11 @@ bool run(GetClass get, CanUnload unload) {
     ok &= check(HRESULT_CODE(context->QueryContextMenu(menu, 0, 100, 100, 0)) == 0, "insufficient IDs");
     ok &= check(HRESULT_CODE(context->QueryContextMenu(menu, 0, 100, 101, CMF_DEFAULTONLY)) == 0, "default only");
     data->truncated = true;
-    ok &= check(FAILED(init->Initialize(target, data, nullptr)), "truncated CF_HDROP terminator");
+    for (bool use_ansi : {false, true}) {
+        data->ansi = use_ansi;
+        ok &= check(FAILED(init->Initialize(target, data, nullptr)),
+                    use_ansi ? "truncated ANSI CF_HDROP" : "truncated Unicode CF_HDROP");
+    }
     data->truncated = false;
     data->malformed = true;
     ok &= check(FAILED(init->Initialize(target, data, nullptr)), "malformed DROPFILES");
