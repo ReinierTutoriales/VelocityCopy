@@ -85,11 +85,19 @@ int wmain() {
     job.destination = destination;
     job.layout = velocitycopy::DestinationLayout::ContentsOnly;
     const auto result = velocitycopy::JobExecutor{}.execute(job);
+    std::cerr << "Copy result: success=" << result.success << " HRESULT=" << result.native_code
+        << " succeeded=" << result.outcomes.succeeded << " failed=" << result.outcomes.failed
+        << " parked=" << result.parked_files << '\n';
     if (!result.success || result.outcomes.succeeded != 2 ||
         !fs::is_directory(destination / L"empty")) return 5;
     const auto copied = destination / file.filename();
     WIN32_FILE_ATTRIBUTE_DATA attributes{};
-    if (!GetFileAttributesExW(copied.c_str(), GetFileExInfoStandard, &attributes) ||
+    const auto inspected = GetFileAttributesExW(copied.c_str(), GetFileExInfoStandard, &attributes);
+    std::cerr << "Native metadata: inspected=" << inspected << " attributes=" << attributes.dwFileAttributes
+        << " expected=" << carried << " creation comparison=" << CompareFileTime(&attributes.ftCreationTime, &creation)
+        << " write comparison=" << CompareFileTime(&attributes.ftLastWriteTime, &write)
+        << " payload=" << read(copied) << " ADS=" << read(fs::path(copied.wstring() + L":metadata")) << '\n';
+    if (!inspected ||
         (attributes.dwFileAttributes & carried) != carried ||
         CompareFileTime(&attributes.ftCreationTime, &creation) != 0 ||
         CompareFileTime(&attributes.ftLastWriteTime, &write) != 0 ||
@@ -102,13 +110,16 @@ int wmain() {
     DWORD high{};
     SetLastError(ERROR_SUCCESS);
     const auto low = GetCompressedFileSizeW(sparse_copy.c_str(), &high);
+    const auto allocation_error = GetLastError();
     using VersionQuery = LONG (WINAPI*)(OSVERSIONINFOW*);
     const auto query = reinterpret_cast<VersionQuery>(
         GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "RtlGetVersion"));
     OSVERSIONINFOW version{sizeof(version)};
     if (!query || query(&version) != 0) return 8;
+    std::cerr << "Sparse allocation=" << ((static_cast<std::uint64_t>(high) << 32) | low)
+        << " attributes=" << GetFileAttributesW(sparse_copy.c_str()) << " OS=" << version.dwBuildNumber << '\n';
     if ((version.dwMajorVersion > 10 || version.dwBuildNumber >= 22621) &&
-        ((low == INVALID_FILE_SIZE && GetLastError() != ERROR_SUCCESS) ||
+        ((low == INVALID_FILE_SIZE && allocation_error != ERROR_SUCCESS) ||
         (GetFileAttributesW(sparse_copy.c_str()) & FILE_ATTRIBUTE_SPARSE_FILE) == 0 ||
         ((static_cast<std::uint64_t>(high) << 32) | low) >= 2ull * 1024 * 1024)) return 9;
     std::cout << "Native metadata, ADS, sparse allocation and complete contents verified\n";
