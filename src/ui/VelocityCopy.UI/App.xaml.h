@@ -15,6 +15,7 @@
 #include <optional>
 #include <thread>
 #include <vector>
+#include <unordered_set>
 
 namespace winrt::VelocityCopyUI::implementation {
 struct App : AppT<App> {
@@ -52,6 +53,8 @@ private:
     std::vector<Microsoft::UI::Xaml::Window> retiring_windows_;
     std::deque<std::filesystem::path> pending_recovery_files_;
     std::deque<velocitycopy::CopyJob> pending_requests_;
+    std::unordered_set<std::uint64_t> admitted_shell_ids_;
+    std::deque<std::uint64_t> admitted_shell_order_;
     velocitycopy::ShellSession shell_session_;
     velocitycopy::RoutePreferences route_preferences_;
     bool request_in_flight_{};

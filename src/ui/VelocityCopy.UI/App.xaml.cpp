@@ -17,6 +17,7 @@
 #include <optional>
 #include <fstream>
 #include <memory>
+#include <cstring>
 
 namespace winrt::VelocityCopyUI::implementation {
 namespace {
@@ -114,9 +115,23 @@ bool is_startup_activation() noexcept {
 }
 
 bool deliver_to_primary(const velocitycopy::ShellRequest& request) noexcept {
+    // Generate once per activation, not per connection attempt. Replays carry
+    // the same identity so the primary can recognize them.
+    velocitycopy::ShellRequest identified;
+    try { identified = request; } catch (...) { return false; }
+    GUID guid{};
+    if (SUCCEEDED(CoCreateGuid(&guid))) {
+        std::uint64_t id = 0;
+        std::memcpy(&id, &guid, sizeof(id));
+        if (id == 0) std::memcpy(&id, reinterpret_cast<const char*>(&guid) + sizeof(id), sizeof(id));
+        if (id != 0) {
+            identified.version = 3;
+            identified.request_id = id;
+        }
+    }
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
     do {
-        const auto result = velocitycopy::send_shell_request(request, 250);
+        const auto result = velocitycopy::send_shell_request(identified, 250);
         if (result) return true;
 
         // Retry only failures known to have occurred before writing any frame.
@@ -257,6 +272,13 @@ VelocityCopyUI::MainWindow App::CreateMainWindow() {
 }
 
 void App::DeliverShellRequest(const velocitycopy::ShellRequest& request) {
+    // All admissions run on the UI dispatcher. Only committed admissions enter
+    // this bounded replay cache; rejected work remains eligible for retry.
+    const auto id = request.version == 3 ? request.request_id : 0;
+    if (id != 0 && admitted_shell_ids_.contains(id)) {
+        velocitycopy::log_diagnostic(L"shell: duplicate admitted request ignored");
+        return;
+    }
     velocitycopy::ShellDispatchResult dispatch{};
     try { dispatch = shell_session_.dispatch(request); }
     catch (...) { velocitycopy::log_diagnostic(L"shell: transfer request failed during dispatch"); ShowPrimaryWindowError(); return; }
@@ -265,12 +287,27 @@ void App::DeliverShellRequest(const velocitycopy::ShellRequest& request) {
         return;
     }
     if (dispatch.job) {
+        bool tracked = false;
         try {
+            if (id != 0) {
+                admitted_shell_ids_.insert(id);
+                try { admitted_shell_order_.push_back(id); }
+                catch (...) { admitted_shell_ids_.erase(id); throw; }
+                tracked = true;
+            }
             pending_requests_.push_back(std::move(*dispatch.job));
         } catch (...) {
+            if (tracked) {
+                admitted_shell_ids_.erase(id);
+                admitted_shell_order_.pop_back();
+            }
             velocitycopy::log_diagnostic(L"shell: transfer request failed during queue admission");
             ShowPrimaryWindowError();
             return;
+        }
+        while (admitted_shell_order_.size() > 4096) {
+            admitted_shell_ids_.erase(admitted_shell_order_.front());
+            admitted_shell_order_.pop_front();
         }
         // Admission and starting the next request are distinct operations:
         // a failure to start must not be reported as failed admission.
