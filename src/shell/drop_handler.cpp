@@ -73,7 +73,11 @@ HRESULT read_sources(IDataObject* data, std::vector<std::filesystem::path>& path
         paths.push_back(std::move(source));
         pos += unit;
     }
-    return !paths.empty() && pos + unit <= bytes && character(pos) == 0 ? S_OK : E_INVALIDARG;
+    // CF_HDROP file lists must terminate with two NUL characters. Reject
+    // truncated data objects before forwarding any paths to the IPC receiver.
+    return !paths.empty() && pos + 2 * unit <= bytes &&
+                   character(pos) == 0 && character(pos + unit) == 0
+               ? S_OK : E_INVALIDARG;
 }
 
 bool dispatch(const velocitycopy::ShellRequest& request) noexcept {
