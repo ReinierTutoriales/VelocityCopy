@@ -15,6 +15,11 @@ void append_u32(std::vector<std::uint8_t>& out, const std::uint32_t value) {
     out.push_back(static_cast<std::uint8_t>((value >> 24u) & 0xffu));
 }
 
+void append_u64(std::vector<std::uint8_t>& out, std::uint64_t value) {
+    append_u32(out, static_cast<std::uint32_t>(value));
+    append_u32(out, static_cast<std::uint32_t>(value >> 32u));
+}
+
 bool read_u32(std::span<const std::uint8_t> bytes, std::size_t& offset, std::uint32_t& value) noexcept {
     if (offset + 4 > bytes.size()) {
         return false;
@@ -24,6 +29,13 @@ bool read_u32(std::span<const std::uint8_t> bytes, std::size_t& offset, std::uin
         (static_cast<std::uint32_t>(bytes[offset + 2]) << 16u) |
         (static_cast<std::uint32_t>(bytes[offset + 3]) << 24u);
     offset += 4;
+    return true;
+}
+
+bool read_u64(std::span<const std::uint8_t> bytes, std::size_t& offset, std::uint64_t& value) noexcept {
+    std::uint32_t low = 0, high = 0;
+    if (!read_u32(bytes, offset, low) || !read_u32(bytes, offset, high)) return false;
+    value = static_cast<std::uint64_t>(low) | (static_cast<std::uint64_t>(high) << 32u);
     return true;
 }
 
@@ -71,6 +83,7 @@ std::optional<std::vector<std::uint8_t>> serialize_shell_request(const ShellRequ
         out.reserve(256);
         append_u32(out, kShellProtocolMagic);
         append_u32(out, request.version);
+        if (request.version == 3) append_u64(out, request.request_id);
         out.push_back(static_cast<std::uint8_t>(request.action));
         out.push_back(static_cast<std::uint8_t>(request.layout));
         out.push_back(static_cast<std::uint8_t>(request.operation));
@@ -108,6 +121,7 @@ std::optional<ShellRequest> deserialize_shell_request(std::span<const std::uint8
 
         ShellRequest request{};
         request.version = version;
+        if (version == 3 && !read_u64(bytes, offset, request.request_id)) return std::nullopt;
         request.action = static_cast<ShellAction>(bytes[offset++]);
         request.layout = static_cast<DestinationLayout>(bytes[offset++]);
         request.operation = static_cast<FileOperation>(bytes[offset++]);

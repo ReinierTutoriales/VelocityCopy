@@ -7,6 +7,7 @@ namespace velocitycopy {
 enum class ShellAction : std::uint8_t { Transfer = 0, OpenVelocityCopy = 1 };
 struct ShellRequest {
     std::uint32_t version{2};
+    std::uint64_t request_id{};
     ShellAction action{ShellAction::OpenVelocityCopy};
     std::vector<std::filesystem::path> sources;
     std::filesystem::path destination;
@@ -17,7 +18,9 @@ struct ShellRequest {
     return a == ShellAction::Transfer || a == ShellAction::OpenVelocityCopy;
 }
 [[nodiscard]] inline bool shell_request_valid(const ShellRequest& r) noexcept {
-    if (r.version != 2 || !shell_action_valid(r.action) ||
+    if ((r.version != 2 && r.version != 3) ||
+        (r.version == 2 && r.request_id != 0) ||
+        (r.version == 3 && r.request_id == 0) || !shell_action_valid(r.action) ||
         (r.operation != FileOperation::Copy && r.operation != FileOperation::Move) ||
         (r.layout != DestinationLayout::PreserveSourceFolder && r.layout != DestinationLayout::ContentsOnly)) return false;
     if (r.action == ShellAction::OpenVelocityCopy)
