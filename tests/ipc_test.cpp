@@ -274,6 +274,19 @@ int run_test() {
     if (!received || received->sources != request.sources || received->destination != request.destination ||
         received->operation != request.operation || received->action != request.action || received->layout != request.layout) return 7;
 
+    // The transport must preserve v3 identity, not just the serializer.
+    std::optional<ShellRequest> identified_received;
+    std::jthread identified_receiver([&] { identified_received = server.receive(); });
+    ShellRequest identified_wire = request;
+    identified_wire.version = 3;
+    identified_wire.request_id = 0x9a7b6c5d4e3f2011ull;
+    const auto identified_send = send_shell_request(identified_wire, 2000);
+    identified_receiver.join();
+    if (!identified_send || !identified_received || identified_received->version != 3 ||
+        identified_received->request_id != identified_wire.request_id ||
+        identified_received->sources != request.sources ||
+        identified_received->destination != request.destination) return 27;
+
     // Malformed client data is a protocol rejection, not a transport shutdown.
     std::optional<ShellRequest> malformed_result;
     std::jthread malformed_receiver([&] { malformed_result = server.receive(); });
