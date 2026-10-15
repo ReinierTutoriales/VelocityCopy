@@ -64,6 +64,7 @@ bool send_times_out_when_server_stops_reading(const bool small_frame = false) {
 
     return !sent &&
         sent.native_code == static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_SEM_TIMEOUT)) &&
+        sent.delivery_ambiguous &&
         connected.load(std::memory_order_acquire) &&
         elapsed < 2s;
 }
