@@ -38,10 +38,14 @@ int main(){
  const auto admission_block = app_cpp.substr(admission, admission_end - admission);
  const auto queue_push = admission_block.find("pending_requests_.push_back(");
  const auto queue_catch = admission_block.find("catch (...)", queue_push);
+ const auto start_call = admission_block.find("StartNextPendingRequest();", queue_push);
+ const auto start_catch = admission_block.find("catch (...)", start_call);
  if (queue_push == std::string::npos || queue_catch == std::string::npos ||
-     admission_block.find("StartNextPendingRequest();", queue_push) == std::string::npos ||
+     start_call == std::string::npos || start_catch == std::string::npos ||
+     !(queue_push < queue_catch && queue_catch < start_call && start_call < start_catch) ||
      admission_block.find("shell: transfer request failed during queue admission", queue_catch) == std::string::npos ||
-     admission_block.find("ShowPrimaryWindowError();", queue_catch) == std::string::npos) return 42;
+     admission_block.find("shell: admitted request could not start processing", start_catch) == std::string::npos ||
+     admission_block.find("ShowPrimaryWindowError();", start_catch) == std::string::npos) return 42;
 
  // IPC receive completion is not Queue admission: if UI shutdown rejects
  // dispatch, preserve a diagnostic and stop accepting more shell requests.
