@@ -195,7 +195,7 @@ bool concurrent_clients_preserve_distinct_requests() {
         std::cerr << "IPC concurrent clients: sent=" << sent_count.load()
                   << " received=" << received_count.load()
                   << " unique_mask=" << received_mask.load()
-                  << " valid=" << valid.load() << "\\n";
+                  << " valid=" << valid.load() << "\n";
     }
     return passed;
 }
