@@ -73,12 +73,11 @@ HRESULT read_sources(IDataObject* data, std::vector<std::filesystem::path>& path
         paths.push_back(std::move(source));
         pos += unit;
     }
-    // CF_HDROP file lists must terminate with two NUL characters. Reject
-    // truncated data objects before forwarding any paths to the IPC receiver.
-    // Each path consumes a NUL, followed by the final list NUL. The
-    // second NUL must be inside the HGLOBAL, not just adjacent memory.
-    return !paths.empty() && pos <= bytes && bytes - pos >= 2 * unit &&
-                   character(pos) == 0 && character(pos + unit) == 0
+    // The loop consumes each pathname's NUL. At this point pos refers to
+    // the *final* list NUL, so only one more character is required.
+    // The bounded read rejects a missing final terminator.
+    return !paths.empty() && pos <= bytes && bytes - pos >= unit &&
+                   character(pos) == 0
                ? S_OK : E_INVALIDARG;
 }
 
