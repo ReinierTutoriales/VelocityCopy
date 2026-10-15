@@ -382,19 +382,26 @@ IpcSendResult send_shell_request(
             return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_INVALID_NAME))};
         }
 
-        const auto connect_timeout = remaining_timeout_ms(deadline);
-        if (connect_timeout == 0) {
-            return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_SEM_TIMEOUT))};
-        }
-        if (!WaitNamedPipeW(name.c_str(), connect_timeout)) {
-            return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(GetLastError()))};
-        }
-
-        UniqueHandle pipe{CreateFileW(
-            name.c_str(), GENERIC_WRITE, 0, nullptr, OPEN_EXISTING,
-            FILE_FLAG_OVERLAPPED, nullptr)};
-        if (!pipe.valid()) {
-            return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(GetLastError()))};
+        // WaitNamedPipe only observes availability at one instant. Another
+        // sender can connect before CreateFile; retry that admission race
+        // within the original deadline. No request bytes have been sent yet.
+        UniqueHandle pipe;
+        for (;;) {
+            const auto connect_timeout = remaining_timeout_ms(deadline);
+            if (connect_timeout == 0) {
+                return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_SEM_TIMEOUT))};
+            }
+            if (!WaitNamedPipeW(name.c_str(), connect_timeout)) {
+                return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(GetLastError()))};
+            }
+            pipe.reset(CreateFileW(
+                name.c_str(), GENERIC_WRITE, 0, nullptr, OPEN_EXISTING,
+                FILE_FLAG_OVERLAPPED, nullptr));
+            if (pipe.valid()) break;
+            const DWORD error = GetLastError();
+            if (error != ERROR_PIPE_BUSY) {
+                return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(error))};
+            }
         }
         // The sender (Explorer after a paste or drop, or a second launch) owns
         // the foreground; VelocityCopy runs in the background. Without this
