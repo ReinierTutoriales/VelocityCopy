@@ -21,6 +21,14 @@ int main(){
  if(tray.find("DefWindowProcW(hwnd_")!=std::string::npos || tray.find("HandleMessage(HWND hwnd") == std::string::npos) return 6;
  if(app_cpp.find("(void)tray_.Initialize(this)")!=std::string::npos || app_cpp.find("if (!tray_.Initialize(this))") == std::string::npos) return 7;
  if(app_cpp.find("log_diagnostic") == std::string::npos) return 8;
+ // A missing routing-dialog owner must surface an error instead of silently
+ // discarding an already accepted Explorer transfer request.
+ const auto missing_owner = app_cpp.find("shell: routing decision dialog has no valid owner/options");
+ if(missing_owner == std::string::npos) return 39;
+ const auto missing_owner_end = app_cpp.find("co_return;", missing_owner);
+ if(missing_owner_end == std::string::npos ||
+    app_cpp.substr(missing_owner, missing_owner_end - missing_owner).find("ShowPrimaryWindowError();") == std::string::npos) return 40;
+
 
  // 7f contract: native minimize must remain a real taskbar minimize. The SC_MINIMIZE
  // branch must not regress into HideToTray(), otherwise Windows loses per-window previews.
