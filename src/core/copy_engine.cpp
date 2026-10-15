@@ -39,6 +39,44 @@ struct CallbackContext {
     bool has_progress{};
     CopyProgress last_progress{};
     COPYFILE2_MESSAGE_ACTION latched_action{COPYFILE2_PROGRESS_CONTINUE};
+    bool preserve_basic_metadata{};
+    FILE_BASIC_INFO source_basic{};
+    HANDLE destination_handle{};
+    HRESULT metadata_error{S_OK};
+
+    ~CallbackContext() { reset_metadata(); }
+    void reset_metadata() noexcept {
+        if (destination_handle != nullptr) CloseHandle(destination_handle);
+        destination_handle = nullptr;
+        metadata_error = S_OK;
+    }
+
+    bool capture_metadata(HANDLE source, HANDLE destination) noexcept {
+        if (!preserve_basic_metadata || destination_handle != nullptr) return true;
+        if (!GetFileInformationByHandleEx(source, FileBasicInfo, &source_basic, sizeof(source_basic)) ||
+            !DuplicateHandle(GetCurrentProcess(), destination, GetCurrentProcess(),
+                &destination_handle, 0, FALSE, DUPLICATE_SAME_ACCESS)) {
+            metadata_error = HRESULT_FROM_WIN32(GetLastError());
+            latched_action = COPYFILE2_PROGRESS_STOP;
+            return false;
+        }
+        return true;
+    }
+
+    HRESULT apply_metadata() noexcept {
+        if (!preserve_basic_metadata) return S_OK;
+        if (destination_handle == nullptr) return HRESULT_FROM_WIN32(ERROR_INVALID_STATE);
+        FILE_BASIC_INFO basic{};
+        basic.CreationTime = source_basic.CreationTime;
+        basic.LastWriteTime = source_basic.LastWriteTime;
+        constexpr DWORD carried = FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_HIDDEN |
+            FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_ARCHIVE | FILE_ATTRIBUTE_TEMPORARY |
+            FILE_ATTRIBUTE_NOT_CONTENT_INDEXED;
+        basic.FileAttributes = source_basic.FileAttributes & carried;
+        if (basic.FileAttributes == 0) basic.FileAttributes = FILE_ATTRIBUTE_NORMAL;
+        return SetFileInformationByHandle(destination_handle, FileBasicInfo, &basic, sizeof(basic))
+            ? S_OK : HRESULT_FROM_WIN32(GetLastError());
+    }
 };
 
 COPYFILE2_MESSAGE_ACTION to_native_action(const CopyDecision decision) noexcept {
@@ -105,6 +143,8 @@ COPYFILE2_MESSAGE_ACTION CALLBACK copy_progress_routine(
         });
 
     case COPYFILE2_CALLBACK_STREAM_STARTED:
+        if (!callback_context.capture_metadata(message->Info.StreamStarted.hSourceFile,
+                message->Info.StreamStarted.hDestinationFile)) return COPYFILE2_PROGRESS_STOP;
         return dispatch_progress(callback_context, {
             message->Info.StreamStarted.uliTotalFileSize.QuadPart,
             callback_context.has_progress ? callback_context.last_progress.transferred_bytes : 0,
@@ -245,6 +285,7 @@ CopyResult CopyEngine::copy_file(
 
         const auto source_size = source_size_no_throw(source);
         CallbackContext callback_context{&progress};
+        callback_context.preserve_basic_metadata = options.preserve_basic_metadata;
         callback_context.last_progress = {source_size, 0};
         callback_context.has_progress = source_size != 0;
 
@@ -263,12 +304,13 @@ CopyResult CopyEngine::copy_file(
             parameters.dwCopyFlags |= COPY_FILE_FAIL_IF_EXISTS;
         }
         parameters.ioDesiredSize = desired_io_size(source_size, options.io_size_bytes);
-        if (progress) {
+        if (progress || options.preserve_basic_metadata) {
             parameters.pProgressRoutine = copy_progress_routine;
             parameters.pvCallbackContext = &callback_context;
         }
 
         const auto copy = [&]() {
+            callback_context.reset_metadata();
             return CopyFile2(
                 source.c_str(),
                 destination.c_str(),
@@ -288,6 +330,14 @@ CopyResult CopyEngine::copy_file(
 
         if (callback_context.callback_failed) {
             return {false, static_cast<std::int32_t>(E_FAIL)};
+        }
+        if (FAILED(callback_context.metadata_error)) {
+            return {false, static_cast<std::int32_t>(callback_context.metadata_error)};
+        }
+        if (SUCCEEDED(result)) {
+            // Keep the actual copied object open through metadata completion;
+            // reopening the destination by name could alter a replacement file.
+            result = callback_context.apply_metadata();
         }
 
         return {

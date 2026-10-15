@@ -52,6 +52,9 @@ struct CopyOptions {
     std::uint32_t io_size_bytes{};
     // Optional; without it the folder chain is locked for this file only.
     DestinationLease* lease{};
+    // Creation/write times and mutable file attributes, not ACL/owner/SACL.
+    // Fail rather than report success when the requested metadata cannot be set.
+    bool preserve_basic_metadata{true};
 };
 
 struct CopyResult {

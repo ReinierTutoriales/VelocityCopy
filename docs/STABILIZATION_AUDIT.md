@@ -68,6 +68,17 @@ No new runtime dependency or release publication is implied by this audit.
 
 ## Follow-up implementation
 
+- Strategy calculation reuses per-volume device facts within one invocation,
+  resolving the actual mount point of each source first. Unknown roots are not
+  cached. Both recommendation entry points return conservative defaults on an
+  allocation failure; the integration fault-injection sweep covers them.
+- Basic file metadata explicitly preserves creation/write times and mutable
+  attributes, including not-indexed. A duplicate of the first CopyFile2 stream's
+  destination handle keeps metadata updates bound to the actual copied object.
+  Metadata capture/application failures retain native errors and prevent Move
+  source deletion. The policy and filesystem limits are in
+  [METADATA_POLICY.md](METADATA_POLICY.md).
+
 - Native `FindFirstFileExW` basic/large-fetch enumeration consumes size and
   reparse metadata without a separate handle query per enumerated file. Folder
   chains are pinned during enumeration. Name-surrogate rejection, cloud

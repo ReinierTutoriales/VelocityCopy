@@ -3,6 +3,8 @@
 ## 1.2.3 — Unreleased
 
 - Planning uses native bulk directory enumeration and its 64-bit size/reparse metadata instead of opening every enumerated file for metadata. Source directory chains stay pinned while enumerating; collision, cancellation and entry bounds remain.
+- Strategy selection reuses device facts for sources on the same resolved volume instead of repeating hardware probes for every selected file. Allocation failures in either recommendation entry point use conservative defaults.
+- Basic file metadata now preserves creation/write times and mutable attributes, including not-indexed, through the actual copied destination handle. Metadata failures remain transfer failures so Move does not delete the source; ACL/owner/SACL replication is not implied.
 - The recommended CopyFile2 strategy retains sparse files on supporting destinations on Windows 11 22H2 or later; older Windows keeps the existing copy path. Native offload and SMB compression remain available.
 - Options can keep a clean completed window open with a native success notice and an Open destination folder action; automatic close remains the default.
 - Audit stable direct/transitive dependencies, override the WebView2 SDK to 1.0.4258.31, and update CI actions to pinned current stable releases. Existing WinUI component versions and NSIS are already current.
