@@ -95,6 +95,14 @@ bool run(GetClass get, CanUnload unload) {
                 std::strcmp(verb, command ? "velocitycopy.move" : "velocitycopy.copy") == 0,
                 "canonical verb");
 
+            wchar_t wide_verb[40]{};
+            ok &= check(SUCCEEDED(context->GetCommandString(command, GCS_VERBW, nullptr,
+                reinterpret_cast<LPSTR>(wide_verb), 40)) &&
+                std::wcscmp(wide_verb, command ? L"velocitycopy.move" : L"velocitycopy.copy") == 0,
+                "canonical Unicode verb");
+            ok &= check(FAILED(context->GetCommandString(2, GCS_VERBA, nullptr, verb, 40)),
+                "reject out-of-range command string");
+
             velocitycopy::ShellIpcServer server;
             if (!server.valid()) return false;
             std::optional<velocitycopy::ShellRequest> received;
