@@ -709,6 +709,10 @@ void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
                 if (!dispatcher.TryEnqueue([deliver, value = std::move(value)]() mutable {
                         deliver(value);
                     })) {
+                    // Dispatcher shutdown can race an already received IPC frame.
+                    // The transport has no admission ACK, so record this loss
+                    // explicitly rather than treating a pipe write as admission.
+                    velocitycopy::log_diagnostic(L"shell: IPC request rejected because UI dispatcher is unavailable");
                     server->stop();
                     return;
                 }
