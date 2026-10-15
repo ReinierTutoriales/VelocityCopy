@@ -300,6 +300,12 @@ int run_test() {
     if (!send_times_out_when_server_stops_reading(true)) return 19;
     if (!concurrent_clients_preserve_distinct_requests()) return 20;
 
+    // No pipe exists after server teardown. This failure is known to occur
+    // before any frame write, so a secondary launch may safely retry it.
+    const auto unavailable = send_shell_request(request, 100);
+    if (unavailable || unavailable.delivery_ambiguous ||
+        unavailable.native_code != static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))) return 21;
+
     std::wcout << L"VelocityCopy IPC test passed.\n";
     return 0;
 }
