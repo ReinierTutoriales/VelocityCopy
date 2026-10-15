@@ -287,6 +287,27 @@ int run_test() {
         identified_received->sources != request.sources ||
         identified_received->destination != request.destination) return 27;
 
+    // A v3 rejection is explicit and must not be reported as admission.
+    std::optional<ShellRequest> rejected_received;
+    std::jthread rejecting_receiver([&] {
+        rejected_received = server.receive_and_ack([](const ShellRequest&) { return false; });
+    });
+    const auto rejected_send = send_shell_request(identified_wire, 2000);
+    rejecting_receiver.join();
+    if (rejected_send || rejected_send.delivery_ambiguous ||
+        rejected_send.native_code != static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_ACCESS_DENIED)) ||
+        !rejected_received || rejected_received->request_id != identified_wire.request_id) return 28;
+
+    // The server must continue to admit the next request after a rejection.
+    std::optional<ShellRequest> after_rejection;
+    std::jthread accepting_again([&] {
+        after_rejection = server.receive_and_ack([](const ShellRequest&) { return true; });
+    });
+    const auto accepted_again = send_shell_request(identified_wire, 2000);
+    accepting_again.join();
+    if (!accepted_again || !after_rejection ||
+        after_rejection->request_id != identified_wire.request_id) return 29;
+
     // Malformed client data is a protocol rejection, not a transport shutdown.
     std::optional<ShellRequest> malformed_result;
     std::jthread malformed_receiver([&] { malformed_result = server.receive(); });
