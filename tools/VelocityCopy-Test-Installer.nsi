@@ -235,6 +235,7 @@ Section "$(InstallSectionName)" SEC_INSTALL
   WriteRegStr HKLM "Software\Classes\CLSID\{6BD80C35-7CE8-4A63-92D4-51AF4DACB821}\InprocServer32" "" "$INSTDIR\VelocityCopy.Shell.dll"
   WriteRegStr HKLM "Software\Classes\CLSID\{6BD80C35-7CE8-4A63-92D4-51AF4DACB821}\InprocServer32" "ThreadingModel" "Apartment"
   WriteRegStr HKLM "Software\Classes\Directory\shellex\DragDropHandlers\VelocityCopy" "" "{6BD80C35-7CE8-4A63-92D4-51AF4DACB821}"
+  WriteRegStr HKLM "Software\Classes\Directory\Background\shellex\ContextMenuHandlers\VelocityCopy" "" "{6BD80C35-7CE8-4A63-92D4-51AF4DACB821}"
   WriteRegStr HKLM "Software\Classes\Drive\shellex\DragDropHandlers\VelocityCopy" "" "{6BD80C35-7CE8-4A63-92D4-51AF4DACB821}"
   WriteRegStr HKLM "Software\Classes\Folder\shellex\DragDropHandlers\VelocityCopy" "" "{6BD80C35-7CE8-4A63-92D4-51AF4DACB821}"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved" "{6BD80C35-7CE8-4A63-92D4-51AF4DACB821}" "VelocityCopy transfer handler"
@@ -264,6 +265,7 @@ Section "Uninstall"
 
   !insertmacro RemoveLegacyShell
   DeleteRegKey HKLM "Software\Classes\Directory\shellex\DragDropHandlers\VelocityCopy"
+  DeleteRegKey HKLM "Software\Classes\Directory\Background\shellex\ContextMenuHandlers\VelocityCopy"
   DeleteRegKey HKLM "Software\Classes\Drive\shellex\DragDropHandlers\VelocityCopy"
   DeleteRegKey HKLM "Software\Classes\Folder\shellex\DragDropHandlers\VelocityCopy"
   DeleteRegKey HKLM "Software\Classes\CLSID\{6BD80C35-7CE8-4A63-92D4-51AF4DACB821}"
