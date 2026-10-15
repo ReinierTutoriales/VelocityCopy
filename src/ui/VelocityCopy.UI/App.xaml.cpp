@@ -255,9 +255,17 @@ void App::DeliverShellRequest(const velocitycopy::ShellRequest& request) {
     if (dispatch.job) {
         try {
             pending_requests_.push_back(std::move(*dispatch.job));
-            StartNextPendingRequest();
         } catch (...) {
             velocitycopy::log_diagnostic(L"shell: transfer request failed during queue admission");
+            ShowPrimaryWindowError();
+            return;
+        }
+        // Admission and starting the next request are distinct operations:
+        // a failure to start must not be reported as failed admission.
+        try {
+            StartNextPendingRequest();
+        } catch (...) {
+            velocitycopy::log_diagnostic(L"shell: admitted request could not start processing");
             ShowPrimaryWindowError();
         }
         return;
