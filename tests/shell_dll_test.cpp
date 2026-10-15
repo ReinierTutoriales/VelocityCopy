@@ -190,12 +190,12 @@ bool run(GetClass get, CanUnload unload) {
 }
 }
 int wmain(int argc, wchar_t** argv) {
-    if (argc != 2 || FAILED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED))) return 10;
+    if (argc != 2 || FAILED(OleInitialize(nullptr))) return 10;
     HMODULE dll = LoadLibraryW(argv[1]);
     if (!dll) return 11;
     auto get = reinterpret_cast<GetClass>(GetProcAddress(dll, "DllGetClassObject"));
     auto unload = reinterpret_cast<CanUnload>(GetProcAddress(dll, "DllCanUnloadNow"));
     bool ok = get && unload && run(get, unload);
-    FreeLibrary(dll); CoUninitialize();
+    FreeLibrary(dll); OleUninitialize();
     return ok ? 0 : 1;
 }
