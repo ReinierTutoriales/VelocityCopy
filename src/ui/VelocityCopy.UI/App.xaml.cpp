@@ -345,6 +345,7 @@ winrt::Windows::Foundation::IAsyncAction App::DeliverConvertedJob(velocitycopy::
             auto* dialog_owner = find_window(route.window_id);
             if (dialog_owner == nullptr || route.offered.size() != 2) {
                 velocitycopy::log_diagnostic(L"shell: routing decision dialog has no valid owner/options");
+                ShowPrimaryWindowError();
                 co_return;
             }
 
