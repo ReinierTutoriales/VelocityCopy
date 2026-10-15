@@ -56,7 +56,7 @@ int main() {
             name == "MainWindow.xaml.cpp") continue;
         const auto source = read_source(entry.path());
         if (contains(source, "QueueButton")) stray_queue_button_reference = true;
-        if (contains(source, "QueuePanel().Visibility(") ||
+        if (std::regex_search(source, std::regex{R"(\bQueuePanel\(\)\.Visibility\()"}) ||
             contains(source, "DetailsPanel().Visibility(")) {
             stray_expanded_visibility_writer = true;
         }
@@ -186,7 +186,7 @@ int main() {
         !contains(tokens, "<x:Double x:Key=\"ExpandedThreeColumnThreshold\">560</x:Double>") ||
         !contains(tokens, "<x:Double x:Key=\"ExpandedWorkAreaMargin\">16</x:Double>") ||
         !contains(window, "token_double(L\"NormalWindowMinWidth\", 380)") ||
-        !contains(window, "const double work_width_cap = (std::max)(normal_width, work_width_epx - work_margin * 2.0);") ||
+        !contains(window, "work_width_epx, work_margin, frame_width_epx") ||
         // 380 epx x TextScale is the scaled minimum, not the final width: the window grows only to
         // fit the reserved bottom row (see telemetry_layout_architecture_test).
         !contains(window, "const double scaled_normal_width = normal_width * text_scale;") ||
@@ -434,19 +434,18 @@ int main() {
         !contains(narrow_branch, "ExpandedViewport().VerticalScrollBarVisibility(ScrollBarVisibility::Auto)") ||
         !contains(resize_to_content, "ExpandedViewport().MaxHeight(expanded_height_cap)") ||
         !contains(resize_to_content, "DetailsExpandedMinHeight") ||
-        !contains(resize_to_content, "const double details_required_height = (std::max)(") ||
-        !contains(resize_to_content, "details_min_height, information_height") ||
-        !contains(resize_to_content, "const double required_content_height = queue_min_height + details_required_height;") ||
-        !contains(resize_to_content, "const bool constrained_height = content_cap < required_content_height;") ||
+        !contains(resize_to_content, "(std::max)(details_min_height, information_height)") ||
+        !contains(resize_to_content, "velocitycopy::ui::layout::expanded_height(") ||
+        !contains(resize_to_content, "QueueHeaderBorder().Measure(") ||
+        !contains(resize_to_content, "ActiveQueuePanel().Measure(") ||
+        !contains(resize_to_content, "QueuePendingMinHeight") ||
         !contains(resize_to_content, "ExpandedRow1().Height(GridLength{1.0, GridUnitType::Auto})") ||
-        !contains(resize_to_content, "ExpandedViewport().IsTabStop(constrained_height)") ||
-        !contains(resize_to_content, "const double queue_height = queue_min_height;") ||
-        !contains(resize_to_content, "queue_height + details_required_height + padding_height") ||
-        !contains(resize_to_content, "expanded_region_height = constrained_height") ||
-        !contains(resize_to_content, "? expanded_height_cap") ||
+        !contains(resize_to_content, "ExpandedViewport().IsTabStop(height.scrolls)") ||
+        !contains(resize_to_content, "GridLength{height.queue_height, GridUnitType::Pixel}") ||
+        !contains(resize_to_content, "height.viewport_height") ||
         contains(resize_to_content, "fixed_content_height") ||
         contains(resize_to_content, "(std::min)(queue_min_height, content_cap - fixed_content_height)") ||
-        contains(resize_to_content, "QueuePanel().Measure(") ||
+        std::regex_search(resize_to_content, std::regex{R"(\bQueuePanel\(\)\.Measure\()"}) ||
         !contains(resize_to_content, "Grid::SetRow(QueuePanel()") ||
         !contains(xaml, "<Grid x:Name=\"InformationPanel\" Margin=") ||
         !contains(resize_to_content, "ResizeWindow(") ||
@@ -515,8 +514,8 @@ int main() {
         !contains(window, "self->ResizeWindowToContent();") ||
         !contains(resize_to_content, "QueueExpandedMinHeight") ||
         !contains(collapsed_branch, "normal_height + notice_height") ||
-        !contains(resize_to_content, "normal_height + notice_height + expanded_region_height") ||
-        !contains(resize_to_content, "work_height_epx - work_margin * 2.0 - normal_height - notice_height") ||
+        !contains(resize_to_content, "normal_height + notice_height + height.viewport_height") ||
+        !contains(resize_to_content, "work_height_epx, work_margin, frame_height_epx) - normal_height - notice_height") ||
         count_occurrences(execution, "ResizeWindow(velocitycopy::ui::token_int(L\"CompactSurfaceHeight\"") != 0) {
         return fail(40, "notice and terminal paths must resize from measured content");
     }

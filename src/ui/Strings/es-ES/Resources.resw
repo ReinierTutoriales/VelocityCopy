@@ -103,4 +103,9 @@
   <data name="IssueFailed" xml:space="preserve"><value>Falló</value></data>
   <data name="IssueSkipped" xml:space="preserve"><value>Omitido</value></data>
   <data name="IssueSourceRetained" xml:space="preserve"><value>Origen conservado</value></data>
+  <data name="QueueActiveHeadingFormat" xml:space="preserve"><value>Transfiriendo ({})</value></data>
+  <data name="QueuePreviousPageButton.ToolTipService.ToolTip" xml:space="preserve"><value>256 archivos pendientes anteriores</value></data>
+  <data name="QueuePreviousPageButton.AutomationProperties.Name" xml:space="preserve"><value>Página anterior de la cola</value></data>
+  <data name="QueueNextPageButton.ToolTipService.ToolTip" xml:space="preserve"><value>256 archivos pendientes siguientes</value></data>
+  <data name="QueueNextPageButton.AutomationProperties.Name" xml:space="preserve"><value>Página siguiente de la cola</value></data>
 </root>

@@ -187,7 +187,7 @@ Only the **top caption-content row** reserves `AppWindowTitleBar.RightInset`. Th
 - Defer expensive queue realization where possible, but never make accepted work invisible during planning.
 - Directory planning/enumeration runs off the UI thread and must observe the transfer stop token while walking the source tree so Cancel cannot leave a long planner running after the user has cancelled.
 - Waiting for append planning must be bounded; a blocked filesystem enumeration must not keep the foreground transfer/session thread waiting forever.
-- Avoid per-file progress controls and per-file animation.
+- Pending rows have no progress controls or per-file animation. The bounded active projection may show current-attempt byte progress supplied by the engine.
 - Do not update UI on every I/O completion.
 - Do not assign the same telemetry/name text repeatedly; compare against the currently displayed value before mutating XAML properties.
 - Keep core transfer state independent of concrete WinUI controls.
@@ -255,6 +255,8 @@ Phase 4 begins only after Phase 3 is physically approved and merged. It supersed
 - Phase 4 visual validation uses the same **Light/Dark** gate established for Phase 3.
 
 ## UI audit stabilization
+
+The x64 queue stabilization contract in `UI_ARCHITECTURE.md` supersedes historical Phase-3 geometry and data-availability statements below/above: current tokens are 640 epx preferred expanded width and 560 epx text-adjusted layout threshold; expanded width also preserves the measured normal command-row floor. Active count and per-file bytes now come from `active_queue_view`, limited to eight displayed rows. The active viewport is capped at 96 epx; the pending viewport retains 80 epx plus measured header/chrome. Both wide and narrow layouts use bounded outer scrolling when these useful section extents do not fit. No pending ListView is measured at unbounded height. Taskbar integration is already implemented; recreation replays its authoritative state. These are source contracts, not physical geometry approval.
 
 Queue rows now use immutable data plus typed native templates, preserving normal/narrow hierarchy, theme resources, full-path accessibility, selection and reorder. The collapsed queue does not create or refresh rows. Pausing/stopping/conflict transitions clear live speed/ETA in both normal and expanded views; queued snapshots cannot repaint a paused transfer. Drop acceptance belongs to the captured transfer session across asynchronous StorageItems retrieval. Text scaling and focus queries follow the UI-thread/XamlRoot ownership contract in UI_ARCHITECTURE.md.
 
