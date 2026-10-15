@@ -562,10 +562,22 @@ void MainWindow::RefreshTaskbarProgress() noexcept {
             return;
         }
     }
-    (void)taskbar_->SetProgressState(hwnd_, taskbar_state_);
+    const auto state_result = taskbar_->SetProgressState(hwnd_, taskbar_state_);
+    if (FAILED(state_result)) {
+        // Explorer can restart after a successful HrInit. Drop the stale COM
+        // interface and let the bounded initialization path reconnect.
+        taskbar_ = nullptr;
+        next_taskbar_attempt_tick_ = GetTickCount64() + 30000;
+        return;
+    }
     if (taskbar_state_ != TBPF_NOPROGRESS && taskbar_state_ != TBPF_INDETERMINATE) {
         constexpr ULONGLONG kScale = 10000;
-        (void)taskbar_->SetProgressValue(hwnd_, static_cast<ULONGLONG>(taskbar_fraction_ * kScale), kScale);
+        const auto fraction = (std::clamp)(taskbar_fraction_, 0.0, 1.0);
+        if (FAILED(taskbar_->SetProgressValue(
+                hwnd_, static_cast<ULONGLONG>(fraction * kScale), kScale))) {
+            taskbar_ = nullptr;
+            next_taskbar_attempt_tick_ = GetTickCount64() + 30000;
+        }
     }
 }
 
