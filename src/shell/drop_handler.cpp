@@ -126,7 +126,8 @@ public:
     }
     IFACEMETHODIMP QueryContextMenu(HMENU menu, UINT index, UINT first, UINT last, UINT flags) override {
         offered_ = false;
-        if (!ready_ || invoked_ || (flags & CMF_DEFAULTONLY) || first > last || last - first < 1)
+        if (!ready_ || invoked_ || menu == nullptr || (flags & CMF_DEFAULTONLY) ||
+            first > last || last - first < 1 || index == UINT_MAX)
             return MAKE_HRESULT(SEVERITY_SUCCESS, 0, 0);
         std::array<wchar_t, 128> copy{}, move{};
         if (!LoadStringW(module, IDS_SHELL_COPY_HERE, copy.data(), static_cast<int>(copy.size())) ||
