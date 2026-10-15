@@ -16,6 +16,7 @@ class Data final : public IDataObject {
 public:
     bool malformed{};
     bool ansi{};
+    bool truncated{};
     unsigned sets{};
     IFACEMETHODIMP QueryInterface(REFIID id, void** out) override {
         if (!out) return E_POINTER; *out = nullptr;
@@ -31,7 +32,7 @@ public:
         if (!drop) return DV_E_FORMATETC;
         const wchar_t paths[] = L"C:\\Source\\a.txt\0C:\\Source\\Folder\0";
         const char narrow[] = "C:\\Source\\a.txt\0C:\\Source\\Folder\0";
-        SIZE_T bytes = sizeof(DROPFILES) + (ansi ? sizeof(narrow) : sizeof(paths));
+        SIZE_T bytes = sizeof(DROPFILES) + (ansi ? sizeof(narrow) : sizeof(paths)) - (truncated ? (ansi ? 2 : 2 * sizeof(wchar_t)) : 0);
         HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE | GMEM_ZEROINIT, bytes);
         if (!memory) return E_OUTOFMEMORY;
         auto* raw = static_cast<unsigned char*>(GlobalLock(memory));
@@ -116,6 +117,9 @@ bool run(GetClass get, CanUnload unload) {
     ok &= check(SUCCEEDED(init->Initialize(target, data, nullptr)), "reset");
     ok &= check(HRESULT_CODE(context->QueryContextMenu(menu, 0, 100, 100, 0)) == 0, "insufficient IDs");
     ok &= check(HRESULT_CODE(context->QueryContextMenu(menu, 0, 100, 101, CMF_DEFAULTONLY)) == 0, "default only");
+    data->truncated = true;
+    ok &= check(FAILED(init->Initialize(target, data, nullptr)), "truncated CF_HDROP terminator");
+    data->truncated = false;
     data->malformed = true;
     ok &= check(FAILED(init->Initialize(target, data, nullptr)), "malformed DROPFILES");
     ok &= check(HRESULT_CODE(context->QueryContextMenu(menu, 0, 100, 101, 0)) == 0, "no stale paths");
