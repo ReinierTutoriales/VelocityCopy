@@ -43,7 +43,7 @@ The resident process exists only to provide near-instant Explorer handoff and st
 - no network polling
 - no filesystem watcher farm
 - transfer snapshots come from IDataObject; no idle clipboard listener
-- no global keyboard or mouse hooks
+- resident Ctrl+V adapter on a dedicated keyboard thread; no mouse hook or clipboard polling
 - no process injection, DLL injection, or generic keystroke capture
 - no periodic benchmark
 - no copy worker until work exists
@@ -73,7 +73,7 @@ Explorer integration uses an unpackaged in-process COM server:
 - all enumeration, planning, conflicts, queue state and I/O remain in the VelocityCopy app process
 - IPC or launch failure must never destabilize Explorer
 
-The shell exposes only explicit Copy here / Move here commands on the documented right-button DragDropHandlers menu. It does not replace Explorer's native default command or depend on historical numeric command IDs. Windows exposes no supported third-party interception point for ordinary Explorer Ctrl+V, so transparent paste replacement is not a VelocityCopy release gate. No global hooks, injection, Explorer patching or resident clipboard staging are used. See EXPLORER_INTEGRATION.md for the platform analysis and supported scope.
+The shell exposes explicit Copy here / Move here commands on the documented right-button DragDropHandlers menu and Paste with VelocityCopy on folder backgrounds. The resident app additionally routes Explorer Ctrl+V through a dedicated keyboard adapter and STA worker into the existing IPC/queue. Ctrl+C/X remain Explorer-owned. No injection into Explorer, patching, numeric command-ID tricks, clipboard polling or staged source cache is used. See EXPLORER_INTEGRATION.md for scope and fallback rules.
 ## Process model
 
 ```text

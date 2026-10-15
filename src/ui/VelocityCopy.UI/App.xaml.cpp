@@ -187,6 +187,7 @@ App::App() {
 }
 
 App::~App() {
+    explorer_paste_.stop();
     tray_.Remove();
     if (server_) {
         server_->stop();
@@ -656,6 +657,7 @@ void App::OnWindowDestroyed(const std::uint64_t window_id) noexcept {
 }
 
 void App::ExitFromTray() noexcept {
+    explorer_paste_.stop();
     SetShuttingDown(true);
     tray_.Remove();
     for (auto& [id, window] : windows_) {
@@ -784,5 +786,9 @@ void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
                 }
             }
         });
+    if (!explorer_paste_.start()) {
+        velocitycopy::log_diagnostic(L"Explorer keyboard integration could not start");
+        ShowPrimaryWindowError();
+    }
 }
 }

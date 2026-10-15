@@ -163,7 +163,7 @@ Before broad UI redesign, verify and stabilize:
 - tray/startup behavior;
 - drag/drop append-to-active-session semantics.
 
-Global keyboard hooks are not an acceptable substitute for Explorer integration.
+Explorer keyboard routing is implemented by the resident adapter described in EXPLORER_INTEGRATION.md; the shell DLL remains bounded and IPC-only.
 
 Exit evidence: exact x64 CI SHA green plus source-level contract review. Windows-only behavior remains explicitly marked unverified until exercised on Windows.
 
@@ -237,7 +237,7 @@ Each UI block follows: `green HEAD -> inspect -> complete block -> review diff -
 
 Automated tests do not prove Explorer/taskbar/tray integration. On an installed x64 build verify:
 - Explorer right-button drop commands (Copy here / Move here);
-- ordinary Ctrl+C/Ctrl+X -> Ctrl+V remains Explorer-owned and is not an interception gate;
+- Explorer Ctrl+C/Ctrl+X -> Ctrl+V must be tested through the resident adapter into JobExecutor;
 - tray startup/hide/restore/Explorer restart;
 - installed application/taskbar/tray icon;
 - active-transfer drag/drop append;

@@ -31,6 +31,7 @@ add_library(velocitycopy_core STATIC
     src/core/elevation.cpp
     src/core/efficiency_coordinator.cpp
     src/core/execution_control.cpp
+    src/core/explorer_paste.cpp
     src/core/ipc_protocol.cpp
     src/core/ipc_transport.cpp
     src/core/job_executor.cpp
@@ -47,11 +48,12 @@ add_library(velocitycopy_core STATIC
     src/core/transfer_router.cpp
     src/core/strategy_selector.cpp
     src/core/ui_snapshot.cpp
+    src/shell/shell_data.cpp
 )
 
 target_include_directories(velocitycopy_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/core/include)
 target_compile_definitions(velocitycopy_core PUBLIC UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0A00 WINVER=0x0A00)
-target_link_libraries(velocitycopy_core PUBLIC shell32 advapi32 ole32 bcrypt user32)
+target_link_libraries(velocitycopy_core PUBLIC shell32 advapi32 ole32 oleaut32 uuid bcrypt user32)
 
 if(MSVC)
     target_compile_options(velocitycopy_core PRIVATE /W4 /permissive- /EHsc /utf-8)
@@ -71,7 +73,7 @@ target_link_libraries(VelocityCopyBenchmark PRIVATE velocitycopy_core psapi)
 add_executable(VelocityCopyAppendBenchmark tools/benchmark_append.cpp)
 target_link_libraries(VelocityCopyAppendBenchmark PRIVATE velocitycopy_core)
 
-add_library(VelocityCopyShell SHARED src/shell/shell_data.cpp src/shell/drop_handler.cpp src/shell/shell_strings.rc src/shell/VelocityCopyShell.def)
+add_library(VelocityCopyShell SHARED src/shell/drop_handler.cpp src/shell/shell_strings.rc src/shell/VelocityCopyShell.def)
 target_include_directories(VelocityCopyShell PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/shell)
 target_link_libraries(VelocityCopyShell PRIVATE velocitycopy_core ole32)
 set_target_properties(VelocityCopyShell PROPERTIES OUTPUT_NAME "VelocityCopy.Shell")
@@ -146,6 +148,7 @@ add_velocitycopy_test(VelocityCopyStorageTopologyTest tests/storage_topology_tes
 add_velocitycopy_test(VelocityCopyTransferRouterTest tests/transfer_router_test.cpp velocitycopy_transfer_router)
 add_velocitycopy_test(VelocityCopyShellRequestTest tests/shell_request_test.cpp velocitycopy_shell_request)
 add_velocitycopy_test(VelocityCopyIpcTest tests/ipc_test.cpp velocitycopy_ipc)
+add_velocitycopy_test(VelocityCopyExplorerPasteTest tests/explorer_paste_test.cpp velocitycopy_explorer_paste)
 add_velocitycopy_test(VelocityCopyShellSessionTest tests/shell_session_test.cpp velocitycopy_shell_session)
 add_velocitycopy_test(VelocityCopyActivationTest tests/activation_test.cpp velocitycopy_activation)
 add_velocitycopy_test(VelocityCopyUiSnapshotTest tests/ui_snapshot_test.cpp velocitycopy_ui_snapshot)
@@ -186,7 +189,7 @@ target_compile_definitions(VelocityCopyUnpackagedStorageArchitectureTest PRIVATE
 add_velocitycopy_test(VelocityCopyVersionIdentityArchitectureTest tests/version_identity_architecture_test.cpp velocitycopy_version_identity_architecture)
 target_compile_definitions(VelocityCopyVersionIdentityArchitectureTest PRIVATE VELOCITYCOPY_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
-add_executable(VelocityCopyShellDllTest tests/shell_dll_test.cpp src/shell/shell_data.cpp)
+add_executable(VelocityCopyShellDllTest tests/shell_dll_test.cpp)
 target_link_libraries(VelocityCopyShellDllTest PRIVATE velocitycopy_core ole32 user32 uuid)
 add_dependencies(VelocityCopyShellDllTest VelocityCopyShell)
 if(MSVC)
