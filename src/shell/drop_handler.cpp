@@ -75,7 +75,9 @@ HRESULT read_sources(IDataObject* data, std::vector<std::filesystem::path>& path
     }
     // CF_HDROP file lists must terminate with two NUL characters. Reject
     // truncated data objects before forwarding any paths to the IPC receiver.
-    return !paths.empty() && pos + 2 * unit <= bytes &&
+    // Each path consumes a NUL, followed by the final list NUL. The
+    // second NUL must be inside the HGLOBAL, not just adjacent memory.
+    return !paths.empty() && pos <= bytes && bytes - pos >= 2 * unit &&
                    character(pos) == 0 && character(pos + unit) == 0
                ? S_OK : E_INVALIDARG;
 }
