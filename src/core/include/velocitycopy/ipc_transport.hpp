@@ -53,6 +53,8 @@ private:
 struct IpcSendResult {
     bool success{};
     std::int32_t native_code{};
+    // True when a write may have reached the receiver. Never retry such a request.
+    bool delivery_ambiguous{};
 
     [[nodiscard]] explicit operator bool() const noexcept { return success; }
 };
