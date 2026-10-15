@@ -42,8 +42,9 @@ public:
             header.pFiles = malformed ? static_cast<DWORD>(bytes + 8) : sizeof(DROPFILES);
             header.fWide = !ansi;
             std::memcpy(raw, &header, sizeof(header));
-            if (ansi) std::memcpy(raw + sizeof(header), narrow, sizeof(narrow));
-            else std::memcpy(raw + sizeof(header), paths, sizeof(paths));
+            const SIZE_T payload_bytes = bytes - sizeof(header);
+            if (ansi) std::memcpy(raw + sizeof(header), narrow, payload_bytes);
+            else std::memcpy(raw + sizeof(header), paths, payload_bytes);
         }
         GlobalUnlock(memory);
         out->tymed = TYMED_HGLOBAL; out->hGlobal = memory;
