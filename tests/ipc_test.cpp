@@ -187,10 +187,17 @@ bool concurrent_clients_preserve_distinct_requests() {
     for (auto& client : clients) client.join();
     if (sent_count.load(std::memory_order_acquire) != count) server.stop();
     receiver.join();
-    return valid.load(std::memory_order_acquire) &&
+    const bool passed = valid.load(std::memory_order_acquire) &&
         received_count.load(std::memory_order_acquire) == count &&
         received_mask.load(std::memory_order_acquire) == (1u << count) - 1 &&
         sent_count.load(std::memory_order_acquire) == count;
+    if (!passed) {
+        std::cerr << "IPC concurrent clients: sent=" << sent_count.load()
+                  << " received=" << received_count.load()
+                  << " unique_mask=" << received_mask.load()
+                  << " valid=" << valid.load() << "\\n";
+    }
+    return passed;
 }
 
 bool send_malformed_message() {
