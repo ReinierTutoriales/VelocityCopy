@@ -116,9 +116,18 @@ bool is_startup_activation() noexcept {
 bool deliver_to_primary(const velocitycopy::ShellRequest& request) noexcept {
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
     do {
-        if (velocitycopy::send_shell_request(request, 250)) {
-            return true;
+        const auto result = velocitycopy::send_shell_request(request, 250);
+        if (result) return true;
+
+        // Retry only if no server pipe existed or it was busy before opening.
+        // Timeout or write/flush failure can occur after delivery; retrying
+        // such an ambiguous result can submit the same transfer twice.
+        if (result.native_code != static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)) &&
+            result.native_code != static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_PIPE_BUSY))) {
+            velocitycopy::log_diagnostic(L"shell: IPC delivery failed; ambiguous result not retried");
+            return false;
         }
+        if (std::chrono::steady_clock::now() >= deadline) break;
         Sleep(100);
     } while (std::chrono::steady_clock::now() < deadline);
     return false;
