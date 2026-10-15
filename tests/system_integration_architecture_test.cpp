@@ -243,10 +243,13 @@ int main() {
         !contains(shell, "CF_HDROP") || !contains(shell, "IContextMenu") ||
         contains(shell, "IExplorerCommand") ||
         contains(shell, "SetMenuDefaultItem") ||
-        contains(shell, "CFSTR_PREFERREDDROPEFFECT") ||
+        !contains(shell, "CFSTR_PREFERREDDROPEFFECT") ||
+        !contains(shell, "OleGetClipboard") ||
+        !contains(shell, "clipboard_sources(request_)") ||
+        !contains(installer_exe, "Directory\\Background\\shellex\\ContextMenuHandlers\\VelocityCopy") ||
         contains(installer_exe, "ExplorerCommandHandler") ||
         !contains(installer_exe, "DragDropHandlers")) {
-        return fail(15, "only explicit documented drag/drop-handler commands may remain; do not replace Explorer defaults with undocumented IDs");
+        return fail(15, "Shell integration must retain explicit drag/drop commands and add on-demand clipboard paste without replacing Explorer defaults");
     }
 
     if (contains(recovery, "ContentDialog") || contains(recovery, "XamlRoot(") ||
