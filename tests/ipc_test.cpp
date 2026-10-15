@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <iostream>
+#include <vector>
 #include <thread>
 
 using namespace std::chrono_literals;
@@ -133,6 +134,50 @@ bool large_frame_with_bounded_buffer() {
     return sent && result && result->sources == request.sources && result->destination == request.destination;
 }
 
+bool concurrent_clients_preserve_distinct_requests() {
+    constexpr int count = 4;
+    velocitycopy::ShellIpcServer server;
+    if (!server.valid()) return false;
+
+    std::atomic_int received_count{0};
+    std::atomic_bool valid{true};
+    std::jthread receiver([&] {
+        for (int i = 0; i < count; ++i) {
+            const auto message = server.receive();
+            if (!message || message->sources.size() != 1) {
+                valid.store(false, std::memory_order_release);
+                return;
+            }
+            const auto source = message->sources.front().wstring();
+            if (source.size() < 2 || source.substr(0, 12) != L"C:\\Concurrent") {
+                valid.store(false, std::memory_order_release);
+                return;
+            }
+            received_count.fetch_add(1, std::memory_order_release);
+        }
+    });
+
+    std::atomic_int sent_count{0};
+    std::vector<std::jthread> clients;
+    clients.reserve(count);
+    for (int i = 0; i < count; ++i) {
+        clients.emplace_back([&, i] {
+            velocitycopy::ShellRequest request{};
+            request.action = velocitycopy::ShellAction::Transfer;
+            request.destination = L"D:\\Backup";
+            request.sources = {std::filesystem::path(L"C:\\Concurrent\\file-" + std::to_wstring(i))};
+            if (velocitycopy::send_shell_request(request, 5000))
+                sent_count.fetch_add(1, std::memory_order_release);
+        });
+    }
+    for (auto& client : clients) client.join();
+    if (sent_count.load(std::memory_order_acquire) != count) server.stop();
+    receiver.join();
+    return valid.load(std::memory_order_acquire) &&
+        received_count.load(std::memory_order_acquire) == count &&
+        sent_count.load(std::memory_order_acquire) == count;
+}
+
 bool send_malformed_message() {
     const auto name = velocitycopy::shell_pipe_name();
     if (name.empty() || !WaitNamedPipeW(name.c_str(), 2000)) return false;
@@ -230,6 +275,7 @@ int run_test() {
     if (!stalled_frame_recovers(request)) return 17;
     if (!large_frame_with_bounded_buffer()) return 18;
     if (!send_times_out_when_server_stops_reading(true)) return 19;
+    if (!concurrent_clients_preserve_distinct_requests()) return 20;
 
     std::wcout << L"VelocityCopy IPC test passed.\n";
     return 0;
