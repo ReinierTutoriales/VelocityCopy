@@ -55,6 +55,18 @@ int main(){
  if (ipc_rejection.find("shell: IPC request rejected because UI dispatcher is unavailable") == std::string::npos ||
      ipc_rejection.find("server->stop();") == std::string::npos) return 44;
 
+ // A secondary launch must never resend an ambiguous IPC delivery: the
+ // primary may already have consumed the frame despite a client timeout.
+ const auto secondary_send = app_cpp.find("bool deliver_to_primary(");
+ const auto secondary_end = app_cpp.find("void show_activation_error(", secondary_send);
+ if (secondary_send == std::string::npos || secondary_end == std::string::npos) return 45;
+ const auto secondary_block = app_cpp.substr(secondary_send, secondary_end - secondary_send);
+ if (secondary_block.find("result.native_code") == std::string::npos ||
+     secondary_block.find("ERROR_FILE_NOT_FOUND") == std::string::npos ||
+     secondary_block.find("ERROR_PIPE_BUSY") == std::string::npos ||
+     secondary_block.find("ambiguous result not retried") == std::string::npos ||
+     secondary_block.find("return false;") == std::string::npos) return 46;
+
  // 7f contract: native minimize must remain a real taskbar minimize. The SC_MINIMIZE
  // branch must not regress into HideToTray(), otherwise Windows loses per-window previews.
  const auto minimize = main.find("SC_MINIMIZE");
