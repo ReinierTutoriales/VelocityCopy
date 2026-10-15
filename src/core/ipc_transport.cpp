@@ -435,6 +435,18 @@ IpcSendResult send_shell_request(
         if (!write_all(pipe.get(), frame.data(), static_cast<std::uint32_t>(frame.size()), event.get(), deadline)) {
             return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(GetLastError())), true};
         }
+        // Duplex v3 waits for the server's admission reply. Do not flush the
+        // request first: synchronous FlushFileBuffers on a duplex pipe can
+        // wait for the peer's response read and deadlock the handshake.
+        if (request.version == 3) {
+            std::uint8_t ack = 0;
+            UniqueHandle ack_event{CreateEventW(nullptr, TRUE, FALSE, nullptr)};
+            if (!ack_event.valid()) return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(GetLastError())), true};
+            if (!read_all(pipe.get(), &ack, 1, ack_event.get(), nullptr, deadline))
+                return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_SEM_TIMEOUT)), true};
+            if (ack != 1u) return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_ACCESS_DENIED)), false};
+            return {true, S_OK};
+        }
         // A buffered write can finish before the server accepts/validates the
         // client. Keep the client handle alive until all bytes are consumed.
         // FlushFileBuffers is synchronous even on an overlapped pipe handle.
@@ -465,14 +477,6 @@ IpcSendResult send_shell_request(
         // admission acknowledgement; only transport errors/timeouts are reported.
         if (!flushed && flush_error != ERROR_PIPE_NOT_CONNECTED && flush_error != ERROR_BROKEN_PIPE)
             return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(flush_error)), true};
-        if (request.version == 3) {
-            std::uint8_t ack = 0;
-            UniqueHandle ack_event{CreateEventW(nullptr, TRUE, FALSE, nullptr)};
-            if (!ack_event.valid()) return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(GetLastError())), true};
-            if (!read_all(pipe.get(), &ack, 1, ack_event.get(), nullptr, deadline))
-                return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_SEM_TIMEOUT)), true};
-            if (ack != 1u) return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_ACCESS_DENIED)), false};
-        }
         return {true, S_OK};
     } catch (const std::bad_alloc&) {
         return {false, static_cast<std::int32_t>(E_OUTOFMEMORY), write_attempted};
