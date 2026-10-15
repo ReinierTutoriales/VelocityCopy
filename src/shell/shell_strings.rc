@@ -6,12 +6,14 @@ STRINGTABLE
 BEGIN
     IDS_SHELL_COPY_HERE "Copy here with VelocityCopy"
     IDS_SHELL_MOVE_HERE "Move here with VelocityCopy"
+    IDS_SHELL_PASTE_HERE "Paste with VelocityCopy"
 END
 LANGUAGE LANG_SPANISH, SUBLANG_SPANISH_MODERN
 STRINGTABLE
 BEGIN
     IDS_SHELL_COPY_HERE "Copiar aqui con VelocityCopy"
     IDS_SHELL_MOVE_HERE "Mover aqui con VelocityCopy"
+    IDS_SHELL_PASTE_HERE "Pegar con VelocityCopy"
 END
 
 
