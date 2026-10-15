@@ -155,11 +155,11 @@ bool concurrent_clients_preserve_distinct_requests() {
                 return;
             }
             const auto suffix = source.substr(std::wstring_view(L"C:\\Concurrent\\file-").size());
-            if (suffix.size() != 1 || suffix[0] < L\'0\' || suffix[0] >= L\'0\' + count) {
+            if (suffix.size() != 1 || suffix[0] < L'0' || suffix[0] >= L'0' + count) {
                 valid.store(false, std::memory_order_release);
                 return;
             }
-            const unsigned bit = 1u << (suffix[0] - L\'0\');
+            const unsigned bit = 1u << (suffix[0] - L'0');
             if (received_mask.fetch_or(bit, std::memory_order_acq_rel) & bit) {
                 valid.store(false, std::memory_order_release);
                 return;
