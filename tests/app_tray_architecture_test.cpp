@@ -43,6 +43,14 @@ int main(){
      admission_block.find("shell: transfer request failed during queue admission", queue_catch) == std::string::npos ||
      admission_block.find("ShowPrimaryWindowError();", queue_catch) == std::string::npos) return 42;
 
+ // IPC receive completion is not Queue admission: if UI shutdown rejects
+ // dispatch, preserve a diagnostic and stop accepting more shell requests.
+ const auto ipc_enqueue = app_cpp.find("if (!dispatcher.TryEnqueue(");
+ if (ipc_enqueue == std::string::npos) return 43;
+ const auto ipc_rejection = app_cpp.substr(ipc_enqueue, 900);
+ if (ipc_rejection.find("shell: IPC request rejected because UI dispatcher is unavailable") == std::string::npos ||
+     ipc_rejection.find("server->stop();") == std::string::npos) return 44;
+
  // 7f contract: native minimize must remain a real taskbar minimize. The SC_MINIMIZE
  // branch must not regress into HideToTray(), otherwise Windows loses per-window previews.
  const auto minimize = main.find("SC_MINIMIZE");
