@@ -140,6 +140,7 @@ bool concurrent_clients_preserve_distinct_requests() {
     if (!server.valid()) return false;
 
     std::atomic_int received_count{0};
+    std::atomic_uint received_mask{0};
     std::atomic_bool valid{true};
     std::jthread receiver([&] {
         for (int i = 0; i < count; ++i) {
@@ -150,6 +151,16 @@ bool concurrent_clients_preserve_distinct_requests() {
             }
             const auto source = message->sources.front().wstring();
             if (!source.starts_with(L"C:\\Concurrent\\file-")) {
+                valid.store(false, std::memory_order_release);
+                return;
+            }
+            const auto suffix = source.substr(std::wstring_view(L"C:\\Concurrent\\file-").size());
+            if (suffix.size() != 1 || suffix[0] < L\'0\' || suffix[0] >= L\'0\' + count) {
+                valid.store(false, std::memory_order_release);
+                return;
+            }
+            const unsigned bit = 1u << (suffix[0] - L\'0\');
+            if (received_mask.fetch_or(bit, std::memory_order_acq_rel) & bit) {
                 valid.store(false, std::memory_order_release);
                 return;
             }
@@ -166,15 +177,19 @@ bool concurrent_clients_preserve_distinct_requests() {
             request.action = velocitycopy::ShellAction::Transfer;
             request.destination = L"D:\\Backup";
             request.sources = {std::filesystem::path(L"C:\\Concurrent\\file-" + std::to_wstring(i))};
-            if (velocitycopy::send_shell_request(request, 5000))
+            if (velocitycopy::send_shell_request(request, 10000))
                 sent_count.fetch_add(1, std::memory_order_release);
         });
+        // Keep clients overlapping while allowing the one-instance server to
+        // re-arm ConnectNamedPipe between successive arrivals.
+        std::this_thread::sleep_for(50ms);
     }
     for (auto& client : clients) client.join();
     if (sent_count.load(std::memory_order_acquire) != count) server.stop();
     receiver.join();
     return valid.load(std::memory_order_acquire) &&
         received_count.load(std::memory_order_acquire) == count &&
+        received_mask.load(std::memory_order_acquire) == (1u << count) - 1 &&
         sent_count.load(std::memory_order_acquire) == count;
 }
 
