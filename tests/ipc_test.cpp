@@ -276,7 +276,7 @@ int run_test() {
 
     // The transport must preserve v3 identity, not just the serializer.
     std::optional<ShellRequest> identified_received;
-    std::jthread identified_receiver([&] { identified_received = server.receive(); });
+    std::jthread identified_receiver([&] { identified_received = server.receive_and_ack([](const ShellRequest&) { return true; }); });
     ShellRequest identified_wire = request;
     identified_wire.version = 3;
     identified_wire.request_id = 0x9a7b6c5d4e3f2011ull;
