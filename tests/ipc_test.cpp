@@ -236,6 +236,25 @@ int run_test() {
     if (!decoded || decoded->sources != request.sources || decoded->destination != request.destination ||
         decoded->operation != request.operation || decoded->action != request.action || decoded->layout != request.layout) return 2;
 
+    // Version 3 carries a stable nonzero request identity. Version 2 remains
+    // byte-for-byte compatible with existing installed shell clients.
+    ShellRequest identified = request;
+    identified.version = 3;
+    identified.request_id = 0x12345678abcdef01ull;
+    const auto encoded_v3 = serialize_shell_request(identified);
+    if (!encoded_v3 || encoded_v3->size() != encoded->size() + 8) return 22;
+    const auto decoded_v3 = deserialize_shell_request(*encoded_v3);
+    if (!decoded_v3 || decoded_v3->version != 3 || decoded_v3->request_id != identified.request_id ||
+        decoded_v3->sources != request.sources || decoded_v3->destination != request.destination) return 23;
+    identified.request_id = 0;
+    if (serialize_shell_request(identified)) return 24;
+    identified.version = 2;
+    identified.request_id = 42;
+    if (serialize_shell_request(identified)) return 25;
+    auto truncated_v3 = *encoded_v3;
+    truncated_v3.resize(11);
+    if (deserialize_shell_request(truncated_v3)) return 26;
+
     auto corrupted = *encoded;
     corrupted[0] ^= 0xffu;
     if (deserialize_shell_request(corrupted)) return 3;
