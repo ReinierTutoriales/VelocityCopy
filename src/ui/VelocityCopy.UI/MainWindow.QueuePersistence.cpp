@@ -398,9 +398,8 @@ bool MainWindow::StartCopyPlan(
     last_queue_completed_files_ = 0;
     execution_control_ = std::make_shared<velocitycopy::ExecutionControl>();
     append_gate_ = std::make_shared<AppendGate>();
-    queue_snapshot_.clear();
-    QueueList().Items().Clear();
-    QueueCountText().Text(L"0");
+    queue_page_offset_ = 0;
+    queue_refresh_force_rebuild_ = true;
     SetExpanded(false);
     SetProgressFraction(0.0);
 

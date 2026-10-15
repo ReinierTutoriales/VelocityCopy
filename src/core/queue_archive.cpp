@@ -10,6 +10,7 @@
 #include <cwctype>
 #include <fstream>
 #include <limits>
+#include <mutex>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -20,6 +21,7 @@ namespace {
 constexpr std::array<char, 8> kMagic{'V','C','Q','U','E','U','E','1'};
 constexpr std::uint32_t kFormatVersion = 3;
 constexpr std::uint32_t kLegacyFormatVersion = 1;
+std::mutex archive_commit_mutex;
 constexpr std::uint32_t kPreviousFormatVersion = 2;
 constexpr std::uint32_t kMaxStringChars = 32767;
 constexpr std::uint64_t kMaxEntries = 250'000;
@@ -427,6 +429,9 @@ bool QueueArchiveStore::save(
         if (!flush_file_to_disk(temp)) return false;
 
         const auto flags = MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH;
+        // Concurrent saves can serialize their bytes independently, but Windows
+        // replacement of the same existing destination must not overlap.
+        std::lock_guard commit_lock(archive_commit_mutex);
         if (!MoveFileExW(temp.c_str(), path.c_str(), flags)) {
             return false;
         }
@@ -440,6 +445,7 @@ bool QueueArchiveStore::save(
 std::optional<QueueArchive> QueueArchiveStore::load(
     const std::filesystem::path& path) const noexcept {
     try {
+        std::lock_guard commit_lock(archive_commit_mutex);
         std::error_code size_error;
         const auto archive_size = std::filesystem::file_size(path, size_error);
         if (size_error || archive_size > kMaxArchiveBytes) {

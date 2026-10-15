@@ -114,6 +114,13 @@ int main(){
     about.find("about.Closed([weak]") == std::string::npos ||
     about.find("about_window_ = about") == std::string::npos) return 33;
  if (main.find("PositionInitialWindow") != std::string::npos) return 34;
+ const auto replay_begin = main.find("if (taskbar_button_created != 0 && message == taskbar_button_created)");
+ if (replay_begin == std::string::npos) return 38;
+ const auto replay = main.substr(replay_begin, main.find("switch (message)", replay_begin) - replay_begin);
+ if (main.find("RegisterWindowMessageW(L\"TaskbarButtonCreated\")") == std::string::npos ||
+     replay.find("self->taskbar_ = nullptr") == std::string::npos ||
+     replay.find("self->next_taskbar_attempt_tick_ = 0") == std::string::npos ||
+     replay.find("self->RefreshTaskbarProgress()") == std::string::npos) return 38;
 
     return 0;
 }

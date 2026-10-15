@@ -225,6 +225,14 @@ LRESULT CALLBACK MainWindow::TraySubclassProc(
     if (self == nullptr) {
         return DefSubclassProc(hwnd, message, wparam, lparam);
     }
+    static const UINT taskbar_button_created = RegisterWindowMessageW(L"TaskbarButtonCreated");
+    if (taskbar_button_created != 0 && message == taskbar_button_created) {
+        // Replay paused/error as well as running state when Explorer recreates
+        // the button; interrupted sessions may have no new progress callbacks.
+        self->taskbar_ = nullptr;
+        self->next_taskbar_attempt_tick_ = 0;
+        self->RefreshTaskbarProgress();
+    }
 
     switch (message) {
     case WM_SYSCOMMAND:

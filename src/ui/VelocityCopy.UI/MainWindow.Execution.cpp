@@ -273,9 +273,8 @@ void MainWindow::StartTransfer(velocitycopy::CopyJob job, velocitycopy::StorageK
     live_plan_.reset();
     execution_control_ = std::make_shared<velocitycopy::ExecutionControl>();
     append_gate_ = std::make_shared<AppendGate>();
-    queue_snapshot_.clear();
-    QueueList().Items().Clear();
-    QueueCountText().Text(L"0");
+    queue_page_offset_ = 0;
+    queue_refresh_force_rebuild_ = true;
 
     SetExpanded(false);
     SetProgressFraction(0.0);
@@ -514,6 +513,7 @@ void MainWindow::OnPauseClick(IInspectable const&, RoutedEventArgs const&) {
     }
     TransferProgress().ShowPaused(paused_);
     TransferProgress().ShowError(false);
+    if (expanded_) RefreshActiveQueue();
     SetTaskbarState(paused_ ? TBPF_PAUSED : TBPF_NORMAL);
     PauseIcon().Glyph(paused_ ? L"\xE768" : L"\xE769");
     try {
@@ -584,9 +584,7 @@ void MainWindow::CancelCurrentSession() {
         live_plan_.reset();
         append_gate_.reset();
         active_destination_.clear();
-        queue_snapshot_.clear();
-        QueueList().Items().Clear();
-        QueueCountText().Text(L"0");
+        RefreshQueue(true);
 
         SetExpanded(false);
         SetExecutionButtonsIdle();
@@ -689,6 +687,8 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
     if (expanded_ && snapshot.completed_files != last_queue_completed_files_) {
         last_queue_completed_files_ = snapshot.completed_files;
         RefreshQueue();
+    } else if (expanded_) {
+        RefreshActiveQueue();
     }
 }
 

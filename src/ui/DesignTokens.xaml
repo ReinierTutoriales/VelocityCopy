@@ -12,6 +12,8 @@
     <x:Double x:Key="DetailsExpandedMinHeight">128</x:Double>
     <x:Double x:Key="QueueExpandedMaxHeight">340</x:Double>
     <x:Double x:Key="QueueHeaderMinHeight">28</x:Double>
+    <x:Double x:Key="QueueActiveMaxHeight">96</x:Double>
+    <x:Double x:Key="QueuePendingMinHeight">80</x:Double>
     <x:Double x:Key="SpaceTight">4</x:Double><x:Double x:Key="SpaceRelated">8</x:Double>
     <x:Double x:Key="QueueItemLineSpacing">4</x:Double><Thickness x:Key="QueueItemMargin">8,8,8,8</Thickness>
     <x:Double x:Key="QueueNarrowItemContainerMinHeight">32</x:Double><Thickness x:Key="QueueNarrowItemContainerPadding">8,0,8,0</Thickness>

@@ -19,3 +19,11 @@ VelocityCopy keeps its visual layer replaceable and lightweight.
 - RefreshQueue does not enumerate or create queue items while Details is collapsed. Existing lightweight items/selection can remain retained between disclosure toggles; the next expansion refreshes from the authoritative plan.
 - Source/destination tooltips mutate only when their displayed path changes. Inactive live telemetry is cleared in both normal and expanded views.
 - Async external drops capture gate/destination/operation before reading StorageItems and revalidate after suspension. A retired/cancelled session cannot redirect a pending drop into its replacement.
+
+## x64 queue stabilization — 2026-10-14
+
+- Active rows are a separate, at-most-eight projection of `active_queue_view`, refreshed on every accepted throttled snapshot, including intervals in which no file completes. Pending rows remain data-only and bounded to 256. Pause immediately updates the active progress visual state.
+- Native reorder captures the live-plan identity. A planning preview cannot start a reorder, and completion cannot edit a replacement session even if its file IDs match. Session reset defers pending visual mutations through RefreshQueue while native drag owns the Items collection.
+- Queue header and pagination occupy separate rows; title and count use constrained Grid columns and ellipsis. Edit buttons remain visible and use enabled state. New pagination glyphs inherit FontIcon's native font fallback.
+- Expanded width retains the measured compact command-row minimum. Client work-area budgets subtract the measured native frame before layout, so the final outer-HWND clamp does not silently clip measured content. Only bounded Queue chrome (header and active region) is measured at infinite height; the pending ListView never is. The active viewport has a 96 epx maximum and the pending viewport reserves 80 epx. The outer viewport owns overflow in either composition when measured sections exceed the monitor/token budget; this supersedes the earlier Narrow-only overflow rule.
+- TaskbarButtonCreated replays the existing taskbar state/fraction when Explorer creates or recreates a button, including interrupted sessions with no new engine callbacks. The existing per-window bounded COM retry remains the fallback.

@@ -146,6 +146,33 @@ int main() {
     const bool removed = wrappers.remove_pending_file(1);
     fail_after = -1;
     if (up || down || removed || wrappers.remaining_files() != 2) return 15;
+    // Page permutation copies paths before touching the deque. Every allocation
+    // failure must preserve hidden rows and the exact old pending order.
+    int failed_reorders = 0;
+    bool reordered = false;
+    const std::vector<std::uint64_t> page_ids{4, 3, 2};
+    for (int allocation = 0; allocation < 100; ++allocation) {
+        LiveCopyPlan live(make_plan(0, 5));
+        const auto before = live.queue_view(5);
+        fail_after = allocation;
+        const bool changed = live.reorder_pending_page(1, page_ids);
+        fail_after = -1;
+        const auto after = live.queue_view(5);
+        if (changed) {
+            reordered = true;
+            if (after.pending_files[0].id != 1 || after.pending_files[4].id != 5 ||
+                after.pending_files[1].id != 4 || after.pending_files[2].id != 3 ||
+                after.pending_files[3].id != 2) return 16;
+            break;
+        }
+        ++failed_reorders;
+        for (std::size_t i = 0; i < before.pending_files.size(); ++i) {
+            if (after.pending_files[i].id != before.pending_files[i].id ||
+                after.pending_files[i].source != before.pending_files[i].source ||
+                after.pending_files[i].destination != before.pending_files[i].destination) return 17;
+        }
+    }
+    if (failed_reorders < 5 || !reordered) return 18;
     std::cout << "Live-plan allocation failures preserve state and allow retry\n";
     return 0;
 }

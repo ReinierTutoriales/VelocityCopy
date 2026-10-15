@@ -6,6 +6,7 @@
 #include "Localization.h"
 #include "PerformanceGraphScale.h"
 #include "TelemetryLayout.h"
+#include "ExpandedLayout.h"
 #if __has_include("MainWindow.g.cpp")
 #include "MainWindow.g.cpp"
 #endif
@@ -80,6 +81,12 @@ MainWindow::MainWindow() {
         if (auto self = weak.get(); self && self->ErrorBar().IsOpen() &&
             std::abs(args.NewSize().Height - args.PreviousSize().Height) > 0.5f) {
             self->ResizeWindowToContent(true);
+        }
+    });
+    ActiveQueuePanel().SizeChanged([weak = get_weak()](IInspectable const&, SizeChangedEventArgs const& args) {
+        if (auto self = weak.get(); self && self->expanded_ &&
+            std::abs(args.NewSize().Height - args.PreviousSize().Height) > 0.5f) {
+            self->ResizeWindowToContent();
         }
     });
     PerformanceGraph().SizeChanged([weak = get_weak()](IInspectable const&, SizeChangedEventArgs const&) {
@@ -368,21 +375,28 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
     const double work_height_epx =
         (monitor_info.rcWork.bottom - monitor_info.rcWork.top) * 96.0 / static_cast<double>(dpi);
     const double work_margin = velocitycopy::ui::token_double(L"ExpandedWorkAreaMargin", 16);
+    RECT outer_rect{}, client_rect{};
+    if (!GetWindowRect(hwnd, &outer_rect) || !GetClientRect(hwnd, &client_rect)) return;
+    const double frame_width_epx = ((outer_rect.right - outer_rect.left) -
+        (client_rect.right - client_rect.left)) * 96.0 / static_cast<double>(dpi);
+    const double frame_height_epx = ((outer_rect.bottom - outer_rect.top) -
+        (client_rect.bottom - client_rect.top)) * 96.0 / static_cast<double>(dpi);
     const double normal_width = velocitycopy::ui::token_double(L"NormalWindowMinWidth", 380);
     const double preferred_width = velocitycopy::ui::token_double(L"ExpandedPreferredWidth", 640);
     const double three_column_threshold =
         velocitycopy::ui::token_double(L"ExpandedThreeColumnThreshold", 560);
-    const double work_width_cap = (std::max)(normal_width, work_width_epx - work_margin * 2.0);
+    const double work_width_cap = velocitycopy::ui::layout::client_work_extent(
+        work_width_epx, work_margin, frame_width_epx);
     const double text_scale = (std::max)(1.0, last_text_scale_factor_);
     // 380 epx scaled by Text Size is the minimum, not the final width: the window grows only
     // when the reserved bottom row (telemetry cells + actions + Details) cannot fit.
     ApplyTelemetryReserves();
     const double scaled_normal_width = normal_width * text_scale;
-    const double required_normal_width = expanded_ ? 0.0 : RequiredNormalWindowWidth();
+    const double required_normal_width = RequiredNormalWindowWidth();
     const double normal_target_width = velocitycopy::ui::layout::normal_target_width(
         scaled_normal_width, required_normal_width, work_width_cap);
     const double target_width = expanded_
-        ? (std::max)(normal_width, (std::min)(preferred_width, work_width_cap))
+        ? (std::max)(normal_target_width, (std::min)(preferred_width, work_width_cap))
         : normal_target_width;
 
     if (expanded_) {
@@ -457,7 +471,8 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
     const double details_min_height = velocitycopy::ui::token_double(L"DetailsExpandedMinHeight", 128);
     const double expanded_max_height = velocitycopy::ui::token_double(L"QueueExpandedMaxHeight", 340);
     const double available_expanded_height =
-        (std::max)(queue_min_height, work_height_epx - work_margin * 2.0 - normal_height - notice_height);
+        (std::max)(1.0, velocitycopy::ui::layout::client_work_extent(
+            work_height_epx, work_margin, frame_height_epx) - normal_height - notice_height);
     const double expanded_height_cap = (std::max)(
         1.0, (std::min)(expanded_max_height, available_expanded_height));
     ExpandedViewport().MaxHeight(expanded_height_cap);
@@ -475,41 +490,37 @@ void MainWindow::ResizeWindowToContent(const bool preserve_position) {
         static_cast<float>(panel_width), std::numeric_limits<float>::infinity()});
     const double information_height = InformationPanel().DesiredSize().Height;
 
-    double expanded_region_height = 0.0;
-    if (expanded_layout_mode_ == ExpandedLayoutMode::ThreeColumn) {
-        const double content_height = (std::min)(
-            (std::max)(information_height, queue_min_height),
-            (std::max)(1.0, expanded_height_cap - expanded_padding.Top - expanded_padding.Bottom));
-        ExpandedRow0().Height(GridLength{content_height, GridUnitType::Pixel});
-        expanded_region_height =
-            content_height + expanded_padding.Top + expanded_padding.Bottom;
-    } else {
-        const double padding_height = expanded_padding.Top + expanded_padding.Bottom;
-        const double content_cap = (std::max)(1.0, expanded_height_cap - padding_height);
-        const double details_required_height = (std::max)(
-            details_min_height, information_height);
-        const double required_content_height = queue_min_height + details_required_height;
-        const bool constrained_height = content_cap < required_content_height;
-        const double queue_height = queue_min_height;
-        ExpandedRow0().Height(GridLength{queue_height, GridUnitType::Pixel});
-        // Let DetailsGrid keep its measured desired height. When the combined
-        // Queue + Information extent exceeds the viewport cap,
-        // the outer ScrollViewer must own the overflow instead of clipping
-        // Information inside a fixed 128 epx details row.
+    // Measure only bounded chrome, never the pending ListView at infinite height.
+    const auto frame_padding = QueueFrame().Padding();
+    const auto frame_border = QueueFrame().BorderThickness();
+    const auto queue_margin = QueuePanel().Margin();
+    const auto list_margin = QueueList().Margin();
+    const double queue_chrome_width = frame_padding.Left + frame_padding.Right +
+        frame_border.Left + frame_border.Right + queue_margin.Left + queue_margin.Right;
+    const float queue_inner_width = static_cast<float>((std::max)(1.0, panel_width - queue_chrome_width));
+    QueueHeaderBorder().Measure({queue_inner_width, std::numeric_limits<float>::infinity()});
+    ActiveQueuePanel().Measure({queue_inner_width, std::numeric_limits<float>::infinity()});
+    const double queue_chrome_height = QueueHeaderBorder().DesiredSize().Height +
+        ActiveQueuePanel().DesiredSize().Height + frame_padding.Top + frame_padding.Bottom +
+        frame_border.Top + frame_border.Bottom + queue_margin.Top + queue_margin.Bottom +
+        list_margin.Top + list_margin.Bottom;
+    const auto height = velocitycopy::ui::layout::expanded_height(
+        queue_min_height, queue_chrome_height,
+        velocitycopy::ui::token_double(L"QueuePendingMinHeight", 80),
+        (std::max)(details_min_height, information_height),
+        expanded_padding.Top + expanded_padding.Bottom, expanded_height_cap,
+        expanded_layout_mode_ == ExpandedLayoutMode::ThreeColumn);
+    ExpandedRow0().Height(GridLength{height.queue_height, GridUnitType::Pixel});
+    if (expanded_layout_mode_ == ExpandedLayoutMode::Narrow) {
         ExpandedRow1().Height(GridLength{1.0, GridUnitType::Auto});
-        ExpandedViewport().VerticalScrollMode(
-            constrained_height ? ScrollMode::Auto : ScrollMode::Disabled);
-        ExpandedViewport().VerticalScrollBarVisibility(
-            constrained_height ? ScrollBarVisibility::Auto : ScrollBarVisibility::Disabled);
-        ExpandedViewport().IsTabStop(constrained_height);
-        expanded_region_height = constrained_height
-            ? expanded_height_cap
-            : queue_height + details_required_height + padding_height;
     }
+    ExpandedViewport().VerticalScrollMode(height.scrolls ? ScrollMode::Auto : ScrollMode::Disabled);
+    ExpandedViewport().VerticalScrollBarVisibility(height.scrolls ? ScrollBarVisibility::Auto : ScrollBarVisibility::Disabled);
+    ExpandedViewport().IsTabStop(height.scrolls);
 
     ResizeWindow(
         static_cast<int>(std::ceil(target_width)),
-        static_cast<int>(std::ceil(normal_height + notice_height + expanded_region_height)),
+        static_cast<int>(std::ceil(normal_height + notice_height + height.viewport_height)),
         preserve_position);
     RootGrid().UpdateLayout();
 }
