@@ -30,6 +30,19 @@ int main(){
     app_cpp.substr(missing_owner, missing_owner_end - missing_owner).find("ShowPrimaryWindowError();") == std::string::npos) return 40;
 
 
+ // Explorer requests must not escape the UI dispatch callback if queue admission
+ // allocates or throws. Preserve the error surface and diagnostic.
+ const auto admission = app_cpp.find("void App::DeliverShellRequest(");
+ const auto admission_end = app_cpp.find("void App::StartNextPendingRequest()", admission);
+ if (admission == std::string::npos || admission_end == std::string::npos) return 41;
+ const auto admission_block = app_cpp.substr(admission, admission_end - admission);
+ const auto queue_push = admission_block.find("pending_requests_.push_back(");
+ const auto queue_catch = admission_block.find("catch (...)", queue_push);
+ if (queue_push == std::string::npos || queue_catch == std::string::npos ||
+     admission_block.find("StartNextPendingRequest();", queue_push) == std::string::npos ||
+     admission_block.find("shell: transfer request failed during queue admission", queue_catch) == std::string::npos ||
+     admission_block.find("ShowPrimaryWindowError();", queue_catch) == std::string::npos) return 42;
+
  // 7f contract: native minimize must remain a real taskbar minimize. The SC_MINIMIZE
  // branch must not regress into HideToTray(), otherwise Windows loses per-window previews.
  const auto minimize = main.find("SC_MINIMIZE");
