@@ -166,7 +166,7 @@ public:
     IFACEMETHODIMP QueryContextMenu(HMENU menu, UINT index, UINT first, UINT last, UINT flags) override {
         offered_ = false;
         if (!ready_ || invoked_ || menu == nullptr || (flags & CMF_DEFAULTONLY) ||
-            first > last || last - first < 1 || index == UINT_MAX)
+            first > last || (!clipboard_mode_ && last - first < 1) || index == UINT_MAX)
             return MAKE_HRESULT(SEVERITY_SUCCESS, 0, 0);
         if (clipboard_mode_) {
             if (!InsertMenuW(menu, index, MF_BYPOSITION | MF_STRING, first, L"Paste with VelocityCopy")) return E_FAIL;
@@ -187,6 +187,8 @@ public:
         if (command > (clipboard_mode_ ? 0u : 1u)) return E_INVALIDARG;
         if (flags == GCS_VALIDATEA || flags == GCS_VALIDATEW) return offered_ ? S_OK : S_FALSE;
         if (!text || !count) return E_POINTER;
+        if (clipboard_mode_ && flags == GCS_VERBW) return StringCchCopyW(reinterpret_cast<LPWSTR>(text), count, L"velocitycopy.paste");
+        if (clipboard_mode_ && flags == GCS_VERBA) return StringCchCopyA(text, count, "velocitycopy.paste");
         if (flags == GCS_VERBW)
             return StringCchCopyW(reinterpret_cast<LPWSTR>(text), count, command ? L"velocitycopy.move" : L"velocitycopy.copy");
         if (flags == GCS_VERBA)
@@ -202,11 +204,11 @@ public:
         else if (info->cbSize >= sizeof(CMINVOKECOMMANDINFOEX) && (info->fMask & 0x00004000u)) {
             auto* ex = reinterpret_cast<const CMINVOKECOMMANDINFOEX*>(info);
             if (ex->lpVerbW && HIWORD(reinterpret_cast<ULONG_PTR>(ex->lpVerbW))) {
-                if (!lstrcmpiW(ex->lpVerbW, L"velocitycopy.copy")) command = 0;
+                if (!lstrcmpiW(ex->lpVerbW, L"velocitycopy.copy") || (clipboard_mode_ && !lstrcmpiW(ex->lpVerbW, L"velocitycopy.paste"))) command = 0;
                 else if (!lstrcmpiW(ex->lpVerbW, L"velocitycopy.move")) command = 1;
             }
         } else {
-            if (!lstrcmpiA(info->lpVerb, "velocitycopy.copy")) command = 0;
+            if (!lstrcmpiA(info->lpVerb, "velocitycopy.copy") || (clipboard_mode_ && !lstrcmpiA(info->lpVerb, "velocitycopy.paste"))) command = 0;
             else if (!lstrcmpiA(info->lpVerb, "velocitycopy.move")) command = 1;
         }
         if (command > (clipboard_mode_ ? 0u : 1u)) return E_INVALIDARG;
