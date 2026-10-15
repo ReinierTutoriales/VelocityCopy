@@ -21,7 +21,7 @@ try {
     Export-PfxCertificate -Cert $cert -FilePath $pfx -Password $secure | Out-Null
 
     Write-Host "Running bounded Authenticode signing proof without modifying trust stores"
-    & "$PSScriptRoot\Sign-VelocityCopyBinary.ps1" -Path $Path -PfxPath $pfx -PfxPassword $plain -SkipTimestamp -ExpectedSignerThumbprint $cert.Thumbprint
+    & "$PSScriptRoot\Sign-VelocityCopyBinary.ps1" -Path $Path -PfxPath $pfx -PfxPassword $plain -SkipTimestamp -ExpectedSignerThumbprint $cert.Thumbprint -ToolTimeoutSeconds 60
 
     Write-Host "Proving Authenticode detects post-signing content modification"
     $bytes = [IO.File]::ReadAllBytes($Path)
