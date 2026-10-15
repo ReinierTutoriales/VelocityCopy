@@ -32,7 +32,7 @@ int main(){
 
  // Explorer requests must not escape the UI dispatch callback if queue admission
  // allocates or throws. Preserve the error surface and diagnostic.
- const auto admission = app_cpp.find("void App::DeliverShellRequest(");
+ const auto admission = app_cpp.find("bool App::AdmitShellRequest(");
  const auto admission_end = app_cpp.find("void App::StartNextPendingRequest()", admission);
  if (admission == std::string::npos || admission_end == std::string::npos) return 41;
  const auto admission_block = app_cpp.substr(admission, admission_end - admission);
@@ -49,7 +49,7 @@ int main(){
 
  // IPC receive completion is not Queue admission: if UI shutdown rejects
  // dispatch, preserve a diagnostic and stop accepting more shell requests.
- const auto ipc_enqueue = app_cpp.find("if (!dispatcher.TryEnqueue(");
+ const auto ipc_enqueue = app_cpp.find("if (request->version == 2 && !dispatcher.TryEnqueue(");
  if (ipc_enqueue == std::string::npos) return 43;
  const auto ipc_rejection = app_cpp.substr(ipc_enqueue, 900);
  if (ipc_rejection.find("shell: IPC request rejected because UI dispatcher is unavailable") == std::string::npos ||
