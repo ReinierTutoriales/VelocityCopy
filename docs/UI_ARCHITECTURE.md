@@ -21,6 +21,15 @@ VelocityCopy keeps its visual layer replaceable and lightweight.
 - Source/destination tooltips mutate only when their displayed path changes. Inactive live telemetry is cleared in both normal and expanded views.
 - Async external drops capture gate/destination/operation before reading StorageItems and revalidate after suspension. A retired/cancelled session cannot redirect a pending drop into its replacement.
 
+## Adaptive decision dialogs — 2026-10-15
+
+- Measure the native horizontal action row after templates load. If it exceeds the available client width after content padding and monitor work-area limits, stack actions vertically and allow each label to wrap. Preserve action order, all four choices, explicit automation names, primary focus and Escape cancellation; do not add a global Enter handler.
+- The Loaded subscription uses a scoped C++/WinRT event revoker and references to coroutine-owned controls. Revoke before closing; stack unwinding also revokes before those controls are destroyed. The root must not own a handler that strongly captures itself or its Window.
+- These changes add no runtime dependencies and do not reduce the packaged Windows App SDK payload. Source architecture checks and CI builds do not establish visual correctness or a measured memory reduction. Long translations, maximum Windows Text Size, small work areas and repeated dialog open/close still require physical Windows acceptance outside the developer's user session.
+- Follow-up: defer the expanded subtree safely and consolidate repeated statistics. The current Window-root namescope requires a binding-based x:Load design; simply adding x:Load=false and relying on FindName is insufficient. This step does not claim those changes are implemented.
+
+References: [C++/WinRT event revocation](https://learn.microsoft.com/en-us/windows/apps/develop/cpp-winrt/handle-events), [x:Load restrictions](https://learn.microsoft.com/en-us/windows/apps/develop/platform/xaml/x-load-attribute).
+
 ## x64 queue stabilization — 2026-10-14
 
 - Active rows are a separate, at-most-eight projection of `active_queue_view`, refreshed on every accepted throttled snapshot, including intervals in which no file completes. Pending rows remain data-only and bounded to 256. Pause immediately updates the active progress visual state.

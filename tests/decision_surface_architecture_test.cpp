@@ -49,5 +49,14 @@ int main() {
     c.find("AccessibilityView::Raw") == std::string::npos ||
     tokens.find("SystemFillColorCautionBrush") == std::string::npos ||
     tokens.find("SystemFillColorCriticalBrush") == std::string::npos) return 17;
+ // Loaded must not keep its own root/window alive after the decision completes.
+ if(c.find("root.Loaded(auto_revoke, [&primary, &root, &dialog, &actions") == std::string::npos ||
+    c.find("loaded.revoke();") == std::string::npos ||
+    c.find("loaded.revoke();") > c.find("try { dialog.Close(); }")) return 18;
+ // Fit the measured action row to the actual work area, including long translations.
+ if(c.find("if (action_width > available_width)") == std::string::npos ||
+    c.find("actions.Orientation(Orientation::Vertical)") == std::string::npos ||
+    c.find("child.as<Button>().MaxWidth(available_width)") == std::string::npos ||
+    c.find("label.TextWrapping(TextWrapping::Wrap)") == std::string::npos) return 19;
  return 0;
 }
