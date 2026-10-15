@@ -367,6 +367,7 @@ std::optional<ShellRequest> ShellIpcServer::receive() noexcept {
 IpcSendResult send_shell_request(
     const ShellRequest& request,
     const std::uint32_t timeout_ms) noexcept {
+    bool write_attempted = false;
     try {
         const auto payload = serialize_shell_request(request);
         if (!payload || payload->size() > std::numeric_limits<std::uint32_t>::max()) {
@@ -419,8 +420,9 @@ IpcSendResult send_shell_request(
 
         UniqueHandle event{CreateEventW(nullptr, TRUE, FALSE, nullptr)};
         if (!event.valid()) return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(GetLastError()))};
+        write_attempted = true;
         if (!write_all(pipe.get(), frame.data(), static_cast<std::uint32_t>(frame.size()), event.get(), deadline)) {
-            return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(GetLastError()))};
+            return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(GetLastError())), true};
         }
         // A buffered write can finish before the server accepts/validates the
         // client. Keep the client handle alive until all bytes are consumed.
@@ -444,19 +446,19 @@ IpcSendResult send_shell_request(
                 (void)CancelSynchronousIo(flush_thread);
             } while (WaitForSingleObject(flush_thread, 10) == WAIT_TIMEOUT);
             flusher.join();
-            return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(error))};
+            return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(error)), true};
         }
         flusher.join();
         // A receiver may consume/disconnect before the flush worker starts.
         // As with the original write-only contract, disconnect is not a durable
         // admission acknowledgement; only transport errors/timeouts are reported.
         if (!flushed && flush_error != ERROR_PIPE_NOT_CONNECTED && flush_error != ERROR_BROKEN_PIPE)
-            return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(flush_error))};
+            return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(flush_error)), true};
         return {true, S_OK};
     } catch (const std::bad_alloc&) {
-        return {false, static_cast<std::int32_t>(E_OUTOFMEMORY)};
+        return {false, static_cast<std::int32_t>(E_OUTOFMEMORY), write_attempted};
     } catch (...) {
-        return {false, static_cast<std::int32_t>(E_FAIL)};
+        return {false, static_cast<std::int32_t>(E_FAIL), write_attempted};
     }
 }
 
