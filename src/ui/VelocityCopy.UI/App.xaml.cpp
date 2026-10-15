@@ -253,8 +253,13 @@ void App::DeliverShellRequest(const velocitycopy::ShellRequest& request) {
         return;
     }
     if (dispatch.job) {
-        pending_requests_.push_back(std::move(*dispatch.job));
-        StartNextPendingRequest();
+        try {
+            pending_requests_.push_back(std::move(*dispatch.job));
+            StartNextPendingRequest();
+        } catch (...) {
+            velocitycopy::log_diagnostic(L"shell: transfer request failed during queue admission");
+            ShowPrimaryWindowError();
+        }
         return;
     }
     if (dispatch.show_window) ShowPrimaryWindow();
