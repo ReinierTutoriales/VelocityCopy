@@ -53,6 +53,44 @@ jobs:
         timeout-minutes: 10
         run: ctest --test-dir build/x64 -C Release --output-on-failure --timeout 120
 
+      - name: Record repeatable planner baseline
+        if: ${{ matrix.test }}
+        shell: pwsh
+        run: |
+          $fixture = Join-Path $env:RUNNER_TEMP "velocitycopy-planner-$env:GITHUB_RUN_ID"
+          $source = Join-Path $fixture 'source'
+          $destination = Join-Path $fixture 'destination'
+          New-Item -ItemType Directory -Force -Path $source, $destination | Out-Null
+          for ($i = 0; $i -lt 1000; $i++) {
+            [IO.File]::WriteAllBytes((Join-Path $source "$i.bin"), [byte[]]::new(0))
+          }
+          $samples = @(for ($i = 0; $i -lt 5; $i++) {
+            $json = & ./build/x64/Release/VelocityCopyBenchmark.exe $source $destination --plan-only --json
+            if ($LASTEXITCODE -ne 0) { throw "Planner baseline failed: $LASTEXITCODE" }
+            $sample = $json | ConvertFrom-Json
+            if ($sample.mode -ne 'plan-only' -or $sample.file_count -ne 1000) { throw 'Unexpected planner fixture result' }
+            $sample
+          })
+          if (Get-ChildItem -LiteralPath $destination -Force | Select-Object -First 1) { throw 'Plan-only baseline modified destination' }
+          $ordered = @($samples.planning_seconds | Sort-Object)
+          @{
+            commit = $env:GITHUB_SHA
+            runner = $env:RUNNER_OS
+            fixture_files = 1000
+            samples = $samples
+            median_planning_seconds = $ordered[2]
+            note = 'Descriptive warm-cache runner baseline; not a hardware throughput or production tuning gate.'
+          } | ConvertTo-Json -Depth 5 | Set-Content planner-baseline.json -Encoding utf8
+
+      - name: Upload planner baseline
+        if: ${{ matrix.test }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: VelocityCopy-planner-baseline-${{ github.run_id }}
+          path: planner-baseline.json
+          if-no-files-found: error
+          retention-days: 14
+
   asan:
     runs-on: windows-latest
     steps:

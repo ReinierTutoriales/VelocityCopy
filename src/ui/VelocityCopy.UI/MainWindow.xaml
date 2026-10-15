@@ -12,31 +12,26 @@
                 <Grid Margin="{StaticResource QueueItemMargin}" HorizontalAlignment="Stretch" RowSpacing="{StaticResource QueueItemLineSpacing}"
                       ToolTipService.ToolTip="{x:Bind FullPath}" AutomationProperties.Name="{x:Bind FullPath}">
                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                    <Grid>
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                        <FontIcon Glyph="&#xE8A5;" FontSize="{StaticResource QueueItemIconSize}"
-                                  Style="{StaticResource SecondaryIconStyle}" Margin="{StaticResource QueueItemIconMargin}"
-                                  VerticalAlignment="Center" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw" />
-                        <TextBlock Grid.Column="1" Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" MaxLines="1"
-                                   FontWeight="SemiBold" FontSize="{StaticResource BodyFontSize}" />
-                    </Grid>
-                    <TextBlock Grid.Row="1" Text="{x:Bind Location}" TextTrimming="CharacterEllipsis" MaxLines="1"
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <FontIcon Glyph="&#xE8A5;" FontSize="{StaticResource QueueItemIconSize}"
+                              Style="{StaticResource SecondaryIconStyle}" Margin="{StaticResource QueueItemIconMargin}"
+                              VerticalAlignment="Center" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw" />
+                    <TextBlock Grid.Column="1" Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" MaxLines="1"
+                               FontWeight="SemiBold" FontSize="{StaticResource BodyFontSize}" />
+                    <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{x:Bind Location}" TextTrimming="CharacterEllipsis" MaxLines="1"
                                Style="{StaticResource SecondaryTextStyle}" FontSize="{StaticResource CaptionFontSize}" />
                 </Grid>
             </DataTemplate>
             <DataTemplate x:Key="QueueNarrowItemTemplate" x:DataType="local:QueueItem">
                 <Grid Margin="{StaticResource QueueNarrowItemMargin}" HorizontalAlignment="Stretch"
                       ToolTipService.ToolTip="{x:Bind FullPath}" AutomationProperties.Name="{x:Bind FullPath}">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                    <Grid>
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                        <FontIcon Glyph="&#xE8A5;" FontSize="{StaticResource QueueItemIconSize}"
-                                  Style="{StaticResource SecondaryIconStyle}" Margin="{StaticResource QueueItemIconMargin}"
-                                  VerticalAlignment="Center" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw" />
-                        <TextBlock Grid.Column="1" Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" MaxLines="1"
-                                   FontWeight="SemiBold" FontSize="{StaticResource BodyFontSize}" />
-                    </Grid>
-                    <TextBlock Grid.Column="1" MaxWidth="{StaticResource QueueNarrowLocationMaxWidth}" Margin="8,0,0,0" Text="{x:Bind Location}" TextTrimming="CharacterEllipsis" MaxLines="1"
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <FontIcon Glyph="&#xE8A5;" FontSize="{StaticResource QueueItemIconSize}"
+                              Style="{StaticResource SecondaryIconStyle}" Margin="{StaticResource QueueItemIconMargin}"
+                              VerticalAlignment="Center" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw" />
+                    <TextBlock Grid.Column="1" Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" MaxLines="1"
+                               FontWeight="SemiBold" FontSize="{StaticResource BodyFontSize}" />
+                    <TextBlock Grid.Column="2" MaxWidth="{StaticResource QueueNarrowLocationMaxWidth}" Margin="8,0,0,0" Text="{x:Bind Location}" TextTrimming="CharacterEllipsis" MaxLines="1"
                                Style="{StaticResource SecondaryTextStyle}" FontSize="{StaticResource CaptionFontSize}" />
                 </Grid>
             </DataTemplate>

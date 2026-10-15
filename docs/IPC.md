@@ -27,6 +27,19 @@ Actions: Transfer=0 (requires sources and destination), OpenVelocityCopy=1 (no p
 
 Transport handoff is not a durable admission/completion acknowledgement. Neither pipe success nor process creation proves execution completed; the extension must not tell IDataObject to delete sources.
 
+## Wire version 3 and replay safety
+
+Version 3 adds a nonzero u64 request identity after the version field and uses
+the duplex pipe for a one-byte queue-admission reply. The primary deduplicates
+identified admissions. Admission is still not transfer completion. Version 2
+remains accepted for existing Shell clients.
+
+Every caller must honor `IpcSendResult.delivery_ambiguous`: if a frame may have
+reached the primary, do not retry through another launch or native Paste. This
+applies to the DLL dispatch path as well as secondary activation and the resident
+keyboard adapter. A failed pre-write connection may use the existing fallback;
+the source must never receive a performed-Move acknowledgement at admission.
+
 ## Cancellable transport and bounded frames
 
 The wire version, admission semantics, user/session DACL and remote-client rejection

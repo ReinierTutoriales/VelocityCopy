@@ -27,7 +27,11 @@ HRESULT clipboard_sources(velocitycopy::ShellRequest& request) {
 }
 
 bool dispatch(const velocitycopy::ShellRequest& request) noexcept {
-    if (velocitycopy::send_shell_request(request, 25)) return true;
+    const auto delivery = velocitycopy::send_shell_request(request, 25);
+    if (delivery) return true;
+    // The resident app may already own this transfer. Launching again could
+    // duplicate a Copy or race source deletion during Move.
+    if (delivery.delivery_ambiguous) return false;
     try {
         std::array<wchar_t, 32768> path{};
         DWORD length = GetModuleFileNameW(module, path.data(), static_cast<DWORD>(path.size()));

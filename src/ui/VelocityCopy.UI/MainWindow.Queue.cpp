@@ -98,15 +98,12 @@ void MainWindow::RefreshActiveQueue() {
             Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(label, full_path);
         }
         if (progress.Value() != percent) progress.Value(percent);
-        progress.ShowPaused(paused_ || performance_sampling_state_ == PerformanceSamplingState::Stopped);
-        const auto accessible_percent = active.transferred_bytes != 0 && percent < 0.01
-            ? std::format(L"{:.4f}", percent)
-            : active.transferred_bytes != 0 && percent < 1.0
-                ? std::format(L"{:.2f}", percent)
-                : std::format(L"{:.0f}", percent);
-        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(
-            progress, hstring(std::format(L"{}: {}% ({} / {})",
-                name, accessible_percent, done.c_str(), total.c_str())));
+        const bool show_paused = paused_ || performance_sampling_state_ == PerformanceSamplingState::Stopped;
+        if (progress.ShowPaused() != show_paused) progress.ShowPaused(show_paused);
+        // Native RangeValue exposes the changing percentage; the accessible
+        // name identifies the file and must not be rewritten every snapshot.
+        if (Microsoft::UI::Xaml::Automation::AutomationProperties::GetName(progress) != full_path)
+            Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(progress, full_path);
     }
 }
 

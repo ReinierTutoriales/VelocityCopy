@@ -2,6 +2,11 @@
 
 Status: canonical ordered execution line for stabilization and UI work.
 
+The recovered-requirement reconciliation, current source inventory and remaining
+acceptance work are tracked in [STABILIZATION_AUDIT.md](STABILIZATION_AUDIT.md).
+Open-source candidates and explicit adoption decisions are in
+[OPEN_SOURCE_ASSESSMENT.md](OPEN_SOURCE_ASSESSMENT.md).
+
 ## x64 stabilization audit — 2026-10-14
 
 Baseline `2b9ac7ae06e6e5b29e31d075bb5f33f279450906` passed Windows

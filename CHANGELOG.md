@@ -2,7 +2,10 @@
 
 ## 1.2.3 — Unreleased
 
-- Explorer integration now uses only the documented right-button `DragDropHandlers` surface with explicit **Copy here** / **Move here** commands. VelocityCopy no longer changes Explorer's native default using undocumented numeric command IDs, and ordinary Explorer Ctrl+V is explicitly treated as Windows-owned behavior rather than a release gate.
+- While resident, VelocityCopy routes Ctrl+V from normal Explorer filesystem folder views through a dedicated keyboard thread and STA worker into the existing transfer queue; Ctrl+C/X stay native. Explicit **Copy here**, **Move here** and **Paste with VelocityCopy** commands remain available. No undocumented numeric default-menu selection is used.
+- Shell dispatch no longer launches a second activation after ambiguous IPC delivery. The clipboard decoder is shared internally without a public test-only DLL export.
+- Queue templates remove a repeated nested panel while preserving native virtualization and stable selection. Active bars retain stable accessible file names and native RangeValue progress.
+- CI covers concurrent append/page reorder/snapshots with four workers over 22,000 synthetic items and records a repeated planner baseline without changing production tuning.
 - Release publication has one authoritative path: the Release workflow reuses the exact x64/ARM64 installers from a successful Windows Package run on the selected `main` commit, generates SHA-256 checksums, and publishes without rebuilding the binaries.
 - Engineering/release contracts were consolidated so exact-SHA CI, Package, source inspection and physical Windows validation remain separate evidence levels.
 

@@ -70,6 +70,11 @@ int main() {
         contains(shell, "ReadDirectoryChangesW")) {
         return fail(5, "Explorer extension must stay bounded and IPC-only");
     }
+    const auto shell_dispatch = body_of(shell, "bool dispatch(");
+    if (shell_dispatch.find("delivery.delivery_ambiguous") == std::string::npos ||
+        shell_dispatch.find("delivery.delivery_ambiguous") > shell_dispatch.find("launch_velocitycopy_with_request")) {
+        return fail(19, "an ambiguous shell delivery must not fall back to launching the same transfer");
+    }
 
     if (!contains(window, "IsMinimizable(true)") ||
         !contains(window, "IsMaximizable(false)") ||
