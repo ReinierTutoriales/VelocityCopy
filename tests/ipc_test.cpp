@@ -149,7 +149,7 @@ bool concurrent_clients_preserve_distinct_requests() {
                 return;
             }
             const auto source = message->sources.front().wstring();
-            if (source.size() < 2 || source.substr(0, 12) != L"C:\\Concurrent") {
+            if (!source.starts_with(L"C:\\Concurrent\\file-")) {
                 valid.store(false, std::memory_order_release);
                 return;
             }
