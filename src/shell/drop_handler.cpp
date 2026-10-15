@@ -169,7 +169,9 @@ public:
             first > last || (!clipboard_mode_ && last - first < 1) || index == UINT_MAX)
             return MAKE_HRESULT(SEVERITY_SUCCESS, 0, 0);
         if (clipboard_mode_) {
-            if (!InsertMenuW(menu, index, MF_BYPOSITION | MF_STRING, first, L"Paste with VelocityCopy")) return E_FAIL;
+            std::array<wchar_t, 128> paste{};
+            if (!LoadStringW(module, IDS_SHELL_PASTE_HERE, paste.data(), static_cast<int>(paste.size()))) return E_FAIL;
+            if (!InsertMenuW(menu, index, MF_BYPOSITION | MF_STRING, first, paste.data())) return E_FAIL;
             offered_ = true;
             return MAKE_HRESULT(SEVERITY_SUCCESS, 0, 1);
         }
