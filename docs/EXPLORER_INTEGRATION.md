@@ -17,6 +17,12 @@ resolves the destination PIDL with `SHGetPathFromIDListEx`. Virtual targets,
 relative paths and malformed/bounds-violating file lists are rejected. The
 explicit command selected by the person determines Copy versus Move.
 
+The same COM class is registered under
+`Directory\Background\shellex\ContextMenuHandlers` for an explicit **Paste with
+VelocityCopy** command. It reads `OleGetClipboard` only when invoked, snapshots
+`CF_HDROP`, and uses `CFSTR_PREFERREDDROPEFFECT` for Copy versus Move (Copy
+when absent). Link-only data is rejected. This command does not intercept Ctrl+V.
+
 The former selection Copy/Paste/CopyTo/Open verb classes and clipboard staging
 remain retired. There is one production transfer path:
 `ShellRequest -> ShellSession -> JobExecutor/LiveCopyPlan`.
@@ -72,11 +78,17 @@ Automated coverage must prove:
 - COM lifetime and unload behavior;
 - Unicode/ANSI `CF_HDROP` snapshots and malformed-offset rejection;
 - missing destination rejection;
-- exactly two bounded menu IDs;
+- exactly two bounded drag/drop menu IDs, or one background Paste ID;
 - Explorer's existing native default remains unchanged;
 - explicit Copy/Move dispatch through the real IPC protocol;
 - duplicate invocation rejection;
+- shared clipboard decoder Copy/Move/default-Copy and Link rejection, without a test DLL export;
 - no premature source completion/deletion.
+
+For an opt-in Windows OLE clipboard -> COM Paste -> IPC check, close the resident
+app and run `VelocityCopyShellDllTest.exe <path-to-VelocityCopy.Shell.dll> --clipboard`.
+This uses synthetic Copy/Move selections in a private window station, leaving the desktop clipboard untouched.
+The normal CTest run keeps deterministic IDataObject coverage without desktop access.
 
 Installed Windows checks remain required for the behaviors automation cannot
 prove:

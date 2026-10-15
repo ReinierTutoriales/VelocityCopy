@@ -71,7 +71,7 @@ target_link_libraries(VelocityCopyBenchmark PRIVATE velocitycopy_core psapi)
 add_executable(VelocityCopyAppendBenchmark tools/benchmark_append.cpp)
 target_link_libraries(VelocityCopyAppendBenchmark PRIVATE velocitycopy_core)
 
-add_library(VelocityCopyShell SHARED src/shell/drop_handler.cpp src/shell/shell_strings.rc src/shell/VelocityCopyShell.def)
+add_library(VelocityCopyShell SHARED src/shell/shell_data.cpp src/shell/drop_handler.cpp src/shell/shell_strings.rc src/shell/VelocityCopyShell.def)
 target_include_directories(VelocityCopyShell PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/shell)
 target_link_libraries(VelocityCopyShell PRIVATE velocitycopy_core ole32)
 set_target_properties(VelocityCopyShell PROPERTIES OUTPUT_NAME "VelocityCopy.Shell")
@@ -186,7 +186,7 @@ target_compile_definitions(VelocityCopyUnpackagedStorageArchitectureTest PRIVATE
 add_velocitycopy_test(VelocityCopyVersionIdentityArchitectureTest tests/version_identity_architecture_test.cpp velocitycopy_version_identity_architecture)
 target_compile_definitions(VelocityCopyVersionIdentityArchitectureTest PRIVATE VELOCITYCOPY_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
-add_executable(VelocityCopyShellDllTest tests/shell_dll_test.cpp)
+add_executable(VelocityCopyShellDllTest tests/shell_dll_test.cpp src/shell/shell_data.cpp)
 target_link_libraries(VelocityCopyShellDllTest PRIVATE velocitycopy_core ole32 user32 uuid)
 add_dependencies(VelocityCopyShellDllTest VelocityCopyShell)
 if(MSVC)

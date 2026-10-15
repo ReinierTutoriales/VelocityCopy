@@ -1,4 +1,5 @@
 #include "../src/shell/drop_handler.hpp"
+#include "../src/shell/shell_data.hpp"
 #include "velocitycopy/ipc_transport.hpp"
 #include <windows.h>
 #include <shlobj.h>
@@ -68,12 +69,19 @@ public:
     IFACEMETHODIMP QueryGetData(FORMATETC*) override { return DV_E_FORMATETC; }
     IFACEMETHODIMP GetCanonicalFormatEtc(FORMATETC*, FORMATETC*) override { return E_NOTIMPL; }
     IFACEMETHODIMP SetData(FORMATETC*, STGMEDIUM*, BOOL) override { ++sets; return E_NOTIMPL; }
-    IFACEMETHODIMP EnumFormatEtc(DWORD, IEnumFORMATETC**) override { return E_NOTIMPL; }
+    IFACEMETHODIMP EnumFormatEtc(DWORD direction, IEnumFORMATETC** out) override {
+        if (direction != DATADIR_GET) return E_NOTIMPL;
+        FORMATETC formats[] = {
+            {CF_HDROP, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL},
+            {static_cast<CLIPFORMAT>(RegisterClipboardFormatW(CFSTR_PREFERREDDROPEFFECT)),
+             nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL}};
+        return SHCreateStdEnumFmtEtc(clipboard_effect ? 2 : 1, formats, out);
+    }
     IFACEMETHODIMP DAdvise(FORMATETC*, DWORD, IAdviseSink*, DWORD*) override { return OLE_E_ADVISENOTSUPPORTED; }
     IFACEMETHODIMP DUnadvise(DWORD) override { return OLE_E_ADVISENOTSUPPORTED; }
     IFACEMETHODIMP EnumDAdvise(IEnumSTATDATA**) override { return OLE_E_ADVISENOTSUPPORTED; }
 };
-bool run(GetClass get, CanUnload unload) {
+bool run(GetClass get, CanUnload unload, bool live_clipboard) {
     IClassFactory* factory{};
     if (FAILED(get(CLSID_VelocityCopyDropHandler, IID_PPV_ARGS(&factory)))) return false;
     IShellExtInit* init{};
@@ -139,22 +147,68 @@ bool run(GetClass get, CanUnload unload) {
     }
     // Exercise the same decoder used after OleGetClipboard without relying
     // on a desktop clipboard being available in a headless CI session.
-    using Decode = HRESULT(WINAPI*)(IDataObject*, velocitycopy::ShellRequest*);
-    HMODULE shell_module = GetModuleHandleW(L"VelocityCopy.Shell.dll");
-    auto decode = shell_module ? reinterpret_cast<Decode>(
-        GetProcAddress(shell_module, "VelocityCopyDecodeClipboardForTest")) : nullptr;
-    ok &= check(decode != nullptr, "clipboard decoder export");
     data->clipboard_effect = true;
     for (DWORD effect : {DROPEFFECT_COPY, DROPEFFECT_MOVE}) {
         data->preferred_effect = effect;
         velocitycopy::ShellRequest request;
-        HRESULT hr = decode ? decode(data, &request) : E_FAIL;
+        HRESULT hr = velocitycopy::shell::clipboard_sources_from_data(data, request);
         ok &= check(SUCCEEDED(hr) && request.sources.size() == 2 &&
             request.operation == (effect == DROPEFFECT_MOVE ?
                 velocitycopy::FileOperation::Move : velocitycopy::FileOperation::Copy),
             "clipboard copy/move decode");
     }
+    if (live_clipboard) {
+        {
+            for (DWORD effect : {DROPEFFECT_COPY, DROPEFFECT_MOVE}) {
+                data->preferred_effect = effect;
+                const HRESULT placed = OleSetClipboard(data);
+                if (FAILED(placed)) {
+                    std::cerr << "OleSetClipboard HRESULT=" << std::hex << placed << std::dec << '\n';
+                    ok = false; break;
+                }
+                ok &= check(SUCCEEDED(init->Initialize(target, nullptr, nullptr)), "live paste initialize");
+                ok &= check(HRESULT_CODE(context->QueryContextMenu(menu, 0, 100, 100, 0)) == 1,
+                            "live paste menu");
+                velocitycopy::ShellIpcServer server;
+                if (!server.valid()) { ok = false; break; }
+                std::optional<velocitycopy::ShellRequest> received;
+                std::jthread receiver([&] { received = server.receive(); });
+                CMINVOKECOMMANDINFO info{};
+                info.cbSize = sizeof(info);
+                info.lpVerb = "velocitycopy.paste";
+                HRESULT result = context->InvokeCommand(&info);
+                if (FAILED(result)) server.stop();
+                receiver.join();
+                ok &= check(SUCCEEDED(result) && received && received->sources.size() == 2 &&
+                    received->destination == path && received->operation ==
+                    (effect == DROPEFFECT_MOVE ? velocitycopy::FileOperation::Move : velocitycopy::FileOperation::Copy),
+                    "OLE clipboard through COM paste and IPC");
+                while (GetMenuItemCount(menu) > 0) DeleteMenu(menu, 0, MF_BYPOSITION);
+            }
+            ok &= check(SUCCEEDED(OleSetClipboard(nullptr)), "clear isolated clipboard");
+        }
+    }
+    data->preferred_effect = DROPEFFECT_LINK;
+    velocitycopy::ShellRequest invalid;
+    ok &= check(FAILED(velocitycopy::shell::clipboard_sources_from_data(data, invalid)),
+                "reject link-only clipboard effect");
+    ok &= check(FAILED(velocitycopy::shell::clipboard_sources_from_data(nullptr, invalid)),
+                "reject missing data object");
     data->clipboard_effect = false;
+    ok &= check(SUCCEEDED(velocitycopy::shell::clipboard_sources_from_data(data, invalid)) &&
+                invalid.operation == velocitycopy::FileOperation::Copy, "default clipboard copy");
+    ok &= check(SUCCEEDED(init->Initialize(target, nullptr, nullptr)), "background initialize");
+    ok &= check(HRESULT_CODE(context->QueryContextMenu(menu, 0, 100, 100, 0)) == 1,
+                "background paste uses one menu ID");
+    char paste_verb[40]{};
+    ok &= check(SUCCEEDED(context->GetCommandString(0, GCS_VERBA, nullptr, paste_verb, 40)) &&
+                std::strcmp(paste_verb, "velocitycopy.paste") == 0, "background paste verb");
+    CMINVOKECOMMANDINFO wrong_verb{};
+    wrong_verb.cbSize = sizeof(wrong_verb);
+    wrong_verb.lpVerb = "velocitycopy.copy";
+    ok &= check(context->InvokeCommand(&wrong_verb) == E_INVALIDARG,
+                "background rejects drag-copy verb before reading clipboard");
+    while (GetMenuItemCount(menu) > 0) DeleteMenu(menu, 0, MF_BYPOSITION);
     ok &= check(SUCCEEDED(init->Initialize(target, data, nullptr)), "reset");
     ok &= check(HRESULT_CODE(context->QueryContextMenu(menu, 0, 100, 100, 0)) == 0, "insufficient IDs");
     ok &= check(HRESULT_CODE(context->QueryContextMenu(menu, 0, 100, 101, CMF_DEFAULTONLY)) == 0, "default only");
@@ -176,12 +230,18 @@ bool run(GetClass get, CanUnload unload) {
 }
 }
 int wmain(int argc, wchar_t** argv) {
-    if (argc != 2 || FAILED(OleInitialize(nullptr))) return 10;
+    if (argc != 2 && argc != 3) return 10;
+    const bool live_clipboard = argc == 3 && std::wcscmp(argv[2], L"--clipboard") == 0;
+    HWINSTA original = GetProcessWindowStation();
+    HWINSTA isolated = live_clipboard ? CreateWindowStationW(nullptr, 0, WINSTA_ALL_ACCESS, nullptr) : nullptr;
+    if (live_clipboard && (!isolated || !SetProcessWindowStation(isolated))) return 12;
+    if (FAILED(OleInitialize(nullptr))) return 10;
     HMODULE dll = LoadLibraryW(argv[1]);
     if (!dll) return 11;
     auto get = reinterpret_cast<GetClass>(GetProcAddress(dll, "DllGetClassObject"));
     auto unload = reinterpret_cast<CanUnload>(GetProcAddress(dll, "DllCanUnloadNow"));
-    bool ok = get && unload && run(get, unload);
+    bool ok = !GetProcAddress(dll, "VelocityCopyDecodeClipboardForTest") && get && unload && run(get, unload, live_clipboard);
     FreeLibrary(dll); OleUninitialize();
+    if (isolated) { SetProcessWindowStation(original); CloseWindowStation(isolated); }
     return ok ? 0 : 1;
 }

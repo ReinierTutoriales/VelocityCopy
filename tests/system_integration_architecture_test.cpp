@@ -29,6 +29,7 @@ int main() {
     const std::filesystem::path root{VELOCITYCOPY_SOURCE_DIR};
     const auto app = read_all(root / "src/ui/VelocityCopy.UI/App.xaml.cpp");
     const auto shell = read_all(root / "src/shell/drop_handler.cpp");
+    const auto shell_data = read_all(root / "src/shell/shell_data.cpp");
     const auto ipc = read_all(root / "src/core/ipc_transport.cpp");
     const auto window = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
     const auto window_xaml = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml");
@@ -240,10 +241,10 @@ int main() {
     }
 
     if (!contains(shell, "SHGetPathFromIDListEx") ||
-        !contains(shell, "CF_HDROP") || !contains(shell, "IContextMenu") ||
+        !contains(shell_data, "CF_HDROP") || !contains(shell, "IContextMenu") ||
         contains(shell, "IExplorerCommand") ||
         contains(shell, "SetMenuDefaultItem") ||
-        !contains(shell, "CFSTR_PREFERREDDROPEFFECT") ||
+        !contains(shell_data, "CFSTR_PREFERREDDROPEFFECT") ||
         !contains(shell, "OleGetClipboard") ||
         !contains(shell, "clipboard_sources(request_)") ||
         !contains(installer_exe, "Directory\\Background\\shellex\\ContextMenuHandlers\\VelocityCopy") ||
