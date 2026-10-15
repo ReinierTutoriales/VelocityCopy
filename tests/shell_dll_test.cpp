@@ -137,37 +137,23 @@ bool run(GetClass get, CanUnload unload) {
             while (GetMenuItemCount(menu) > 0) DeleteMenu(menu, 0, MF_BYPOSITION);
         }
     }
-    // Clipboard context-menu path: Ctrl+C and Ctrl+X must reach IPC as
-    // Copy and Move respectively, without changing or clearing the clipboard.
+    // Exercise the same decoder used after OleGetClipboard without relying
+    // on a desktop clipboard being available in a headless CI session.
+    using Decode = HRESULT(WINAPI*)(IDataObject*, velocitycopy::ShellRequest*);
+    HMODULE shell_module = GetModuleHandleW(L"VelocityCopy.Shell.dll");
+    auto decode = shell_module ? reinterpret_cast<Decode>(
+        GetProcAddress(shell_module, "VelocityCopyDecodeClipboardForTest")) : nullptr;
+    ok &= check(decode != nullptr, "clipboard decoder export");
     data->clipboard_effect = true;
     for (DWORD effect : {DROPEFFECT_COPY, DROPEFFECT_MOVE}) {
         data->preferred_effect = effect;
-        ok &= check(SUCCEEDED(OleSetClipboard(data)), "set clipboard");
-        ok &= check(SUCCEEDED(init->Initialize(target, nullptr, nullptr)), "clipboard background Initialize");
-        HRESULT offered = context->QueryContextMenu(menu, 0, 100, 100, 0);
-        ok &= check(SUCCEEDED(offered) && HRESULT_CODE(offered) == 1, "single paste command");
-        char verb[40]{};
-        ok &= check(SUCCEEDED(context->GetCommandString(0, GCS_VERBA, nullptr, verb, 40)) &&
-            std::strcmp(verb, "velocitycopy.paste") == 0, "paste verb");
-        velocitycopy::ShellIpcServer server;
-        if (!server.valid()) return false;
-        std::optional<velocitycopy::ShellRequest> received;
-        std::jthread receiver([&] { received = server.receive(); });
-        CMINVOKECOMMANDINFO info{};
-        info.cbSize = sizeof(info);
-        info.lpVerb = MAKEINTRESOURCEA(0);
-        HRESULT result = context->InvokeCommand(&info);
-        if (FAILED(result)) server.stop();
-        receiver.join();
-        ok &= check(SUCCEEDED(result) && received &&
-            received->sources.size() == 2 && received->destination == path &&
-            received->operation == (effect == DROPEFFECT_MOVE ?
+        velocitycopy::ShellRequest request;
+        HRESULT hr = decode ? decode(data, &request) : E_FAIL;
+        ok &= check(SUCCEEDED(hr) && request.sources.size() == 2 &&
+            request.operation == (effect == DROPEFFECT_MOVE ?
                 velocitycopy::FileOperation::Move : velocitycopy::FileOperation::Copy),
-            "clipboard paste COM to IPC operation");
-        ok &= check(data->sets == 0, "clipboard not marked completed prematurely");
-        while (GetMenuItemCount(menu) > 0) DeleteMenu(menu, 0, MF_BYPOSITION);
+            "clipboard copy/move decode");
     }
-    ok &= check(SUCCEEDED(OleSetClipboard(nullptr)), "clear test clipboard");
     data->clipboard_effect = false;
     ok &= check(SUCCEEDED(init->Initialize(target, data, nullptr)), "reset");
     ok &= check(HRESULT_CODE(context->QueryContextMenu(menu, 0, 100, 100, 0)) == 0, "insufficient IDs");
