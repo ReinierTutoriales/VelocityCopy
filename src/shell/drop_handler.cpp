@@ -82,11 +82,9 @@ HRESULT read_sources(IDataObject* data, std::vector<std::filesystem::path>& path
                ? S_OK : E_INVALIDARG;
 }
 
-HRESULT clipboard_sources(velocitycopy::ShellRequest& request) {
-    IDataObject* object = nullptr;
-    HRESULT hr = OleGetClipboard(&object);
-    if (FAILED(hr)) return hr;
-    struct Owner { IDataObject* p; ~Owner() { if (p) p->Release(); } } owner{object};
+HRESULT clipboard_sources_from_data(IDataObject* object, velocitycopy::ShellRequest& request) {
+    if (!object) return E_POINTER;
+    HRESULT hr = S_OK;
     request.sources.clear();
     hr = read_sources(object, request.sources);
     if (FAILED(hr)) return hr;
@@ -109,6 +107,14 @@ HRESULT clipboard_sources(velocitycopy::ShellRequest& request) {
     return S_OK;
 }
 
+HRESULT clipboard_sources(velocitycopy::ShellRequest& request) {
+    IDataObject* object = nullptr;
+    HRESULT hr = OleGetClipboard(&object);
+    if (FAILED(hr)) return hr;
+    struct Owner { IDataObject* p; ~Owner() { if (p) p->Release(); } } owner{object};
+    return clipboard_sources_from_data(object, request);
+}
+
 bool dispatch(const velocitycopy::ShellRequest& request) noexcept {
     if (velocitycopy::send_shell_request(request, 25)) return true;
     try {
@@ -118,6 +124,13 @@ bool dispatch(const velocitycopy::ShellRequest& request) noexcept {
         const auto exe = std::filesystem::path(path.data()).parent_path() / L"VelocityCopy.WinUI.exe";
         return velocitycopy::launch_velocitycopy_with_request(exe, request);
     } catch (...) { return false; }
+}
+
+// Testable pure IDataObject decoding; clipboard access remains on-demand.
+extern "C" HRESULT WINAPI VelocityCopyDecodeClipboardForTest(
+    IDataObject* object, velocitycopy::ShellRequest* request) {
+    if (!request) return E_POINTER;
+    return clipboard_sources_from_data(object, *request);
 }
 
 class DropHandler final : public IShellExtInit, public IContextMenu {
