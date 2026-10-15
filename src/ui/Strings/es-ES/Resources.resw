@@ -108,4 +108,7 @@
   <data name="QueuePreviousPageButton.AutomationProperties.Name" xml:space="preserve"><value>Página anterior de la cola</value></data>
   <data name="QueueNextPageButton.ToolTipService.ToolTip" xml:space="preserve"><value>256 archivos pendientes siguientes</value></data>
   <data name="QueueNextPageButton.AutomationProperties.Name" xml:space="preserve"><value>Página siguiente de la cola</value></data>
+  <data name="ActionKeepCompletedWindowOpen" xml:space="preserve"><value>Mantener abierta la ventana al terminar</value></data>
+  <data name="ActionOpenDestination" xml:space="preserve"><value>Abrir carpeta de destino</value></data>
+  <data name="OpenDestinationFailed" xml:space="preserve"><value>No se pudo abrir la carpeta de destino. Puede haberse movido o desconectado.</value></data>
 </root>

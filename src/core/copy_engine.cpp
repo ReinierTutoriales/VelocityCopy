@@ -17,6 +17,22 @@ constexpr ULONG kDefaultIoSize = 1u * 1024u * 1024u;
 constexpr ULONG kLargeFileIoSize = 4u * 1024u * 1024u;
 constexpr std::uint64_t kLargeFileThreshold = 1ull * 1024ull * 1024ull * 1024ull;
 
+bool sparse_copy_available() noexcept {
+    static const bool available = [] {
+        // RtlGetVersion avoids compatibility-manifest version virtualization.
+        // Resolve the optional query without importing another runtime DLL.
+        using GetVersion = LONG (WINAPI*)(OSVERSIONINFOW*);
+        const auto module = GetModuleHandleW(L"ntdll.dll");
+        const auto get_version = module == nullptr ? nullptr :
+            reinterpret_cast<GetVersion>(GetProcAddress(module, "RtlGetVersion"));
+        OSVERSIONINFOW version{sizeof(version)};
+        return get_version != nullptr && get_version(&version) == 0 &&
+            (version.dwMajorVersion > 10 ||
+             (version.dwMajorVersion == 10 && version.dwBuildNumber >= 22621));
+    }();
+    return available;
+}
+
 struct CallbackContext {
     const ProgressCallback* callback{};
     bool callback_failed{};
@@ -239,6 +255,7 @@ CopyResult CopyEngine::copy_file(
         COPYFILE2_EXTENDED_PARAMETERS_V2 parameters{};
         parameters.dwSize = sizeof(parameters);
         parameters.dwCopyFlags = options.copy_flags;
+        if (!sparse_copy_available()) parameters.dwCopyFlags &= ~COPY_FILE_ENABLE_SPARSE_COPY;
         if (options.resume_from_pause) {
             parameters.dwCopyFlags |= COPY_FILE_RESUME_FROM_PAUSE;
         }

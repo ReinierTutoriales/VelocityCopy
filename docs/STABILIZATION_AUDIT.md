@@ -65,3 +65,32 @@ Further changes need these explicit acceptance conditions:
 
 The open-source assessment is in [OPEN_SOURCE_ASSESSMENT.md](OPEN_SOURCE_ASSESSMENT.md).
 No new runtime dependency or release publication is implied by this audit.
+
+## Follow-up implementation
+
+- Native `FindFirstFileExW` basic/large-fetch enumeration consumes size and
+  reparse metadata without a separate handle query per enumerated file. Folder
+  chains are pinned during enumeration. Name-surrogate rejection, cloud
+  eligibility, cancellation, collision detection and the materialization ceiling
+  remain. Tests include hidden/Unicode names, empty folders, junctions and a
+  sparse file larger than 4 GiB. This is not yet streaming execution.
+- Storage profiling records sparse support once per volume inspection. The
+  strategy requests native sparse copying only for a known supporting target;
+  CopyEngine removes the flag before Windows 11 22H2. No custom sparse/cloning
+  engine, unbuffered path or offload-disabling flag is added. The native copy test
+  verifies complete contents, sparse allocation, timestamps, attributes and ADS
+  on a supporting CI filesystem. This does not promise ACL/owner/SACL fidelity,
+  nor metadata unsupported by a target filesystem.
+- An opt-in Options toggle retains clean completion in the same window with a
+  native success InfoBar and destination-folder action. Automatic close remains
+  the default; failures, skipped items, recovery and queued-session ownership
+  retain their current behavior. Visual/focus acceptance is still outstanding.
+- [DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md) records stable version verification,
+  the WebView2 transitive SDK override and pinned CI action updates. These are
+  compatibility updates, not measured transfer acceleration.
+
+Persistent mid-file restart, extended security-metadata policy, explicit I/O
+rate control, streaming planner execution and full terminal/decision redesign
+remain separate changes subject to the acceptance conditions above. No power
+loss, hardware-throughput, installed shell or physical ARM64 acceptance is
+inferred from this block.

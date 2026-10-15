@@ -2,6 +2,11 @@
 
 ## 1.2.3 — Unreleased
 
+- Planning uses native bulk directory enumeration and its 64-bit size/reparse metadata instead of opening every enumerated file for metadata. Source directory chains stay pinned while enumerating; collision, cancellation and entry bounds remain.
+- The recommended CopyFile2 strategy retains sparse files on supporting destinations on Windows 11 22H2 or later; older Windows keeps the existing copy path. Native offload and SMB compression remain available.
+- Options can keep a clean completed window open with a native success notice and an Open destination folder action; automatic close remains the default.
+- Audit stable direct/transitive dependencies, override the WebView2 SDK to 1.0.4258.31, and update CI actions to pinned current stable releases. Existing WinUI component versions and NSIS are already current.
+
 - While resident, VelocityCopy routes Ctrl+V from normal Explorer filesystem folder views through a dedicated keyboard thread and STA worker into the existing transfer queue; Ctrl+C/X stay native. Explicit **Copy here**, **Move here** and **Paste with VelocityCopy** commands remain available. No undocumented numeric default-menu selection is used.
 - Shell dispatch no longer launches a second activation after ambiguous IPC delivery. The clipboard decoder is shared internally without a public test-only DLL export.
 - Queue templates remove a repeated nested panel while preserving native virtualization and stable selection. Active bars retain stable accessible file names and native RangeValue progress.

@@ -15,7 +15,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -40,7 +40,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Configure ${{ matrix.arch }} Release
         run: cmake -S . -B build/${{ matrix.cmake_arch }} -A ${{ matrix.cmake_arch }}
@@ -84,7 +84,7 @@ jobs:
 
       - name: Upload planner baseline
         if: ${{ matrix.test }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: VelocityCopy-planner-baseline-${{ github.run_id }}
           path: planner-baseline.json
@@ -95,7 +95,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Configure x64 RelWithDebInfo ASan
         run: cmake -S . -B build/asan -A x64 -DVELOCITYCOPY_ENABLE_ASAN=ON
@@ -108,7 +108,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v3
@@ -136,7 +136,7 @@ jobs:
 
       - name: Upload launch diagnostic log
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: VelocityCopy-launch-diagnostic-ci-x64-${{ github.run_id }}
           path: ${{ runner.temp }}/velocitycopy-unhandled.log

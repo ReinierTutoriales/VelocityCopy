@@ -959,7 +959,8 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
         // The window closes itself on a clean finish; when it was not in front
         // (minimized, in the tray, another app in use) say so with a Windows
         // notification, otherwise the copy just silently disappears.
-        if (hwnd_ != nullptr && GetForegroundWindow() != hwnd_ && !session_ending_) {
+        const bool notify_completion = hwnd_ != nullptr && GetForegroundWindow() != hwnd_ && !session_ending_;
+        if (keep_completed_window_open_ || notify_completion) {
             try {
                 const auto title = velocitycopy::localization::get_string(
                     active_operation_ == velocitycopy::FileOperation::Move
@@ -972,10 +973,29 @@ void MainWindow::FinishCopy(const velocitycopy::JobResult& original_result) {
                 const std::wstring text = std::vformat(
                     std::wstring_view{pattern.c_str(), pattern.size()},
                     std::make_wformat_args(count, folder));
-                if (auto* app = App::Instance()) app->ShowTrayNotification(title.c_str(), text.c_str());
+                if (keep_completed_window_open_) {
+                    ShowNotice(InfoBarSeverity::Success, title, hstring(text));
+                    Button open_folder;
+                    open_folder.Content(box_value(velocitycopy::localization::get_string(L"ActionOpenDestination")));
+                    open_folder.Click([weak = get_weak(), finished_destination](IInspectable const&, RoutedEventArgs const&) {
+                        if (auto self = weak.get()) {
+                            // Open the folder itself; never build command-line arguments from a path.
+                            const auto opened = ShellExecuteW(self->hwnd_, L"explore",
+                                finished_destination.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+                            if (reinterpret_cast<INT_PTR>(opened) <= 32) {
+                                self->ShowError(velocitycopy::localization::get_string(L"OpenDestinationFailed"));
+                            }
+                        }
+                    });
+                    ErrorBar().ActionButton(open_folder);
+                }
+                if (notify_completion) {
+                    if (auto* app = App::Instance()) app->ShowTrayNotification(title.c_str(), text.c_str());
+                }
             } catch (...) {
             }
         }
+        if (keep_completed_window_open_ && !session_ending_ && !tray_exit_requested_) return;
         // Clean completed transfer windows are session surfaces, not recovery owners.
         // Recovery remains available through ShowFromTray() when the app is opened
         // explicitly; a successful clean transfer releases its own window.

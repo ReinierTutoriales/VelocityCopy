@@ -1,4 +1,6 @@
 #include "velocitycopy/job_planner.hpp"
+#include <windows.h>
+#include <winioctl.h>
 
 #include <algorithm>
 #include <cstdlib>
@@ -176,6 +178,33 @@ int wmain() {
         return 11;
     }
     fs::remove(junction, ec);
+
+    // Enumeration must retain empty/hidden Unicode paths and the high DWORD
+    // of a file size, without reading or allocating the sparse file's holes.
+    const auto native_source = base / L"Native";
+    fs::create_directories(native_source / L"vacío", ec);
+    write_text(native_source / L"oculto-文件.txt", "abc");
+    SetFileAttributesW((native_source / L"oculto-文件.txt").c_str(), FILE_ATTRIBUTE_HIDDEN);
+    const auto large_path = native_source / L"large.bin";
+    const auto large_handle = CreateFileW(large_path.c_str(), GENERIC_WRITE, 0, nullptr,
+        CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (large_handle == INVALID_HANDLE_VALUE) return 12;
+    DWORD returned{};
+    LARGE_INTEGER length{};
+    length.QuadPart = (5ll << 30) + 123;
+    const bool large_created = DeviceIoControl(large_handle, FSCTL_SET_SPARSE,
+        nullptr, 0, nullptr, 0, &returned, nullptr) &&
+        SetFilePointerEx(large_handle, length, nullptr, FILE_BEGIN) && SetEndOfFile(large_handle);
+    CloseHandle(large_handle);
+    if (!large_created) return 13;
+    CopyJob native_job{};
+    native_job.sources = {native_source};
+    native_job.destination = safe_destination;
+    const auto native_plan = velocitycopy::JobPlanner{}.build(native_job);
+    if (native_plan.files.size() != 2 || native_plan.directories.size() != 2 ||
+        !native_plan.failures.empty() ||
+        native_plan.total_bytes != static_cast<std::uint64_t>(length.QuadPart) + 3 ||
+        native_plan.largest_file_bytes != static_cast<std::uint64_t>(length.QuadPart)) return 14;
 
     fs::remove_all(base, ec);
     std::wcout << L"VelocityCopy planner safety test passed.\n";

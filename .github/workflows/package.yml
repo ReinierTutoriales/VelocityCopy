@@ -35,7 +35,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Version
         shell: pwsh
@@ -177,7 +177,7 @@ jobs:
           $files | Sort-Object Length -Descending | Select-Object -First 15 Name,Length | Format-Table
 
       - name: Upload payload size inventory
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: VelocityCopy-payload-inventory-${{ matrix.arch }}-${{ github.run_id }}
           path: artifacts/payload-inventory-${{ matrix.arch }}.json
@@ -269,7 +269,7 @@ jobs:
 
       - name: Cache pinned NSIS
         id: cache-nsis
-        uses: actions/cache@v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/nsis-3.13.zip
           key: nsis-3.13-${{ matrix.arch }}-ba63dffc4410ee89193e1cb5a41989991bd77c61068da17e3156d136b7b0b3d8
@@ -506,7 +506,7 @@ jobs:
 
       - name: Upload PRI evidence
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: VelocityCopy-PRI-evidence-${{ matrix.arch }}-${{ github.run_id }}
           path: artifacts/pri-evidence-${{ matrix.arch }}
@@ -514,7 +514,7 @@ jobs:
           retention-days: 14
 
       - name: Upload validated installer
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: VelocityCopy-Setup-${{ matrix.arch }}-${{ env.VELOCITYCOPY_VERSION }}
           path: artifacts/installer/${{ matrix.setup_name }}
@@ -523,7 +523,7 @@ jobs:
 
       - name: Upload launch diagnostic log
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: VelocityCopy-launch-diagnostic-package-${{ matrix.arch }}-${{ github.run_id }}
           path: ${{ runner.temp }}/velocitycopy-unhandled.log

@@ -869,14 +869,15 @@ void MainWindow::ShowNotice(
     InfoBarSeverity const severity,
     hstring const& title,
     hstring const& message) {
-    // Only the "completed with issues" notice carries an action; any other
-    // notice replaces it without one.
+    // Each caller owns the current notice action; never retain a stale handler.
     ErrorBar().ActionButton(nullptr);
     TransferProgress().ShowError(severity == InfoBarSeverity::Error);
     if (severity == InfoBarSeverity::Error) {
         ApplyTransferVisualState(TransferVisualState::Error);
     } else if (severity == InfoBarSeverity::Warning) {
         ApplyTransferVisualState(TransferVisualState::Warning);
+    } else if (severity == InfoBarSeverity::Success) {
+        ApplyTransferVisualState(TransferVisualState::Active);
     }
     ErrorBar().Severity(severity);
     ErrorBar().Title(title);

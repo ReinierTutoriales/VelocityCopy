@@ -35,6 +35,14 @@ int main(){
  if(destroyed.find("ShowPrimaryWindow") != std::string::npos) return 11;
  const auto finish=body_of(exec,"void MainWindow::FinishCopy");
  if(finish.empty()) return 12;
+ const auto persistence=read_source(ui/"MainWindow.QueuePersistence.cpp");
+ const auto header=read_source(ui/"MainWindow.xaml.h");
+ if(header.find("bool keep_completed_window_open_{};") == std::string::npos ||
+    persistence.find("ToggleMenuFlyoutItem keep_completed_menu_item") == std::string::npos ||
+    finish.find("ShowNotice(InfoBarSeverity::Success, title, hstring(text))") == std::string::npos ||
+    finish.find("ErrorBar().ActionButton(open_folder)") == std::string::npos ||
+    finish.find("if (keep_completed_window_open_ && !session_ending_ && !tray_exit_requested_) return;") == std::string::npos ||
+    finish.find("finished_destination.c_str(), nullptr, nullptr") == std::string::npos) return 29;
  const auto destroy=finish.find("DestroyCompletedWindow();");
  if(destroy == std::string::npos) return 13;
  if(finish.find("HasPendingRecovery(") != std::string::npos ||
