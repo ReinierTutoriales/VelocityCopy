@@ -232,6 +232,7 @@ private:
     void RefreshExecutionMenuState();
     void RefreshQueueEditCommandState();
     void SetExpanded(bool expanded);
+    void SyncExpandedTelemetry();
     void ResetPerformanceHistory() noexcept;
     void ObservePerformanceSample(double bytes_per_second);
     void UpdatePerformanceGraph();

@@ -744,6 +744,7 @@ void MainWindow::SetExpanded(const bool expanded) {
         OutputDebugStringW(L"VelocityCopy: SetExpanded failed\\n");
     }
     if (expanded) {
+        SyncExpandedTelemetry();
         RefreshQueue();
         UpdatePerformanceGraph();
     }

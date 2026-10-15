@@ -121,6 +121,16 @@ int main() {
     }
 
     const auto window = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
+    const auto snapshot = body_of(execution, "void MainWindow::ApplySnapshot(");
+    const auto disclosure = body_of(window, "void MainWindow::SetExpanded(");
+    const auto expanded_telemetry = body_of(execution, "void MainWindow::SyncExpandedTelemetry()");
+    if (!contains(snapshot, "if (expanded_) SyncExpandedTelemetry();") ||
+        contains(snapshot, "DetailsBytesText()") ||
+        !contains(disclosure, "SyncExpandedTelemetry();") ||
+        !contains(expanded_telemetry, "TransferBytesText().Text()") ||
+        !contains(expanded_telemetry, "SourcePathText().Text()")) {
+        return fail(30, "hidden telemetry must avoid progress updates and synchronize existing values on disclosure");
+    }
     const auto show_notice = body_of(window, "void MainWindow::ShowNotice(");
     const auto show_error = body_of(window, "void MainWindow::ShowError(");
     const auto reset_surface = body_of(window, "void MainWindow::ResetTransferSurface()");

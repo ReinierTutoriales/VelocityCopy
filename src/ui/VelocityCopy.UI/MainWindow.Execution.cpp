@@ -45,6 +45,28 @@ void MainWindow::ClearLiveTelemetry() {
     PerformanceCurrentSpeedText().Text(L"—");
 }
 
+void MainWindow::SyncExpandedTelemetry() {
+    const auto bytes_text = TransferBytesText().Text();
+    const auto files_text = TransferFilesText().Text();
+    const auto speed = SpeedText().Text();
+    const auto eta = EtaText().Text();
+    if (DetailsBytesText().Text() != bytes_text) DetailsBytesText().Text(bytes_text);
+    if (DetailsFilesText().Text() != files_text) DetailsFilesText().Text(files_text);
+    if (DetailsSpeedText().Text() != speed) DetailsSpeedText().Text(speed);
+    if (DetailsEtaText().Text() != eta) DetailsEtaText().Text(eta);
+    if (PerformanceCurrentSpeedText().Text() != speed) PerformanceCurrentSpeedText().Text(speed);
+    const auto source = SourcePathText().Text();
+    if (DetailsSourceText().Text() != source) {
+        DetailsSourceText().Text(source);
+        ToolTipService::SetToolTip(DetailsSourceText(), box_value(source));
+    }
+    const auto destination = DestinationPathText().Text();
+    if (DetailsDestinationText().Text() != destination) {
+        DetailsDestinationText().Text(destination);
+        ToolTipService::SetToolTip(DetailsDestinationText(), box_value(destination));
+    }
+}
+
 void MainWindow::ResetCurrentItemState() noexcept {
     current_file_id_ = 0;
     current_file_skippable_ = false;
@@ -663,25 +685,7 @@ void MainWindow::ApplySnapshot(const velocitycopy::UiSnapshot& snapshot) {
         ScheduleTelemetryGeometryProbe();
     }
 
-    if (DetailsBytesText().Text() != bytes_text) DetailsBytesText().Text(bytes_text);
-    if (DetailsFilesText().Text() != files_text) DetailsFilesText().Text(files_text);
-    if (DetailsSpeedText().Text() != speed) DetailsSpeedText().Text(speed);
-    if (DetailsEtaText().Text() != eta) DetailsEtaText().Text(eta);
-    if (PerformanceCurrentSpeedText().Text() != speed) PerformanceCurrentSpeedText().Text(speed);
-    if (!snapshot.current_source.empty()) {
-        const hstring source(snapshot.current_source.wstring());
-        if (DetailsSourceText().Text() != source) {
-            DetailsSourceText().Text(source);
-            ToolTipService::SetToolTip(DetailsSourceText(), box_value(source));
-        }
-    }
-    if (!snapshot.current_destination.empty()) {
-        const hstring destination(snapshot.current_destination.wstring());
-        if (DetailsDestinationText().Text() != destination) {
-            DetailsDestinationText().Text(destination);
-            ToolTipService::SetToolTip(DetailsDestinationText(), box_value(destination));
-        }
-    }
+    if (expanded_) SyncExpandedTelemetry();
     ObservePerformanceSample(snapshot.bytes_per_second);
 
     if (expanded_ && snapshot.completed_files != last_queue_completed_files_) {
