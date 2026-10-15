@@ -46,6 +46,7 @@ private:
     void ApplyEfficiencyMode(bool enabled) noexcept;
     void InitializeRecoveryFiles() noexcept;
     VelocityCopyUI::MainWindow CreateMainWindow();
+    bool AdmitShellRequest(const velocitycopy::ShellRequest& request);
     void StartNextPendingRequest();
     winrt::Windows::Foundation::IAsyncAction DeliverConvertedJob(velocitycopy::CopyJob job, velocitycopy::StorageKey destination_key, velocitycopy::StorageKey source_key);
     winrt::fire_and_forget ResolveStorageKeysAsync(velocitycopy::CopyJob job);

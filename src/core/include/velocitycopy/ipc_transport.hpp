@@ -4,6 +4,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <string>
 
@@ -37,6 +38,7 @@ public:
 
     [[nodiscard]] bool valid() const noexcept;
     [[nodiscard]] std::optional<ShellRequest> receive() noexcept;
+    [[nodiscard]] std::optional<ShellRequest> receive_and_ack(const std::function<bool(const ShellRequest&)>& admit) noexcept;
     void stop() noexcept;
     [[nodiscard]] bool stopping() const noexcept;
 

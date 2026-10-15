@@ -17,6 +17,7 @@
 #include <optional>
 #include <fstream>
 #include <memory>
+#include <future>
 #include <cstring>
 
 namespace winrt::VelocityCopyUI::implementation {
@@ -271,20 +272,20 @@ VelocityCopyUI::MainWindow App::CreateMainWindow() {
     return main_window;
 }
 
-void App::DeliverShellRequest(const velocitycopy::ShellRequest& request) {
+bool App::AdmitShellRequest(const velocitycopy::ShellRequest& request) {
     // All admissions run on the UI dispatcher. Only committed admissions enter
     // this bounded replay cache; rejected work remains eligible for retry.
     const auto id = request.version == 3 ? request.request_id : 0;
     if (id != 0 && admitted_shell_ids_.contains(id)) {
         velocitycopy::log_diagnostic(L"shell: duplicate admitted request ignored");
-        return;
+        return true;
     }
     velocitycopy::ShellDispatchResult dispatch{};
     try { dispatch = shell_session_.dispatch(request); }
-    catch (...) { velocitycopy::log_diagnostic(L"shell: transfer request failed during dispatch"); ShowPrimaryWindowError(); return; }
+    catch (...) { velocitycopy::log_diagnostic(L"shell: transfer request failed during dispatch"); ShowPrimaryWindowError(); return false; }
     if (dispatch.status != velocitycopy::ShellDispatchStatus::Accepted) {
         ShowPrimaryWindowError();
-        return;
+        return false;
     }
     if (dispatch.job) {
         bool tracked = false;
@@ -303,7 +304,7 @@ void App::DeliverShellRequest(const velocitycopy::ShellRequest& request) {
             }
             velocitycopy::log_diagnostic(L"shell: transfer request failed during queue admission");
             ShowPrimaryWindowError();
-            return;
+            return false;
         }
         while (admitted_shell_order_.size() > 4096) {
             admitted_shell_ids_.erase(admitted_shell_order_.front());
@@ -317,9 +318,14 @@ void App::DeliverShellRequest(const velocitycopy::ShellRequest& request) {
             velocitycopy::log_diagnostic(L"shell: admitted request could not start processing");
             ShowPrimaryWindowError();
         }
-        return;
+        return true;
     }
     if (dispatch.show_window) ShowPrimaryWindow();
+    return true;
+}
+
+void App::DeliverShellRequest(const velocitycopy::ShellRequest& request) {
+    (void)AdmitShellRequest(request);
 }
 
 void App::StartNextPendingRequest() {
@@ -753,22 +759,25 @@ void App::OnLaunched(Microsoft::UI::Xaml::LaunchActivatedEventArgs const&) {
     ipc_thread_ = std::jthread(
         [server, dispatcher, deliver = std::move(deliver)](std::stop_token stop_token) mutable {
             while (!stop_token.stop_requested() && !server->stopping()) {
-                auto request = server->receive();
+                auto request = server->receive_and_ack([&](const velocitycopy::ShellRequest& incoming) {
+                    auto promise = std::make_shared<std::promise<bool>>();
+                    auto future = promise->get_future();
+                    if (!dispatcher.TryEnqueue([deliver, incoming, promise]() mutable {
+                        try {
+                            if (auto self = App::Instance()) promise->set_value(self->AdmitShellRequest(incoming));
+                            else promise->set_value(false);
+                        } catch (...) { promise->set_value(false); }
+                    })) return false;
+                    if (future.wait_for(std::chrono::seconds(4)) != std::future_status::ready) return false;
+                    return future.get();
+                });
                 if (!request) {
-                    if (stop_token.stop_requested() || server->stopping()) {
-                        return;
-                    }
-                    // A malformed/aborted client must not permanently stop Explorer integration.
+                    if (stop_token.stop_requested() || server->stopping()) return;
                     continue;
                 }
-
-                auto value = std::move(*request);
-                if (!dispatcher.TryEnqueue([deliver, value = std::move(value)]() mutable {
-                        deliver(value);
-                    })) {
-                    // Dispatcher shutdown can race an already received IPC frame.
-                    // The transport has no admission ACK, so record this loss
-                    // explicitly rather than treating a pipe write as admission.
+                if (request->version == 2 && !dispatcher.TryEnqueue([deliver, value = std::move(*request)]() mutable {
+                    deliver(value);
+                })) {
                     velocitycopy::log_diagnostic(L"shell: IPC request rejected because UI dispatcher is unavailable");
                     server->stop();
                     return;

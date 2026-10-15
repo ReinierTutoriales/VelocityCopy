@@ -296,7 +296,7 @@ bool ShellIpcServer::create_pipe() noexcept {
     if (security.attributes() == nullptr) return false;
 
     HANDLE pipe = CreateNamedPipeW(
-        name.c_str(), PIPE_ACCESS_INBOUND | FILE_FLAG_FIRST_PIPE_INSTANCE | FILE_FLAG_OVERLAPPED,
+        name.c_str(), PIPE_ACCESS_DUPLEX | FILE_FLAG_FIRST_PIPE_INSTANCE | FILE_FLAG_OVERLAPPED,
         PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS, 1,
         kPipeBufferBytes, kPipeBufferBytes, 0, security.attributes());
     if (pipe == INVALID_HANDLE_VALUE) {
@@ -325,6 +325,10 @@ void ShellIpcServer::stop() noexcept {
 }
 
 std::optional<ShellRequest> ShellIpcServer::receive() noexcept {
+    return receive_and_ack({});
+}
+
+std::optional<ShellRequest> ShellIpcServer::receive_and_ack(const std::function<bool(const ShellRequest&)>& admit) noexcept {
     if (!valid() || stopping()) return std::nullopt;
     HANDLE pipe = static_cast<HANDLE>(pipe_);
     const HANDLE stop_event = static_cast<HANDLE>(stop_event_);
@@ -357,7 +361,14 @@ std::optional<ShellRequest> ShellIpcServer::receive() noexcept {
             } catch (...) { result.reset(); }
         }
     }
-    // Inbound intent has no response/acknowledgement to flush. Keep the same
+    if (result && result->version == 3 && admit) {
+        bool accepted = false;
+        try { accepted = admit(*result); } catch (...) { accepted = false; }
+        const std::uint8_t ack = accepted ? 1u : 0u;
+        UniqueHandle ack_event{CreateEventW(nullptr, TRUE, FALSE, nullptr)};
+        if (ack_event.valid()) (void)write_all(pipe, &ack, 1, ack_event.get(), SteadyClock::now() + kFrameTimeout);
+    }
+    // Keep the same
     // pipe instance and its bounded buffer for the next activation.
     if (!DisconnectNamedPipe(pipe) && !stopping()) (void)recreate_pipe_or_stop();
     if (stopping()) return std::nullopt;
@@ -396,7 +407,7 @@ IpcSendResult send_shell_request(
                 return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(GetLastError()))};
             }
             pipe.reset(CreateFileW(
-                name.c_str(), GENERIC_WRITE, 0, nullptr, OPEN_EXISTING,
+                name.c_str(), request.version == 3 ? (GENERIC_READ | GENERIC_WRITE) : GENERIC_WRITE, 0, nullptr, OPEN_EXISTING,
                 FILE_FLAG_OVERLAPPED, nullptr));
             if (pipe.valid()) break;
             const DWORD error = GetLastError();
@@ -454,6 +465,14 @@ IpcSendResult send_shell_request(
         // admission acknowledgement; only transport errors/timeouts are reported.
         if (!flushed && flush_error != ERROR_PIPE_NOT_CONNECTED && flush_error != ERROR_BROKEN_PIPE)
             return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(flush_error)), true};
+        if (request.version == 3) {
+            std::uint8_t ack = 0;
+            UniqueHandle ack_event{CreateEventW(nullptr, TRUE, FALSE, nullptr)};
+            if (!ack_event.valid()) return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(GetLastError())), true};
+            if (!read_all(pipe.get(), &ack, 1, ack_event.get(), nullptr, deadline))
+                return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_SEM_TIMEOUT)), true};
+            if (ack != 1u) return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_ACCESS_DENIED)), false};
+        }
         return {true, S_OK};
     } catch (const std::bad_alloc&) {
         return {false, static_cast<std::int32_t>(E_OUTOFMEMORY), write_attempted};
