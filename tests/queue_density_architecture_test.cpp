@@ -79,11 +79,24 @@ int main() {
     for (const char* name : {"QueueMoveUpButton", "QueueMoveDownButton", "QueueRemoveButton"}) {
         if (!contains(header_block, std::string{"x:Name=\""} + name + "\"")) return fail(13, "edit commands left the Queue header");
     }
-    if (contains(header_block, "Visibility=")) return fail(14, "header commands must stay visible (enabled state only)");
+    for (const char* name : {"QueueMoveUpButton", "QueueMoveDownButton", "QueueRemoveButton",
+                             "QueuePreviousPageButton", "QueueNextPageButton"}) {
+        const std::regex hidden_command{std::string{"<Button[^>]*x:Name=\""} + name +
+            "\"[^>]*Visibility="};
+        if (std::regex_search(xaml, hidden_command)) return fail(14, "header commands must stay visible (enabled state only)");
+    }
 
     // 4. Queue rows carry no per-item progress and no fixed colors (system ThemeResource only).
-    for (const char* forbidden : {"ProgressBar", "SolidColorBrush", "Colors::", "Windows::UI::Color"}) {
+    for (const char* forbidden : {"SolidColorBrush", "Colors::", "Windows::UI::Color"}) {
         if (contains(queue, forbidden)) return fail(15, "Queue code must not add per-item progress or fixed colors");
+    }
+    const auto active_refresh = body_of(queue, "void MainWindow::RefreshActiveQueue()");
+    const auto execution = read_source(ui / "MainWindow.Execution.cpp");
+    const auto apply_snapshot = body_of(execution, "void MainWindow::ApplySnapshot(");
+    if (contains(refresh, "ProgressBar") || !contains(active_refresh, "active_queue_view(kVisibleActiveFiles)") ||
+        !contains(active_refresh, "active.transferred_bytes") ||
+        !contains(apply_snapshot, "else if (expanded_)") || !contains(apply_snapshot, "RefreshActiveQueue();")) {
+        return fail(28, "only bounded active rows may show per-file progress; live snapshots must refresh it before completion");
     }
     // 5. The queue height budget stays untouched in this block.
     if (!contains(tokens, "<x:Double x:Key=\"QueueExpandedMinHeight\">176</x:Double>")) return fail(16, "QueueExpandedMinHeight changed");
@@ -108,6 +121,13 @@ int main() {
         !contains(drag_done, "std::exchange(queue_refresh_force_rebuild_, false)") ||
         !contains(drag_done, "RefreshQueue(force_visual_rebuild)")) {
         return fail(19, "drag handlers must guard the collection and flush one authoritative refresh");
+    }
+    if (!contains(drag_start, "args.Cancel(true)") || !contains(drag_start, "queue_drag_plan_ = live_plan_") ||
+        !contains(drag_done, "live_plan_ != drag_plan") || !contains(drag_done, "reorder_pending_page")) {
+        return fail(29, "read-only planning previews cannot drag; completion must belong to its original live session");
+    }
+    if (contains(execution, "QueueList().Items().Clear()")) {
+        return fail(30, "session/control resets must defer pending collection mutation through RefreshQueue during drag");
     }
     if (!contains(refresh, "if (queue_drag_active_)") ||
         !contains(refresh, "queue_refresh_force_rebuild_ = queue_refresh_force_rebuild_ || force_visual_rebuild") ||

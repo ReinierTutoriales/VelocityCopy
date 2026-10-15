@@ -329,6 +329,7 @@ private:
     bool geometry_probe_speed_active_{};
     bool queue_item_style_narrow_{};
     bool queue_drag_active_{};
+    std::shared_ptr<velocitycopy::LiveCopyPlan> queue_drag_plan_;
     bool queue_refresh_force_rebuild_{};
     bool telemetry_reserves_applied_{};
     double telemetry_reserve_text_scale_{};

@@ -105,7 +105,7 @@ int main() {
     }
 
     if (!contains(queue, "kVisibleQueueItems") || !contains(queue, "file.id") ||
-        !contains(queue, "reorder_pending_files") || !contains(queue, "move_pending_files_up") ||
+        !contains(queue, "reorder_pending_page") || !contains(queue, "move_pending_files_up") ||
         !contains(queue, "move_pending_files_down") || !contains(queue, "remove_pending_files")) {
         return fail(12, "bounded stable-id bulk queue contract missing");
     }

@@ -2,6 +2,30 @@
 
 Status: canonical ordered execution line for stabilization and UI work.
 
+## x64 stabilization audit — 2026-10-14
+
+Baseline `2b9ac7ae06e6e5b29e31d075bb5f33f279450906` passed Windows
+Package, x64/core compilation, ARM64 compilation, ASan compilation and WinUI
+build/launch. Windows CI failed four architecture tests: queue-density scanned
+the active panel as if it were header commands; visual-fidelity found two new
+explicit-font pagination icons; append still required the retired whole-queue
+reorder caller; compact-UI matched `ActiveQueuePanel` as `QueuePanel`.
+
+The coherent correction preserves the executor and adds live active-row refresh,
+session-bound native drag completion, measured header/active chrome with useful
+pending height, separate pagination layout, localized queue navigation, compact
+width preservation on expansion, and TaskbarButtonCreated state replay.
+Page-reorder allocation failures and constrained-height budgets have executable
+regression coverage. Existing queue-archive concurrency coverage also reproduced
+a local replacement race: save serialization remains concurrent but its final
+replace and same-process loads share a mutex. This does not promise cross-process
+serialization or bypass an external file lock; failed replacement still preserves
+the old archive and removes the caller's own staging file.
+
+Exact-change Windows CI/Package and physical x64 geometry/system acceptance remain
+required. Earlier statements describing active-row data as unavailable or outer
+scrolling as Narrow-only are superseded by `UI_ARCHITECTURE.md`'s current contract.
+
 This document answers one question: **what do we change next, and what evidence is required before moving on?** It complements the engineering rules; it does not replace them.
 
 ## Product scope and remaining work — agreed 2026-10-14

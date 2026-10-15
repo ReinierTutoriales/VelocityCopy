@@ -61,7 +61,10 @@ void MainWindow::RefreshActiveQueue() {
         return;
     }
     ActiveQueuePanel().Visibility(Visibility::Visible);
-    ActiveQueueHeading().Text(hstring(std::format(L"Transferring ({})", view.active_count)));
+    const auto heading_pattern = velocitycopy::localization::get_string(L"QueueActiveHeadingFormat");
+    const hstring heading(std::vformat(std::wstring_view{heading_pattern.c_str(), heading_pattern.size()},
+        std::make_wformat_args(view.active_count)));
+    if (ActiveQueueHeading().Text() != heading) ActiveQueueHeading().Text(heading);
     while (rows.Size() > view.active_files.size()) rows.RemoveAtEnd();
     while (rows.Size() < view.active_files.size()) {
         StackPanel row;
@@ -71,6 +74,7 @@ void MainWindow::RefreshActiveQueue() {
         ProgressBar progress;
         progress.Minimum(0);
         progress.Maximum(100);
+        progress.MinHeight(4);
         row.Children().Append(label);
         row.Children().Append(progress);
         rows.Append(row);
@@ -84,19 +88,25 @@ void MainWindow::RefreshActiveQueue() {
             (std::min)(100.0, 100.0 * static_cast<double>(active.transferred_bytes) /
                 static_cast<double>(active.file.size));
         const auto name = active.file.source.filename().wstring();
-        label.Text(hstring(std::format(L"{} — {} / {} bytes",
-            name, active.transferred_bytes, active.file.size)));
-        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(
-            label, hstring(name));
-        progress.Value(percent);
+        const auto done = FormatBytes(active.transferred_bytes);
+        const auto total = FormatBytes(active.file.size);
+        const hstring text(std::format(L"{} — {} / {}", name, done.c_str(), total.c_str()));
+        if (label.Text() != text) label.Text(text);
+        const hstring full_path(active.file.source.wstring());
+        if (Microsoft::UI::Xaml::Automation::AutomationProperties::GetName(label) != full_path) {
+            ToolTipService::SetToolTip(label, box_value(full_path));
+            Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(label, full_path);
+        }
+        if (progress.Value() != percent) progress.Value(percent);
+        progress.ShowPaused(paused_ || performance_sampling_state_ == PerformanceSamplingState::Stopped);
         const auto accessible_percent = active.transferred_bytes != 0 && percent < 0.01
             ? std::format(L"{:.4f}", percent)
             : active.transferred_bytes != 0 && percent < 1.0
                 ? std::format(L"{:.2f}", percent)
                 : std::format(L"{:.0f}", percent);
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(
-            progress, hstring(std::format(L"{}: {}% ({} of {} bytes)",
-                name, accessible_percent, active.transferred_bytes, active.file.size)));
+            progress, hstring(std::format(L"{}: {}% ({} / {})",
+                name, accessible_percent, done.c_str(), total.c_str())));
     }
 }
 
@@ -460,7 +470,12 @@ void MainWindow::OnQueuePointerWheelChanged(IInspectable const&, PointerRoutedEv
 
 void MainWindow::OnQueueDragItemsStarting(
     IInspectable const&,
-    DragItemsStartingEventArgs const&) {
+    DragItemsStartingEventArgs const& args) {
+    if (!expanded_ || !live_plan_) {
+        args.Cancel(true);
+        return;
+    }
+    queue_drag_plan_ = live_plan_;
     queue_drag_active_ = true;
     RefreshQueueEditCommandState();
 }
@@ -469,10 +484,12 @@ void MainWindow::OnQueueDragItemsCompleted(
     ListViewBase const&,
     DragItemsCompletedEventArgs const&) {
     queue_drag_active_ = false;
+    const auto drag_plan = std::exchange(queue_drag_plan_, nullptr);
     RefreshQueueEditCommandState();
     const bool force_visual_rebuild = std::exchange(queue_refresh_force_rebuild_, false);
 
-    if (!live_plan_) {
+    if (!live_plan_ || live_plan_ != drag_plan) {
+        queue_refresh_force_rebuild_ = true;
         RefreshQueue(force_visual_rebuild);
         return;
     }

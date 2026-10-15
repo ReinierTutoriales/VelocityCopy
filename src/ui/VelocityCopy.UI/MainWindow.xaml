@@ -348,7 +348,7 @@
                 </Grid.ColumnDefinitions>
 
                 <Grid x:Name="QueuePanel" Grid.Row="0" Grid.Column="0" Margin="{StaticResource ExpandedSectionMargin}">
-                    <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    <Border x:Name="QueueFrame" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                             BorderThickness="1"
                             CornerRadius="{ThemeResource ControlCornerRadius}"
@@ -360,17 +360,24 @@
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
 
-                            <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            <Border x:Name="QueueHeaderBorder" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                                     BorderThickness="0,0,0,1"
                                     Padding="{StaticResource SectionHeaderPadding}">
                                 <Grid x:Name="QueueHeader" MinHeight="{StaticResource QueueHeaderMinHeight}">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <StackPanel Orientation="Horizontal"
-                                                VerticalAlignment="Center">
+                                    <Grid VerticalAlignment="Center">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
                                         <FontIcon x:Name="QueueSectionIcon"
                                                   Glyph="&#xE8A5;"
                                                   FontSize="{StaticResource SectionIconSize}"
@@ -379,40 +386,51 @@
                                                   IsHitTestVisible="False"
                                                   AutomationProperties.AccessibilityView="Raw" />
                                         <TextBlock x:Name="QueueTitle"
+                                                   Grid.Column="1"
                                                    x:Uid="QueueTitle"
                                                    VerticalAlignment="Center"
                                                    TextTrimming="CharacterEllipsis"
                                                    MaxLines="1"
                                                    FontWeight="SemiBold"
                                                    FontSize="{StaticResource BodyFontSize}" />
-                                    </StackPanel>
-                                    <Border Grid.Column="1"
+                                    </Grid>
+                                    <Border Grid.Row="1" Grid.ColumnSpan="3" HorizontalAlignment="Stretch"
                                             Margin="{StaticResource QueueCountBadgeMargin}"
                                             Padding="{StaticResource QueueCountBadgePadding}"
                                             VerticalAlignment="Center"
                                             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                                             BorderThickness="1"
                                             CornerRadius="{ThemeResource ControlCornerRadius}">
-                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                        <Grid ColumnSpacing="4" VerticalAlignment="Center">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
                                             <Button x:Name="QueuePreviousPageButton"
+                                                    x:Uid="QueuePreviousPageButton"
                                                     Click="OnQueuePreviousPageClick"
                                                     ToolTipService.ToolTip="Previous 256 pending files"
                                                     AutomationProperties.Name="Previous queue page"
                                                     MinWidth="28" MinHeight="28" Padding="4,0">
-                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE76B;" FontSize="12" />
+                                                <FontIcon Glyph="&#xE76B;" FontSize="12" />
                                             </Button>
                                             <TextBlock x:Name="QueueCountText"
+                                                       Grid.Column="1"
+                                                       TextTrimming="CharacterEllipsis" MaxLines="1"
                                                        VerticalAlignment="Center"
                                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                        FontSize="{StaticResource CaptionFontSize}" />
                                             <Button x:Name="QueueNextPageButton"
+                                                    Grid.Column="2"
+                                                    x:Uid="QueueNextPageButton"
                                                     Click="OnQueueNextPageClick"
                                                     ToolTipService.ToolTip="Next 256 pending files"
                                                     AutomationProperties.Name="Next queue page"
                                                     MinWidth="28" MinHeight="28" Padding="4,0">
-                                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE76C;" FontSize="12" />
+                                                <FontIcon Glyph="&#xE76C;" FontSize="12" />
                                             </Button>
-                                        </StackPanel>
+                                        </Grid>
                                     </Border>
                                     <Grid Grid.Column="2">
                                         <Grid.ColumnDefinitions>
@@ -508,7 +526,11 @@
 
                             <StackPanel x:Name="ActiveQueuePanel" Grid.Row="1" Spacing="6" Margin="8,4,8,8" Visibility="Collapsed">
                                 <TextBlock x:Name="ActiveQueueHeading" Text="Transferring" FontWeight="SemiBold" />
-                                <StackPanel x:Name="ActiveQueueRows" Spacing="6" />
+                                <ScrollViewer MaxHeight="{StaticResource QueueActiveMaxHeight}"
+                                              VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                              HorizontalScrollMode="Disabled">
+                                    <StackPanel x:Name="ActiveQueueRows" Spacing="6" />
+                                </ScrollViewer>
                             </StackPanel>
                             <ListView x:Name="QueueList"
                                       ItemTemplate="{StaticResource QueueItemTemplate}"

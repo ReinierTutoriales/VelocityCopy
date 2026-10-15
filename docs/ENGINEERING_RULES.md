@@ -177,6 +177,12 @@ A `ContentDialog` attached to the compact XAML root inherits the copier window's
 
 Initial job planning can be measurably slower for directory trees or slow storage. Do not disable the queue disclosure until a complete `LiveCopyPlan` exists. Once a transfer is accepted, expose a bounded read-only preview of its top-level sources immediately; replace that preview with the authoritative live-plan queue when planning finishes. This makes planning latency visible and keeps the UI responsive without pretending that enumeration is already complete.
 
+### Regression lesson: bounded projections still need independent refresh and height
+
+Authoritative active-file progress cannot be refreshed only when aggregate completed-file counts change. Refresh its bounded projection on the existing snapshot cadence. Measure bounded header/active chrome separately from the pending ListView and reserve a useful pending viewport; adding active controls must not consume all pending height. Tests must distinguish `ActiveQueuePanel` from `QueuePanel` and scope pending-only invariants to their actual controls/functions.
+
+Concurrent archive saves may serialize distinct staging files independently, but same-process final replacement and reads must share the commit lock. Preserve the old archive on failure and never delete another writer's staging file.
+
 ### Regression lesson: planning must be cancellable
 
 Running planning off the UI thread is not enough if directory enumeration ignores cancellation. Any planner loop that can walk an unbounded source tree must observe a stop token at bounded intervals. Cancel must terminate both planning and execution paths; otherwise the window can report cancellation while a background planner continues traversing storage and makes the product appear frozen.
