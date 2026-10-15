@@ -4,6 +4,7 @@
 #include "velocitycopy/process_activation.hpp"
 #include "velocitycopy/ipc_protocol.hpp"
 #include <shlobj.h>
+#include <ole2.h>
 #include <strsafe.h>
 #include <array>
 #include <atomic>
@@ -81,6 +82,33 @@ HRESULT read_sources(IDataObject* data, std::vector<std::filesystem::path>& path
                ? S_OK : E_INVALIDARG;
 }
 
+HRESULT clipboard_sources(velocitycopy::ShellRequest& request) {
+    IDataObject* object = nullptr;
+    HRESULT hr = OleGetClipboard(&object);
+    if (FAILED(hr)) return hr;
+    struct Owner { IDataObject* p; ~Owner() { if (p) p->Release(); } } owner{object};
+    request.sources.clear();
+    hr = read_sources(object, request.sources);
+    if (FAILED(hr)) return hr;
+    request.operation = velocitycopy::FileOperation::Copy;
+    const UINT id = RegisterClipboardFormatW(CFSTR_PREFERREDDROPEFFECT);
+    if (!id) return HRESULT_FROM_WIN32(GetLastError());
+    FORMATETC fmt{static_cast<CLIPFORMAT>(id), nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL};
+    Medium medium;
+    hr = object->GetData(&fmt, &medium.value);
+    if (hr == DV_E_FORMATETC) return S_OK;
+    if (FAILED(hr)) return hr;
+    if (medium.value.tymed != TYMED_HGLOBAL || !medium.value.hGlobal ||
+        GlobalSize(medium.value.hGlobal) < sizeof(DWORD)) return E_INVALIDARG;
+    GlobalView view(medium.value.hGlobal);
+    if (!view.data) return E_OUTOFMEMORY;
+    DWORD effect{};
+    std::memcpy(&effect, view.data, sizeof(effect));
+    if (effect & DROPEFFECT_MOVE) request.operation = velocitycopy::FileOperation::Move;
+    else if (!(effect & DROPEFFECT_COPY)) return E_INVALIDARG;
+    return S_OK;
+}
+
 bool dispatch(const velocitycopy::ShellRequest& request) noexcept {
     if (velocitycopy::send_shell_request(request, 25)) return true;
     try {
@@ -98,6 +126,7 @@ class DropHandler final : public IShellExtInit, public IContextMenu {
     bool ready_{};
     bool offered_{};
     bool invoked_{};
+    bool clipboard_mode_{};
 public:
     DropHandler() { ++objects; }
     ~DropHandler() { --objects; }
@@ -114,15 +143,20 @@ public:
         ULONG n = --refs_; if (!n) delete this; return n;
     }
     IFACEMETHODIMP Initialize(PCIDLIST_ABSOLUTE folder, IDataObject* data, HKEY) override {
-        ready_ = offered_ = invoked_ = false;
+        ready_ = offered_ = invoked_ = clipboard_mode_ = false;
         request_ = {};
-        if (!folder || !data) return E_INVALIDARG;
+        if (!folder) return E_INVALIDARG;
         try {
             std::array<wchar_t, 32768> target{};
             if (!SHGetPathFromIDListEx(folder, target.data(), static_cast<DWORD>(target.size()), GPFIDL_DEFAULT))
                 return E_INVALIDARG;
             request_.action = velocitycopy::ShellAction::Transfer;
             request_.destination = target.data();
+            if (!data) {
+                clipboard_mode_ = true;
+                ready_ = true;
+                return S_OK;
+            }
             HRESULT hr = read_sources(data, request_.sources);
             if (FAILED(hr)) { request_ = {}; return hr; }
             ready_ = velocitycopy::shell_request_valid(request_);
@@ -134,6 +168,11 @@ public:
         if (!ready_ || invoked_ || menu == nullptr || (flags & CMF_DEFAULTONLY) ||
             first > last || last - first < 1 || index == UINT_MAX)
             return MAKE_HRESULT(SEVERITY_SUCCESS, 0, 0);
+        if (clipboard_mode_) {
+            if (!InsertMenuW(menu, index, MF_BYPOSITION | MF_STRING, first, L"Paste with VelocityCopy")) return E_FAIL;
+            offered_ = true;
+            return MAKE_HRESULT(SEVERITY_SUCCESS, 0, 1);
+        }
         std::array<wchar_t, 128> copy{}, move{};
         if (!LoadStringW(module, IDS_SHELL_COPY_HERE, copy.data(), static_cast<int>(copy.size())) ||
             !LoadStringW(module, IDS_SHELL_MOVE_HERE, move.data(), static_cast<int>(move.size()))) return E_FAIL;
@@ -145,7 +184,7 @@ public:
         return MAKE_HRESULT(SEVERITY_SUCCESS, 0, 2);
     }
     IFACEMETHODIMP GetCommandString(UINT_PTR command, UINT flags, UINT*, LPSTR text, UINT count) override {
-        if (command > 1) return E_INVALIDARG;
+        if (command > (clipboard_mode_ ? 0u : 1u)) return E_INVALIDARG;
         if (flags == GCS_VALIDATEA || flags == GCS_VALIDATEW) return offered_ ? S_OK : S_FALSE;
         if (!text || !count) return E_POINTER;
         if (flags == GCS_VERBW)
@@ -170,8 +209,13 @@ public:
             if (!lstrcmpiA(info->lpVerb, "velocitycopy.copy")) command = 0;
             else if (!lstrcmpiA(info->lpVerb, "velocitycopy.move")) command = 1;
         }
-        if (command > 1) return E_INVALIDARG;
-        request_.operation = command ? velocitycopy::FileOperation::Move : velocitycopy::FileOperation::Copy;
+        if (command > (clipboard_mode_ ? 0u : 1u)) return E_INVALIDARG;
+        if (clipboard_mode_) {
+            try {
+                HRESULT hr = clipboard_sources(request_);
+                if (FAILED(hr) || !velocitycopy::shell_request_valid(request_)) return FAILED(hr) ? hr : E_INVALIDARG;
+            } catch (...) { return E_OUTOFMEMORY; }
+        } else request_.operation = command ? velocitycopy::FileOperation::Move : velocitycopy::FileOperation::Copy;
         if (!dispatch(request_)) return HRESULT_FROM_WIN32(ERROR_OPEN_FAILED);
         invoked_ = true;
         // Queue admission is not completion. Do not send PASTESUCCEEDED or a
