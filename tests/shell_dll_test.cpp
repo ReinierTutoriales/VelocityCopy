@@ -17,6 +17,8 @@ public:
     bool malformed{};
     bool ansi{};
     bool truncated{};
+    bool clipboard_effect{};
+    DWORD preferred_effect{DROPEFFECT_COPY};
     unsigned sets{};
     IFACEMETHODIMP QueryInterface(REFIID id, void** out) override {
         if (!out) return E_POINTER; *out = nullptr;
@@ -29,7 +31,19 @@ public:
         if (!f || !out) return E_POINTER;
         *out = {};
         const bool drop = f->cfFormat == CF_HDROP;
-        if (!drop) return DV_E_FORMATETC;
+        const bool effect = clipboard_effect && f->cfFormat == RegisterClipboardFormatW(CFSTR_PREFERREDDROPEFFECT);
+        if (!drop && !effect) return DV_E_FORMATETC;
+        if (effect) {
+            HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE, sizeof(DWORD));
+            if (!memory) return E_OUTOFMEMORY;
+            void* bytes = GlobalLock(memory);
+            if (!bytes) { GlobalFree(memory); return E_OUTOFMEMORY; }
+            std::memcpy(bytes, &preferred_effect, sizeof(DWORD));
+            GlobalUnlock(memory);
+            out->tymed = TYMED_HGLOBAL;
+            out->hGlobal = memory;
+            return S_OK;
+        }
         const wchar_t paths[] = L"C:\\Source\\a.txt\0C:\\Source\\Folder\0";
         const char narrow[] = "C:\\Source\\a.txt\0C:\\Source\\Folder\0";
         SIZE_T bytes = sizeof(DROPFILES) + (ansi ? sizeof(narrow) : sizeof(paths)) - (truncated ? (ansi ? 2 : 2 * sizeof(wchar_t)) : 0);
@@ -123,6 +137,38 @@ bool run(GetClass get, CanUnload unload) {
             while (GetMenuItemCount(menu) > 0) DeleteMenu(menu, 0, MF_BYPOSITION);
         }
     }
+    // Clipboard context-menu path: Ctrl+C and Ctrl+X must reach IPC as
+    // Copy and Move respectively, without changing or clearing the clipboard.
+    data->clipboard_effect = true;
+    for (DWORD effect : {DROPEFFECT_COPY, DROPEFFECT_MOVE}) {
+        data->preferred_effect = effect;
+        ok &= check(SUCCEEDED(OleSetClipboard(data)), "set clipboard");
+        ok &= check(SUCCEEDED(init->Initialize(target, nullptr, nullptr)), "clipboard background Initialize");
+        HRESULT offered = context->QueryContextMenu(menu, 0, 100, 100, 0);
+        ok &= check(SUCCEEDED(offered) && HRESULT_CODE(offered) == 1, "single paste command");
+        char verb[40]{};
+        ok &= check(SUCCEEDED(context->GetCommandString(0, GCS_VERBA, nullptr, verb, 40)) &&
+            std::strcmp(verb, "velocitycopy.paste") == 0, "paste verb");
+        velocitycopy::ShellIpcServer server;
+        if (!server.valid()) return false;
+        std::optional<velocitycopy::ShellRequest> received;
+        std::jthread receiver([&] { received = server.receive(); });
+        CMINVOKECOMMANDINFO info{};
+        info.cbSize = sizeof(info);
+        info.lpVerb = MAKEINTRESOURCEA(0);
+        HRESULT result = context->InvokeCommand(&info);
+        if (FAILED(result)) server.stop();
+        receiver.join();
+        ok &= check(SUCCEEDED(result) && received &&
+            received->sources.size() == 2 && received->destination == path &&
+            received->operation == (effect == DROPEFFECT_MOVE ?
+                velocitycopy::FileOperation::Move : velocitycopy::FileOperation::Copy),
+            "clipboard paste COM to IPC operation");
+        ok &= check(data->sets == 0, "clipboard not marked completed prematurely");
+        while (GetMenuItemCount(menu) > 0) DeleteMenu(menu, 0, MF_BYPOSITION);
+    }
+    ok &= check(SUCCEEDED(OleSetClipboard(nullptr)), "clear test clipboard");
+    data->clipboard_effect = false;
     ok &= check(SUCCEEDED(init->Initialize(target, data, nullptr)), "reset");
     ok &= check(HRESULT_CODE(context->QueryContextMenu(menu, 0, 100, 100, 0)) == 0, "insufficient IDs");
     ok &= check(HRESULT_CODE(context->QueryContextMenu(menu, 0, 100, 101, CMF_DEFAULTONLY)) == 0, "default only");
