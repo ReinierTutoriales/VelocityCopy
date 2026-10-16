@@ -57,7 +57,7 @@ void center_owned_window(HWND owner, HWND dialog) noexcept {
 void fit_dialog_to_content(
     Window const& dialog,
     Grid const& root,
-    FrameworkElement const& actions,
+    StackPanel const& actions,
     Thickness const& content_padding,
     HWND owner) noexcept {
     try {
@@ -85,11 +85,28 @@ void fit_dialog_to_content(
         }
 
         constexpr float unbounded = std::numeric_limits<float>::infinity();
+        actions.Orientation(Orientation::Horizontal);
+        actions.HorizontalAlignment(HorizontalAlignment::Right);
+        for (auto const& child : actions.Children()) {
+            auto button = child.as<Button>();
+            button.MaxWidth(std::numeric_limits<double>::infinity());
+            button.HorizontalAlignment(HorizontalAlignment::Stretch);
+        }
         actions.Measure(Windows::Foundation::Size{unbounded, unbounded});
+        const double action_width = actions.DesiredSize().Width;
         double width_epx = (std::max)(
             static_cast<double>(token_int(L"DecisionWindowWidth", 440)),
             actions.DesiredSize().Width + content_padding.Left + content_padding.Right);
         width_epx = (std::min)(width_epx, max_width_epx);
+        const double available_width = (std::max)(1.0,
+            width_epx - content_padding.Left - content_padding.Right);
+        if (action_width > available_width) {
+            actions.Orientation(Orientation::Vertical);
+            actions.HorizontalAlignment(HorizontalAlignment::Stretch);
+            for (auto const& child : actions.Children()) {
+                child.as<Button>().MaxWidth(available_width);
+            }
+        }
 
         root.Measure(Windows::Foundation::Size{static_cast<float>(width_epx), unbounded});
         const double height_epx = (std::min)(
@@ -177,6 +194,34 @@ Windows::Foundation::IAsyncOperation<std::uint32_t> show_decision_async(Decision
     message.TextWrapping(TextWrapping::Wrap);
     content.Children().Append(message);
 
+    for (auto const& file : options.comparison) {
+        if (file.path.empty()) continue;
+        StackPanel information;
+        information.Spacing(token_double(L"SpaceTight", 4));
+        TextBlock label;
+        label.Text(file.label);
+        label.FontWeight(Windows::UI::Text::FontWeights::SemiBold());
+        label.FontSize(token_double(L"BodyFontSize", 14));
+        label.TextWrapping(TextWrapping::Wrap);
+        information.Children().Append(label);
+        TextBlock path;
+        path.Text(file.path);
+        path.TextWrapping(TextWrapping::Wrap);
+        path.IsTextSelectionEnabled(true);
+        path.FontSize(token_double(L"CaptionFontSize", 12));
+        information.Children().Append(path);
+        TextBlock metadata;
+        metadata.Text(file.metadata);
+        metadata.TextWrapping(TextWrapping::Wrap);
+        metadata.FontSize(token_double(L"CaptionFontSize", 12));
+        apply_text_style(metadata, L"SecondaryTextStyle");
+        information.Children().Append(metadata);
+        Border card;
+        card.Style(Application::Current().Resources().Lookup(box_value(L"DecisionComparisonCardStyle")).as<Style>());
+        card.Child(information);
+        content.Children().Append(card);
+    }
+
     if (!options.detail.empty()) {
         TextBlock detail;
         detail.Text(hstring(options.detail));
@@ -234,6 +279,14 @@ Windows::Foundation::IAsyncOperation<std::uint32_t> show_decision_async(Decision
     actions.Children().Append(secondary);
     if (tertiary) actions.Children().Append(tertiary);
     if (options.include_cancel) actions.Children().Append(cancel);
+    // Explicit text content wraps even a single long localized action at large text sizes.
+    for (auto const& child : actions.Children()) {
+        auto button = child.as<Button>();
+        TextBlock label;
+        label.Text(unbox_value<hstring>(button.Content()));
+        label.TextWrapping(TextWrapping::Wrap);
+        button.Content(label);
+    }
     content.Children().Append(actions);
 
     ScrollViewer content_viewport;
@@ -256,13 +309,16 @@ Windows::Foundation::IAsyncOperation<std::uint32_t> show_decision_async(Decision
     // Loaded is the first point where WinUI templates/theme resources have been applied
     // and the dialog's own XamlRoot (monitor scale) is known. Resize again there so
     // Button/CheckBox desired sizes cannot be clipped.
-    root.Loaded([primary, root, dialog, actions, content_padding, owner = options.owner](auto const&, auto const&) {
+    // Coroutine locals outlive the subscription; revoke before closing or unwinding.
+    // Capturing by reference avoids root -> handler -> root/dialog ownership cycles.
+    auto loaded = root.Loaded(auto_revoke, [&primary, &root, &dialog, &actions, &secondary, focus_secondary = options.focus_secondary, content_padding, owner = options.owner](auto const&, auto const&) {
         fit_dialog_to_content(dialog, root, actions, content_padding, owner);
-        (void)primary.Focus(FocusState::Programmatic);
+        if (focus_secondary) (void)secondary.Focus(FocusState::Programmatic);
+        else (void)primary.Focus(FocusState::Programmatic);
     });
 
     dialog.Content(root);
-    try { dialog.SystemBackdrop(MicaBackdrop{}); } catch (...) {}
+    apply_window_material(dialog);
     dialog.ExtendsContentIntoTitleBar(true);
     dialog.SetTitleBar(title_bar);
 
@@ -301,6 +357,7 @@ Windows::Foundation::IAsyncOperation<std::uint32_t> show_decision_async(Decision
 
     co_await resume_on_signal(state->event.get());
     co_await ui_context;
+    loaded.revoke();
     try { dialog.Close(); } catch (...) {}
     co_return state->result.load();
 }

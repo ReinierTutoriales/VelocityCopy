@@ -72,6 +72,14 @@ int main() {
         !contains(engine, "COPYFILE2_CALLBACK_POLL_CONTINUE")) {
         return fail(7, "interactive CopyFile2 path must keep bounded I/O cycles and heartbeat callbacks");
     }
+    if (!contains(engine, "DuplicateHandle(GetCurrentProcess(), destination") ||
+        !contains(engine, "SetFileInformationByHandle(destination_handle, FileBasicInfo") ||
+        !contains(engine, "result = callback_context.apply_metadata()") ||
+        !contains(engine, "FAILED(callback_context.metadata_error)") ||
+        !contains(engine, "~CallbackContext() { reset_metadata(); }") ||
+        !contains(executor, "options.preserve_basic_metadata,")) {
+        return fail(11, "basic metadata must target the copied handle, retain native failures and close the handle on all exits");
+    }
 
     if (!contains(planner, "IsReparseTagNameSurrogate") ||
         contains(planner, "std::filesystem::is_symlink")) {

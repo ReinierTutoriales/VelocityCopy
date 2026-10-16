@@ -1,5 +1,6 @@
 #include "drop_handler.hpp"
 #include "resource.h"
+#include "shell_data.hpp"
 #include "velocitycopy/ipc_transport.hpp"
 #include "velocitycopy/process_activation.hpp"
 #include "velocitycopy/ipc_protocol.hpp"
@@ -17,106 +18,20 @@ namespace {
 std::atomic<long> objects{0};
 HINSTANCE module{};
 
-struct Medium {
-    STGMEDIUM value{};
-    ~Medium() { if (value.tymed != TYMED_NULL) ReleaseStgMedium(&value); }
-};
-struct GlobalView {
-    HGLOBAL handle;
-    const void* data;
-    explicit GlobalView(HGLOBAL h) : handle(h), data(GlobalLock(h)) {}
-    ~GlobalView() { if (data) GlobalUnlock(handle); }
-};
-
-// Parse the bounded HGLOBAL, not arbitrary null-terminated memory supplied by a
-// third-party data object. Snapshot paths; never retain the IDataObject in IPC.
-HRESULT read_sources(IDataObject* data, std::vector<std::filesystem::path>& paths) {
-    FORMATETC format{CF_HDROP, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL};
-    Medium medium;
-    HRESULT hr = data->GetData(&format, &medium.value);
-    if (FAILED(hr)) return hr;
-    if (medium.value.tymed != TYMED_HGLOBAL || !medium.value.hGlobal) return DV_E_TYMED;
-    const SIZE_T bytes = GlobalSize(medium.value.hGlobal);
-    if (bytes < sizeof(DROPFILES) || bytes > velocitycopy::kMaxShellMessageBytes) return E_INVALIDARG;
-    GlobalView view(medium.value.hGlobal);
-    if (!view.data) return E_OUTOFMEMORY;
-    DROPFILES header{};
-    std::memcpy(&header, view.data, sizeof(header));
-    const size_t unit = header.fWide ? sizeof(wchar_t) : sizeof(char);
-    if (header.pFiles < sizeof(header) || header.pFiles > bytes - unit * 2 ||
-        (header.fWide && header.pFiles % sizeof(wchar_t))) return E_INVALIDARG;
-    const auto* raw = static_cast<const unsigned char*>(view.data);
-    size_t pos = header.pFiles;
-    auto character = [&](size_t offset) {
-        wchar_t value{};
-        std::memcpy(&value, raw + offset, unit);
-        return value;
-    };
-    while (pos + unit <= bytes && character(pos) != 0) {
-        const size_t start = pos;
-        while (pos + unit <= bytes && character(pos) != 0) pos += unit;
-        if (pos + unit > bytes || (pos - start) / unit > velocitycopy::kMaxShellPathChars ||
-            paths.size() >= velocitycopy::kMaxShellSources) return E_INVALIDARG;
-        std::wstring path;
-        if (header.fWide) {
-            path.resize((pos - start) / unit);
-            std::memcpy(path.data(), raw + start, pos - start);
-        } else {
-            const auto* ansi = reinterpret_cast<const char*>(raw + start);
-            const int length = static_cast<int>(pos - start);
-            const int wide = MultiByteToWideChar(CP_ACP, 0, ansi, length, nullptr, 0);
-            if (wide <= 0) return E_INVALIDARG;
-            path.resize(wide);
-            if (!MultiByteToWideChar(CP_ACP, 0, ansi, length, path.data(), wide)) return E_INVALIDARG;
-        }
-        std::filesystem::path source(std::move(path));
-        if (!source.is_absolute()) return E_INVALIDARG;
-        paths.push_back(std::move(source));
-        pos += unit;
-    }
-    // The loop consumes each pathname's NUL. At this point pos refers to
-    // the *final* list NUL, so only one more character is required.
-    // The bounded read rejects a missing final terminator.
-    return !paths.empty() && pos <= bytes && bytes - pos >= unit &&
-                   character(pos) == 0
-               ? S_OK : E_INVALIDARG;
-}
-
-HRESULT clipboard_sources_from_data(IDataObject* object, velocitycopy::ShellRequest& request) {
-    if (!object) return E_POINTER;
-    HRESULT hr = S_OK;
-    request.sources.clear();
-    hr = read_sources(object, request.sources);
-    if (FAILED(hr)) return hr;
-    request.operation = velocitycopy::FileOperation::Copy;
-    const UINT id = RegisterClipboardFormatW(CFSTR_PREFERREDDROPEFFECT);
-    if (!id) return HRESULT_FROM_WIN32(GetLastError());
-    FORMATETC fmt{static_cast<CLIPFORMAT>(id), nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL};
-    Medium medium;
-    hr = object->GetData(&fmt, &medium.value);
-    if (hr == DV_E_FORMATETC) return S_OK;
-    if (FAILED(hr)) return hr;
-    if (medium.value.tymed != TYMED_HGLOBAL || !medium.value.hGlobal ||
-        GlobalSize(medium.value.hGlobal) < sizeof(DWORD)) return E_INVALIDARG;
-    GlobalView view(medium.value.hGlobal);
-    if (!view.data) return E_OUTOFMEMORY;
-    DWORD effect{};
-    std::memcpy(&effect, view.data, sizeof(effect));
-    if (effect & DROPEFFECT_MOVE) request.operation = velocitycopy::FileOperation::Move;
-    else if (!(effect & DROPEFFECT_COPY)) return E_INVALIDARG;
-    return S_OK;
-}
-
 HRESULT clipboard_sources(velocitycopy::ShellRequest& request) {
     IDataObject* object = nullptr;
     HRESULT hr = OleGetClipboard(&object);
     if (FAILED(hr)) return hr;
     struct Owner { IDataObject* p; ~Owner() { if (p) p->Release(); } } owner{object};
-    return clipboard_sources_from_data(object, request);
+    return velocitycopy::shell::clipboard_sources_from_data(object, request);
 }
 
 bool dispatch(const velocitycopy::ShellRequest& request) noexcept {
-    if (velocitycopy::send_shell_request(request, 25)) return true;
+    const auto delivery = velocitycopy::send_shell_request(request, 25);
+    if (delivery) return true;
+    // The resident app may already own this transfer. Launching again could
+    // duplicate a Copy or race source deletion during Move.
+    if (delivery.delivery_ambiguous) return false;
     try {
         std::array<wchar_t, 32768> path{};
         DWORD length = GetModuleFileNameW(module, path.data(), static_cast<DWORD>(path.size()));
@@ -124,13 +39,6 @@ bool dispatch(const velocitycopy::ShellRequest& request) noexcept {
         const auto exe = std::filesystem::path(path.data()).parent_path() / L"VelocityCopy.WinUI.exe";
         return velocitycopy::launch_velocitycopy_with_request(exe, request);
     } catch (...) { return false; }
-}
-
-// Testable pure IDataObject decoding; clipboard access remains on-demand.
-extern "C" HRESULT WINAPI VelocityCopyDecodeClipboardForTest(
-    IDataObject* object, velocitycopy::ShellRequest* request) {
-    if (!request) return E_POINTER;
-    return clipboard_sources_from_data(object, *request);
 }
 
 class DropHandler final : public IShellExtInit, public IContextMenu {
@@ -170,7 +78,7 @@ public:
                 ready_ = true;
                 return S_OK;
             }
-            HRESULT hr = read_sources(data, request_.sources);
+            HRESULT hr = velocitycopy::shell::read_sources(data, request_.sources);
             if (FAILED(hr)) { request_ = {}; return hr; }
             ready_ = velocitycopy::shell_request_valid(request_);
             return ready_ ? S_OK : E_INVALIDARG;
@@ -219,11 +127,11 @@ public:
         else if (info->cbSize >= sizeof(CMINVOKECOMMANDINFOEX) && (info->fMask & 0x00004000u)) {
             auto* ex = reinterpret_cast<const CMINVOKECOMMANDINFOEX*>(info);
             if (ex->lpVerbW && HIWORD(reinterpret_cast<ULONG_PTR>(ex->lpVerbW))) {
-                if (!lstrcmpiW(ex->lpVerbW, L"velocitycopy.copy") || (clipboard_mode_ && !lstrcmpiW(ex->lpVerbW, L"velocitycopy.paste"))) command = 0;
+                if (!lstrcmpiW(ex->lpVerbW, clipboard_mode_ ? L"velocitycopy.paste" : L"velocitycopy.copy")) command = 0;
                 else if (!lstrcmpiW(ex->lpVerbW, L"velocitycopy.move")) command = 1;
             }
         } else {
-            if (!lstrcmpiA(info->lpVerb, "velocitycopy.copy") || (clipboard_mode_ && !lstrcmpiA(info->lpVerb, "velocitycopy.paste"))) command = 0;
+            if (!lstrcmpiA(info->lpVerb, clipboard_mode_ ? "velocitycopy.paste" : "velocitycopy.copy")) command = 0;
             else if (!lstrcmpiA(info->lpVerb, "velocitycopy.move")) command = 1;
         }
         if (command > (clipboard_mode_ ? 0u : 1u)) return E_INVALIDARG;

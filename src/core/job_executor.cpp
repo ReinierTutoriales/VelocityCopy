@@ -6,6 +6,7 @@
 #include <windows.h>
 
 #include <algorithm>
+#include <array>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -253,6 +254,7 @@ JobExecutionOptions recommend_for_roots(
     const std::vector<std::filesystem::path>& source_roots,
     const std::filesystem::path& destination_root,
     const WorkloadProfile& workload) noexcept {
+    try {
     JobExecutionOptions options{};
     if (source_roots.empty() || destination_root.empty() || workload.file_count == 0) {
         return options;
@@ -265,9 +267,34 @@ JobExecutionOptions recommend_for_roots(
     bool first_recommendation = true;
     bool source_destination_share_disk = false;
     bool disks_proven_distinct = true;
+    std::vector<StorageProfile> source_profiles;
+    std::array<wchar_t, 32768> volume_root{};
 
     for (const auto& source_path : source_roots) {
-        const auto source = profiler.inspect(source_path);
+        const StorageProfile* selected = nullptr;
+        const bool root_known = GetVolumePathNameW(source_path.c_str(), volume_root.data(),
+            static_cast<DWORD>(volume_root.size())) != FALSE;
+        const auto same_root = [&](const StorageProfile& profile) {
+            return root_known && !profile.volume_root.empty() &&
+                CompareStringOrdinal(profile.volume_root.c_str(), -1,
+                    volume_root.data(), -1, TRUE) == CSTR_EQUAL;
+        };
+        if (same_root(destination)) selected = &destination;
+        else {
+            const auto found = std::find_if(source_profiles.begin(), source_profiles.end(), same_root);
+            if (found != source_profiles.end()) selected = &*found;
+        }
+        StorageProfile uncached;
+        if (selected == nullptr) {
+            uncached = profiler.inspect(source_path);
+            if (same_root(uncached)) {
+                source_profiles.push_back(std::move(uncached));
+                selected = &source_profiles.back();
+            } else selected = &uncached;
+        }
+        // Reuse volume/device facts for loose files on the same volume, but
+        // resolve each path's actual mount point before selecting a profile.
+        const auto& source = *selected;
         const auto recommendation = selector.choose(source, destination, workload);
         worker_count = std::min(worker_count, recommendation.suggested_queue_depth);
 
@@ -299,6 +326,10 @@ JobExecutionOptions recommend_for_roots(
     options.copy_flags = shared_copy_flags;
     options.suggested_buffer_bytes = shared_buffer_bytes;
     return options;
+    } catch (...) {
+        // Profiling is advisory; cache allocation failure stays serial/buffered.
+        return {};
+    }
 }
 
 } // namespace
@@ -372,12 +403,16 @@ JobExecutionOptions JobExecutor::recommend_options(
 }
 
 JobExecutionOptions JobExecutor::recommend_options(const LiveCopyPlan& plan) const noexcept {
+    try {
     return recommend_for_roots(
         storage_profiler_,
         strategy_selector_,
         plan.source_roots(),
         plan.destination_root(),
         workload_from_live_plan(plan));
+    } catch (...) {
+        return {};
+    }
 }
 
 JobResult JobExecutor::execute(
@@ -654,6 +689,7 @@ JobResult JobExecutor::execute(
                                     options.copy_flags,
                                     options.suggested_buffer_bytes,
                                     &destination_lease,
+                                    options.preserve_basic_metadata,
                                 },
                                 [&](const CopyProgress& file_progress) {
                                     plan.record_attempt_bytes(file_id, file_progress.transferred_bytes);

@@ -3,6 +3,7 @@
 #include <windows.h>
 #include <cstdint>
 #include <string>
+#include <array>
 
 #include <winrt/Windows.Foundation.h>
 
@@ -10,6 +11,12 @@ namespace velocitycopy::ui {
 
 enum class DecisionChoice : std::uint32_t { Cancel = 0, Primary = 1, Secondary = 2, Tertiary = 3 };
 enum class DecisionTone : std::uint8_t { Neutral = 0, Warning = 1, Error = 2 };
+
+struct DecisionFileDetail {
+    std::wstring label;
+    std::wstring path;
+    std::wstring metadata;
+};
 
 struct DecisionOptions {
     HWND owner{};
@@ -24,6 +31,8 @@ struct DecisionOptions {
     DecisionTone tone{DecisionTone::Neutral};
     // Optional third action shown between Secondary and Cancel.
     std::wstring tertiary_label;
+    std::array<DecisionFileDetail, 2> comparison{};
+    bool focus_secondary{};
 };
 
 struct DecisionResult {

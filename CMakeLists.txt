@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.28)
 
-project(VelocityCopy VERSION 1.2.3 LANGUAGES CXX)
+project(VelocityCopy VERSION 1.3.0 LANGUAGES CXX)
 
 if(NOT WIN32)
     message(FATAL_ERROR "VelocityCopy currently targets Windows only.")
@@ -31,6 +31,7 @@ add_library(velocitycopy_core STATIC
     src/core/elevation.cpp
     src/core/efficiency_coordinator.cpp
     src/core/execution_control.cpp
+    src/core/explorer_paste.cpp
     src/core/ipc_protocol.cpp
     src/core/ipc_transport.cpp
     src/core/job_executor.cpp
@@ -47,11 +48,12 @@ add_library(velocitycopy_core STATIC
     src/core/transfer_router.cpp
     src/core/strategy_selector.cpp
     src/core/ui_snapshot.cpp
+    src/shell/shell_data.cpp
 )
 
 target_include_directories(velocitycopy_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/core/include)
 target_compile_definitions(velocitycopy_core PUBLIC UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0A00 WINVER=0x0A00)
-target_link_libraries(velocitycopy_core PUBLIC shell32 advapi32 ole32 bcrypt user32)
+target_link_libraries(velocitycopy_core PUBLIC shell32 advapi32 ole32 oleaut32 uuid bcrypt user32)
 
 if(MSVC)
     target_compile_options(velocitycopy_core PRIVATE /W4 /permissive- /EHsc /utf-8)
@@ -106,6 +108,7 @@ add_velocitycopy_test(VelocityCopyDiagnosticsTest tests/diagnostics_test.cpp vel
 add_velocitycopy_test(VelocityCopySmokeTest tests/smoke_test.cpp velocitycopy_smoke)
 add_velocitycopy_test(VelocityCopyLivePlanTest tests/live_copy_plan_test.cpp velocitycopy_live_plan)
 add_velocitycopy_test(VelocityCopyLivePlanStructureTest tests/live_plan_structure_test.cpp velocitycopy_live_plan_structure)
+add_velocitycopy_test(VelocityCopyLivePlanConcurrencyTest tests/live_plan_concurrency_test.cpp velocitycopy_live_plan_concurrency)
 add_velocitycopy_test(VelocityCopyLivePlanSnapshotContractTest tests/live_plan_snapshot_contract_test.cpp velocitycopy_live_plan_snapshot_contract)
 add_velocitycopy_test(VelocityCopyParallelExecutorTest tests/job_executor_parallel_test.cpp velocitycopy_parallel_executor)
 add_velocitycopy_test(VelocityCopyExecutorAppendTest tests/job_executor_append_test.cpp velocitycopy_executor_append)
@@ -146,11 +149,13 @@ add_velocitycopy_test(VelocityCopyStorageTopologyTest tests/storage_topology_tes
 add_velocitycopy_test(VelocityCopyTransferRouterTest tests/transfer_router_test.cpp velocitycopy_transfer_router)
 add_velocitycopy_test(VelocityCopyShellRequestTest tests/shell_request_test.cpp velocitycopy_shell_request)
 add_velocitycopy_test(VelocityCopyIpcTest tests/ipc_test.cpp velocitycopy_ipc)
+add_velocitycopy_test(VelocityCopyExplorerPasteTest tests/explorer_paste_test.cpp velocitycopy_explorer_paste)
 add_velocitycopy_test(VelocityCopyShellSessionTest tests/shell_session_test.cpp velocitycopy_shell_session)
 add_velocitycopy_test(VelocityCopyActivationTest tests/activation_test.cpp velocitycopy_activation)
 add_velocitycopy_test(VelocityCopyUiSnapshotTest tests/ui_snapshot_test.cpp velocitycopy_ui_snapshot)
 add_velocitycopy_test(VelocityCopyCallbackBoundaryTest tests/copy_engine_callback_test.cpp velocitycopy_callback_boundary)
 add_velocitycopy_test(VelocityCopyPauseResumeTest tests/copy_engine_pause_resume_test.cpp velocitycopy_pause_resume)
+add_velocitycopy_test(VelocityCopyMetadataTest tests/copy_metadata_test.cpp velocitycopy_metadata)
 add_velocitycopy_test(VelocityCopyPlanExecuteTest tests/copy_plan_execute_test.cpp velocitycopy_copy_plan_execute)
 add_velocitycopy_test(VelocityCopyPlannerSafetyTest tests/planner_safety_test.cpp velocitycopy_planner_safety)
 add_velocitycopy_test(VelocityCopyAppendArchitectureTest tests/copy_append_architecture_test.cpp velocitycopy_append_architecture)

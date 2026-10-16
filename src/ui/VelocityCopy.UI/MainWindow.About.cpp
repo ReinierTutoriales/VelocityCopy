@@ -130,7 +130,6 @@ void MainWindow::ShowAboutDialog() noexcept {
 
         StackPanel root;
         root.Spacing(0);
-        try { root.RequestedTheme(RootGrid().ActualTheme()); } catch (...) {}
 
         Border title_bar;
         title_bar.Height(velocitycopy::ui::token_double(L"AboutTitleBarHeight", 32));
@@ -161,49 +160,40 @@ void MainWindow::ShowAboutDialog() noexcept {
 
         StackPanel panel;
         panel.Spacing(0);
-        panel.Padding(velocitycopy::ui::token_thickness(L"AboutPanelPadding", Thickness{24, 20, 24, 24}));
+        panel.Padding(velocitycopy::ui::token_thickness(L"DecisionContentPadding", Thickness{24, 20, 24, 20}));
 
-        Border accent;
-        accent.Width(velocitycopy::ui::token_double(L"AboutAccentWidth", 48));
-        accent.Height(velocitycopy::ui::token_double(L"AboutAccentHeight", 4));
-        accent.HorizontalAlignment(HorizontalAlignment::Left);
-        accent.CornerRadius(CornerRadius{velocitycopy::ui::token_double(L"AboutAccentRadius", 2)});
-        accent.Margin(velocitycopy::ui::token_thickness(L"AboutAccentMargin", Thickness{0, 0, 0, 16}));
-        try {
-            accent.Background(
-                Application::Current().Resources()
-                    .Lookup(box_value(L"AccentFillColorDefaultBrush"))
-                    .as<Brush>());
-        } catch (...) {
-        }
-        panel.Children().Append(accent);
-
-        StackPanel header;
-        header.Orientation(Orientation::Horizontal);
-        header.Spacing(velocitycopy::ui::token_double(L"AboutHeaderSpacing", 12));
+        Grid header;
+        ColumnDefinition logo_column;
+        logo_column.Width(GridLength{0.0, GridUnitType::Auto});
+        header.ColumnDefinitions().Append(logo_column);
+        ColumnDefinition identity_column;
+        identity_column.Width(GridLength{1.0, GridUnitType::Star});
+        header.ColumnDefinitions().Append(identity_column);
+        header.ColumnSpacing(velocitycopy::ui::token_double(L"AboutHeaderSpacing", 12));
         header.Margin(velocitycopy::ui::token_thickness(L"AboutHeaderMargin", Thickness{0, 0, 0, 16}));
 
         Image logo;
         logo.Width(velocitycopy::ui::token_double(L"AboutHeroLogoSize", 44));
         logo.Height(velocitycopy::ui::token_double(L"AboutHeroLogoSize", 44));
         logo.Stretch(Stretch::Uniform);
-        BitmapImage logo_source;
-        logo_source.UriSource(Uri{L"ms-appx:///Assets/VelocityCopy.png"});
-        logo.Source(logo_source);
+        logo.Source(title_logo_source);
         header.Children().Append(logo);
 
         StackPanel identity;
+        Grid::SetColumn(identity, 1);
         identity.VerticalAlignment(VerticalAlignment::Center);
         identity.Spacing(velocitycopy::ui::token_double(L"AboutIdentitySpacing", 4));
 
         TextBlock product;
         product.Text(title);
+        product.TextWrapping(TextWrapping::Wrap);
         product.FontSize(velocitycopy::ui::token_double(L"SubtitleFontSize", 20));
         product.FontWeight(Windows::UI::Text::FontWeights::SemiBold());
         identity.Children().Append(product);
 
         TextBlock version_text;
         version_text.Text(replace_version_token(std::wstring(version_format.c_str()), version));
+        version_text.TextWrapping(TextWrapping::Wrap);
         version_text.FontSize(velocitycopy::ui::token_double(L"CaptionFontSize", 12));
         velocitycopy::ui::apply_text_style(version_text, L"SecondaryTextStyle");
         identity.Children().Append(version_text);
@@ -223,19 +213,30 @@ void MainWindow::ShowAboutDialog() noexcept {
         metadata.Text(hstring(
             std::wstring(publisher.c_str()) + L"  •  " + std::wstring(license.c_str())));
         metadata.FontSize(velocitycopy::ui::token_double(L"CaptionFontSize", 12));
+        metadata.TextWrapping(TextWrapping::Wrap);
         velocitycopy::ui::apply_text_style(metadata, L"TertiaryTextStyle");
         metadata.Margin(velocitycopy::ui::token_thickness(L"AboutMetadataMargin", Thickness{0, 0, 0, 8}));
         panel.Children().Append(metadata);
 
         HyperlinkButton repository;
-        repository.Content(box_value(repository_label));
+        TextBlock repository_text;
+        repository_text.Text(repository_label);
+        repository_text.TextWrapping(TextWrapping::Wrap);
+        repository.Content(repository_text);
+        repository.HorizontalContentAlignment(HorizontalAlignment::Stretch);
         repository.NavigateUri(Uri{kRepositoryUrl});
         repository.HorizontalAlignment(HorizontalAlignment::Left);
         repository.FontSize(velocitycopy::ui::token_double(L"BodyFontSize", 14));
         repository.Padding(Thickness{0});
         panel.Children().Append(repository);
 
-        root.Children().Append(panel);
+        ScrollViewer viewport;
+        viewport.HorizontalScrollMode(ScrollMode::Disabled);
+        viewport.HorizontalScrollBarVisibility(ScrollBarVisibility::Disabled);
+        viewport.VerticalScrollMode(ScrollMode::Auto);
+        viewport.VerticalScrollBarVisibility(ScrollBarVisibility::Auto);
+        viewport.Content(panel);
+        root.Children().Append(viewport);
         about.Content(root);
 
         // Size the CLIENT area (AppWindow::Resize includes the frame, which used
@@ -244,18 +245,34 @@ void MainWindow::ShowAboutDialog() noexcept {
         // repository link. Re-run on Loaded, when templates and the window's own
         // monitor scale are known.
         const auto owner_hwnd = hwnd_;
-        auto fit_about = [about, root, owner_hwnd]() noexcept {
+        auto fit_about = [weak_about = make_weak(about), weak_root = make_weak(root),
+                          weak_viewport = make_weak(viewport), owner_hwnd]() noexcept {
             try {
+                const auto about = weak_about.get();
+                const auto root = weak_root.get();
+                const auto viewport = weak_viewport.get();
+                if (!about || !root || !viewport) return;
+                HWND about_hwnd{};
+                if (const auto native = about.try_as<::IWindowNative>()) (void)native->get_WindowHandle(&about_hwnd);
+                const HWND target = about_hwnd ? about_hwnd : owner_hwnd;
                 double scale = 0.0;
                 if (const auto xaml_root = root.XamlRoot()) scale = xaml_root.RasterizationScale();
                 if (!(scale > 0.0)) {
-                    const UINT dpi = owner_hwnd != nullptr ? GetDpiForWindow(owner_hwnd) : 0;
+                    const UINT dpi = target != nullptr ? GetDpiForWindow(target) : 0;
                     scale = static_cast<double>(dpi == 0 ? USER_DEFAULT_SCREEN_DPI : dpi) / USER_DEFAULT_SCREEN_DPI;
                 }
-                const double width = velocitycopy::ui::token_double(L"AboutWindowWidth", 388);
+                double width = velocitycopy::ui::token_double(L"DecisionWindowWidth", 440);
+                double height_cap = std::numeric_limits<double>::infinity();
+                MONITORINFO monitor{sizeof(monitor)};
+                if (GetMonitorInfoW(MonitorFromWindow(target, MONITOR_DEFAULTTONEAREST), &monitor)) {
+                    const double margin = velocitycopy::ui::token_double(L"ExpandedWorkAreaMargin", 16);
+                    width = (std::min)(width, (std::max)(1.0, (monitor.rcWork.right - monitor.rcWork.left) / scale - margin * 2.0));
+                    height_cap = (std::max)(1.0, (monitor.rcWork.bottom - monitor.rcWork.top) / scale - margin * 2.0);
+                    viewport.MaxHeight((std::max)(1.0, height_cap - velocitycopy::ui::token_double(L"AboutTitleBarHeight", 32)));
+                }
                 const double min_height = velocitycopy::ui::token_double(L"AboutWindowHeight", 288);
                 root.Measure(Size{static_cast<float>(width), std::numeric_limits<float>::infinity()});
-                const double height = (std::max)(min_height, static_cast<double>(root.DesiredSize().Height));
+                const double height = (std::min)(height_cap, (std::max)(min_height, static_cast<double>(root.DesiredSize().Height)));
                 about.AppWindow().ResizeClient(Windows::Graphics::SizeInt32{
                     static_cast<std::int32_t>(std::ceil(width * scale)),
                     static_cast<std::int32_t>(std::ceil(height * scale))});
@@ -264,10 +281,7 @@ void MainWindow::ShowAboutDialog() noexcept {
         };
         root.Loaded([fit_about](auto const&, auto const&) { fit_about(); });
 
-        try {
-            about.SystemBackdrop(Microsoft::UI::Xaml::Media::MicaBackdrop{});
-        } catch (...) {
-        }
+        velocitycopy::ui::apply_window_material(about);
 
         // Use the same extended title-bar model as the compact transfer surface. This
         // gives About a real Windows caption close button and a draggable title region
@@ -311,18 +325,10 @@ void MainWindow::ShowAboutDialog() noexcept {
         about_window_ = nullptr;
     }
 
-    // Last-resort fallback only. The normal About experience is now its own themed,
-    // movable WinUI window; this path prevents an auxiliary-surface failure from
-    // affecting active copies.
     try {
-        const auto version = executable_version();
-        const auto message = std::format(
-            L"VelocityCopy {}\nReinierTutoriales · MIT License\n{}",
-            version,
-            kRepositoryUrl);
-        MessageBoxW(nullptr, message.c_str(), L"VelocityCopy", MB_OK | MB_ICONINFORMATION);
-    } catch (...) {
-    }
+        ShowNotice(InfoBarSeverity::Error, resource_or(L"AboutTitle", L"VelocityCopy"),
+            resource_or(L"AboutUnavailable", L"About could not be opened."), false);
+    } catch (...) {}
 }
 
 void MainWindow::OnAboutClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&) {

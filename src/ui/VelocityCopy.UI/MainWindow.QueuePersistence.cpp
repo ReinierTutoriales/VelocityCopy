@@ -115,6 +115,14 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
         load_queue_menu_item_ = MenuFlyoutItem{};
         about_menu_item_ = MenuFlyoutItem{};
         MenuFlyoutItem hide_to_tray_menu_item;
+        ToggleMenuFlyoutItem keep_completed_menu_item;
+        keep_completed_menu_item.Text(velocitycopy::localization::get_string(L"ActionKeepCompletedWindowOpen"));
+        keep_completed_menu_item.IsChecked(keep_completed_window_open_);
+        keep_completed_menu_item.Click([weak](IInspectable const& sender, RoutedEventArgs const&) {
+            if (auto self = weak.get()) {
+                self->keep_completed_window_open_ = sender.as<ToggleMenuFlyoutItem>().IsChecked();
+            }
+        });
 
         try {
             const auto options_label = velocitycopy::localization::get_string(L"ActionQueueOptions");
@@ -147,6 +155,7 @@ void MainWindow::ConfigureQueuePersistenceMenu() {
         menu.Items().Append(MenuFlyoutSeparator{});
         menu.Items().Append(save_queue_menu_item_);
         menu.Items().Append(load_queue_menu_item_);
+        menu.Items().Append(keep_completed_menu_item);
         menu.Items().Append(MenuFlyoutSeparator{});
         menu.Items().Append(about_menu_item_);
         menu.Items().Append(hide_to_tray_menu_item);

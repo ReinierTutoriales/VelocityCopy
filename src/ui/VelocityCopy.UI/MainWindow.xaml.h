@@ -271,7 +271,7 @@ private:
     void FinishCopy(const velocitycopy::JobResult& result);
     void ApplyTransferVisualState(TransferVisualState state) noexcept;
     void ResetTransferSurface();
-    void ShowNotice(Microsoft::UI::Xaml::Controls::InfoBarSeverity severity, hstring const& title, hstring const& message);
+    void ShowNotice(Microsoft::UI::Xaml::Controls::InfoBarSeverity severity, hstring const& title, hstring const& message, bool update_transfer_state = true);
     void ShowError(hstring const& message = {});
     static hstring FormatFailureReason(std::int32_t native_code);
     static hstring FormatSpeed(double bytes_per_second);
@@ -295,6 +295,7 @@ private:
     std::deque<velocitycopy::CopyJob> deferred_same_destination_jobs_;
     // A UAC prompt for the parked work is open; its choices are locked.
     bool elevation_in_flight_{};
+    bool keep_completed_window_open_{};
     std::deque<velocitycopy::CopyJob> deferred_interrupted_jobs_;
     std::deque<QueuedTransfer> queued_sessions_;
     std::shared_ptr<velocitycopy::LiveCopyPlan> live_plan_;

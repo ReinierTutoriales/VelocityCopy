@@ -29,6 +29,7 @@ int main() {
     const std::filesystem::path root{VELOCITYCOPY_SOURCE_DIR};
     const auto app = read_all(root / "src/ui/VelocityCopy.UI/App.xaml.cpp");
     const auto shell = read_all(root / "src/shell/drop_handler.cpp");
+    const auto shell_data = read_all(root / "src/shell/shell_data.cpp");
     const auto ipc = read_all(root / "src/core/ipc_transport.cpp");
     const auto window = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
     const auto window_xaml = read_all(root / "src/ui/VelocityCopy.UI/MainWindow.xaml");
@@ -68,6 +69,11 @@ int main() {
         contains(shell, "SetWindowsHookEx") ||
         contains(shell, "ReadDirectoryChangesW")) {
         return fail(5, "Explorer extension must stay bounded and IPC-only");
+    }
+    const auto shell_dispatch = body_of(shell, "bool dispatch(");
+    if (shell_dispatch.find("delivery.delivery_ambiguous") == std::string::npos ||
+        shell_dispatch.find("delivery.delivery_ambiguous") > shell_dispatch.find("launch_velocitycopy_with_request")) {
+        return fail(19, "an ambiguous shell delivery must not fall back to launching the same transfer");
     }
 
     if (!contains(window, "IsMinimizable(true)") ||
@@ -240,10 +246,10 @@ int main() {
     }
 
     if (!contains(shell, "SHGetPathFromIDListEx") ||
-        !contains(shell, "CF_HDROP") || !contains(shell, "IContextMenu") ||
+        !contains(shell_data, "CF_HDROP") || !contains(shell, "IContextMenu") ||
         contains(shell, "IExplorerCommand") ||
         contains(shell, "SetMenuDefaultItem") ||
-        !contains(shell, "CFSTR_PREFERREDDROPEFFECT") ||
+        !contains(shell_data, "CFSTR_PREFERREDDROPEFFECT") ||
         !contains(shell, "OleGetClipboard") ||
         !contains(shell, "clipboard_sources(request_)") ||
         !contains(installer_exe, "Directory\\Background\\shellex\\ContextMenuHandlers\\VelocityCopy") ||
@@ -259,7 +265,9 @@ int main() {
         return fail(16, "decisions must use top-level surfaces outside the compact XAML root; conflict uses the WinUI decision surface");
     }
 
-    if (!contains(conflict, "conflict.conflict_destination.filename()") ||
+    if (!contains(conflict, "conflict.conflict_destination.wstring()") ||
+        !contains(conflict, "conflict.conflict_source.wstring()") ||
+        !contains(conflict, "RequestDecisionAsync(std::move(options))") ||
         contains(app, "ShowNativeDecisionDialog") || contains(recovery, "ShowNativeDecisionDialog") ||
         contains(app, "NativeDialogChoice") || contains(recovery, "NativeDialogChoice") ||
         !contains(app, "RequestDecisionAsync({") || !contains(recovery, "RequestDecisionAsync({")) {

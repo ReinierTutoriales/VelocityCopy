@@ -12,6 +12,9 @@ StrategyRecommendation StrategySelector::choose(
     const StorageProfile& destination,
     const WorkloadProfile& workload) const noexcept {
     StrategyRecommendation recommendation{};
+    if (destination.filesystem_info_available && destination.sparse_files_supported) {
+        recommendation.copy_flags = COPY_FILE_ENABLE_SPARSE_COPY;
+    }
 
     constexpr std::uint64_t one_gib = 1024ull * 1024ull * 1024ull;
     constexpr std::uint64_t small_file_average = 256ull * 1024ull;
@@ -37,7 +40,7 @@ StrategyRecommendation StrategySelector::choose(
     }
 
     if (network) {
-        recommendation.copy_flags = COPY_FILE_REQUEST_COMPRESSED_TRAFFIC;
+        recommendation.copy_flags = COPY_FILE_REQUEST_COMPRESSED_TRAFFIC | recommendation.copy_flags;
         return recommendation;
     }
 

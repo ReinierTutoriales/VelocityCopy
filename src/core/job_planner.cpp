@@ -1,4 +1,5 @@
 #include "velocitycopy/job_planner.hpp"
+#include "destination_path_guard.hpp"
 #include "velocitycopy/destination_catalog.hpp"
 
 #include <windows.h>
@@ -8,6 +9,7 @@
 #include <cwctype>
 #include <limits>
 #include <stop_token>
+#include <string_view>
 #include <system_error>
 #include <unordered_map>
 #include <unordered_set>
@@ -18,6 +20,15 @@ namespace velocitycopy {
 namespace {
 
 constexpr std::size_t kMaxPlannedEntries = 250'000;
+
+class DirectorySearch final {
+public:
+    HANDLE handle{INVALID_HANDLE_VALUE};
+    ~DirectorySearch() { if (handle != INVALID_HANDLE_VALUE) FindClose(handle); }
+    DirectorySearch() = default;
+    DirectorySearch(const DirectorySearch&) = delete;
+    DirectorySearch& operator=(const DirectorySearch&) = delete;
+};
 
 void ensure_plan_capacity(const CopyPlan& plan, const std::filesystem::path& path) {
     if (plan.directories.size() + plan.files.size() >= kMaxPlannedEntries) {
@@ -378,8 +389,36 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
             auto [directory_source, directory_target] = std::move(pending_directories.back());
             pending_directories.pop_back();
 
-            std::filesystem::directory_iterator it(directory_source, std::filesystem::directory_options::none, ec);
-            if (ec) {
+            // Pin this directory and its ancestors while enumerating, so a
+            // previously inspected directory cannot be replaced by a junction.
+            detail::DestinationPathGuard source_guard;
+            if (!source_guard.lock_existing_chain(directory_source, ec) || !source_guard.missing.empty()) {
+                if (!ec) ec = std::error_code(ERROR_PATH_NOT_FOUND, std::system_category());
+                if (directory_source == source) {
+                    throw std::filesystem::filesystem_error("Unable to enumerate source", source, ec);
+                }
+                record_failure(plan, directory_source, directory_target, ec);
+                ec.clear();
+                continue;
+            }
+
+            // Enumeration supplies size, attributes and the reparse tag in one
+            // query. The engine still checks the opened source before copying.
+            WIN32_FIND_DATAW entry{};
+            DirectorySearch search;
+            search.handle = FindFirstFileExW(
+                (directory_source / L"*").c_str(), FindExInfoBasic, &entry,
+                FindExSearchNameMatch, nullptr, FIND_FIRST_EX_LARGE_FETCH);
+            if (search.handle == INVALID_HANDLE_VALUE &&
+                (GetLastError() == ERROR_NOT_SUPPORTED || GetLastError() == ERROR_INVALID_PARAMETER)) {
+                search.handle = FindFirstFileExW(
+                    (directory_source / L"*").c_str(), FindExInfoBasic, &entry,
+                    FindExSearchNameMatch, nullptr, 0);
+            }
+            if (search.handle == INVALID_HANDLE_VALUE) {
+                const auto error = GetLastError();
+                if (error == ERROR_FILE_NOT_FOUND) continue; // Empty folder.
+                ec = std::error_code(static_cast<int>(error), std::system_category());
                 if (directory_source == source) {
                     throw std::filesystem::filesystem_error("Unable to enumerate source", source, ec);
                 }
@@ -391,71 +430,67 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
             // Subfolders are visited after this folder's files and in
             // enumeration order (pushed reversed onto the LIFO stack).
             std::vector<std::pair<std::filesystem::path, std::filesystem::path>> subdirectories;
-            for (const std::filesystem::directory_iterator end; it != end; it.increment(ec)) {
+            do {
                 throw_if_cancelled(stop_token);
-                if (ec) break;
-
-                const auto& entry = *it;
-                const auto relative = entry.path().lexically_relative(source);
+                const std::wstring_view name{entry.cFileName};
+                if (name == L"." || name == L"..") continue;
+                const auto entry_path = directory_source / name;
+                const auto relative = entry_path.lexically_relative(source);
                 if (!valid_relative_path(relative)) {
                     throw std::filesystem::filesystem_error(
                         "Unable to resolve relative path",
-                        entry.path(),
+                        entry_path,
                         source,
                         std::make_error_code(std::errc::invalid_argument));
                 }
 
                 const auto target = root / relative;
-                const auto entry_status = entry.symlink_status(ec);
-                if (ec) {
-                    record_failure(plan, entry.path(), target, ec);
-                    ec.clear();
+                if ((entry.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0 &&
+                    IsReparseTagNameSurrogate(entry.dwReserved0)) {
+                    record_failure(plan, entry_path, target,
+                        std::error_code(ERROR_CANT_ACCESS_FILE, std::system_category()));
                     continue;
                 }
 
-                try {
-                    validate_source_reparse_semantics(entry.path());
-                } catch (const std::filesystem::filesystem_error& error) {
-                    // Junctions and symbolic links are never traversed (they
-                    // could lead outside the selected tree); report them.
-                    record_failure(plan, entry.path(), target, error.code());
-                    continue;
-                }
-
-                if (std::filesystem::is_directory(entry_status)) {
-                    ensure_plan_capacity(plan, entry.path());
-                    outputs.add_directory(target);
-                    plan.directories.push_back({target, entry.path()});
-                    subdirectories.emplace_back(entry.path(), target);
-                    continue;
-                }
-
-                if (std::filesystem::is_regular_file(entry_status)) {
-                    const auto size = entry.file_size(ec);
-                    if (ec) {
-                        record_failure(plan, entry.path(), target, ec);
-                        ec.clear();
+                if ((entry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0) {
+                    // Recheck directories before admitting traversal; files
+                    // need no per-entry open merely to discover their size.
+                    try {
+                        validate_source_reparse_semantics(entry_path);
+                    } catch (const std::filesystem::filesystem_error& error) {
+                        record_failure(plan, entry_path, target, error.code());
                         continue;
                     }
-                    ensure_plan_capacity(plan, entry.path());
+                    ensure_plan_capacity(plan, entry_path);
+                    outputs.add_directory(target);
+                    plan.directories.push_back({target, entry_path});
+                    subdirectories.emplace_back(entry_path, target);
+                    continue;
+                }
+
+                if ((entry.dwFileAttributes & FILE_ATTRIBUTE_DEVICE) == 0) {
+                    const auto size = (static_cast<std::uint64_t>(entry.nFileSizeHigh) << 32) |
+                        entry.nFileSizeLow;
+                    ensure_plan_capacity(plan, entry_path);
                     outputs.add_file(target);
-                    PlannedFile file{next_file_id++, entry.path(), target, size};
+                    PlannedFile file{next_file_id++, entry_path, target, size};
                     account_file(plan, file);
                     plan.files.push_back(std::move(file));
                     continue;
                 }
 
                 record_failure(
-                    plan, entry.path(), target, std::make_error_code(std::errc::not_supported));
-            }
+                    plan, entry_path, target, std::make_error_code(std::errc::not_supported));
+            } while (FindNextFileW(search.handle, &entry));
+            const auto enumeration_error = GetLastError();
             pending_directories.insert(
                 pending_directories.end(),
                 std::make_move_iterator(subdirectories.rbegin()),
                 std::make_move_iterator(subdirectories.rend()));
-            if (ec) {
+            if (enumeration_error != ERROR_NO_MORE_FILES) {
                 // Enumeration stopped part-way through this folder.
-                record_failure(plan, directory_source, directory_target, ec);
-                ec.clear();
+                record_failure(plan, directory_source, directory_target,
+                    std::error_code(static_cast<int>(enumeration_error), std::system_category()));
             }
         }
     }

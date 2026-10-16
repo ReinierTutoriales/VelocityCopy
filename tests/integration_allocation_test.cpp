@@ -1,4 +1,5 @@
 #include "velocitycopy/job_planning_worker.hpp"
+#include "velocitycopy/job_executor.hpp"
 #include "velocitycopy/process_activation.hpp"
 #include "velocitycopy/storage_profiler.hpp"
 #include "velocitycopy/transfer_router.hpp"
@@ -40,6 +41,16 @@ int main() {
     request.sources = {source};
     request.destination = root / L"destination";
     (void)StorageProfiler{}.inspect(root);
+    CopyPlan advisory_plan{};
+    advisory_plan.source_roots = {source, root, source};
+    advisory_plan.destination_root = root;
+    advisory_plan.files.push_back({1, source, root / L"destination.bin", 4});
+    advisory_plan.total_bytes = 4;
+    advisory_plan.largest_file_bytes = 4;
+    CopyJob advisory_job{};
+    advisory_job.sources = advisory_plan.source_roots;
+    advisory_job.destination = root;
+    LiveCopyPlan advisory_live(advisory_plan);
     (void)launch_velocitycopy_with_request(absent_exe, request);
     std::fprintf(stderr, "Storage/activation allocation sweep\n");
     for (int allocation = 0; allocation < 60; ++allocation) {
@@ -55,6 +66,16 @@ int main() {
         fail_after = -1;
         GetProcessHandleCount(GetCurrentProcess(), &after);
         if (after != before) return 2;
+        fail_after = allocation;
+        const auto advisory = JobExecutor{}.recommend_options(advisory_job, advisory_plan);
+        fail_after = -1;
+        GetProcessHandleCount(GetCurrentProcess(), &after);
+        if (advisory.worker_count != 1 || after != before) return 6;
+        fail_after = allocation;
+        const auto live_advisory = JobExecutor{}.recommend_options(advisory_live);
+        fail_after = -1;
+        GetProcessHandleCount(GetCurrentProcess(), &after);
+        if (live_advisory.worker_count != 1 || after != before) return 7;
         fail_after = allocation;
         const bool launched = launch_velocitycopy_with_request(absent_exe, request);
         fail_after = -1;

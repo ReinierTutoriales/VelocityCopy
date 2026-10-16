@@ -1,5 +1,12 @@
 # UI architecture guardrails
 
+## Shared application surfaces — 2026-10-15
+
+- Main window, decision windows and About use one native DesktopAcrylicBackdrop policy through UiTokens. Theme resources supply card, border and text colors; Windows retains accessibility/transparency fallback. About uses the decision content padding and preferred width, drops its unique decorative accent stripe, reuses one BitmapImage for both logos, and caps a scrolling body to the monitor work area. Its Loaded fitter holds weak references instead of retaining its own root/window. About failures use the existing in-app error notice.
+- App-owned InfoBars share the card background/border/radius. Native severity, icon, text, close/action behavior and resize/attention handling remain. Auxiliary About failure notices explicitly preserve transfer progress/taskbar state. Shell notification-area messages remain Windows-owned, respect quiet time and cannot be given the application's acrylic background. System file pickers, UAC and startup-failure surfaces retain their system presentation.
+- Conflict decisions show separate labeled source/destination cards with selectable full paths and independently available size/write-date metadata. Metadata failures are explicit. The localized consequence text describes replace, skip, keep-both and cancellation without promising rollback. The initial conflict focus is Skip; all existing action/apply-all mappings remain unchanged. Metadata reads run off the UI thread and revalidate session/plan identity after returning.
+- No additional runtime dependency, timer, custom notification window or new transfer semantics. CI source contracts and package gates do not replace physical light/dark/high-contrast, Text Size/DPI, keyboard/UIA and rendered visual acceptance. No measured CPU/memory improvement is claimed.
+
 VelocityCopy keeps its visual layer replaceable and lightweight.
 
 - Core copy logic never depends on WinUI/XAML.
@@ -16,9 +23,35 @@ VelocityCopy keeps its visual layer replaceable and lightweight.
 - Each execution session owns one latest-snapshot mailbox. At most one progress callback is pending in DispatcherQueue; it consumes the newest snapshot and verifies that the originating ExecutionControl is still current. Terminal completions remain separately dispatched. Paused/control/terminal states reject queued progress.
 - UISettings events capture the dispatcher on the UI thread and marshal before resolving the window or touching its text-scale cache/layout. Focus restoration queries the current XamlRoot instead of the deprecated global FocusManager overload.
 - QueueList stores immutable QueueItem data, never prebuilt row UIElements. Typed x:Bind data templates preserve the existing normal/narrow layout and let the bounded native ListView virtualize/recycle visuals. The current 256-item preview bound, fixed row-height budgets, stable-ID selection/reorder and native container styles remain authoritative.
+- Queue row templates share one root Grid per row rather than nesting an icon/name Grid. Active ProgressBar names identify the file and remain stable while native RangeValue conveys changing progress. Do not rewrite accessibility names on every snapshot to encode a second copy of the percentage.
 - RefreshQueue does not enumerate or create queue items while Details is collapsed. Existing lightweight items/selection can remain retained between disclosure toggles; the next expansion refreshes from the authoritative plan.
-- Source/destination tooltips mutate only when their displayed path changes. Inactive live telemetry is cleared in both normal and expanded views.
+- Source/destination tooltips mutate only when their displayed path changes. Inactive live telemetry is cleared in its single persistent summary.
 - Async external drops capture gate/destination/operation before reading StorageItems and revalidate after suspension. A retired/cancelled session cannot redirect a pending drop into its replacement.
+
+## Adaptive decision dialogs — 2026-10-15
+
+- Measure the native horizontal action row after templates load. If it exceeds the available client width after content padding and monitor work-area limits, stack actions vertically and allow each label to wrap. Preserve action order, all four choices, explicit automation names, primary focus and Escape cancellation; do not add a global Enter handler.
+- The Loaded subscription uses a scoped C++/WinRT event revoker and references to coroutine-owned controls. Revoke before closing; stack unwinding also revokes before those controls are destroyed. The root must not own a handler that strongly captures itself or its Window.
+- These changes add no runtime dependencies and do not reduce the packaged Windows App SDK payload. Source architecture checks and CI builds do not establish visual correctness or a measured memory reduction. Long translations, maximum Windows Text Size, small work areas and repeated dialog open/close still require physical Windows acceptance outside the developer's user session.
+- The persistent summary is the sole telemetry presentation in collapsed and expanded states. The former six-field expanded table, current-speed header and SyncExpandedTelemetry function are removed. Details adds only the queue and localized speed history. Source/destination retain selectable full text, full-value tooltips and localized UIA help. Trimmed scalar values expose full text through native self-bindings on their tooltips, with no separate C++ synchronization. Bytes/percentage gain typographic emphasis through existing tokens; control hit areas and measured width reservations remain.
+- Deferred subtree creation remains follow-up work. Simply adding x:Load=false and relying on FindName is insufficient for the current Window-root namescope.
+- The attempted Window-root x:Load binding was rejected by Package x64/ARM64 compilation: generated MainWindow.xaml.g.hpp calls FindName on the projected MainWindow, which has no such member (C2039). The experiment and its CI-only probe were withdrawn together; do not expose a fake/public FindName workaround or describe deferral as shipped. A separately scoped native UserControl is a candidate for a future change, with first-open/reopen runtime coverage before acceptance. See upstream [Window namescope limitation](https://github.com/microsoft/microsoft-ui-xaml/issues/9842) and [C++/WinRT x:Load generation issue](https://github.com/microsoft/microsoft-ui-xaml/issues/7579).
+
+References: [C++/WinRT event revocation](https://learn.microsoft.com/en-us/windows/apps/develop/cpp-winrt/handle-events), [x:Load restrictions](https://learn.microsoft.com/en-us/windows/apps/develop/platform/xaml/x-load-attribute).
+
+## Remaining presentation and resource assessment
+
+The source review supports retaining native WinUI and the existing compact/expanded layouts, not calling the UI finished. No physical visual acceptance or process-resource benchmark has been performed for these changes.
+
+| Area | Concrete remaining work | Acceptance evidence |
+| --- | --- | --- |
+| Information hierarchy | Single-summary consolidation is implemented; native queue operations and bounded history remain. | Source contracts enforce unique telemetry and retained paths; rendered normal/narrow layouts, English/Spanish, DPI/Text Size and keyboard/UIA acceptance remain pending. |
+| Conflict decisions | Clearly distinguish the affected source/destination and the consequence of each existing choice. Preserve retry/recovery semantics. | Real collision/error scenarios; no global Enter shortcut for destructive choices. |
+| Startup and memory | Separate the expanded subtree into a native namescope suitable for deferred creation. Preserve controls after first disclosure. | Same-machine cold/warm startup, private bytes/working set before disclosure, first-open latency and reopen state. |
+| Transfer-time UI cost | Keep the current coalesced progress mailbox, bounded queue projection and history. Profile expensive text/layout/graph updates before adding more caching. | UI-thread CPU/frame times during the same large queue/workload; unchanged transfer correctness. |
+| Distribution size | Audit the self-contained runtime inventory and dynamic activation/resource dependencies before trimming anything. | x64/ARM64 package, PRI, launch, upgrade/install/uninstall gates plus actual byte comparison. |
+
+The preceding Package inventory measured 65,592,652 uncompressed bytes across 244 x64 files and 70,618,228 bytes across 244 ARM64 files. These are payload figures, not installer sizes or process memory. The x64 application EXE accounted for 1,963,008 bytes; most payload bytes belonged to runtime/components. Native UI edits alone do not establish a significant distribution-size reduction. Preserve the current acrylic preference; compare materials only with rendered and GPU/power evidence.
 
 ## x64 queue stabilization — 2026-10-14
 

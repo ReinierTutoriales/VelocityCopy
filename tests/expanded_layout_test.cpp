@@ -15,5 +15,23 @@ int main() {
     if (scaled.queue_height != 430 || scaled.viewport_height != 240 || !scaled.scrolls) return 4;
     const auto short_monitor = expanded_height(176, 70, 80, 128, 24, 40, false);
     if (short_monitor.queue_height != 176 || short_monitor.viewport_height != 40 || !short_monitor.scrolls) return 5;
+    // Effective-pixel policy only: this does not emulate the WinUI text engine.
+    for (const double dpi : {96., 120., 144., 168., 192., 216., 240., 288.}) {
+        for (const double text_scale : {1., 1.25, 1.5, 1.75, 2., 2.25}) {
+            for (const double height_px : {720., 1080., 1440., 2160.}) {
+                const double cap = client_work_extent(height_px * 96 / dpi, 16, 40);
+                for (const bool side_by_side : {false, true}) {
+                    const auto result = expanded_height(176, 210 * text_scale, 80,
+                        128 * text_scale, 24, cap, side_by_side);
+                    const double content = side_by_side
+                        ? std::max(result.queue_height, 128 * text_scale)
+                        : result.queue_height + 128 * text_scale;
+                    if (result.viewport_height > cap || result.viewport_height <= 0 ||
+                        result.queue_height < 176 ||
+                        result.scrolls != (content + 24 > cap)) return 7;
+                }
+            }
+        }
+    }
     return 0;
 }
