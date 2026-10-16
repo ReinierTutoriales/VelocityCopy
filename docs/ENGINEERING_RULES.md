@@ -71,7 +71,7 @@ Do not mix a broad UI redesign into functional stabilization.
 
 ## 6. Windows integration rules
 
-- Do not introduce global keyboard hooks to emulate Explorer integration.
+- Explorer Ctrl+V uses a resident, dedicated-thread keyboard adapter. Its callback must not run COM, read clipboard payloads, enumerate files, or wait for IPC. All work belongs on the separate STA worker; no clipboard polling or injection into Explorer is allowed.
 - Explorer integration must use documented Windows shell/clipboard mechanisms.
 - Drag/drop onto VelocityCopy only appends StorageItems to the currently active transfer destination/session. It must not invent a destination or open destination/layout prompts.
 - Validate Explorer commands, tray restoration, startup behavior, installed executable resources, and installer registration on real Windows before calling those paths complete.

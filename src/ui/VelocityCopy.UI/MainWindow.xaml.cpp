@@ -103,6 +103,10 @@ MainWindow::MainWindow() {
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(SkipButton(), skip);
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), pause);
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(CancelButton(), cancel);
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetHelpText(
+            SourcePathText(), velocitycopy::localization::get_string(L"SourcePathRole"));
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetHelpText(
+            DestinationPathText(), velocitycopy::localization::get_string(L"DestinationPathRole"));
 
         const auto show_details = velocitycopy::localization::get_string(L"ActionShowDetails");
         DetailsButtonText().Text(velocitycopy::localization::get_string(L"ActionDetails"));
@@ -121,12 +125,7 @@ MainWindow::MainWindow() {
     } catch (...) {
     }
 
-    try {
-        // Same translucent, wallpaper-tinted material as Windows 11 menus and
-        // flyouts; Windows falls back to a solid colour when transparency is off.
-        SystemBackdrop(Microsoft::UI::Xaml::Media::DesktopAcrylicBackdrop{});
-    } catch (...) {
-    }
+    velocitycopy::ui::apply_window_material(this->m_inner.as<Window>());
 
     ExtendsContentIntoTitleBar(true);
     SetTitleBar(TitleBarDragRegion());
@@ -715,13 +714,6 @@ void MainWindow::ResetTransferSurface() {
     DestinationPathText().Text(L"");
     ToolTipService::SetToolTip(SourcePathText(), nullptr);
     ToolTipService::SetToolTip(DestinationPathText(), nullptr);
-    DetailsSourceText().Text(L"");
-    DetailsDestinationText().Text(L"");
-    DetailsBytesText().Text(L"");
-    DetailsFilesText().Text(L"");
-    DetailsSpeedText().Text(L"—");
-    DetailsEtaText().Text(L"—");
-    PerformanceCurrentSpeedText().Text(L"—");
     ErrorBar().IsOpen(false);
     ErrorBar().Title(L"");
     ErrorBar().Message(L"");
@@ -868,15 +860,19 @@ void MainWindow::UpdatePerformanceGraph() {
 void MainWindow::ShowNotice(
     InfoBarSeverity const severity,
     hstring const& title,
-    hstring const& message) {
-    // Only the "completed with issues" notice carries an action; any other
-    // notice replaces it without one.
+    hstring const& message,
+    const bool update_transfer_state) {
+    // Each caller owns the current notice action; never retain a stale handler.
     ErrorBar().ActionButton(nullptr);
-    TransferProgress().ShowError(severity == InfoBarSeverity::Error);
-    if (severity == InfoBarSeverity::Error) {
-        ApplyTransferVisualState(TransferVisualState::Error);
-    } else if (severity == InfoBarSeverity::Warning) {
-        ApplyTransferVisualState(TransferVisualState::Warning);
+    if (update_transfer_state) {
+        TransferProgress().ShowError(severity == InfoBarSeverity::Error);
+        if (severity == InfoBarSeverity::Error) {
+            ApplyTransferVisualState(TransferVisualState::Error);
+        } else if (severity == InfoBarSeverity::Warning) {
+            ApplyTransferVisualState(TransferVisualState::Warning);
+        } else if (severity == InfoBarSeverity::Success) {
+            ApplyTransferVisualState(TransferVisualState::Active);
+        }
     }
     ErrorBar().Severity(severity);
     ErrorBar().Title(title);

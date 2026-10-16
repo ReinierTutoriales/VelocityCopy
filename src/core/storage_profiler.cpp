@@ -227,6 +227,13 @@ StorageProfile StorageProfiler::inspect(const std::filesystem::path& path) const
         profile.kind = map_drive_type(drive_type);
         profile.remote = drive_type == DRIVE_REMOTE;
 
+        DWORD filesystem_flags{};
+        if (GetVolumeInformationW(volume_root.data(), nullptr, 0, nullptr, nullptr,
+                &filesystem_flags, nullptr, 0)) {
+            profile.filesystem_info_available = true;
+            profile.sparse_files_supported = (filesystem_flags & FILE_SUPPORTS_SPARSE_FILES) != 0;
+        }
+
         // Low-level volume opens and DeviceIoControl probes are useful for local
         // fixed disks, but can block for a long time on removable media that is
         // slow, sleeping, disconnected, or failing. Removable/network/optical

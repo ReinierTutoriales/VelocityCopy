@@ -30,6 +30,8 @@ struct StorageProfile {
     bool physical_disk_extents_available{};
     bool incurs_seek_penalty{};
     bool seek_penalty_available{};
+    bool filesystem_info_available{};
+    bool sparse_files_supported{};
 };
 
 class StorageProfiler final {

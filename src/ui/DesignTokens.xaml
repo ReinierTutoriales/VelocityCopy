@@ -62,6 +62,19 @@
     <Thickness x:Key="AboutBodyMargin">0,0,0,16</Thickness>
     <Thickness x:Key="AboutMetadataMargin">0,0,0,8</Thickness>
     <Style x:Key="SecondaryTextStyle" TargetType="TextBlock"><Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" /></Style>
+    <Style x:Key="DecisionComparisonCardStyle" TargetType="Border">
+        <Setter Property="Padding" Value="{StaticResource ExpandedSectionPadding}" />
+        <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}" />
+        <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+        <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style x:Key="AppNoticeStyle" TargetType="InfoBar">
+        <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+        <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}" />
+    </Style>
     <Style x:Key="AccentIconStyle" TargetType="FontIcon"><Setter Property="Foreground" Value="{ThemeResource AccentFillColorDefaultBrush}" /></Style>
     <Style x:Key="SecondaryIconStyle" TargetType="FontIcon"><Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" /></Style>
     <Style x:Key="WarningIconStyle" TargetType="FontIcon"><Setter Property="Foreground" Value="{ThemeResource SystemFillColorCautionBrush}" /></Style>

@@ -75,6 +75,18 @@ int wmain() {
         8,
         64ull * 1024ull * 1024ull,
     });
+    auto sparse_destination = local;
+    sparse_destination.filesystem_info_available = true;
+    sparse_destination.sparse_files_supported = true;
+    const auto sparse = selector.choose(local, sparse_destination, {1024, 1, 1024});
+    const auto sparse_network = selector.choose(network, sparse_destination, {1024, 1, 1024});
+    if ((sparse.copy_flags & COPY_FILE_ENABLE_SPARSE_COPY) == 0 ||
+        (sparse_network.copy_flags & COPY_FILE_ENABLE_SPARSE_COPY) == 0 ||
+        (sparse_network.copy_flags & COPY_FILE_REQUEST_COMPRESSED_TRAFFIC) == 0 ||
+        (normal.copy_flags & COPY_FILE_ENABLE_SPARSE_COPY) != 0) return 10;
+    sparse_destination.filesystem_info_available = false;
+    if ((selector.choose(local, sparse_destination, {1024, 1, 1024}).copy_flags &
+            COPY_FILE_ENABLE_SPARSE_COPY) != 0) return 11;
     if (normal.suggested_queue_depth != 1 ||
         normal.suggested_buffer_bytes != 2u * 1024u * 1024u) {
         return 4;

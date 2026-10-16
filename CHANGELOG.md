@@ -1,10 +1,30 @@
 # Changelog
 
-## 1.2.3 — Unreleased
+## 1.3.0 — 2026-10-15
 
-- Explorer integration now uses only the documented right-button `DragDropHandlers` surface with explicit **Copy here** / **Move here** commands. VelocityCopy no longer changes Explorer's native default using undocumented numeric command IDs, and ordinary Explorer Ctrl+V is explicitly treated as Windows-owned behavior rather than a release gate.
+- Unify the main window, About and decision dialogs with the native Acrylic policy and theme resources. Conflicts show labeled source/destination paths, available size/date metadata and explicit action consequences; metadata reads run off the UI thread.
+- Keep transfer telemetry in one persistent summary, with a clearer progress hierarchy. Expanded Details focuses on the queue and speed history, removing repeated information and visual elements.
+- Allow About text and its project link to wrap within the available width, and let the Details button grow with large text while preserving its minimum height. Geometry tests cover 384 combinations of scale, text size, work-area height and composition; physical visual acceptance is separate.
+- Audit staged native imports, reverse dependencies, package versions, file-type sizes and SHA-256 provenance on x64/ARM64. Reject unreviewed payload files and known unused SDK components, including nested directories, with a negative fixture validating rejection. Retain the supported componentized native runtime; no unmeasured package-size or RAM reduction is claimed.
+- Add real compact, expanded and About screenshots to the README. The images were captured during 1.2.3 development before the 1.3.0 version bump.
+
+- Planning uses native bulk directory enumeration and its 64-bit size/reparse metadata instead of opening every enumerated file for metadata. Source directory chains stay pinned while enumerating; collision, cancellation and entry bounds remain.
+- Strategy selection reuses device facts for sources on the same resolved volume instead of repeating hardware probes for every selected file. Allocation failures in either recommendation entry point use conservative defaults.
+- Basic file metadata now preserves creation/write times and mutable attributes, including not-indexed, through the actual copied destination handle. Metadata failures remain transfer failures so Move does not delete the source; ACL/owner/SACL replication is not implied.
+- The recommended CopyFile2 strategy retains sparse files on supporting destinations on Windows 11 22H2 or later; older Windows keeps the existing copy path. Native offload and SMB compression remain available.
+- Options can keep a clean completed window open with a native success notice and an Open destination folder action; automatic close remains the default.
+- Audit stable direct/transitive dependencies, override the WebView2 SDK to 1.0.4258.31, and update CI actions to pinned current stable releases. Existing WinUI component versions and NSIS are already current.
+
+- While resident, VelocityCopy routes Ctrl+V from normal Explorer filesystem folder views through a dedicated keyboard thread and STA worker into the existing transfer queue; Ctrl+C/X stay native. Explicit **Copy here**, **Move here** and **Paste with VelocityCopy** commands remain available. No undocumented numeric default-menu selection is used.
+- Shell dispatch no longer launches a second activation after ambiguous IPC delivery. The clipboard decoder is shared internally without a public test-only DLL export.
+- Queue templates remove a repeated nested panel while preserving native virtualization and stable selection. Active bars retain stable accessible file names and native RangeValue progress.
+- CI covers concurrent append/page reorder/snapshots with four workers over 22,000 synthetic items and records a repeated planner baseline without changing production tuning.
 - Release publication has one authoritative path: the Release workflow reuses the exact x64/ARM64 installers from a successful Windows Package run on the selected `main` commit, generates SHA-256 checksums, and publishes without rebuilding the binaries.
 - Engineering/release contracts were consolidated so exact-SHA CI, Package, source inspection and physical Windows validation remain separate evidence levels.
+
+Compatibility and validation limits:
+- Explorer keyboard routing requires VelocityCopy to be resident and a normal filesystem folder view. Native Ctrl+C/X remain Windows-owned; this does not replace every Paste entry point, virtual folder or application.
+- Installers remain unsigned and architecture-specific for Windows 11 x64/ARM64. Automated gates do not certify physical ARM64 runtime, every Explorer/focus/device path or visual DPI/Text Size acceptance. See `docs/RELEASE_GATES.md`.
 
 ## 1.2.2 — 2026-10-09
 

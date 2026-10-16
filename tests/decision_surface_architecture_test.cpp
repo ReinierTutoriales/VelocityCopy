@@ -49,5 +49,43 @@ int main() {
     c.find("AccessibilityView::Raw") == std::string::npos ||
     tokens.find("SystemFillColorCautionBrush") == std::string::npos ||
     tokens.find("SystemFillColorCriticalBrush") == std::string::npos) return 17;
+ // Loaded must not keep its own root/window alive after the decision completes.
+ if(c.find("root.Loaded(auto_revoke, [&primary, &root, &dialog, &actions") == std::string::npos ||
+    c.find("loaded.revoke();") == std::string::npos ||
+    c.find("loaded.revoke();") > c.find("try { dialog.Close(); }")) return 18;
+ // Fit the measured action row to the actual work area, including long translations.
+ if(c.find("if (action_width > available_width)") == std::string::npos ||
+    c.find("actions.Orientation(Orientation::Vertical)") == std::string::npos ||
+    c.find("child.as<Button>().MaxWidth(available_width)") == std::string::npos ||
+    c.find("label.TextWrapping(TextWrapping::Wrap)") == std::string::npos) return 19;
+ const auto material=read_source(root/"src/ui/VelocityCopy.UI/UiTokens.h");
+ const auto about=read_source(root/"src/ui/VelocityCopy.UI/MainWindow.About.cpp");
+ const auto window=read_source(root/"src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
+ const auto conflict=read_source(root/"src/ui/VelocityCopy.UI/MainWindow.Conflict.cpp");
+ const auto xaml=read_source(root/"src/ui/VelocityCopy.UI/MainWindow.xaml");
+ if(material.find("DesktopAcrylicBackdrop{}")==std::string::npos ||
+    c.find("apply_window_material(dialog)")==std::string::npos ||
+    about.find("apply_window_material(about)")==std::string::npos ||
+    window.find("apply_window_material(this->m_inner.as<Window>())")==std::string::npos ||
+    about.find("MicaBackdrop")!=std::string::npos || c.find("MicaBackdrop")!=std::string::npos) return 20;
+ if(about.find("weak_about = make_weak(about)")==std::string::npos ||
+    about.find("weak_root = make_weak(root)")==std::string::npos ||
+    about.find("ScrollViewer viewport")==std::string::npos ||
+    about.find("viewport.MaxHeight(")==std::string::npos ||
+    about.find("MessageBoxW(")!=std::string::npos ||
+    about.find("resource_or(L\"AboutUnavailable\", L\"About could not be opened.\"), false)")==std::string::npos ||
+    window.find("if (update_transfer_state)")==std::string::npos) return 21;
+ if(c.find("for (auto const& file : options.comparison)")==std::string::npos ||
+    c.find("path.IsTextSelectionEnabled(true)")==std::string::npos ||
+    c.find("secondary.Focus(FocusState::Programmatic)")==std::string::npos ||
+    conflict.find("options.focus_secondary = true")==std::string::npos ||
+    conflict.find("ConflictConsequences")==std::string::npos ||
+    conflict.find("ConflictMetadataUnavailable")==std::string::npos ||
+    conflict.find("co_await resume_background();")==std::string::npos ||
+    conflict.find("co_await ui_context;")==std::string::npos ||
+    conflict.find("live_plan_ != conflict_plan")==std::string::npos) return 22;
+ if(xaml.find("Style=\"{StaticResource AppNoticeStyle}\"")==std::string::npos ||
+    tokens.find("x:Key=\"AppNoticeStyle\" TargetType=\"InfoBar\"")==std::string::npos ||
+    tokens.find("x:Key=\"DecisionComparisonCardStyle\"")==std::string::npos) return 23;
  return 0;
 }

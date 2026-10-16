@@ -11,7 +11,8 @@ int main() {
  const auto header=read_source(root/"src/ui/VelocityCopy.UI/MainWindow.xaml.h");
  if(conflict.empty()||execution.empty()||tray.empty()||header.empty()) return 1;
  if(header.find("IAsyncOperation<std::uint32_t> decision_operation_") == std::string::npos) return 2;
- if(conflict.find("RequestDecisionAsync({") == std::string::npos ||
+ if(conflict.find("RequestDecisionAsync(std::move(options))") == std::string::npos ||
+    conflict.find("velocitycopy::ui::DecisionOptions options{") == std::string::npos ||
     execution.find("RequestDecisionAsync({") == std::string::npos) return 3;
  if(conflict.find("co_await velocitycopy::ui::show_decision_async") != std::string::npos ||
     execution.find("co_await velocitycopy::ui::show_decision_async") != std::string::npos) return 4;

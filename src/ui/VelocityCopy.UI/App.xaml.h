@@ -4,6 +4,7 @@
 #include "AppTray.h"
 
 #include "velocitycopy/efficiency_coordinator.hpp"
+#include "velocitycopy/explorer_paste.hpp"
 #include "velocitycopy/ipc_transport.hpp"
 #include "velocitycopy/shell_session.hpp"
 #include "velocitycopy/transfer_router.hpp"
@@ -63,6 +64,7 @@ private:
     bool recovery_files_initialized_{};
     bool elevated_handoff_{};
     AppTray tray_;
+    velocitycopy::ExplorerPaste explorer_paste_;
     std::unique_ptr<velocitycopy::SingleInstance> instance_;
     std::shared_ptr<velocitycopy::ShellIpcServer> server_;
     std::jthread ipc_thread_;
