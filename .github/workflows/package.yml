@@ -176,11 +176,19 @@ jobs:
           Write-Host ("Self-contained ${{ matrix.arch }} payload: {0:N1} MB ({1} files)" -f ($size / 1MB), $files.Count)
           $files | Sort-Object Length -Descending | Select-Object -First 15 Name,Length | Format-Table
 
+      - name: Audit native payload dependencies
+        shell: pwsh
+        run: |
+          pwsh -NoProfile -File tools/ci/Write-PayloadDependencies.ps1 -RootPath "artifacts/installer-payload-${{ matrix.arch }}" -OutputPath "artifacts/payload-dependencies-${{ matrix.arch }}.json"
+          if ($LASTEXITCODE -ne 0) { throw 'Native dependency audit failed' }
+
       - name: Upload payload size inventory
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: VelocityCopy-payload-inventory-${{ matrix.arch }}-${{ github.run_id }}
-          path: artifacts/payload-inventory-${{ matrix.arch }}.json
+          path: |
+            artifacts/payload-inventory-${{ matrix.arch }}.json
+            artifacts/payload-dependencies-${{ matrix.arch }}.json
           retention-days: 7
 
       - name: Validate staged application icon

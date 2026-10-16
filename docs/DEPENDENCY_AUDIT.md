@@ -43,3 +43,37 @@ installer compiler; its existing SHA-256 pin remains. CMake/MSVC/Windows SDK
 come from the hosted runner image; the project still targets Windows 11 build
 22000 and does not download another toolchain. Exact build/runtime validation is
 provided by CI and Package on the implementation commit, not by catalog checks.
+
+## Payload use and removal policy
+
+The x64 Package run [38836370053](https://github.com/ReinierTutoriales/VelocityCopy/actions/runs/38836370053)
+reported 62.6 MiB uncompressed, 244 files. Its largest native files included
+`Microsoft.ui.xaml.dll` (15,324,472 bytes), `Microsoft.UI.Xaml.Controls.dll`
+(6,943,032), `WinUIEdit.dll` (3,419,448), `DWriteCore.dll` (3,252,576),
+and `VelocityCopy.WinUI.exe` (1,971,200). This is installed payload size, not
+installer size, process memory or startup cost.
+
+Keep native C++/WinUI and self-contained deployment. The component package
+references already avoid AI/ML, Search and Widgets; Package rejects those
+unselected components and recursively removes build-only products. Keep WinUI,
+Foundation, input/composition, text rendering, resource loading and activation
+support. An absent direct source call is not evidence that a WinUI dependency
+can be deleted. WebView2 is an SDK dependency override, not a bundled browser;
+no application WebView surface was found in the source audit.
+
+Package now writes `payload-dependencies-<arch>.json` beside the existing full
+size inventory. It records every staged EXE/DLL's size, file version and combined
+static/delay-load imports using MSVC DUMPBIN, without loading the image. Exact
+totals separate the three application binaries from all other payload; the
+latter includes application resources and must not be labeled entirely runtime.
+Both x64 and ARM64 images are inspected on the runner. This is not ARM64 execution.
+
+No further runtime file is excluded by this change. Import absence cannot prove
+non-use by WinRT activation, `LoadLibrary`, resource lookup or optional UI paths.
+A removal needs package dependency/activation evidence and startup, transfer,
+clipboard/Explorer, dialog, localization, DPI and upgrade validation on the
+reduced payload. The existing launch smoke alone cannot establish that safety.
+
+Official references:
+[self-contained deployment](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/self-contained-deploy/deploy-self-contained-apps),
+[DUMPBIN /IMPORTS](https://learn.microsoft.com/en-us/cpp/build/reference/imports-dumpbin).
