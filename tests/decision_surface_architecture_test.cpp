@@ -73,7 +73,8 @@ int main() {
     about.find("ScrollViewer viewport")==std::string::npos ||
     about.find("viewport.MaxHeight(")==std::string::npos ||
     about.find("MessageBoxW(")!=std::string::npos ||
-    about.find("ShowError(resource_or(L\"AboutUnavailable\"")==std::string::npos) return 21;
+    about.find("resource_or(L\"AboutUnavailable\", L\"About could not be opened.\"), false)")==std::string::npos ||
+    window.find("if (update_transfer_state)")==std::string::npos) return 21;
  if(c.find("for (auto const& file : options.comparison)")==std::string::npos ||
     c.find("path.IsTextSelectionEnabled(true)")==std::string::npos ||
     c.find("secondary.Focus(FocusState::Programmatic)")==std::string::npos ||

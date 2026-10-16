@@ -309,7 +309,10 @@ void MainWindow::ShowAboutDialog() noexcept {
         about_window_ = nullptr;
     }
 
-    try { ShowError(resource_or(L"AboutUnavailable", L"About could not be opened.")); } catch (...) {}
+    try {
+        ShowNotice(InfoBarSeverity::Error, resource_or(L"AboutTitle", L"VelocityCopy"),
+            resource_or(L"AboutUnavailable", L"About could not be opened."), false);
+    } catch (...) {}
 }
 
 void MainWindow::OnAboutClick(IInspectable const&, Microsoft::UI::Xaml::RoutedEventArgs const&) {

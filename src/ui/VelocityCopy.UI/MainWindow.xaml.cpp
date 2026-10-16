@@ -864,16 +864,19 @@ void MainWindow::UpdatePerformanceGraph() {
 void MainWindow::ShowNotice(
     InfoBarSeverity const severity,
     hstring const& title,
-    hstring const& message) {
+    hstring const& message,
+    const bool update_transfer_state) {
     // Each caller owns the current notice action; never retain a stale handler.
     ErrorBar().ActionButton(nullptr);
-    TransferProgress().ShowError(severity == InfoBarSeverity::Error);
-    if (severity == InfoBarSeverity::Error) {
-        ApplyTransferVisualState(TransferVisualState::Error);
-    } else if (severity == InfoBarSeverity::Warning) {
-        ApplyTransferVisualState(TransferVisualState::Warning);
-    } else if (severity == InfoBarSeverity::Success) {
-        ApplyTransferVisualState(TransferVisualState::Active);
+    if (update_transfer_state) {
+        TransferProgress().ShowError(severity == InfoBarSeverity::Error);
+        if (severity == InfoBarSeverity::Error) {
+            ApplyTransferVisualState(TransferVisualState::Error);
+        } else if (severity == InfoBarSeverity::Warning) {
+            ApplyTransferVisualState(TransferVisualState::Warning);
+        } else if (severity == InfoBarSeverity::Success) {
+            ApplyTransferVisualState(TransferVisualState::Active);
+        }
     }
     ErrorBar().Severity(severity);
     ErrorBar().Title(title);
