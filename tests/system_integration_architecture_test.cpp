@@ -265,7 +265,9 @@ int main() {
         return fail(16, "decisions must use top-level surfaces outside the compact XAML root; conflict uses the WinUI decision surface");
     }
 
-    if (!contains(conflict, "conflict.conflict_destination.filename()") ||
+    if (!contains(conflict, "conflict.conflict_destination.wstring()") ||
+        !contains(conflict, "conflict.conflict_source.wstring()") ||
+        !contains(conflict, "RequestDecisionAsync(std::move(options))") ||
         contains(app, "ShowNativeDecisionDialog") || contains(recovery, "ShowNativeDecisionDialog") ||
         contains(app, "NativeDialogChoice") || contains(recovery, "NativeDialogChoice") ||
         !contains(app, "RequestDecisionAsync({") || !contains(recovery, "RequestDecisionAsync({")) {

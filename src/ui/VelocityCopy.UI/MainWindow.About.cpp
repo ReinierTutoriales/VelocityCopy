@@ -252,9 +252,9 @@ void MainWindow::ShowAboutDialog() noexcept {
                 double height_cap = std::numeric_limits<double>::infinity();
                 MONITORINFO monitor{sizeof(monitor)};
                 if (GetMonitorInfoW(MonitorFromWindow(target, MONITOR_DEFAULTTONEAREST), &monitor)) {
-                    const double margin = velocitycopy::ui::token_double(L"ExpandedWorkAreaMargin", 16) * 2.0;
-                    width = (std::min)(width, (std::max)(1.0, (monitor.rcWork.right - monitor.rcWork.left) / scale - margin));
-                    height_cap = (std::max)(1.0, (monitor.rcWork.bottom - monitor.rcWork.top) / scale - margin);
+                    const double margin = velocitycopy::ui::token_double(L"ExpandedWorkAreaMargin", 16);
+                    width = (std::min)(width, (std::max)(1.0, (monitor.rcWork.right - monitor.rcWork.left) / scale - margin * 2.0));
+                    height_cap = (std::max)(1.0, (monitor.rcWork.bottom - monitor.rcWork.top) / scale - margin * 2.0);
                     viewport.MaxHeight((std::max)(1.0, height_cap - velocitycopy::ui::token_double(L"AboutTitleBarHeight", 32)));
                 }
                 const double min_height = velocitycopy::ui::token_double(L"AboutWindowHeight", 288);

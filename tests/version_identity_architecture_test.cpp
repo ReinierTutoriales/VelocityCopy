@@ -101,7 +101,8 @@ int main() {
         !contains(about, "VerQueryValueW") || !contains(about, "compiled_version()") ||
         !contains(about, "VELOCITYCOPY_VERSION_MAJOR") || contains(about, "return L\"Unknown\"") ||
         !contains(about, "Window about") || !contains(about, "about.ExtendsContentIntoTitleBar(true)") ||
-        !contains(about, "about.SetTitleBar(title_bar)") || !contains(about, "AccentFillColorDefaultBrush") ||
+        !contains(about, "about.SetTitleBar(title_bar)") || !contains(about, "apply_window_material(about)") ||
+        !contains(about, "DecisionContentPadding") ||
         !contains(about, "Assets/VelocityCopy.png") || !contains(about, "HyperlinkButton") ||
         !contains(about, "NavigateUri") || contains(about, "Flyout about") ||
         contains(about, "TaskDialogIndirect") || contains(about, "ContentDialog")) {
