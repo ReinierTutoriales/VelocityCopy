@@ -162,9 +162,14 @@ void MainWindow::ShowAboutDialog() noexcept {
         panel.Spacing(0);
         panel.Padding(velocitycopy::ui::token_thickness(L"DecisionContentPadding", Thickness{24, 20, 24, 20}));
 
-        StackPanel header;
-        header.Orientation(Orientation::Horizontal);
-        header.Spacing(velocitycopy::ui::token_double(L"AboutHeaderSpacing", 12));
+        Grid header;
+        ColumnDefinition logo_column;
+        logo_column.Width(GridLength{0.0, GridUnitType::Auto});
+        header.ColumnDefinitions().Append(logo_column);
+        ColumnDefinition identity_column;
+        identity_column.Width(GridLength{1.0, GridUnitType::Star});
+        header.ColumnDefinitions().Append(identity_column);
+        header.ColumnSpacing(velocitycopy::ui::token_double(L"AboutHeaderSpacing", 12));
         header.Margin(velocitycopy::ui::token_thickness(L"AboutHeaderMargin", Thickness{0, 0, 0, 16}));
 
         Image logo;
@@ -175,17 +180,20 @@ void MainWindow::ShowAboutDialog() noexcept {
         header.Children().Append(logo);
 
         StackPanel identity;
+        Grid::SetColumn(identity, 1);
         identity.VerticalAlignment(VerticalAlignment::Center);
         identity.Spacing(velocitycopy::ui::token_double(L"AboutIdentitySpacing", 4));
 
         TextBlock product;
         product.Text(title);
+        product.TextWrapping(TextWrapping::Wrap);
         product.FontSize(velocitycopy::ui::token_double(L"SubtitleFontSize", 20));
         product.FontWeight(Windows::UI::Text::FontWeights::SemiBold());
         identity.Children().Append(product);
 
         TextBlock version_text;
         version_text.Text(replace_version_token(std::wstring(version_format.c_str()), version));
+        version_text.TextWrapping(TextWrapping::Wrap);
         version_text.FontSize(velocitycopy::ui::token_double(L"CaptionFontSize", 12));
         velocitycopy::ui::apply_text_style(version_text, L"SecondaryTextStyle");
         identity.Children().Append(version_text);
@@ -205,12 +213,17 @@ void MainWindow::ShowAboutDialog() noexcept {
         metadata.Text(hstring(
             std::wstring(publisher.c_str()) + L"  •  " + std::wstring(license.c_str())));
         metadata.FontSize(velocitycopy::ui::token_double(L"CaptionFontSize", 12));
+        metadata.TextWrapping(TextWrapping::Wrap);
         velocitycopy::ui::apply_text_style(metadata, L"TertiaryTextStyle");
         metadata.Margin(velocitycopy::ui::token_thickness(L"AboutMetadataMargin", Thickness{0, 0, 0, 8}));
         panel.Children().Append(metadata);
 
         HyperlinkButton repository;
-        repository.Content(box_value(repository_label));
+        TextBlock repository_text;
+        repository_text.Text(repository_label);
+        repository_text.TextWrapping(TextWrapping::Wrap);
+        repository.Content(repository_text);
+        repository.HorizontalContentAlignment(HorizontalAlignment::Stretch);
         repository.NavigateUri(Uri{kRepositoryUrl});
         repository.HorizontalAlignment(HorizontalAlignment::Left);
         repository.FontSize(velocitycopy::ui::token_double(L"BodyFontSize", 14));

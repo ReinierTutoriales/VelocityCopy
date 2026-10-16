@@ -296,7 +296,7 @@
                         <Button x:Name="DetailsButton"
                                 Grid.Column="3"
                                 Click="OnDetailsClick"
-                                Height="{StaticResource ActionButtonSize}"
+                                MinHeight="{StaticResource ActionButtonSize}"
                                 HorizontalAlignment="Right">
                             <Button.Resources>
                                 <StaticResource x:Key="ButtonForeground" ResourceKey="TextFillColorSecondaryBrush" />

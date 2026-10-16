@@ -109,6 +109,15 @@ int main() {
         return fail(6, "About must be a themed movable WinUI window, show product identity, and never degrade to an Unknown version");
     }
 
+    if (!contains(about, "Grid header;") ||
+        !contains(about, "Grid::SetColumn(identity, 1)") ||
+        !contains(about, "product.TextWrapping(TextWrapping::Wrap)") ||
+        !contains(about, "version_text.TextWrapping(TextWrapping::Wrap)") ||
+        !contains(about, "metadata.TextWrapping(TextWrapping::Wrap)") ||
+        !contains(about, "repository_text.TextWrapping(TextWrapping::Wrap)")) {
+        return fail(11, "About identity and link must wrap within the available width at large text sizes");
+    }
+
     if (!contains(persistence, "ActionAbout") || !contains(persistence, "OnAboutClick") ||
         !contains(persistence, "about_menu_item_")) {
         return fail(7, "options flyout must expose the localized About command");
