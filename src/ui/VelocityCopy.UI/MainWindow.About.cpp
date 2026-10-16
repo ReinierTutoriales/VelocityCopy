@@ -239,16 +239,19 @@ void MainWindow::ShowAboutDialog() noexcept {
                 const auto root = weak_root.get();
                 const auto viewport = weak_viewport.get();
                 if (!about || !root || !viewport) return;
+                HWND about_hwnd{};
+                if (const auto native = about.try_as<::IWindowNative>()) (void)native->get_WindowHandle(&about_hwnd);
+                const HWND target = about_hwnd ? about_hwnd : owner_hwnd;
                 double scale = 0.0;
                 if (const auto xaml_root = root.XamlRoot()) scale = xaml_root.RasterizationScale();
                 if (!(scale > 0.0)) {
-                    const UINT dpi = owner_hwnd != nullptr ? GetDpiForWindow(owner_hwnd) : 0;
+                    const UINT dpi = target != nullptr ? GetDpiForWindow(target) : 0;
                     scale = static_cast<double>(dpi == 0 ? USER_DEFAULT_SCREEN_DPI : dpi) / USER_DEFAULT_SCREEN_DPI;
                 }
                 double width = velocitycopy::ui::token_double(L"DecisionWindowWidth", 440);
                 double height_cap = std::numeric_limits<double>::infinity();
                 MONITORINFO monitor{sizeof(monitor)};
-                if (GetMonitorInfoW(MonitorFromWindow(owner_hwnd, MONITOR_DEFAULTTONEAREST), &monitor)) {
+                if (GetMonitorInfoW(MonitorFromWindow(target, MONITOR_DEFAULTTONEAREST), &monitor)) {
                     const double margin = velocitycopy::ui::token_double(L"ExpandedWorkAreaMargin", 16) * 2.0;
                     width = (std::min)(width, (std::max)(1.0, (monitor.rcWork.right - monitor.rcWork.left) / scale - margin));
                     height_cap = (std::max)(1.0, (monitor.rcWork.bottom - monitor.rcWork.top) / scale - margin);
