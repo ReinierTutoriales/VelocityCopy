@@ -73,21 +73,6 @@
 
   <data name="ActionHideDetails" xml:space="preserve"><value>Hide details</value></data>
 
-  <data name="DetailsInformationTitle.Text" xml:space="preserve"><value>Information</value></data>
-
-  <data name="DetailsPerformanceTitle.Text" xml:space="preserve"><value>Performance</value></data>
-
-  <data name="DetailsSourceLabel.Text" xml:space="preserve"><value>Source</value></data>
-
-  <data name="DetailsDestinationLabel.Text" xml:space="preserve"><value>Destination</value></data>
-
-  <data name="DetailsBytesLabel.Text" xml:space="preserve"><value>Data</value></data>
-
-  <data name="DetailsFilesLabel.Text" xml:space="preserve"><value>Files</value></data>
-
-  <data name="DetailsSpeedLabel.Text" xml:space="preserve"><value>Speed</value></data>
-
-  <data name="DetailsEtaLabel.Text" xml:space="preserve"><value>Time remaining</value></data>
   <data name="ActionContinue" xml:space="preserve"><value>Continue</value></data>
   <data name="LowSpaceTitle" xml:space="preserve"><value>Not enough space at the destination</value></data>
   <data name="LowSpaceMessageFormat" xml:space="preserve"><value>This transfer needs {} but the destination has only {} free. If you continue, it stops when the disk is full.</value></data>
@@ -114,4 +99,7 @@
   <data name="ActionKeepCompletedWindowOpen" xml:space="preserve"><value>Keep completed window open</value></data>
   <data name="ActionOpenDestination" xml:space="preserve"><value>Open destination folder</value></data>
   <data name="OpenDestinationFailed" xml:space="preserve"><value>The destination folder could not be opened. It may have been moved or disconnected.</value></data>
+  <data name="PerformanceHistoryTitle.Text" xml:space="preserve"><value>Speed history</value></data>
+  <data name="SourcePathRole" xml:space="preserve"><value>Source path</value></data>
+  <data name="DestinationPathRole" xml:space="preserve"><value>Destination path</value></data>
 </root>

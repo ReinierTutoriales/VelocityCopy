@@ -103,6 +103,10 @@ MainWindow::MainWindow() {
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(SkipButton(), skip);
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(PauseButton(), pause);
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(CancelButton(), cancel);
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetHelpText(
+            SourcePathText(), velocitycopy::localization::get_string(L"SourcePathRole"));
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetHelpText(
+            DestinationPathText(), velocitycopy::localization::get_string(L"DestinationPathRole"));
 
         const auto show_details = velocitycopy::localization::get_string(L"ActionShowDetails");
         DetailsButtonText().Text(velocitycopy::localization::get_string(L"ActionDetails"));
@@ -710,13 +714,6 @@ void MainWindow::ResetTransferSurface() {
     DestinationPathText().Text(L"");
     ToolTipService::SetToolTip(SourcePathText(), nullptr);
     ToolTipService::SetToolTip(DestinationPathText(), nullptr);
-    DetailsSourceText().Text(L"");
-    DetailsDestinationText().Text(L"");
-    DetailsBytesText().Text(L"");
-    DetailsFilesText().Text(L"");
-    DetailsSpeedText().Text(L"—");
-    DetailsEtaText().Text(L"—");
-    PerformanceCurrentSpeedText().Text(L"—");
     ErrorBar().IsOpen(false);
     ErrorBar().Title(L"");
     ErrorBar().Message(L"");
@@ -739,7 +736,6 @@ void MainWindow::SetExpanded(const bool expanded) {
         OutputDebugStringW(L"VelocityCopy: SetExpanded failed\\n");
     }
     if (expanded) {
-        SyncExpandedTelemetry();
         RefreshQueue();
         UpdatePerformanceGraph();
     }

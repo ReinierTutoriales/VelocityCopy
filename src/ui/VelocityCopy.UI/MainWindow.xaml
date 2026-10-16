@@ -106,12 +106,14 @@
                                   IsHitTestVisible="False"
                                   AutomationProperties.AccessibilityView="Raw" />
                         <TextBlock x:Name="TransferBytesText"
+                                   ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"
                                    Grid.Column="1"
-                                   FontSize="{StaticResource BodyFontSize}"
+                                   FontSize="{StaticResource SubtitleFontSize}"
                                    FontWeight="SemiBold"
                                    TextTrimming="CharacterEllipsis"
                                    MaxLines="1" />
                         <TextBlock x:Name="TransferFilesText"
+                                   ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"
                                    Grid.Row="1"
                                    Grid.Column="1"
                                    Margin="{StaticResource TransferFilesMargin}"
@@ -148,7 +150,7 @@
                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                    FontSize="{StaticResource CaptionFontSize}"
                                    TextTrimming="CharacterEllipsis"
-                                   MaxLines="1" />
+                                   MaxLines="1" IsTextSelectionEnabled="True" />
                         <FontIcon Grid.Column="1"
                                   Glyph="&#xE72A;"
                                   FontFamily="Segoe Fluent Icons"
@@ -161,7 +163,7 @@
                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                    FontSize="{StaticResource CaptionFontSize}"
                                    TextTrimming="CharacterEllipsis"
-                                   MaxLines="1" />
+                                   MaxLines="1" IsTextSelectionEnabled="True" />
                     </Grid>
 
                     <Grid x:Name="BottomContentGrid"
@@ -182,6 +184,7 @@
                                     VerticalAlignment="Center"
                                     Spacing="{StaticResource SpaceTight}">
                             <TextBlock x:Name="SpeedText"
+                                   ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"
                                        Text="—"
                                        MinWidth="{StaticResource TelemetrySpeedMinWidth}"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
@@ -190,9 +193,10 @@
                                        Text="0%"
                                        MinWidth="{StaticResource TelemetryPercentMinWidth}"
                                        Foreground="{ThemeResource AccentFillColorDefaultBrush}"
-                                       FontSize="{StaticResource CaptionFontSize}"
+                                       FontSize="{StaticResource BodyFontSize}"
                                        FontWeight="SemiBold" />
                             <TextBlock x:Name="EtaText"
+                                   ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"
                                        Text="—"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                        FontSize="{StaticResource CaptionFontSize}" />
@@ -570,109 +574,32 @@
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
                                     <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                                             BorderThickness="0,0,0,1"
                                             Padding="{StaticResource SectionHeaderPadding}">
                                         <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock x:Name="PerformanceCurrentSpeedText"
-                                                   Grid.Column="1"
-                                                   VerticalAlignment="Center"
-                                                   Foreground="{ThemeResource AccentFillColorDefaultBrush}"
-                                                   FontWeight="SemiBold"
-                                                   FontSize="{StaticResource CaptionFontSize}" />
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <FontIcon Glyph="&#xE946;"
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <FontIcon x:Name="PerformanceHistoryIcon" Glyph="&#xE9D2;"
                                                       FontSize="{StaticResource SectionIconSize}"
                                                       Foreground="{ThemeResource AccentFillColorDefaultBrush}"
                                                       Margin="{StaticResource SectionIconMargin}"
+                                                      VerticalAlignment="Center"
                                                       IsHitTestVisible="False"
                                                       AutomationProperties.AccessibilityView="Raw" />
-                                            <TextBlock x:Name="DetailsInformationTitle"
-                                                       x:Uid="DetailsInformationTitle"
+                                            <TextBlock x:Name="PerformanceHistoryTitle"
+                                                       x:Uid="PerformanceHistoryTitle"
+                                                       Grid.Column="1"
+                                                       TextWrapping="Wrap"
                                                        FontWeight="SemiBold"
                                                        FontSize="{StaticResource BodyFontSize}" />
-                                        </StackPanel>
                                         </Grid>
                                     </Border>
 
                                     <Grid Grid.Row="1"
-                                          Margin="{StaticResource DetailsSectionMargin}"
-                                          ColumnSpacing="{StaticResource SpaceRelated}">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                        </Grid.RowDefinitions>
-
-                                        <FontIcon Grid.Row="0" Glyph="&#xE8B7;"
-                                                  FontSize="{StaticResource InformationIconSize}"
-                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                  Margin="{StaticResource SectionIconMargin}"
-                                                  IsHitTestVisible="False"
-                                                  AutomationProperties.AccessibilityView="Raw" />
-                                        <TextBlock x:Uid="DetailsSourceLabel" Grid.Column="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
-                                        <TextBlock x:Name="DetailsSourceText" Grid.Column="2" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxLines="1" FontSize="{StaticResource CaptionFontSize}" />
-
-                                        <FontIcon Grid.Row="1" Glyph="&#xE8B7;"
-                                                  FontSize="{StaticResource InformationIconSize}"
-                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                  Margin="{StaticResource SectionIconMargin}"
-                                                  IsHitTestVisible="False"
-                                                  AutomationProperties.AccessibilityView="Raw" />
-                                        <TextBlock x:Uid="DetailsDestinationLabel" Grid.Row="1" Grid.Column="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
-                                        <TextBlock x:Name="DetailsDestinationText" Grid.Row="1" Grid.Column="2" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxLines="1" FontSize="{StaticResource CaptionFontSize}" />
-
-                                        <FontIcon Grid.Row="2" Glyph="&#xE8A5;"
-                                                  FontSize="{StaticResource InformationIconSize}"
-                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                  Margin="{StaticResource SectionIconMargin}"
-                                                  IsHitTestVisible="False"
-                                                  AutomationProperties.AccessibilityView="Raw" />
-                                        <TextBlock x:Uid="DetailsBytesLabel" Grid.Row="2" Grid.Column="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
-                                        <TextBlock x:Name="DetailsBytesText" Grid.Row="2" Grid.Column="2" FontSize="{StaticResource CaptionFontSize}" />
-
-                                        <FontIcon Grid.Row="3" Glyph="&#xE8A5;"
-                                                  FontSize="{StaticResource InformationIconSize}"
-                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                  Margin="{StaticResource SectionIconMargin}"
-                                                  IsHitTestVisible="False"
-                                                  AutomationProperties.AccessibilityView="Raw" />
-                                        <TextBlock x:Uid="DetailsFilesLabel" Grid.Row="3" Grid.Column="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
-                                        <TextBlock x:Name="DetailsFilesText" Grid.Row="3" Grid.Column="2" FontSize="{StaticResource CaptionFontSize}" />
-
-                                        <FontIcon Grid.Row="4" Glyph="&#xE9D2;"
-                                                  FontSize="{StaticResource InformationIconSize}"
-                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                  Margin="{StaticResource SectionIconMargin}"
-                                                  IsHitTestVisible="False"
-                                                  AutomationProperties.AccessibilityView="Raw" />
-                                        <TextBlock x:Uid="DetailsSpeedLabel" Grid.Row="4" Grid.Column="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
-                                        <TextBlock x:Name="DetailsSpeedText" Grid.Row="4" Grid.Column="2" FontWeight="SemiBold" FontSize="{StaticResource CaptionFontSize}" />
-
-                                        <FontIcon Grid.Row="5" Glyph="&#xE823;"
-                                                  FontSize="{StaticResource InformationIconSize}"
-                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                  Margin="{StaticResource SectionIconMargin}"
-                                                  IsHitTestVisible="False"
-                                                  AutomationProperties.AccessibilityView="Raw" />
-                                        <TextBlock x:Uid="DetailsEtaLabel" Grid.Row="5" Grid.Column="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="{StaticResource CaptionFontSize}" />
-                                        <TextBlock x:Name="DetailsEtaText" Grid.Row="5" Grid.Column="2" FontSize="{StaticResource CaptionFontSize}" />
-                                    </Grid>
-                                    <Grid Grid.Row="2"
                                           Margin="{StaticResource PerformanceGraphMargin}"
                                           Height="{StaticResource PerformanceGraphHeight}"
                                           AutomationProperties.AccessibilityView="Raw">

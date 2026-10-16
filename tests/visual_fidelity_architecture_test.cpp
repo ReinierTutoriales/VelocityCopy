@@ -44,20 +44,16 @@ int main() {
 
     // Expanded cards share one Fluent visual hierarchy.
     if (!contains(xaml, "Glyph=\"&#xE9D2;\"") ||
-        !contains(xaml, "Glyph=\"&#xE946;\"") ||
+        !contains(xaml, "x:Name=\"PerformanceHistoryIcon\"") ||
         !contains(xaml, "x:Name=\"QueueTitle\"") ||
         !contains(tokens, "SectionIconSize") ||
         !contains(tokens, "SectionIconMargin")) {
-        return fail(3, "queue, performance and information headers must carry themed Fluent icons");
+        return fail(3, "queue and speed-history headers must carry themed Fluent icons");
     }
 
-    // Information rows use semantic icons while preserving the existing localized labels.
-    for (const char* label : {
-            "DetailsSourceLabel", "DetailsDestinationLabel", "DetailsBytesLabel",
-            "DetailsFilesLabel", "DetailsSpeedLabel", "DetailsEtaLabel"}) {
-        if (!contains(xaml, label)) return fail(4, "localized information label missing");
-    }
-    if (!contains(xaml, "InformationIconSize") ||
+    if (!contains(xaml, "x:Uid=\"PerformanceHistoryTitle\""))
+        return fail(4, "the history card must have its own localized purpose");
+    if (!contains(xaml, "SectionIconSize") ||
         !contains(xaml, "TextFillColorSecondaryBrush")) {
         return fail(5, "information iconography must use theme-aware secondary color");
     }
@@ -95,7 +91,6 @@ int main() {
         count_occurrences(xaml, "x:Key=\"ButtonForeground\" ResourceKey=\"TextFillColorSecondaryBrush\"") < 5 ||
         contains(xaml, "x:Name=\"PauseIcon\"\n                                              FontFamily=\"Segoe Fluent Icons\"\n                                              Glyph=\"&#xE769;\"\n                                              FontSize=\"{StaticResource ActionIconSize}\"\n                                              Foreground=") ||
         contains(xaml, "x:Name=\"CancelIcon\"\n                                              FontFamily=\"Segoe Fluent Icons\"\n                                              Glyph=\"&#xE71A;\"\n                                              FontSize=\"{StaticResource ActionIconSize}\"\n                                              Foreground=") ||
-        !contains(xaml, "x:Name=\"PerformanceCurrentSpeedText\"") ||
         !contains(xaml, "FontWeight=\"SemiBold\"")) {
         return fail(10, "action hierarchy must use native Button lightweight styling and preserve disabled states");
     }
@@ -113,23 +108,33 @@ int main() {
         return fail(16, "running, paused and conflict states must map only to truthful native ProgressBar visual states");
     }
     if (execution.empty() ||
-        !contains(xaml, "x:Name=\"DetailsSourceText\" Grid.Column=\"2\" TextWrapping=\"NoWrap\" TextTrimming=\"CharacterEllipsis\" MaxLines=\"1\"") ||
-        !contains(xaml, "x:Name=\"DetailsDestinationText\" Grid.Row=\"1\" Grid.Column=\"2\" TextWrapping=\"NoWrap\" TextTrimming=\"CharacterEllipsis\" MaxLines=\"1\"") ||
-        !contains(execution, "ToolTipService::SetToolTip(DetailsSourceText(), box_value(source))") ||
-        !contains(execution, "ToolTipService::SetToolTip(DetailsDestinationText(), box_value(destination))")) {
-        return fail(9, "information paths must stay single-line with ellipsis and preserve full paths in tooltips");
+        !std::regex_search(xaml, std::regex{R"(<TextBlock[^>]*x:Name="SourcePathText"[^>]*TextTrimming="CharacterEllipsis"[^>]*MaxLines="1"[^>]*IsTextSelectionEnabled="True"[^>]*/>)"}) ||
+        !std::regex_search(xaml, std::regex{R"(<TextBlock[^>]*x:Name="DestinationPathText"[^>]*TextTrimming="CharacterEllipsis"[^>]*MaxLines="1"[^>]*IsTextSelectionEnabled="True"[^>]*/>)"}) ||
+        !contains(execution, "ToolTipService::SetToolTip(SourcePathText(), box_value(source))") ||
+        !contains(execution, "ToolTipService::SetToolTip(DestinationPathText(), box_value(destination))")) {
+        return fail(9, "single-line paths must retain selectable text and full paths in tooltips");
     }
 
     const auto window = read_source(root / "src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
-    const auto snapshot = body_of(execution, "void MainWindow::ApplySnapshot(");
-    const auto disclosure = body_of(window, "void MainWindow::SetExpanded(");
-    const auto expanded_telemetry = body_of(execution, "void MainWindow::SyncExpandedTelemetry()");
-    if (!contains(snapshot, "if (expanded_) SyncExpandedTelemetry();") ||
-        contains(snapshot, "DetailsBytesText()") ||
-        !contains(disclosure, "SyncExpandedTelemetry();") ||
-        !contains(expanded_telemetry, "TransferBytesText().Text()") ||
-        !contains(expanded_telemetry, "SourcePathText().Text()")) {
-        return fail(30, "hidden telemetry must avoid progress updates and synchronize existing values on disclosure");
+    for (const char* name : {"TransferBytesText", "TransferFilesText", "ProgressPercentText", "SpeedText", "EtaText", "SourcePathText", "DestinationPathText"}) {
+        if (count_occurrences(xaml, std::string{"x:Name=\""} + name + "\"") != 1)
+            return fail(30, "each transfer datum must have one authoritative presentation");
+    }
+    for (const char* name : {"TransferBytesText", "TransferFilesText", "SpeedText", "EtaText"}) {
+        const auto at = xaml.find(std::string{"x:Name=\""} + name + "\"");
+        const auto field = xaml.substr(at, xaml.find("/>", at) - at);
+        if (!contains(field, "ToolTipService.ToolTip=\"{Binding Text, RelativeSource={RelativeSource Self}}\""))
+            return fail(33, "trimmed summary values must retain their full current text without a second telemetry view");
+    }
+    for (const char* retired : {"DetailsSourceText", "DetailsDestinationText", "DetailsBytesText", "DetailsFilesText", "DetailsSpeedText", "DetailsEtaText", "PerformanceCurrentSpeedText", "SyncExpandedTelemetry"}) {
+        if (contains(xaml, retired) || contains(execution, retired) || contains(window, retired))
+            return fail(31, "duplicated telemetry controls and synchronization must stay retired");
+    }
+    if (!contains(window, "SourcePathText(), velocitycopy::localization::get_string(L\"SourcePathRole\")") ||
+        !contains(window, "DestinationPathText(), velocitycopy::localization::get_string(L\"DestinationPathRole\")") ||
+        !std::regex_search(xaml, std::regex{R"(<TextBlock[^>]*x:Name="TransferBytesText"[^>]*FontSize="\{StaticResource SubtitleFontSize\}"[^>]*/>)"}) ||
+        !std::regex_search(xaml, std::regex{R"(<TextBlock[^>]*x:Name="ProgressPercentText"[^>]*FontSize="\{StaticResource BodyFontSize\}"[^>]*/>)"})) {
+        return fail(32, "summary hierarchy and accessible path roles must survive consolidation");
     }
     const auto show_notice = body_of(window, "void MainWindow::ShowNotice(");
     const auto show_error = body_of(window, "void MainWindow::ShowError(");
@@ -172,13 +177,8 @@ int main() {
     if (!std::regex_search(xaml, std::regex{R"(<FontIcon[^>]*x:Name="CurrentItemIcon"[^>]*AutomationProperties\.AccessibilityView="Raw"[^>]*/>)"})) {
         return fail(18, "current-item status icon must remain decorative in UI Automation");
     }
-    for (int row = 0; row < 6; ++row) {
-        const std::regex information_icon{
-            "<FontIcon[^>]*Grid.Row=\\\"" + std::to_string(row) +
-            "\\\"[^>]*InformationIconSize[^>]*AutomationProperties\\.AccessibilityView=\\\"Raw\\\"[^>]*/>"};
-        if (!std::regex_search(xaml, information_icon)) {
-            return fail(19, "information-row icons must remain decorative in UI Automation");
-        }
+    if (!std::regex_search(xaml, std::regex{R"(<FontIcon[^>]*x:Name="PerformanceHistoryIcon"[^>]*AutomationProperties\.AccessibilityView="Raw"[^>]*/>)"})) {
+        return fail(19, "history icon must remain decorative in UI Automation");
     }
     if (count_occurrences(queue_templates, "AutomationProperties.AccessibilityView=\"Raw\"") != 2) {
         return fail(20, "dynamic queue row icons must remain decorative in UI Automation");
