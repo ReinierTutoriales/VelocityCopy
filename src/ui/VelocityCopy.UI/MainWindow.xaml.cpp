@@ -121,7 +121,7 @@ MainWindow::MainWindow() {
     } catch (...) {
     }
 
-    velocitycopy::ui::apply_window_material(this->as<Window>());
+    velocitycopy::ui::apply_window_material(this->m_inner.as<Window>());
 
     ExtendsContentIntoTitleBar(true);
     SetTitleBar(TitleBarDragRegion());

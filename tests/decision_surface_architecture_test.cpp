@@ -66,7 +66,7 @@ int main() {
  if(material.find("DesktopAcrylicBackdrop{}")==std::string::npos ||
     c.find("apply_window_material(dialog)")==std::string::npos ||
     about.find("apply_window_material(about)")==std::string::npos ||
-    window.find("apply_window_material(this->as<Window>())")==std::string::npos ||
+    window.find("apply_window_material(this->m_inner.as<Window>())")==std::string::npos ||
     about.find("MicaBackdrop")!=std::string::npos || c.find("MicaBackdrop")!=std::string::npos) return 20;
  if(about.find("weak_about = make_weak(about)")==std::string::npos ||
     about.find("weak_root = make_weak(root)")==std::string::npos ||
