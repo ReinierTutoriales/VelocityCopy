@@ -114,7 +114,7 @@ jobs:
         uses: microsoft/setup-msbuild@v3
 
       - name: Build UI
-        run: msbuild src/ui/VelocityCopy.UI/VelocityCopy.UI.vcxproj /restore /m /p:Configuration=Release /p:Platform=x64
+        run: msbuild src/ui/VelocityCopy.UI/VelocityCopy.UI.vcxproj /restore /m /p:Configuration=Release /p:Platform=x64 /p:VelocityCopyUiContractProbe=true
 
       - name: Smoke launch built x64 output
         shell: pwsh
@@ -132,7 +132,14 @@ jobs:
             $hexCode = ('0x{0:X8}' -f ([BitConverter]::ToUInt32([BitConverter]::GetBytes([int32]$exitCode), 0)))
             throw "Built VelocityCopy output exits during CI launch smoke: $exitCode ($hexCode)"
           }
-          Stop-Process -Id $app.Id -Force
+          try {
+            if (-not (Test-Path $env:VELOCITYCOPY_DIAGNOSTIC_LOG) -or
+                (Get-Content $env:VELOCITYCOPY_DIAGNOSTIC_LOG -Raw) -notmatch 'ui-contract: deferred details passed') {
+              throw 'Deferred Details runtime contract did not complete'
+            }
+          } finally {
+            Stop-Process -Id $app.Id -Force
+          }
 
       - name: Upload launch diagnostic log
         if: always()

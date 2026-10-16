@@ -7,6 +7,7 @@
 #include "PerformanceGraphScale.h"
 #include "TelemetryLayout.h"
 #include "ExpandedLayout.h"
+#include "velocitycopy/diagnostics.hpp"
 #if __has_include("MainWindow.g.cpp")
 #include "MainWindow.g.cpp"
 #endif
@@ -44,14 +45,6 @@ bool accepts_active_transfer_drop(
 MainWindow::MainWindow() {
     if (auto* app = App::Instance()) window_id_ = app->NextWindowId();
     InitializeComponent();
-    // ListView handles the mouse wheel internally. handledEventsToo lets
-    // Queue hand a wheel detent to the outer Narrow viewport only after the
-    // internal list reaches its boundary.
-    QueueList().AddHandler(
-        UIElement::PointerWheelChangedEvent(),
-        box_value(Microsoft::UI::Xaml::Input::PointerEventHandler{
-            this, &MainWindow::OnQueuePointerWheelChanged}),
-        true);
     // External Explorer drops must reach the window even when a child control
     // (notably ListView during its own reorder gesture) class-handles the
     // routed drag event. QueueList keeps AllowDrop/CanReorderItems for its
@@ -69,6 +62,32 @@ MainWindow::MainWindow() {
         box_value(DragEventHandler{this, &MainWindow::OnDrop}),
         true);
     dispatcher_ = Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
+#if defined(VELOCITYCOPY_UI_CONTRACT_PROBE)
+    RootGrid().Loaded([weak = get_weak()](auto const&, auto const&) {
+        const auto self = weak.get();
+        if (!self) throw hresult_error(E_UNEXPECTED);
+        if (self->details_loaded_ || self->ExpandedViewport().Content().try_as<Grid>())
+            throw hresult_error(E_UNEXPECTED, L"Details was created before disclosure");
+        const auto speed = self->SpeedText().Text();
+        self->SpeedText().Text(L"123 MiB/s");
+        self->performance_speed_samples_.push_back(123.0 * 1024.0 * 1024.0);
+        self->SetExpanded(true);
+        const auto region = self->ExpandedRegion();
+        const auto list = self->QueueList();
+        if (!region || !list || !self->PerformanceGraph() ||
+            self->DetailsSpeedText().Text() != L"123 MiB/s")
+            throw hresult_error(E_UNEXPECTED, L"Deferred Details did not initialize");
+        self->SetExpanded(false);
+        self->SetExpanded(true);
+        if (self->ExpandedRegion() != region || self->QueueList() != list ||
+            self->performance_speed_samples_.size() != 1)
+            throw hresult_error(E_UNEXPECTED, L"Details disclosure discarded retained state");
+        self->SpeedText().Text(speed);
+        self->ResetPerformanceHistory();
+        self->SetExpanded(false);
+        velocitycopy::log_diagnostic(L"ui-contract: deferred details passed");
+    });
+#endif
     ErrorBar().Closed([weak = get_weak()](InfoBar const&, InfoBarClosedEventArgs const&) {
         if (auto self = weak.get()) self->ResizeWindowToContent();
     });
@@ -82,15 +101,6 @@ MainWindow::MainWindow() {
             std::abs(args.NewSize().Height - args.PreviousSize().Height) > 0.5f) {
             self->ResizeWindowToContent(true);
         }
-    });
-    ActiveQueuePanel().SizeChanged([weak = get_weak()](IInspectable const&, SizeChangedEventArgs const& args) {
-        if (auto self = weak.get(); self && self->expanded_ &&
-            std::abs(args.NewSize().Height - args.PreviousSize().Height) > 0.5f) {
-            self->ResizeWindowToContent();
-        }
-    });
-    PerformanceGraph().SizeChanged([weak = get_weak()](IInspectable const&, SizeChangedEventArgs const&) {
-        if (auto self = weak.get()) self->UpdatePerformanceGraph();
     });
     ConfigureQueuePersistenceMenu();
     try {
@@ -109,15 +119,6 @@ MainWindow::MainWindow() {
         ToolTipService::SetToolTip(DetailsButton(), box_value(show_details));
         Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(DetailsButton(), show_details);
 
-        const auto move_up = velocitycopy::localization::get_string(L"ActionMoveUp");
-        const auto move_down = velocitycopy::localization::get_string(L"ActionMoveDown");
-        const auto remove = velocitycopy::localization::get_string(L"ActionRemove");
-        ToolTipService::SetToolTip(QueueMoveUpButtonHost(), box_value(move_up));
-        ToolTipService::SetToolTip(QueueMoveDownButtonHost(), box_value(move_down));
-        ToolTipService::SetToolTip(QueueRemoveButtonHost(), box_value(remove));
-        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(QueueMoveUpButton(), move_up);
-        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(QueueMoveDownButton(), move_down);
-        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(QueueRemoveButton(), remove);
     } catch (...) {
     }
 
@@ -715,21 +716,59 @@ void MainWindow::ResetTransferSurface() {
     DestinationPathText().Text(L"");
     ToolTipService::SetToolTip(SourcePathText(), nullptr);
     ToolTipService::SetToolTip(DestinationPathText(), nullptr);
-    DetailsSourceText().Text(L"");
-    DetailsDestinationText().Text(L"");
-    DetailsBytesText().Text(L"");
-    DetailsFilesText().Text(L"");
-    DetailsSpeedText().Text(L"—");
-    DetailsEtaText().Text(L"—");
-    PerformanceCurrentSpeedText().Text(L"—");
+    if (details_loaded_) {
+        DetailsSourceText().Text(L"");
+        DetailsDestinationText().Text(L"");
+        DetailsBytesText().Text(L"");
+        DetailsFilesText().Text(L"");
+        DetailsSpeedText().Text(L"—");
+        DetailsEtaText().Text(L"—");
+        PerformanceCurrentSpeedText().Text(L"—");
+    }
     ErrorBar().IsOpen(false);
     ErrorBar().Title(L"");
     ErrorBar().Message(L"");
 }
 
+void MainWindow::EnsureExpandedSurface() {
+    if (details_loaded_) return;
+    details_loaded_ = true;
+    property_changed_(*this, Microsoft::UI::Xaml::Data::PropertyChangedEventArgs{L"DetailsLoaded"});
+    // ListView handles the mouse wheel internally. handledEventsToo lets
+    // Queue hand a wheel detent to the outer Narrow viewport only after the
+    // internal list reaches its boundary.
+    QueueList().AddHandler(
+        UIElement::PointerWheelChangedEvent(),
+        box_value(Microsoft::UI::Xaml::Input::PointerEventHandler{
+            this, &MainWindow::OnQueuePointerWheelChanged}),
+        true);
+    ActiveQueuePanel().SizeChanged([weak = get_weak()](IInspectable const&, SizeChangedEventArgs const& args) {
+        if (auto self = weak.get(); self && self->expanded_ &&
+            std::abs(args.NewSize().Height - args.PreviousSize().Height) > 0.5f) {
+            self->ResizeWindowToContent();
+        }
+    });
+    PerformanceGraph().SizeChanged([weak = get_weak()](IInspectable const&, SizeChangedEventArgs const&) {
+        if (auto self = weak.get()) self->UpdatePerformanceGraph();
+    });
+    try {
+        const auto move_up = velocitycopy::localization::get_string(L"ActionMoveUp");
+        const auto move_down = velocitycopy::localization::get_string(L"ActionMoveDown");
+        const auto remove = velocitycopy::localization::get_string(L"ActionRemove");
+        ToolTipService::SetToolTip(QueueMoveUpButtonHost(), box_value(move_up));
+        ToolTipService::SetToolTip(QueueMoveDownButtonHost(), box_value(move_down));
+        ToolTipService::SetToolTip(QueueRemoveButtonHost(), box_value(remove));
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(QueueMoveUpButton(), move_up);
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(QueueMoveDownButton(), move_down);
+        Microsoft::UI::Xaml::Automation::AutomationProperties::SetName(QueueRemoveButton(), remove);
+    } catch (...) {}
+    UpdatePerformanceAxisWidth();
+}
+
 void MainWindow::SetExpanded(const bool expanded) {
+    if (expanded) EnsureExpandedSurface();
     expanded_ = expanded;
-    ExpandedRegion().Visibility(expanded ? Visibility::Visible : Visibility::Collapsed);
+    if (details_loaded_) ExpandedRegion().Visibility(expanded ? Visibility::Visible : Visibility::Collapsed);
     try {
         const auto details_label = velocitycopy::localization::get_string(
             expanded ? L"ActionHideDetails" : L"ActionShowDetails");
@@ -763,6 +802,7 @@ void MainWindow::ResetPerformanceHistory() noexcept {
     last_performance_sample_ms_ = 0;
     performance_speed_samples_.clear();
     performance_scale_state_ = {};
+    if (!details_loaded_) return;
     try {
         PerformanceGraphLine().Points(PointCollection{});
         PerformanceGraphArea().Points(PointCollection{});
@@ -795,6 +835,7 @@ void MainWindow::ObservePerformanceSample(const double bytes_per_second) {
 }
 
 void MainWindow::UpdatePerformanceAxisWidth() {
+    if (!details_loaded_) return;
     try {
         auto label = PerformanceScaleMaxText();
         const auto previous_text = label.Text();
@@ -812,6 +853,7 @@ void MainWindow::UpdatePerformanceAxisWidth() {
 }
 
 void MainWindow::UpdatePerformanceGraph() {
+    if (!expanded_) return;
     try {
         auto canvas = PerformanceGraph();
         const double width = canvas.ActualWidth();

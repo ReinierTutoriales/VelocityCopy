@@ -11,8 +11,9 @@ namespace VelocityCopyUI
     }
 
     [default_interface]
-    runtimeclass MainWindow : Microsoft.UI.Xaml.Window
+    runtimeclass MainWindow : Microsoft.UI.Xaml.Window, Microsoft.UI.Xaml.Data.INotifyPropertyChanged
     {
         MainWindow();
+        Boolean DetailsLoaded { get; };
     }
 }

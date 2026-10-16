@@ -124,6 +124,18 @@ int main() {
     const auto snapshot = body_of(execution, "void MainWindow::ApplySnapshot(");
     const auto disclosure = body_of(window, "void MainWindow::SetExpanded(");
     const auto expanded_telemetry = body_of(execution, "void MainWindow::SyncExpandedTelemetry()");
+    const auto deferred_surface = body_of(window, "void MainWindow::EnsureExpandedSurface()");
+    const auto constructor = body_of(window, "MainWindow::MainWindow()");
+    if (!contains(xaml, "x:Load=\"{x:Bind DetailsLoaded, Mode=OneWay}\"") ||
+        !contains(deferred_surface, "if (details_loaded_) return;") ||
+        !contains(deferred_surface, "PropertyChangedEventArgs{L\"DetailsLoaded\"}") ||
+        !contains(deferred_surface, "QueueList().AddHandler(") ||
+        contains(constructor, "QueueList().AddHandler(") ||
+        contains(constructor, "PerformanceGraph().SizeChanged(") ||
+        !contains(disclosure, "if (expanded) EnsureExpandedSurface();") ||
+        !contains(body_of(window, "void MainWindow::UpdatePerformanceAxisWidth()"), "if (!details_loaded_) return;")) {
+        return fail(31, "expanded controls must load once through a Window-safe binding and defer their subscriptions");
+    }
     if (!contains(snapshot, "if (expanded_) SyncExpandedTelemetry();") ||
         contains(snapshot, "DetailsBytesText()") ||
         !contains(disclosure, "SyncExpandedTelemetry();") ||
