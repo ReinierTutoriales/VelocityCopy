@@ -27,11 +27,24 @@ VelocityCopy keeps its visual layer replaceable and lightweight.
 - The Loaded subscription uses a scoped C++/WinRT event revoker and references to coroutine-owned controls. Revoke before closing; stack unwinding also revokes before those controls are destroyed. The root must not own a handler that strongly captures itself or its Window.
 - These changes add no runtime dependencies and do not reduce the packaged Windows App SDK payload. Source architecture checks and CI builds do not establish visual correctness or a measured memory reduction. Long translations, maximum Windows Text Size, small work areas and repeated dialog open/close still require physical Windows acceptance outside the developer's user session.
 - Progress snapshots synchronize expanded telemetry only while Details is open, reusing the compact view's already formatted values and paths. Opening Details synchronizes immediately, including paused/completed sessions without another snapshot. Terminal clearing and bounded performance-history sampling remain independent of disclosure state.
-- ExpandedRegion uses one x:Load binding to a native observable DetailsLoaded property. The first disclosure realizes the whole subtree and installs its queue/graph subscriptions and accessibility labels once. Collapse changes visibility, retaining selection, native drag state and controls; it never unloads/recreates the subtree. Compact resets, axis sizing and command-state refreshes do not access deferred controls. Performance history remains bounded and continues sampling before first disclosure.
-- CI's explicitly enabled UiContractProbe checks absence of the expanded Grid at initial load, first disclosure, current telemetry, retained control identity and performance history across collapse/reopen. CI requires its completion marker. The macro is absent from normal Package builds and adds no public test-only runtime method or DLL export. This is a runtime state/binding check, not physical visual acceptance or a startup/memory benchmark.
-- Further visual consolidation of repeated information remains a separate presentation change.
+- Follow-up: defer the expanded subtree safely and consolidate repeated statistics. The current Window-root namescope requires a binding-based x:Load design; simply adding x:Load=false and relying on FindName is insufficient. This step does not claim those changes are implemented.
+- The attempted Window-root x:Load binding was rejected by Package x64/ARM64 compilation: generated MainWindow.xaml.g.hpp calls FindName on the projected MainWindow, which has no such member (C2039). The experiment and its CI-only probe were withdrawn together; do not expose a fake/public FindName workaround or describe deferral as shipped. A separately scoped native UserControl is a candidate for a future change, with first-open/reopen runtime coverage before acceptance. See upstream [Window namescope limitation](https://github.com/microsoft/microsoft-ui-xaml/issues/9842) and [C++/WinRT x:Load generation issue](https://github.com/microsoft/microsoft-ui-xaml/issues/7579).
 
 References: [C++/WinRT event revocation](https://learn.microsoft.com/en-us/windows/apps/develop/cpp-winrt/handle-events), [x:Load restrictions](https://learn.microsoft.com/en-us/windows/apps/develop/platform/xaml/x-load-attribute).
+
+## Remaining presentation and resource assessment
+
+The source review supports retaining native WinUI and the existing compact/expanded layouts, not calling the UI finished. No physical visual acceptance or process-resource benchmark has been performed for these changes.
+
+| Area | Concrete remaining work | Acceptance evidence |
+| --- | --- | --- |
+| Information hierarchy | Show each statistic once; keep progress/actions primary and full paths accessible. Consolidate expanded information without losing keyboard or queue operations. | Rendered normal/narrow layouts, English/Spanish, DPI/Text Size, keyboard/UIA checks. |
+| Conflict decisions | Clearly distinguish the affected source/destination and the consequence of each existing choice. Preserve retry/recovery semantics. | Real collision/error scenarios; no global Enter shortcut for destructive choices. |
+| Startup and memory | Separate the expanded subtree into a native namescope suitable for deferred creation. Preserve controls after first disclosure. | Same-machine cold/warm startup, private bytes/working set before disclosure, first-open latency and reopen state. |
+| Transfer-time UI cost | Keep the current coalesced progress mailbox, bounded queue projection and history. Profile expensive text/layout/graph updates before adding more caching. | UI-thread CPU/frame times during the same large queue/workload; unchanged transfer correctness. |
+| Distribution size | Audit the self-contained runtime inventory and dynamic activation/resource dependencies before trimming anything. | x64/ARM64 package, PRI, launch, upgrade/install/uninstall gates plus actual byte comparison. |
+
+The preceding Package inventory measured 65,592,652 uncompressed bytes across 244 x64 files and 70,618,228 bytes across 244 ARM64 files. These are payload figures, not installer sizes or process memory. The x64 application EXE accounted for 1,963,008 bytes; most payload bytes belonged to runtime/components. Native UI edits alone do not establish a significant distribution-size reduction. Preserve the current acrylic preference; compare materials only with rendered and GPU/power evidence.
 
 ## x64 queue stabilization — 2026-10-14
 

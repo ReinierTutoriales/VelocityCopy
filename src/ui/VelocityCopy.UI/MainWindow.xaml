@@ -328,7 +328,6 @@
                       HorizontalScrollBarVisibility="Disabled"
                       HorizontalScrollMode="Disabled">
             <Grid x:Name="ExpandedRegion"
-                  x:Load="{x:Bind DetailsLoaded, Mode=OneWay}"
                   Visibility="Collapsed"
                   Padding="{StaticResource DetailsPanelPadding}"
                   ColumnSpacing="{StaticResource ExpandedColumnSpacing}">

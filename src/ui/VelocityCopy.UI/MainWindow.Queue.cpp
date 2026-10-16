@@ -27,7 +27,6 @@ ScrollViewer find_scroll_viewer(DependencyObject const& root) {
 
 
 bool MainWindow::ApplyQueueItemStyle(const bool narrow) {
-    if (!details_loaded_) return false;
     if (narrow == queue_item_style_narrow_) return false;
     try {
         if (narrow) {
@@ -48,7 +47,6 @@ bool MainWindow::ApplyQueueItemStyle(const bool narrow) {
 }
 
 void MainWindow::RefreshActiveQueue() {
-    if (!expanded_) return;
     constexpr std::size_t kVisibleActiveFiles = 8;
     auto rows = ActiveQueueRows().Children();
     if (!live_plan_) {
@@ -308,7 +306,6 @@ void MainWindow::RefreshQueue(const bool force_visual_rebuild) {
 
 std::vector<std::uint64_t> MainWindow::SelectedPendingIds() {
     std::vector<std::uint64_t> ids;
-    if (!details_loaded_) return ids;
     // Selection follows the QueueItem identity, not a snapshot index. During
     // native ListView drag/reorder the visual indexes can change before the
     // authoritative pending snapshot is refreshed.
@@ -321,7 +318,6 @@ std::vector<std::uint64_t> MainWindow::SelectedPendingIds() {
 }
 
 void MainWindow::RefreshQueueEditCommandState() {
-    if (!details_loaded_) return;
     const bool has_selection = live_plan_ && !queue_drag_active_ && !SelectedPendingIds().empty();
     QueueMoveUpButton().IsEnabled(has_selection);
     QueueMoveDownButton().IsEnabled(has_selection);

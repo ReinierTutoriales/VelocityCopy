@@ -1,7 +1,6 @@
 #pragma once
 
 #include "MainWindow.g.h"
-#include <winrt/Microsoft.UI.Xaml.Data.h>
 
 #include "velocitycopy/app_storage.hpp"
 #include "velocitycopy/destination_space.hpp"
@@ -45,11 +44,6 @@ enum class TransferVisualState : std::uint8_t { Active, Warning, Error };
 struct MainWindow : MainWindowT<MainWindow> {
     MainWindow();
     ~MainWindow();
-    bool DetailsLoaded() const noexcept { return details_loaded_; }
-    winrt::event_token PropertyChanged(Microsoft::UI::Xaml::Data::PropertyChangedEventHandler const& handler) {
-        return property_changed_.add(handler);
-    }
-    void PropertyChanged(winrt::event_token const& token) noexcept { property_changed_.remove(token); }
 
     void ShowFromTray();
     // Brings a hidden or minimized window back and flashes its taskbar
@@ -238,7 +232,6 @@ private:
     void RefreshExecutionMenuState();
     void RefreshQueueEditCommandState();
     void SetExpanded(bool expanded);
-    void EnsureExpandedSurface();
     void SyncExpandedTelemetry();
     void ResetPerformanceHistory() noexcept;
     void ObservePerformanceSample(double bytes_per_second);
@@ -337,8 +330,6 @@ private:
     bool geometry_probe_run_marked_{};
     bool geometry_probe_speed_active_{};
     bool queue_item_style_narrow_{};
-    bool details_loaded_{};
-    winrt::event<Microsoft::UI::Xaml::Data::PropertyChangedEventHandler> property_changed_;
     bool queue_drag_active_{};
     std::shared_ptr<velocitycopy::LiveCopyPlan> queue_drag_plan_;
     bool queue_refresh_force_rebuild_{};

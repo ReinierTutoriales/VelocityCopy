@@ -40,14 +40,12 @@ namespace winrt::VelocityCopyUI::implementation {
 void MainWindow::ClearLiveTelemetry() {
     SpeedText().Text(L"—");
     EtaText().Text(L"—");
-    if (!details_loaded_) return;
     DetailsSpeedText().Text(L"—");
     DetailsEtaText().Text(L"—");
     PerformanceCurrentSpeedText().Text(L"—");
 }
 
 void MainWindow::SyncExpandedTelemetry() {
-    if (!details_loaded_) return;
     const auto bytes_text = TransferBytesText().Text();
     const auto files_text = TransferFilesText().Text();
     const auto speed = SpeedText().Text();
