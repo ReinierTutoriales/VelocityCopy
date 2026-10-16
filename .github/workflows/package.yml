@@ -184,6 +184,20 @@ jobs:
           if (-not $assets) { throw 'Restored NuGet assets graph was not found' }
           pwsh -NoProfile -File tools/ci/Write-PayloadDependencies.ps1 -RootPath "artifacts/installer-payload-${{ matrix.arch }}" -AssetsPath $assets.FullName -OutputPath "artifacts/payload-dependencies-${{ matrix.arch }}.json"
           if ($LASTEXITCODE -ne 0) { throw 'Native dependency audit failed' }
+          # Prove unknown content is rejected; the real payload is restored in finally.
+          $fixture = Join-Path (Resolve-Path "artifacts/installer-payload-${{ matrix.arch }}").Path 'unreviewed-dependency.fixture'
+          if (Test-Path -LiteralPath $fixture) { throw 'Dependency fixture already exists' }
+          try {
+            [IO.File]::WriteAllText($fixture, 'Unreviewed content must never enter the installer.')
+            $PSNativeCommandUseErrorActionPreference = $false
+            $rejection = & pwsh -NoProfile -File tools/ci/Write-PayloadDependencies.ps1 -RootPath "artifacts/installer-payload-${{ matrix.arch }}" -AssetsPath $assets.FullName -OutputPath "artifacts/rejected-dependencies-${{ matrix.arch }}.json" 2>&1
+            if ($LASTEXITCODE -eq 0 -or ($rejection -join "`n") -notmatch 'unreviewed-dependency\.fixture') {
+              throw 'Dependency audit did not reject the unknown-file fixture for the expected reason'
+            }
+            Write-Host 'Unknown payload file rejected as expected.'
+          } finally {
+            Remove-Item -LiteralPath $fixture -Force
+          }
 
       - name: Upload payload size inventory
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

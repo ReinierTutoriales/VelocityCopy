@@ -52,6 +52,18 @@ $provenance = @($files | Sort-Object FullName | ForEach-Object {
         matching_packages = $owners
     }
 })
+$applicationArtifacts = @(
+    'App.xbf', 'DesignTokens.xbf', 'MainWindow.xbf',
+    'Assets\VelocityCopy.ico', 'Assets\VelocityCopy.png',
+    'VelocityCopy.WinUI.exe', 'VelocityCopy.Shell.dll', 'VelocityCopy.StartupHelper.exe',
+    'VelocityCopy.WinUI.pri', 'VelocityCopyUI.winmd'
+)
+$unreviewed = @($provenance | Where-Object {
+    $_.matching_packages.Count -eq 0 -and $_.path -notin $applicationArtifacts
+})
+if ($unreviewed.Count) {
+    throw "Payload has files without reviewed application or byte-identical NuGet provenance: $($unreviewed.path -join ', ')"
+}
 $appNames = @('VelocityCopy.WinUI.exe', 'VelocityCopy.Shell.dll', 'VelocityCopy.StartupHelper.exe')
 $appFiles = @($files | Where-Object { $_.Name -in $appNames })
 if ($appFiles.Count -ne $appNames.Count) { throw 'Expected exactly three application binaries' }

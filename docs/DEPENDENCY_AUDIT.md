@@ -124,6 +124,12 @@ unmatched files are not assigned a guessed owner. Candidate names are indexed
 once and source hashes cached. The audit reads files without loading any image
 and is never included in the installer.
 
+The first schema-2 x64 report matched **234/244 files** exactly to restored NuGet
+packages. The other ten were the application's three binaries, three generated
+XBF files, two image assets, PRI and own WinMD. Package now rejects an unmatched
+file outside that explicit application-artifact list; new or modified third-party
+content requires review instead of silently entering the installer.
+
 Future dependency updates must regenerate both architecture reports, inspect
 new/unmatched files and package changes, and retain the existing exact-commit
 CI/Package gates. Any proposed runtime exclusion is a separate behavioral
