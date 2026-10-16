@@ -5,6 +5,7 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <data name="AppDisplayName" xml:space="preserve"><value>VelocityCopy</value></data>
+  <data name="AboutUnavailable" xml:space="preserve"><value>About could not be opened.</value></data>
   <data name="StatusCompleted" xml:space="preserve"><value>Copy complete</value></data>
   <data name="StatusMoveCompleted" xml:space="preserve"><value>Move complete</value></data>
   <data name="StatusCancelled" xml:space="preserve"><value>Transfer cancelled</value></data>
@@ -23,8 +24,10 @@
   <data name="ConflictTitle" xml:space="preserve"><value>File already exists</value></data>
   <data name="ConflictMessage" xml:space="preserve"><value>A file with the same name already exists at the destination. Choose what to do with this file.</value></data>
   <data name="ConflictApplyToAll" xml:space="preserve"><value>Apply to all remaining conflicts</value></data>
-  <data name="ConflictExistingLabel" xml:space="preserve"><value>Existing</value></data>
-  <data name="ConflictIncomingLabel" xml:space="preserve"><value>Incoming</value></data>
+  <data name="ConflictExistingLabel" xml:space="preserve"><value>Destination · existing file</value></data>
+  <data name="ConflictIncomingLabel" xml:space="preserve"><value>Source · incoming file</value></data>
+  <data name="ConflictMetadataUnavailable" xml:space="preserve"><value>Size or date could not be read.</value></data>
+  <data name="ConflictConsequences" xml:space="preserve"><value>Replace: overwrite the destination file with the source.&#10;Skip: keep the existing file and omit the incoming file.&#10;Keep both: save the incoming file with a different name.&#10;Cancel: stop this transfer; files already copied are not undone.</value></data>
   <data name="RoutingDestinationInUseTitle" xml:space="preserve"><value>Already copying to this folder</value></data>
   <data name="RoutingDestinationInUseMessage" xml:space="preserve"><value>A copy to the same destination is running. Add these files to it (one list, one progress) or copy them after it finishes.</value></data>
   <data name="RoutingStorageInUseTitle" xml:space="preserve"><value>That drive is busy with another copy</value></data>

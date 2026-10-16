@@ -121,12 +121,7 @@ MainWindow::MainWindow() {
     } catch (...) {
     }
 
-    try {
-        // Same translucent, wallpaper-tinted material as Windows 11 menus and
-        // flyouts; Windows falls back to a solid colour when transparency is off.
-        SystemBackdrop(Microsoft::UI::Xaml::Media::DesktopAcrylicBackdrop{});
-    } catch (...) {
-    }
+    velocitycopy::ui::apply_window_material(this->as<Window>());
 
     ExtendsContentIntoTitleBar(true);
     SetTitleBar(TitleBarDragRegion());

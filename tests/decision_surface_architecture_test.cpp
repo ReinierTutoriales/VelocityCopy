@@ -58,5 +58,33 @@ int main() {
     c.find("actions.Orientation(Orientation::Vertical)") == std::string::npos ||
     c.find("child.as<Button>().MaxWidth(available_width)") == std::string::npos ||
     c.find("label.TextWrapping(TextWrapping::Wrap)") == std::string::npos) return 19;
+ const auto material=read_source(root/"src/ui/VelocityCopy.UI/UiTokens.h");
+ const auto about=read_source(root/"src/ui/VelocityCopy.UI/MainWindow.About.cpp");
+ const auto window=read_source(root/"src/ui/VelocityCopy.UI/MainWindow.xaml.cpp");
+ const auto conflict=read_source(root/"src/ui/VelocityCopy.UI/MainWindow.Conflict.cpp");
+ const auto xaml=read_source(root/"src/ui/VelocityCopy.UI/MainWindow.xaml");
+ if(material.find("DesktopAcrylicBackdrop{}")==std::string::npos ||
+    c.find("apply_window_material(dialog)")==std::string::npos ||
+    about.find("apply_window_material(about)")==std::string::npos ||
+    window.find("apply_window_material(this->as<Window>())")==std::string::npos ||
+    about.find("MicaBackdrop")!=std::string::npos || c.find("MicaBackdrop")!=std::string::npos) return 20;
+ if(about.find("weak_about = make_weak(about)")==std::string::npos ||
+    about.find("weak_root = make_weak(root)")==std::string::npos ||
+    about.find("ScrollViewer viewport")==std::string::npos ||
+    about.find("viewport.MaxHeight(")==std::string::npos ||
+    about.find("MessageBoxW(")!=std::string::npos ||
+    about.find("ShowError(resource_or(L\"AboutUnavailable\"")==std::string::npos) return 21;
+ if(c.find("for (auto const& file : options.comparison)")==std::string::npos ||
+    c.find("path.IsTextSelectionEnabled(true)")==std::string::npos ||
+    c.find("secondary.Focus(FocusState::Programmatic)")==std::string::npos ||
+    conflict.find("options.focus_secondary = true")==std::string::npos ||
+    conflict.find("ConflictConsequences")==std::string::npos ||
+    conflict.find("ConflictMetadataUnavailable")==std::string::npos ||
+    conflict.find("co_await resume_background();")==std::string::npos ||
+    conflict.find("co_await ui_context;")==std::string::npos ||
+    conflict.find("live_plan_ != conflict_plan")==std::string::npos) return 22;
+ if(xaml.find("Style=\"{StaticResource AppNoticeStyle}\"")==std::string::npos ||
+    tokens.find("x:Key=\"AppNoticeStyle\" TargetType=\"InfoBar\"")==std::string::npos ||
+    tokens.find("x:Key=\"DecisionComparisonCardStyle\"")==std::string::npos) return 23;
  return 0;
 }

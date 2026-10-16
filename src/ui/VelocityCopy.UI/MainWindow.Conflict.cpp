@@ -66,14 +66,11 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
         const std::wstring cancel_label = velocitycopy::localization::get_string(L"ActionCancel").c_str();
 
         const std::wstring message = velocitycopy::localization::get_string(L"ConflictMessage").c_str();
-        std::wstring detail;
-        if (!conflict.conflict_destination.empty()) {
-            const auto filename = conflict.conflict_destination.filename();
-            detail = filename.empty() ? conflict.conflict_destination.wstring() : filename.wstring();
-        }
+        const std::wstring detail = velocitycopy::localization::get_string(L"ConflictConsequences").c_str();
         // Size and last-modified time of both files, like Explorer's conflict
         // dialog, so Replace / Keep both is an informed choice.
-        auto describe = [](const std::filesystem::path& path) -> std::wstring {
+        auto describe = [](const std::filesystem::path& path) noexcept -> std::wstring {
+            try {
             WIN32_FILE_ATTRIBUTE_DATA data{};
             if (path.empty() || !GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &data)) return {};
             ULARGE_INTEGER size{};
@@ -95,27 +92,33 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
                 }
             }
             return text;
+            } catch (...) { return {}; }
         };
+        const auto conflict_plan = live_plan_;
+        const auto ui_context = apartment_context{};
+        co_await resume_background();
         const auto existing = describe(conflict.conflict_destination);
         const auto incoming = describe(conflict.conflict_source);
-        if (!existing.empty() && !incoming.empty()) {
-            detail.append(L"\n");
-            detail.append(velocitycopy::localization::get_string(L"ConflictExistingLabel").c_str());
-            detail.append(L": ");
-            detail.append(existing);
-            detail.append(L"\n");
-            detail.append(velocitycopy::localization::get_string(L"ConflictIncomingLabel").c_str());
-            detail.append(L": ");
-            detail.append(incoming);
-        }
+        co_await ui_context;
+        if (tray_exit_requested_ || session_ending_ || live_plan_ != conflict_plan ||
+            interrupted_session_ != InterruptedSessionState::Conflict) co_return;
         const std::wstring keep_both_label = velocitycopy::localization::get_string(L"ActionKeepBoth").c_str();
 
         const std::wstring apply_to_all_label =
             velocitycopy::localization::get_string(L"ConflictApplyToAll").c_str();
-        const auto decision = velocitycopy::ui::decode_decision(co_await RequestDecisionAsync({
+        velocitycopy::ui::DecisionOptions options{
             hwnd_, title, message, detail, replace_label, skip_label, cancel_label,
             apply_to_all_label, true, velocitycopy::ui::DecisionTone::Warning, keep_both_label,
-        }));
+        };
+        const std::wstring unavailable = velocitycopy::localization::get_string(L"ConflictMetadataUnavailable").c_str();
+        options.comparison = {{
+            {velocitycopy::localization::get_string(L"ConflictIncomingLabel").c_str(),
+             conflict.conflict_source.wstring(), incoming.empty() ? unavailable : incoming},
+            {velocitycopy::localization::get_string(L"ConflictExistingLabel").c_str(),
+             conflict.conflict_destination.wstring(), existing.empty() ? unavailable : existing},
+        }};
+        options.focus_secondary = true;
+        const auto decision = velocitycopy::ui::decode_decision(co_await RequestDecisionAsync(std::move(options)));
 
         if (tray_exit_requested_ || session_ending_) co_return;
         if (interrupted_session_ != InterruptedSessionState::Conflict || !live_plan_) co_return;

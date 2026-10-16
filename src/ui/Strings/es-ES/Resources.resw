@@ -5,6 +5,7 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <data name="AppDisplayName" xml:space="preserve"><value>VelocityCopy</value></data>
+  <data name="AboutUnavailable" xml:space="preserve"><value>No se pudo abrir Acerca de.</value></data>
   <data name="StatusCompleted" xml:space="preserve"><value>Copia completada</value></data>
   <data name="StatusMoveCompleted" xml:space="preserve"><value>Movimiento completado</value></data>
   <data name="StatusCancelled" xml:space="preserve"><value>Operación cancelada</value></data>
@@ -23,8 +24,10 @@
   <data name="ConflictTitle" xml:space="preserve"><value>El archivo ya existe</value></data>
   <data name="ConflictMessage" xml:space="preserve"><value>Ya existe un archivo con el mismo nombre en el destino. Elige qué hacer con este archivo.</value></data>
   <data name="ConflictApplyToAll" xml:space="preserve"><value>Aplicar a todos los conflictos restantes</value></data>
-  <data name="ConflictExistingLabel" xml:space="preserve"><value>Existente</value></data>
-  <data name="ConflictIncomingLabel" xml:space="preserve"><value>Nuevo</value></data>
+  <data name="ConflictExistingLabel" xml:space="preserve"><value>Destino · archivo existente</value></data>
+  <data name="ConflictIncomingLabel" xml:space="preserve"><value>Origen · archivo entrante</value></data>
+  <data name="ConflictMetadataUnavailable" xml:space="preserve"><value>No se pudo leer el tamaño o la fecha.</value></data>
+  <data name="ConflictConsequences" xml:space="preserve"><value>Reemplazar: sobrescribir el archivo de destino con el de origen.&#10;Saltar: conservar el archivo existente y omitir el entrante.&#10;Conservar ambos: guardar el entrante con otro nombre.&#10;Cancelar: detener esta transferencia; no revierte los archivos ya copiados.</value></data>
   <data name="RoutingDestinationInUseTitle" xml:space="preserve"><value>Ya se está copiando a esta carpeta</value></data>
   <data name="RoutingDestinationInUseMessage" xml:space="preserve"><value>Hay una copia en curso hacia el mismo destino. Puedes sumar estos archivos a esa copia (una sola lista y un solo progreso) o copiarlos cuando termine.</value></data>
   <data name="RoutingStorageInUseTitle" xml:space="preserve"><value>Ese disco ya está ocupado con otra copia</value></data>

@@ -194,6 +194,34 @@ Windows::Foundation::IAsyncOperation<std::uint32_t> show_decision_async(Decision
     message.TextWrapping(TextWrapping::Wrap);
     content.Children().Append(message);
 
+    for (auto const& file : options.comparison) {
+        if (file.path.empty()) continue;
+        StackPanel information;
+        information.Spacing(token_double(L"SpaceTight", 4));
+        TextBlock label;
+        label.Text(file.label);
+        label.FontWeight(Windows::UI::Text::FontWeights::SemiBold());
+        label.FontSize(token_double(L"BodyFontSize", 14));
+        label.TextWrapping(TextWrapping::Wrap);
+        information.Children().Append(label);
+        TextBlock path;
+        path.Text(file.path);
+        path.TextWrapping(TextWrapping::Wrap);
+        path.IsTextSelectionEnabled(true);
+        path.FontSize(token_double(L"CaptionFontSize", 12));
+        information.Children().Append(path);
+        TextBlock metadata;
+        metadata.Text(file.metadata);
+        metadata.TextWrapping(TextWrapping::Wrap);
+        metadata.FontSize(token_double(L"CaptionFontSize", 12));
+        apply_text_style(metadata, L"SecondaryTextStyle");
+        information.Children().Append(metadata);
+        Border card;
+        card.Style(Application::Current().Resources().Lookup(box_value(L"DecisionComparisonCardStyle")).as<Style>());
+        card.Child(information);
+        content.Children().Append(card);
+    }
+
     if (!options.detail.empty()) {
         TextBlock detail;
         detail.Text(hstring(options.detail));
@@ -283,13 +311,14 @@ Windows::Foundation::IAsyncOperation<std::uint32_t> show_decision_async(Decision
     // Button/CheckBox desired sizes cannot be clipped.
     // Coroutine locals outlive the subscription; revoke before closing or unwinding.
     // Capturing by reference avoids root -> handler -> root/dialog ownership cycles.
-    auto loaded = root.Loaded(auto_revoke, [&primary, &root, &dialog, &actions, content_padding, owner = options.owner](auto const&, auto const&) {
+    auto loaded = root.Loaded(auto_revoke, [&primary, &root, &dialog, &actions, &secondary, focus_secondary = options.focus_secondary, content_padding, owner = options.owner](auto const&, auto const&) {
         fit_dialog_to_content(dialog, root, actions, content_padding, owner);
-        (void)primary.Focus(FocusState::Programmatic);
+        if (focus_secondary) (void)secondary.Focus(FocusState::Programmatic);
+        else (void)primary.Focus(FocusState::Programmatic);
     });
 
     dialog.Content(root);
-    try { dialog.SystemBackdrop(MicaBackdrop{}); } catch (...) {}
+    apply_window_material(dialog);
     dialog.ExtendsContentIntoTitleBar(true);
     dialog.SetTitleBar(title_bar);
 

@@ -316,6 +316,7 @@
         </Grid>
 
         <InfoBar x:Name="ErrorBar"
+                 Style="{StaticResource AppNoticeStyle}"
                  Grid.Row="1"
                  IsOpen="False"
                  Severity="Error"
