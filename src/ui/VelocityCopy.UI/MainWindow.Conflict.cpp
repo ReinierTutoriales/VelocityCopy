@@ -53,6 +53,7 @@ void MainWindow::CancelDecisionQueue() noexcept {
 
 fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conflict) {
     auto lifetime = get_strong();
+    const auto conflict_plan = live_plan_;
 
     try {
         if (interrupted_session_ != InterruptedSessionState::Conflict || !live_plan_ || !conflict.destination_conflict ||
@@ -94,7 +95,6 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
             return text;
             } catch (...) { return {}; }
         };
-        const auto conflict_plan = live_plan_;
         const auto ui_context = apartment_context{};
         co_await resume_background();
         const auto existing = describe(conflict.conflict_destination);
@@ -121,7 +121,7 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
         const auto decision = velocitycopy::ui::decode_decision(co_await RequestDecisionAsync(std::move(options)));
 
         if (tray_exit_requested_ || session_ending_) co_return;
-        if (interrupted_session_ != InterruptedSessionState::Conflict || !live_plan_) co_return;
+        if (interrupted_session_ != InterruptedSessionState::Conflict || live_plan_ != conflict_plan) co_return;
         const bool apply_to_all = decision.verification_checked;
 
         switch (decision.choice) {
@@ -154,7 +154,8 @@ fire_and_forget MainWindow::ShowConflictDialogAsync(velocitycopy::JobResult conf
             co_return;
         }
     } catch (...) {
-        if (!tray_exit_requested_ && !session_ending_ && interrupted_session_ == InterruptedSessionState::Conflict) CancelCurrentSession();
+        if (!tray_exit_requested_ && !session_ending_ && live_plan_ == conflict_plan &&
+            interrupted_session_ == InterruptedSessionState::Conflict) CancelCurrentSession();
     }
 }
 
