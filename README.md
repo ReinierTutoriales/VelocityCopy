@@ -16,7 +16,8 @@ to follow the pending queue and speed history.
 
 ## Screenshots
 
-Screenshots show the Spanish interface from the 1.2.3 development build.
+Screenshots show the Spanish interface captured during 1.2.3 development,
+before the 1.3.0 version update.
 Transfer speeds and remaining times reflect the captured session, not a benchmark.
 
 ### Compact transfer view
@@ -39,7 +40,10 @@ Product version, license and project link in a window that follows the applicati
 
 ## Status
 
-VelocityCopy 1.2.2 is the latest published unsigned release. `main` is the 1.2.3 development line (see [CHANGELOG](CHANGELOG.md)). Every change is validated by Windows CI and Windows Package before integration.
+VelocityCopy 1.3.0 targets Windows 11 x64 and ARM64 with native, self-contained,
+unsigned installers. See [Releases](https://github.com/ReinierTutoriales/VelocityCopy/releases)
+for published downloads and [CHANGELOG](CHANGELOG.md) for the changes. Every change
+is validated by Windows CI and Windows Package before integration.
 
 Current automated baseline (`main`):
 
@@ -61,6 +65,10 @@ Download installers from Releases. Use the setup that matches the PC: x64 setup 
 - Explorer right-button transfer handler with explicit Copy here / Move here commands
 - Silent startup via an installer-owned HKCU Run entry (`--startup`)
 - One process-owned tray icon with EcoQoS while eligible and idle
+
+While VelocityCopy is resident, Ctrl+V in normal Explorer filesystem folder views
+routes copied or cut files into its transfer queue. Ctrl+C/X remain native Windows
+commands. This does not replace every Paste command, virtual folder or other application.
 
 ## Repository layout
 

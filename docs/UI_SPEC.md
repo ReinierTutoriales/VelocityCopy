@@ -2,7 +2,7 @@
 
 VelocityCopy is a compact Windows 11 copy/move utility. The window itself is the copier surface; it must stay compact, direct, and free of destination/layout chooser UI during drag/drop or shell-driven transfers.
 
-## Current design (1.2.2) — supersedes the older phase notes below where they differ
+## Current design (1.3.0) — supersedes the older phase notes below where they differ
 
 - **Command row:** Pause/Resume, **Skip**, Cancel and Options form the operational cluster (in that order); Details / Hide details stays isolated at the far right. Skip is a surface button enabled only through `can_skip_current_file`; its tooltip lives on an enabled host like Pause/Cancel. **Stop** stays an Options command because it differs from Pause: Stop ends the session cleanly and keeps the queue for Resume, Pause holds the current file open mid-copy.
 - **Options menu:** Stop, Save queue, Load queue, About, Hide to tray. Skip is no longer a menu item.
