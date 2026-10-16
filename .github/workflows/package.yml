@@ -195,6 +195,7 @@ jobs:
               throw 'Dependency audit did not reject the unknown-file fixture for the expected reason'
             }
             Write-Host 'Unknown payload file rejected as expected.'
+            $global:LASTEXITCODE = 0
           } finally {
             Remove-Item -LiteralPath $fixture -Force
           }
