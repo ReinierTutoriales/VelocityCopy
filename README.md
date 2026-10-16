@@ -10,6 +10,33 @@
 
 </div>
 
+VelocityCopy is a native C++ and WinUI 3 file transfer utility for Windows 11.
+Keep progress and transfer controls in a compact window, then expand the details
+to follow the pending queue and speed history.
+
+## Screenshots
+
+Screenshots show the Spanish interface from the 1.2.3 development build.
+Transfer speeds and remaining times reflect the captured session, not a benchmark.
+
+### Compact transfer view
+
+Progress, transferred data, speed and remaining time alongside the transfer controls.
+
+<img src="docs/screenshots/transfer-compact.png" alt="VelocityCopy compact view showing transfer progress, speed, remaining time and controls in Spanish" width="461" />
+
+### Queue and speed history
+
+Expand Details to inspect pending files and follow the speed history in the same window.
+
+<img src="docs/screenshots/transfer-details.png" alt="VelocityCopy expanded view showing the pending queue and speed history beside active transfer progress" width="642" />
+
+### About VelocityCopy
+
+Product version, license and project link in a window that follows the application theme.
+
+<img src="docs/screenshots/about.png" alt="About VelocityCopy window in Spanish showing version 1.2.3, the MIT license and the project link" width="442" />
+
 ## Status
 
 VelocityCopy 1.2.2 is the latest published unsigned release. `main` is the 1.2.3 development line (see [CHANGELOG](CHANGELOG.md)). Every change is validated by Windows CI and Windows Package before integration.
@@ -44,6 +71,7 @@ src/shell    Explorer in-process COM server
 tools        NSIS script, install helper, benchmarks
 tests        core and architecture contracts
 docs         product and release-gate rules
+docs/screenshots  application screenshots used in this README
 .github      Windows CI and Windows Package
 ```
 
