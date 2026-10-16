@@ -77,3 +77,58 @@ reduced payload. The existing launch smoke alone cannot establish that safety.
 Official references:
 [self-contained deployment](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/self-contained-deploy/deploy-self-contained-apps),
 [DUMPBIN /IMPORTS](https://learn.microsoft.com/en-us/cpp/build/reference/imports-dumpbin).
+
+## Completed component disposition
+
+The selected distribution remains native C++/WinUI, componentized and
+self-contained. No additional runtime exclusion is approved by this audit.
+This is a deliberate disposition of the current payload, not a claim that
+every supplied SDK file is exercised by VelocityCopy or an absolute minimum.
+
+| Group | Evidence and decision |
+| --- | --- |
+| WinUI/XAML, Controls, Internal, WinUIEdit, Phone, Designer | Retain the SDK component deployment. `MainWindow.xaml`, `DecisionSurface.cpp` and `MainWindow.About.cpp` use native controls and XAML activation; XAML imports Internal and FrameworkUdk. WinUIEdit/Phone/Designer have no inbound PE imports in this snapshot, which does not establish that optional framework paths cannot load them. Do not infer removal safety from their names. |
+| Foundation/runtime/bootstrap and metadata | Retain SDK initialization, resource and activation support for the unpackaged process. Bootstrap imports WindowsAppRuntime. WinRT activation explains why an application can use a DLL without a PE import. Generated initialization is part of the SDK build, not just application source. |
+| InteractiveExperiences/input/composition/windowing | Retain. `MainWindow.xaml.cpp` uses DispatcherQueue/windowing, and `UiTokens.h` applies DesktopAcrylicBackdrop. The report links CoreMessagingXP, marshal, FrameworkUdk, Windowing.Core and composition support through actual imports. |
+| DWrite/text rendering | Retain the selected DWrite component. Text rendering is part of the native UI stack; the lack of an application DWriteCore import does not establish safe exclusion. |
+| MRT/PRI, XBF and language satellites | Retain. `Localization.cpp` constructs ResourceManager, and Package validates both application languages. Keep the framework's other language satellites: native control localization may follow the user's language even when application strings fall back to English/Spanish. Do not remove languages solely from the application's two RESW folders. |
+| WebView2 SDK/Core | Retain the pinned dependency required by the WinUI NuGet graph; no browser runtime or application WebView is added. SDK provenance and a missing source call do not justify hand-deleting its runtime projection. |
+| RestartAgent / notification proxy | Retain the Foundation-supplied deployment; no application push notification API is used (tray messages use Shell APIs). Absence of application usage does not prove these SDK support files are independently removable. |
+| CppWinRT | Build tooling/header projection, not another application framework. Track restored dependencies separately from files actually distributed. |
+| AI/ML, Search, Widgets | Continue excluding by selecting only needed SDK components; recursively reject their known binaries if they reappear anywhere in the payload. |
+| PDB/ILK/LIB/EXP/IOBJ/IPDB | Build products already removed recursively; keep that exclusion. |
+
+### Size baseline and repeatability
+
+At commit `eeaeeffa0f6713187e6e8866df6d25b622bc2165`, Package run
+[38837636912](https://github.com/ReinierTutoriales/VelocityCopy/actions/runs/38837636912)
+measured x64 **65,599,421 bytes** and ARM64 **70,622,949 bytes**, each 244 files
+and 34 EXE/DLL modules. The three application binaries account for 2,133,504
+and 2,192,896 bytes respectively; the remainder includes runtime AND resources.
+The x64 inventory breaks down as follows:
+
+| Type | Files | Bytes |
+| --- | ---: | ---: |
+| DLL | 31 | 52,543,016 |
+| EXE (including SDK helper) | 3 | 2,109,240 |
+| MUI | 172 | 3,530,328 |
+| PRI | 4 | 4,419,912 |
+| WinMD | 27 | 2,509,872 |
+| XBF | 3 | 22,961 |
+| ICO/PNG/HTML | 4 | 464,092 |
+
+Report schema 2 now records the restored NuGet graph, reverse import edges,
+file-type totals, and **byte-identical SHA-256 matches** from each staged file
+to restored package files. Multiple exact owners remain visible; generated or
+unmatched files are not assigned a guessed owner. Candidate names are indexed
+once and source hashes cached. The audit reads files without loading any image
+and is never included in the installer.
+
+Future dependency updates must regenerate both architecture reports, inspect
+new/unmatched files and package changes, and retain the existing exact-commit
+CI/Package gates. Any proposed runtime exclusion is a separate behavioral
+change requiring the reduced-payload checks above. This audit makes no runtime
+removal, so no reduced-payload performance claim or unexecuted exclusion test
+is represented as complete. Startup/RAM benchmarks are not substituted for
+dependency safety; no startup/RAM improvement is claimed. Physical device/UI
+and ARM64 runtime acceptance remain the release gates in RELEASE_GATES.md.

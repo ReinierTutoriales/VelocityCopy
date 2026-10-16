@@ -163,8 +163,9 @@ jobs:
           Get-ChildItem $payload -Recurse -File |
             Where-Object { $_.Extension -in '.pdb','.ilk','.lib','.exp','.iobj','.ipdb' } |
             Remove-Item -Force
-          foreach ($unused in @('Microsoft.Windows.AI.Text.dll','Microsoft.Windows.AI.MachineLearning.dll','onnxruntime.dll','Microsoft.Windows.Search.dll','Microsoft.Windows.Widgets.dll')) {
-            if (Test-Path (Join-Path $payload $unused)) { throw "Unused SDK component is still staged: $unused" }
+          $unusedNames = @('Microsoft.Windows.AI.Text.dll','Microsoft.Windows.AI.MachineLearning.dll','onnxruntime.dll','Microsoft.Windows.Search.dll','Microsoft.Windows.Widgets.dll')
+          foreach ($unused in (Get-ChildItem $payload -Recurse -File | Where-Object Name -in $unusedNames)) {
+            throw "Unused SDK component is still staged: $($unused.FullName)"
           }
           $files = @(Get-ChildItem $payload -Recurse -File)
           $size = ($files | Measure-Object Length -Sum).Sum
@@ -179,7 +180,9 @@ jobs:
       - name: Audit native payload dependencies
         shell: pwsh
         run: |
-          pwsh -NoProfile -File tools/ci/Write-PayloadDependencies.ps1 -RootPath "artifacts/installer-payload-${{ matrix.arch }}" -OutputPath "artifacts/payload-dependencies-${{ matrix.arch }}.json"
+          $assets = Get-ChildItem src/ui/VelocityCopy.UI -Recurse -File -Filter project.assets.json | Select-Object -First 1
+          if (-not $assets) { throw 'Restored NuGet assets graph was not found' }
+          pwsh -NoProfile -File tools/ci/Write-PayloadDependencies.ps1 -RootPath "artifacts/installer-payload-${{ matrix.arch }}" -AssetsPath $assets.FullName -OutputPath "artifacts/payload-dependencies-${{ matrix.arch }}.json"
           if ($LASTEXITCODE -ne 0) { throw 'Native dependency audit failed' }
 
       - name: Upload payload size inventory
