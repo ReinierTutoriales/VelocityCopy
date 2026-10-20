@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <iostream>
 
 namespace {
 namespace fs = std::filesystem;
@@ -64,7 +65,7 @@ fs::path unavailable_root() {
 
 } // namespace
 
-int wmain() {
+int run_test() {
     const auto root = fs::temp_directory_path() / L"VelocityCopySourceRemovalRecoveryTest";
     std::error_code ec;
     fs::remove_all(root, ec);
@@ -220,4 +221,10 @@ int wmain() {
 
     fs::remove_all(root, ec);
     return 0;
+}
+
+int wmain() {
+    const auto result = run_test();
+    if (result) std::cerr << "Source-removal recovery failed at check " << result << '\n';
+    return result;
 }
