@@ -112,6 +112,8 @@ int run_test() {
         std::cerr << "Long-path direct copy: " << std::hex << direct.native_code << '\n';
         return 19;
     }
+    const auto copied_back = CopyEngine{}.copy_file(extended / L"direct.txt", root / L"returned.txt");
+    if (!copied_back.success || read_text(root / L"returned.txt") != "UPPER") return 20;
     LiveCopyPlan long_plan(JobPlanner{}.build(job));
     const auto long_copy = JobExecutor{}.execute(long_plan);
     if (!long_copy.success || long_copy.outcomes.succeeded != 1 || read_text(extended / L"É.txt") != "UPPER") {
@@ -120,6 +122,12 @@ int run_test() {
             std::cerr << "Long-path incident: " << std::hex << incident.hresult << '\n';
         return 17;
     }
+    job.sources = {extended / L"direct.txt"};
+    job.destination = root / L"moved";
+    job.operation = FileOperation::Move;
+    const auto moved = JobExecutor{}.execute(JobPlanner{}.build(job));
+    if (!moved.success || moved.outcomes.succeeded != 1 || fs::exists(extended / L"direct.txt") ||
+        read_text(job.destination / L"direct.txt") != "UPPER") return 21;
     fs::remove_all(fs::path(L"\\\\?\\" + root.native()));
     return 0;
 }
