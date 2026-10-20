@@ -98,8 +98,14 @@ int run_test() {
     job.sources = {upper};
     job.destination = extended;
     job.layout = DestinationLayout::ContentsOnly;
-    const auto long_copy = JobExecutor{}.execute(job);
-    if (!long_copy.success || read_text(extended / L"É.txt") != "UPPER") return 17;
+    LiveCopyPlan long_plan(JobPlanner{}.build(job));
+    const auto long_copy = JobExecutor{}.execute(long_plan);
+    if (!long_copy.success || long_copy.outcomes.succeeded != 1 || read_text(extended / L"É.txt") != "UPPER") {
+        std::cerr << "Long-path native status: " << std::hex << long_copy.native_code << '\n';
+        for (const auto& incident : long_plan.parked_incidents())
+            std::cerr << "Long-path incident: " << std::hex << incident.hresult << '\n';
+        return 17;
+    }
     fs::remove_all(fs::path(L"\\\\?\\" + root.native()));
     return 0;
 }

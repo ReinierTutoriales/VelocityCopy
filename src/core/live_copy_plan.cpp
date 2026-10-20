@@ -166,12 +166,14 @@ LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan, const bool allow_draine
 
         std::vector<std::wstring> incoming_keys;
         incoming_keys.reserve(plan.files.size());
+        PathKeyFactory current_keys;
         std::set<std::wstring, PathKeyLess> unique_incoming;
         for (auto& file : plan.files) {
             if (!file.destination_case_sensitive)
                 file.destination_case_sensitive = path_keys_.directory_case_sensitive(file.destination.parent_path());
             auto key = path_keys_.make(file.destination);
-            if (key.empty() || reserved_destination_keys_.contains(key) ||
+            if (key.empty() || !path_key_equal(key, current_keys.make(file.destination)) ||
+                reserved_destination_keys_.contains(key) ||
                 !unique_incoming.insert(key).second) {
                 return LivePlanAppendResult::DestinationCollision;
             }

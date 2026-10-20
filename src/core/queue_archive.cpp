@@ -125,6 +125,7 @@ bool plan_paths_are_contained(const CopyPlan& plan) {
 }
 
 bool write_plan(std::ofstream& stream, const CopyPlan& plan) {
+    if (!plan_paths_are_contained(plan)) return false;
     const auto operation = static_cast<std::uint8_t>(plan.operation);
     if (!write_value(stream, operation) || !write_path(stream, plan.destination_root)) return false;
 
