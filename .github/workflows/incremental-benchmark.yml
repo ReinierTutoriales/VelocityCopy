@@ -40,9 +40,13 @@ jobs:
           $metadata = @{
             runner = $env:RUNNER_OS
             os = (Get-CimInstance Win32_OperatingSystem).Caption
+            os_build = (Get-CimInstance Win32_OperatingSystem).BuildNumber
             cpu = (Get-CimInstance Win32_Processor).Name
             disks = @(Get-CimInstance Win32_DiskDrive | Select-Object Model, Size, InterfaceType)
             memory = (Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory
+            volumes = @(Get-Volume | Select-Object DriveLetter, FileSystem, AllocationUnitSize, Size, SizeRemaining)
+            power = (powercfg /getactivescheme)
+            defender = (Get-MpComputerStatus | Select-Object AMServiceEnabled, AntivirusEnabled, RealTimeProtectionEnabled)
             baseline = (git -C baseline rev-parse HEAD)
             candidate = (git -C candidate rev-parse HEAD)
             path_buffer = (git -C path-buffer rev-parse HEAD)
@@ -52,9 +56,11 @@ jobs:
           foreach ($mode in @('control', 'move', 'plan', 'directories', 'copy')) {
             $workers = if ($mode -eq 'copy') { @(1, 2, 4) } else { @(1) }
             foreach ($worker in $workers) {
-              for ($iteration = 0; $iteration -lt 5; $iteration++) {
+              for ($iteration = -1; $iteration -lt 7; $iteration++) {
                 $order = if ($iteration % 2) { @('candidate', 'baseline') } else { @('baseline', 'candidate') }
-                if ($mode -eq 'plan') { $order += 'path-buffer' }
+                if ($mode -eq 'plan') {
+                  $order = if ($iteration % 2) { @('path-buffer', 'candidate', 'baseline') } else { @('baseline', 'candidate', 'path-buffer') }
+                }
                 foreach ($revision in $order) {
                   $fixture = Join-Path $env:RUNNER_TEMP "velocitycopy-incremental-$([guid]::NewGuid())"
                   $json = & "./build-$revision/Release/VelocityCopyIncrementalBenchmark.exe" $mode $fixture $worker
@@ -68,9 +74,10 @@ jobs:
               }
             }
           }
-          $summary = foreach ($group in ($samples | Group-Object revision, mode, workers)) {
+          $summary = foreach ($group in ($samples | Where-Object iteration -ge 0 | Group-Object revision, mode, workers)) {
             $sorted = @($group.Group.seconds | Sort-Object)
-            [pscustomobject]@{ group = $group.Name; samples = $sorted.Count; median_seconds = $sorted[2]; min_seconds = $sorted[0]; max_seconds = $sorted[-1] }
+            $planning = @($group.Group.planning_seconds | Sort-Object)
+            [pscustomobject]@{ group = $group.Name; samples = $sorted.Count; median_seconds = $sorted[3]; median_planning_seconds = $planning[3]; min_seconds = $sorted[0]; max_seconds = $sorted[-1] }
           }
           $summary | ConvertTo-Json | Set-Content summary.json
           $summary | Format-Table | Out-String | Add-Content $env:GITHUB_STEP_SUMMARY

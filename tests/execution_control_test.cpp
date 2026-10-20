@@ -118,5 +118,21 @@ int main() {
     if (control.directive() != ExecutionDirective::Run || control.consume_skip(77)) {
         return 13;
     }
+    // Concurrent workers must still consume a queued skip exactly once.
+    control.request_skip(88);
+    std::atomic_uint consumed{};
+    for (auto& thread : waiters) {
+        thread = std::jthread([&] {
+            if (control.consume_skip(88)) consumed.fetch_add(1);
+        });
+    }
+    for (auto& thread : waiters) thread.join();
+    if (consumed.load() != 1) return 14;
+
+    // Pause/Resume must never override a terminal directive observed by readers.
+    control.request_stop();
+    control.request_pause();
+    control.resume();
+    if (control.directive() != ExecutionDirective::Stop) return 15;
     return 0;
 }

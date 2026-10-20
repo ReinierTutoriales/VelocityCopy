@@ -63,11 +63,13 @@ int wmain(int argc, wchar_t** argv) {
         GetProcessTimes(GetCurrentProcess(), &created, &exited, &kernel_before, &user_before);
         const auto start = Clock::now();
         double live_seconds = 0;
+        double planning_seconds = 0;
         if (planning) {
             raw = JobPlanner{}.build(job);
             if ((mode == L"plan" && raw.files.size() != count) ||
                 (mode == L"directories" && raw.directories.size() < count) || !raw.failures.empty()) return 4;
             const auto live_start = Clock::now();
+            planning_seconds = std::chrono::duration<double>(live_start - start).count();
             LiveCopyPlan live(std::move(raw));
             live_seconds = std::chrono::duration<double>(Clock::now() - live_start).count();
         } else if (mode == L"control") {
@@ -108,6 +110,7 @@ int wmain(int argc, wchar_t** argv) {
         std::wcout << std::fixed << std::setprecision(9)
             << L"{\"mode\":\"" << mode << L"\",\"workers\":" << workers
             << L",\"count\":" << count << L",\"seconds\":" << seconds
+            << L",\"planning_seconds\":" << planning_seconds
             << L",\"live_plan_seconds\":" << live_seconds << L",\"cpu_seconds\":" << cpu
             << L",\"peak_working_set\":" << memory.PeakWorkingSetSize
             << L",\"callbacks\":" << callbacks << L",\"directive_reads\":" << reads << L"}\n";
