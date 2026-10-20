@@ -38,6 +38,8 @@ StreamingCopyResult execute_streaming_copy(const CopyJob& job, ExecutionControl&
             try {
                 JobPlanner{}.stream(job, control, streaming.batch_entries, [&](CopyPlan batch) {
                     const auto count = entries(batch);
+                    if (count > streaming.batch_entries)
+                        throw std::system_error(std::make_error_code(std::errc::value_too_large));
                     std::unique_lock lock(mutex);
                     for (;;) {
                         if (stop.stop_requested() || control.directive() == ExecutionDirective::Cancel ||

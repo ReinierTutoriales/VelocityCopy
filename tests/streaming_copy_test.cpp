@@ -56,6 +56,10 @@ int regressions() {
         "copy did not overlap discovery or buffer exceeded");
     require(copied.recovery.queued_jobs.empty() && !copied.recovery.current_plan, "completed recovery not cleared");
     verify(f, f.job(), 129);
+    ExecutionControl tiny_control;
+    auto tiny = execute_streaming_copy(f.job(L"tiny"), tiny_control, {}, StreamingCopyOptions{1, 1});
+    require(tiny.result.success && tiny.peak_buffered_entries == 1, "single-entry batch boundary failed");
+    verify(f, f.job(L"tiny"), 129);
 
     for (bool stop : {false, true}) {
         ExecutionControl interrupted;

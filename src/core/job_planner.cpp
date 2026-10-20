@@ -492,6 +492,7 @@ CopyPlan JobPlanner::build_impl(const CopyJob& job, const std::stop_token stop_t
                 std::make_move_iterator(subdirectories.rend()));
             if (enumeration_error != ERROR_NO_MORE_FILES) {
                 // Enumeration stopped part-way through this folder.
+                flush(); // Leave room for its failure even at a batch boundary.
                 record_failure(plan, directory_source, directory_target,
                     std::error_code(static_cast<int>(enumeration_error), std::system_category()));
             }
