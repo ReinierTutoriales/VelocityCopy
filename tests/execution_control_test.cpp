@@ -134,5 +134,29 @@ int main() {
     control.request_pause();
     control.resume();
     if (control.directive() != ExecutionDirective::Stop) return 15;
+    control.reset();
+    consumed = 0;
+    std::atomic_bool expired{false};
+    const auto deadline = std::chrono::steady_clock::now() + 5s;
+    std::jthread producer([&] {
+        for (std::uint64_t id = 1; id <= 1'000; ++id) control.request_skip(id);
+    });
+    for (std::size_t worker = 0; worker < waiters.size(); ++worker) {
+        waiters[worker] = std::jthread([&, worker] {
+            for (std::uint64_t id = worker + 1; id <= 1'000; id += waiters.size()) {
+                while (!control.consume_skip(id)) {
+                    if (std::chrono::steady_clock::now() >= deadline) {
+                        expired = true;
+                        return;
+                    }
+                    std::this_thread::yield();
+                }
+                consumed.fetch_add(1);
+            }
+        });
+    }
+    producer.join();
+    for (auto& thread : waiters) thread.join();
+    if (expired.load() || consumed.load() != 1'000) return 16;
     return 0;
 }

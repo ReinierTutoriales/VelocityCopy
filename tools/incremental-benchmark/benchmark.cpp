@@ -73,8 +73,10 @@ int wmain(int argc, wchar_t** argv) {
             LiveCopyPlan live(std::move(raw));
             live_seconds = std::chrono::duration<double>(Clock::now() - live_start).count();
         } else if (mode == L"control") {
-            for (unsigned i = 0; i < 10'000'000; ++i)
+            for (unsigned i = 0; i < 10'000'000; ++i) {
                 reads += control.directive() == ExecutionDirective::Run;
+                if (control.consume_skip(i + 1)) return 5;
+            }
             if (reads != 10'000'000) return 5;
         } else {
             LiveCopyPlan live(std::move(raw));

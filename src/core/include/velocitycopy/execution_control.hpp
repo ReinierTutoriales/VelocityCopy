@@ -39,6 +39,7 @@ private:
     mutable std::mutex mutex_;
     std::condition_variable condition_;
     std::atomic<ExecutionDirective> directive_{ExecutionDirective::Run};
+    std::atomic_bool has_pending_skips_{false};
     std::unordered_set<std::uint64_t> skip_file_ids_;
 };
 
