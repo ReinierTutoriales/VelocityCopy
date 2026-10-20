@@ -1,12 +1,19 @@
 #include "velocitycopy/transfer_router.hpp"
 #include "velocitycopy/storage_profiler.hpp"
+#include "velocitycopy/path_key.hpp"
 #include <algorithm>
 #include <cwctype>
 namespace velocitycopy { namespace {
-std::wstring path_key(const std::filesystem::path& p){auto s=p.lexically_normal().wstring();std::transform(s.begin(),s.end(),s.begin(),[](wchar_t c){return static_cast<wchar_t>(std::towlower(c));});while(s.size()>3&&(s.back()==L'\\'||s.back()==L'/'))s.pop_back();return s;}
 bool shares_device(const TransferRequest&r,const ActiveSession&s) {return same_device(r.destination,s.destination)||same_device(r.destination,s.source)||same_device(r.source,s.destination)||same_device(r.source,s.source);}
 }
-bool same_destination(const std::filesystem::path&a,const std::filesystem::path&b) {return !a.empty()&&!b.empty()&&path_key(a)==path_key(b);}
+bool same_destination(const std::filesystem::path&a,const std::filesystem::path&b) {
+ try {
+  if(a.empty()||b.empty())return false;
+  PathKeyFactory keys;
+  const auto left=keys.make(a),right=keys.make(b);
+  return !left.empty()&&!right.empty()&&path_key_equal(left,right);
+ } catch (...) {return false;}
+}
 std::wstring fallback_volume_key(const std::filesystem::path& path) noexcept {
  try {
  auto s=path.lexically_normal().wstring();

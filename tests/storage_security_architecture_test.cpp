@@ -37,14 +37,20 @@ int main() {
         return fail(1, "required core source missing");
     }
 
-    const auto reparse_check = engine.find("source_is_unsafe_reparse_point(source)");
+    const auto reparse_check = engine.find("detail::name_surrogate_reparse(handle)");
     const auto destination_check = engine.find("destination_guard.prepare_directory(parent");
     const auto copy_call = engine.find("CopyFile2(");
     if (reparse_check == std::string::npos ||
         !contains(engine, "ERROR_CANT_ACCESS_FILE") ||
         copy_call == std::string::npos ||
-        reparse_check > copy_call) {
-        return fail(2, "source reparse point must be revalidated immediately before CopyFile2");
+        reparse_check > copy_call ||
+        !contains(engine, "SourceLease::State") || !contains(engine, "FILE_SHARE_READ, nullptr, OPEN_EXISTING") ||
+        !contains(engine, "source_lease.state_->path.c_str()") ||
+        !contains(engine, "detail::same_file_fingerprint(expected_source, probe.fingerprint)") ||
+        !contains(engine, "SetFileInformationByHandle(source_guard.handle, FileRenameInfo") ||
+        !contains(executor, "remove_verified_recovery_source(recovery)") ||
+        contains(executor, "remove_moved_source_file")) {
+        return fail(2, "source must remain pinned across copying, and Move must mutate a verified handle");
     }
 
     if (destination_check == std::string::npos ||

@@ -52,5 +52,8 @@ struct FingerprintProbeResult {
     const std::filesystem::path& path) noexcept;
 [[nodiscard]] SourceRemovalValidation validate_source_removal_recovery(
     const SourceRemovalRecovery& recovery) noexcept;
+// Revalidate pinned files, then delete only the verified source handle.
+[[nodiscard]] std::int32_t remove_verified_recovery_source(
+    const SourceRemovalRecovery& recovery) noexcept;
 
 } // namespace velocitycopy

@@ -1,4 +1,5 @@
 #include "velocitycopy/queue_archive.hpp"
+#include "velocitycopy/path_key.hpp"
 
 #include <windows.h>
 #include <objbase.h>
@@ -72,25 +73,12 @@ bool read_path(std::ifstream& stream, std::filesystem::path& path) {
     return true;
 }
 
-std::wstring containment_key(const std::filesystem::path& path) {
-    auto value = path.lexically_normal().wstring();
-    std::replace(value.begin(), value.end(), L'/', L'\\');
-    std::transform(value.begin(), value.end(), value.begin(), [](const wchar_t ch) {
-        return static_cast<wchar_t>(std::towlower(ch));
-    });
-    while (value.size() > 3 && value.back() == L'\\') value.pop_back();
-    return value;
-}
-
 // A queue file is user-selectable input. Its plan must describe the same kind
 // of tree the planner produces: absolute paths, every output inside the
 // destination root and every input inside one of the source roots. Otherwise
 // a crafted .vcq could write anywhere or, for Move, delete arbitrary files.
 bool same_or_inside(const std::wstring& candidate, const std::wstring& root) {
-    if (candidate.empty() || root.empty()) return false;
-    if (candidate == root) return true;
-    if (candidate.size() <= root.size() || candidate.compare(0, root.size(), root) != 0) return false;
-    return root.back() == L'\\' || candidate[root.size()] == L'\\';
+    return path_key_is_prefix(root, candidate);
 }
 
 bool has_parent_reference(const std::filesystem::path& path) {
@@ -101,6 +89,8 @@ bool has_parent_reference(const std::filesystem::path& path) {
 }
 
 bool plan_paths_are_contained(const CopyPlan& plan) {
+    PathKeyFactory keys;
+    const auto containment_key = [&keys](const std::filesystem::path& path) { return keys.make(path); };
     if (!plan.destination_root.is_absolute() || has_parent_reference(plan.destination_root)) return false;
     const auto destination_root = containment_key(plan.destination_root);
 
@@ -123,7 +113,7 @@ bool plan_paths_are_contained(const CopyPlan& plan) {
             return false;
         }
         const auto destination = containment_key(file.destination);
-        if (destination == destination_root || !same_or_inside(destination, destination_root)) return false;
+        if (path_key_equal(destination, destination_root) || !same_or_inside(destination, destination_root)) return false;
         const auto source = containment_key(file.source);
         if (std::none_of(source_roots.begin(), source_roots.end(), [&](const std::wstring& root) {
                 return same_or_inside(source, root);
@@ -135,6 +125,7 @@ bool plan_paths_are_contained(const CopyPlan& plan) {
 }
 
 bool write_plan(std::ofstream& stream, const CopyPlan& plan) {
+    if (!plan_paths_are_contained(plan)) return false;
     const auto operation = static_cast<std::uint8_t>(plan.operation);
     if (!write_value(stream, operation) || !write_path(stream, plan.destination_root)) return false;
 

@@ -35,10 +35,12 @@ CopyPlan make_plan(int first, int count) {
     return plan;
 }
 
-int main() {
+int run_test() {
     int failed_appends = 0;
     bool succeeded = false;
-    for (int allocation = 0; allocation < 600; ++allocation) {
+    // Case-aware path snapshots add allocations. Inject failure at every index
+    // through the first successful append, retaining all rollback assertions.
+    for (int allocation = 0; allocation < 4096; ++allocation) {
         LiveCopyPlan live(make_plan(0, 1));
         auto incoming = make_plan(1, 40);
         const auto before = live.export_remaining_plan();
@@ -64,6 +66,7 @@ int main() {
         } else return 4;
     }
     if (failed_appends < 10 || !succeeded) return 5;
+    std::cout << "Append allocation failures checked: " << failed_appends << '\n';
 
     // A failed acquisition must retain the item in Pending, and be retryable.
     int failed_acquires = 0;
@@ -175,4 +178,10 @@ int main() {
     if (failed_reorders < 5 || !reordered) return 18;
     std::cout << "Live-plan allocation failures preserve state and allow retry\n";
     return 0;
+}
+
+int main() {
+    const auto result = run_test();
+    if (result) std::cerr << "Live-plan allocation failed at check " << result << '\n';
+    return result;
 }

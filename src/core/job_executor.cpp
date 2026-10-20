@@ -81,26 +81,6 @@ bool is_session_fatal(const std::int32_t code) noexcept {
            code == static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_NOT_READY));
 }
 
-std::int32_t remove_moved_source_file(const std::filesystem::path& source) noexcept {
-    std::error_code ec;
-    const bool removed = std::filesystem::remove(source, ec);
-    if (ec) {
-        return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
-    }
-    if (removed) {
-        return S_OK;
-    }
-
-    ec.clear();
-    const bool still_exists = std::filesystem::exists(source, ec);
-    if (ec) {
-        return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ec.value()));
-    }
-    return still_exists
-        ? static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_ACCESS_DENIED))
-        : S_OK;
-}
-
 bool is_already_gone(const std::error_code& ec) noexcept {
     return ec.value() == ERROR_FILE_NOT_FOUND || ec.value() == ERROR_PATH_NOT_FOUND;
 }
@@ -469,7 +449,7 @@ JobResult JobExecutor::execute(
                     return finish({false, false, kInvalidPlanState});
                 }
                 if (const auto result = check_control()) return *result;
-                const auto remove_source = remove_moved_source_file(recovery.source);
+                const auto remove_source = remove_verified_recovery_source(recovery);
                 if (remove_source == S_OK) {
                     if (!plan.resolve_parked(
                             recovery.file_id, ItemOutcome::Succeeded, S_OK,
@@ -655,6 +635,8 @@ JobResult JobExecutor::execute(
                         }
 
                         bool resume_from_pause = false;
+                        SourceLease source_lease;
+                        CopyResult completed_copy{};
                         bool skipped = false;
                         bool failed = false;
 
@@ -670,7 +652,9 @@ JobResult JobExecutor::execute(
                                 replaces_existing(options, file_id)
                                     ? ExistingDestinationPolicy::Replace
                                     : options.existing_destination;
-                            renamed = engine_.rename_file(file->source, file->destination, rename_policy).success;
+                            renamed = engine_.rename_file(
+                                file->source, file->destination, rename_policy, &destination_lease,
+                                file->destination_case_sensitive).success;
                         }
 
                         while (!renamed) {
@@ -690,6 +674,9 @@ JobResult JobExecutor::execute(
                                     options.suggested_buffer_bytes,
                                     &destination_lease,
                                     options.preserve_basic_metadata,
+                                    &control,
+                                    &source_lease,
+                                    file->destination_case_sensitive,
                                 },
                                 [&](const CopyProgress& file_progress) {
                                     plan.record_attempt_bytes(file_id, file_progress.transferred_bytes);
@@ -713,6 +700,7 @@ JobResult JobExecutor::execute(
                                 });
 
                             if (result.success) {
+                                completed_copy = result;
                                 break;
                             }
 
@@ -856,12 +844,28 @@ JobResult JobExecutor::execute(
                         }
 
                         if (plan.operation() == FileOperation::Move && !renamed) {
-                            const auto remove_source = remove_moved_source_file(file->source);
+                            // Authorize deletion from the copied objects' provenance,
+                            // never fingerprints of whatever now occupies the paths.
+                            const SourceRemovalRecovery recovery{
+                                file_id, S_OK, file->source, file->destination, !skip_allowed, 1,
+                                completed_copy.source_fingerprint, completed_copy.destination_fingerprint};
+                            auto directive = control.directive();
+                            if (directive == ExecutionDirective::Pause) directive = control.wait_while_paused();
+                            if (directive == ExecutionDirective::Stop || directive == ExecutionDirective::Cancel) {
+                                if (!plan.park_active_source_removal(file_id, HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED),
+                                        !skip_allowed, recovery.source_fingerprint, recovery.destination_fingerprint)) {
+                                    result_state.record_error(kInvalidPlanState);
+                                }
+                                worker_results[worker_index] = directive == ExecutionDirective::Stop
+                                    ? JobResult{false, false, S_OK, true}
+                                    : JobResult{false, true, HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED), false};
+                                return;
+                            }
+                            source_lease.reset(); // DELETE access requires releasing the read-only pin.
+                            const auto remove_source = remove_verified_recovery_source(recovery);
                             if (remove_source != S_OK) {
-                                const auto source_fingerprint = probe_file_fingerprint(file->source);
-                                const auto destination_fingerprint = probe_file_fingerprint(file->destination);
-                                if (source_fingerprint.status != FingerprintProbe::Present ||
-                                    destination_fingerprint.status != FingerprintProbe::Present) {
+                                if (!recovery.source_fingerprint.has_identity ||
+                                    !recovery.destination_fingerprint.has_identity) {
                                     if (!plan.resolve_active(
                                             file_id, ItemOutcome::CopiedSourceRetained,
                                             remove_source, !skip_allowed)) {
@@ -876,8 +880,8 @@ JobResult JobExecutor::execute(
                                 }
                                 if (!plan.park_active_source_removal(
                                         file_id, remove_source, !skip_allowed,
-                                        source_fingerprint.fingerprint,
-                                        destination_fingerprint.fingerprint)) {
+                                        recovery.source_fingerprint,
+                                        recovery.destination_fingerprint)) {
                                     result_state.record_error(kInvalidPlanState);
                                     control.request_cancel();
                                     worker_results[worker_index] = {

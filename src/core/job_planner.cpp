@@ -1,6 +1,7 @@
 #include "velocitycopy/job_planner.hpp"
 #include "destination_path_guard.hpp"
 #include "velocitycopy/destination_catalog.hpp"
+#include "velocitycopy/path_key.hpp"
 
 #include <windows.h>
 
@@ -8,6 +9,8 @@
 #include <array>
 #include <cwctype>
 #include <limits>
+#include <map>
+#include <set>
 #include <stop_token>
 #include <string_view>
 #include <system_error>
@@ -74,31 +77,6 @@ std::filesystem::path destination_root_for(
     return destination / source.filename();
 }
 
-std::wstring normalized_path_key(const std::filesystem::path& input) {
-    if (input.empty()) {
-        return {};
-    }
-
-    std::array<wchar_t, 32768> buffer{};
-    const DWORD length = GetFullPathNameW(
-        input.c_str(),
-        static_cast<DWORD>(buffer.size()),
-        buffer.data(),
-        nullptr);
-    if (length == 0 || length >= buffer.size()) {
-        return {};
-    }
-
-    std::wstring result(buffer.data(), length);
-    while (result.size() > 3 && (result.back() == L'\\' || result.back() == L'/')) {
-        result.pop_back();
-    }
-    std::transform(result.begin(), result.end(), result.begin(), [](const wchar_t value) {
-        return static_cast<wchar_t>(std::towlower(value));
-    });
-    return result;
-}
-
 [[noreturn]] void throw_collision(const std::filesystem::path& path) {
     throw std::filesystem::filesystem_error(
         "Multiple copy entries resolve to the same destination",
@@ -151,10 +129,11 @@ void validate_source_reparse_semantics(const std::filesystem::path& path) {
 
 class OutputRegistry final {
 public:
+    explicit OutputRegistry(PathKeyFactory& keys) : keys_(keys) {}
     void add_directory(const std::filesystem::path& path) {
         auto cursor = path;
         while (!cursor.empty()) {
-            const auto key = normalized_path_key(cursor);
+            const auto key = keys_.make(cursor);
             if (key.empty()) {
                 throw std::filesystem::filesystem_error(
                     "Unable to normalize destination path",
@@ -185,7 +164,7 @@ public:
             add_directory(parent);
         }
 
-        const auto key = normalized_path_key(path);
+        const auto key = keys_.make(path);
         if (key.empty()) {
             throw std::filesystem::filesystem_error(
                 "Unable to normalize destination path",
@@ -198,8 +177,9 @@ public:
     }
 
 private:
-    std::unordered_set<std::wstring> files_;
-    std::unordered_set<std::wstring> directories_;
+    PathKeyFactory& keys_;
+    std::set<std::wstring, PathKeyLess> files_;
+    std::set<std::wstring, PathKeyLess> directories_;
 };
 
 void checked_add(std::uint64_t& total, const std::uint64_t value, const std::filesystem::path& path) {
@@ -290,11 +270,11 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
 
     throw_if_cancelled(stop_token);
 
-    std::unordered_set<std::wstring> source_keys;
-    source_keys.reserve(job.sources.size());
+    PathKeyFactory keys;
+    std::set<std::wstring, PathKeyLess> source_keys;
     for (const auto& source : job.sources) {
         throw_if_cancelled(stop_token);
-        const auto key = normalized_path_key(source);
+        const auto key = keys.make(source);
         if (key.empty() || !source_keys.insert(key).second) {
             throw std::filesystem::filesystem_error(
                 "Duplicate or invalid copy source",
@@ -308,24 +288,18 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
     plan.destination_root = job.destination;
     plan.operation = job.operation;
     std::uint64_t next_file_id = 1;
-    OutputRegistry outputs;
-    std::unordered_set<std::wstring> preserved_roots;
+    OutputRegistry outputs(keys);
+    std::set<std::wstring, PathKeyLess> preserved_roots;
     // Top-level names (files and folders) that appear more than once in this
     // job. Only files whose name is in this set are disambiguated by parent.
-    std::unordered_map<std::wstring, std::size_t> top_level_names;
-    top_level_names.reserve(job.sources.size());
+    std::map<std::wstring, std::size_t, OrdinalNameLess> top_level_names{
+        OrdinalNameLess{keys.directory_case_sensitive(job.destination)}};
     for (const auto& source : job.sources) {
         auto name = source.filename().wstring();
-        std::transform(name.begin(), name.end(), name.begin(), [](const wchar_t value) {
-            return static_cast<wchar_t>(std::towlower(value));
-        });
         ++top_level_names[name];
     }
     const auto name_collides = [&top_level_names](const std::filesystem::path& source) {
         auto name = source.filename().wstring();
-        std::transform(name.begin(), name.end(), name.begin(), [](const wchar_t value) {
-            return static_cast<wchar_t>(std::towlower(value));
-        });
         const auto it = top_level_names.find(name);
         return it != top_level_names.end() && it->second > 1;
     };
@@ -345,7 +319,7 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
 
         const auto root = destination_root_for(source, job.destination, job.layout, status, name_collides(source));
         if (job.layout == DestinationLayout::PreserveSourceFolder) {
-            const auto root_key = normalized_path_key(root);
+            const auto root_key = keys.make(root);
             if (root_key.empty() || !preserved_roots.insert(root_key).second) {
                 throw_collision(root);
             }
@@ -359,7 +333,7 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
             }
             ensure_plan_capacity(plan, source);
             outputs.add_file(root);
-            PlannedFile file{next_file_id++, source, root, size};
+            PlannedFile file{next_file_id++, source, root, size, keys.directory_case_sensitive(root.parent_path())};
             account_file(plan, file);
             plan.files.push_back(std::move(file));
             continue;
@@ -473,7 +447,7 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
                         entry.nFileSizeLow;
                     ensure_plan_capacity(plan, entry_path);
                     outputs.add_file(target);
-                    PlannedFile file{next_file_id++, entry_path, target, size};
+                    PlannedFile file{next_file_id++, entry_path, target, size, keys.directory_case_sensitive(target.parent_path())};
                     account_file(plan, file);
                     plan.files.push_back(std::move(file));
                     continue;
