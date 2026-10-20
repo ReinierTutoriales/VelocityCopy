@@ -115,6 +115,8 @@ public:
     // Bounded active projection; never enumerate all pending files for progress UI.
     [[nodiscard]] LiveQueueView active_queue_view(std::size_t max_active_items) const;
     [[nodiscard]] CopyPlan export_remaining_plan() const;
+    // Streaming Copy no longer needs already-materialized directory records.
+    void discard_materialized_directory_history() noexcept;
 
     [[nodiscard]] LivePlanAppendResult append(CopyPlan plan, bool allow_drained = false) noexcept;
 

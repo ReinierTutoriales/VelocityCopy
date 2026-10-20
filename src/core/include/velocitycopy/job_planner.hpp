@@ -5,12 +5,15 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <optional>
 #include <stop_token>
 #include <system_error>
 #include <vector>
 
 namespace velocitycopy {
+
+class ExecutionControl;
 
 struct PlannedDirectory {
     std::filesystem::path destination;
@@ -59,6 +62,13 @@ class JobPlanner final {
 public:
     [[nodiscard]] CopyPlan build(const CopyJob& job) const;
     [[nodiscard]] CopyPlan build(const CopyJob& job, std::stop_token stop_token) const;
+    using BatchSink = std::function<bool(CopyPlan)>;
+    void stream(const CopyJob& job, ExecutionControl& control, std::size_t batch_entries,
+        const BatchSink& sink, std::stop_token stop_token = {}) const;
+
+private:
+    [[nodiscard]] CopyPlan build_impl(const CopyJob& job, std::stop_token stop_token,
+        const BatchSink* sink, std::size_t batch_entries, ExecutionControl* control) const;
 };
 
 } // namespace velocitycopy

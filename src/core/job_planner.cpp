@@ -2,6 +2,7 @@
 #include "destination_path_guard.hpp"
 #include "velocitycopy/destination_catalog.hpp"
 #include "velocitycopy/path_key.hpp"
+#include "velocitycopy/execution_control.hpp"
 
 #include <windows.h>
 
@@ -84,8 +85,10 @@ std::filesystem::path destination_root_for(
         std::make_error_code(std::errc::file_exists));
 }
 
-void throw_if_cancelled(const std::stop_token stop_token) {
-    if (stop_token.stop_requested()) {
+void throw_if_cancelled(const std::stop_token stop_token, ExecutionControl* control) {
+    auto directive = control ? control->directive() : ExecutionDirective::Run;
+    if (directive == ExecutionDirective::Pause) directive = control->wait_while_paused(stop_token);
+    if (stop_token.stop_requested() || directive != ExecutionDirective::Run) {
         throw std::system_error(std::make_error_code(std::errc::operation_canceled));
     }
 }
@@ -257,7 +260,19 @@ CopyPlan JobPlanner::build(const CopyJob& job) const {
 }
 
 CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token) const {
-    throw_if_cancelled(stop_token);
+    return build_impl(job, stop_token, nullptr, 0, nullptr);
+}
+
+void JobPlanner::stream(const CopyJob& job, ExecutionControl& control, const std::size_t batch_entries,
+    const BatchSink& sink, const std::stop_token stop_token) const {
+    if (!sink || batch_entries == 0 || batch_entries > kMaxPlannedEntries || job.operation != FileOperation::Copy)
+        throw std::system_error(std::make_error_code(std::errc::invalid_argument));
+    (void)build_impl(job, stop_token, &sink, batch_entries, &control);
+}
+
+CopyPlan JobPlanner::build_impl(const CopyJob& job, const std::stop_token stop_token,
+    const BatchSink* sink, const std::size_t batch_entries, ExecutionControl* control) const {
+    throw_if_cancelled(stop_token, control);
 
     std::vector<std::filesystem::path> sources(job.sources.begin(), job.sources.end());
     const auto validation = DestinationCatalog::validate(sources, job.destination);
@@ -268,12 +283,12 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
             std::make_error_code(std::errc::invalid_argument));
     }
 
-    throw_if_cancelled(stop_token);
+    throw_if_cancelled(stop_token, control);
 
     PathKeyFactory keys;
     std::set<std::wstring, PathKeyLess> source_keys;
     for (const auto& source : job.sources) {
-        throw_if_cancelled(stop_token);
+        throw_if_cancelled(stop_token, control);
         const auto key = keys.make(source);
         if (key.empty() || !source_keys.insert(key).second) {
             throw std::filesystem::filesystem_error(
@@ -287,6 +302,17 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
     plan.source_roots = job.sources;
     plan.destination_root = job.destination;
     plan.operation = job.operation;
+    const auto flush = [&](bool force = false) {
+        const auto entries = plan.files.size() + plan.directories.size() + plan.failures.size();
+        if (!sink || !entries || (!force && entries < batch_entries)) return;
+        auto batch = std::move(plan);
+        plan = {};
+        plan.source_roots = job.sources;
+        plan.destination_root = job.destination;
+        plan.operation = job.operation;
+        if (!(*sink)(std::move(batch)))
+            throw std::system_error(std::make_error_code(std::errc::operation_canceled));
+    };
     std::uint64_t next_file_id = 1;
     OutputRegistry outputs(keys);
     std::set<std::wstring, PathKeyLess> preserved_roots;
@@ -305,7 +331,8 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
     };
 
     for (const auto& source : job.sources) {
-        throw_if_cancelled(stop_token);
+        throw_if_cancelled(stop_token, control);
+        flush();
 
         std::error_code ec;
         const auto status = std::filesystem::symlink_status(source, ec);
@@ -326,7 +353,7 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
         }
 
         if (std::filesystem::is_regular_file(status)) {
-            throw_if_cancelled(stop_token);
+            throw_if_cancelled(stop_token, control);
             const auto size = std::filesystem::file_size(source, ec);
             if (ec) {
                 throw std::filesystem::filesystem_error("Unable to read file size", source, ec);
@@ -359,7 +386,8 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
         std::vector<std::pair<std::filesystem::path, std::filesystem::path>> pending_directories;
         pending_directories.emplace_back(source, root);
         while (!pending_directories.empty()) {
-            throw_if_cancelled(stop_token);
+            throw_if_cancelled(stop_token, control);
+            flush();
             auto [directory_source, directory_target] = std::move(pending_directories.back());
             pending_directories.pop_back();
 
@@ -405,7 +433,8 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
             // enumeration order (pushed reversed onto the LIFO stack).
             std::vector<std::pair<std::filesystem::path, std::filesystem::path>> subdirectories;
             do {
-                throw_if_cancelled(stop_token);
+                throw_if_cancelled(stop_token, control);
+                flush();
                 const std::wstring_view name{entry.cFileName};
                 if (name == L"." || name == L"..") continue;
                 const auto entry_path = directory_source / name;
@@ -469,7 +498,8 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
         }
     }
 
-    throw_if_cancelled(stop_token);
+    throw_if_cancelled(stop_token, control);
+    flush(true);
     return plan;
 }
 

@@ -71,6 +71,13 @@ std::vector<PlannedDirectory> LiveCopyPlan::directories() const {
     return directories_;
 }
 
+void LiveCopyPlan::discard_materialized_directory_history() noexcept {
+    std::lock_guard lock(mutex_);
+    if (materialized_directory_count_ != directories_.size()) return;
+    directories_.clear();
+    materialized_directory_count_ = 0;
+}
+
 std::vector<std::filesystem::path> LiveCopyPlan::source_roots() const {
     std::lock_guard lock(mutex_);
     return source_roots_;
@@ -182,20 +189,29 @@ LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan, const bool allow_draine
 
         directories_.reserve(directories_.size() + plan.directories.size());
         source_roots_.reserve(source_roots_.size() + plan.source_roots.size());
-        // Reserve now so recording the planner's failures after the commit
-        // below cannot throw and leave a half-applied append.
+        // Copy failure paths before committing: reserving the vector alone does
+        // not prevent filesystem::path copies from allocating afterwards.
+        std::vector<ItemResult> incoming_failures;
+        incoming_failures.reserve(plan.failures.size());
+        if (plan.failures.size() > std::numeric_limits<std::uint64_t>::max() -
+            counters_.resolution_total - incoming_weight) return LivePlanAppendResult::SizeOverflow;
+        for (const auto& failure : plan.failures)
+            incoming_failures.push_back({0, ItemOutcome::Failed, failure.hresult,
+                failure.source, failure.destination, false});
         retained_results_.reserve(retained_results_.size() + plan.failures.size());
-
-        auto staged_destination_keys = reserved_destination_keys_;
-        for (const auto& key : incoming_keys) {
-            staged_destination_keys.insert(key);
-        }
 
         const auto old_directories = directories_.size();
         const auto old_roots = source_roots_.size();
         const auto old_pending = pending_files_.size();
         std::uint64_t assigned_id = next_file_id_;
+        std::size_t inserted_keys = 0;
         try {
+            // Only allocate nodes for this batch; copying the accumulated set
+            // on every append makes streaming quadratic in discovered files.
+            for (const auto& key : incoming_keys) {
+                reserved_destination_keys_.insert(key);
+                ++inserted_keys;
+            }
             directories_.insert(
                 directories_.end(),
                 std::make_move_iterator(plan.directories.begin()),
@@ -216,16 +232,23 @@ LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan, const bool allow_draine
             while (pending_files_.size() > old_pending) pending_files_.pop_back();
             directories_.resize(old_directories);
             source_roots_.resize(old_roots);
+            for (std::size_t index = 0; index < inserted_keys; ++index)
+                reserved_destination_keys_.erase(incoming_keys[index]);
             throw;
         }
 
-        reserved_destination_keys_.swap(staged_destination_keys);
         next_file_id_ = assigned_id;
         total_bytes_ += plan.total_bytes;
         total_files_ += static_cast<std::uint64_t>(plan.files.size());
         counters_.resolution_total += incoming_weight;
         largest_file_bytes_ = std::max(largest_file_bytes_, plan.largest_file_bytes);
-        record_planning_failures_locked(plan.failures);
+        static_assert(std::is_nothrow_move_constructible_v<ItemResult>);
+        for (auto& failure : incoming_failures) {
+            retained_results_.push_back(std::move(failure));
+            ++counters_.resolution_total;
+            ++counters_.resolution_weight;
+            ++outcomes_.failed;
+        }
         return LivePlanAppendResult::Appended;
     } catch (...) {
         return LivePlanAppendResult::InternalFailure;

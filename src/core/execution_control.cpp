@@ -107,4 +107,10 @@ ExecutionDirective ExecutionControl::wait_for_retry(const std::chrono::milliseco
     }
 }
 
+ExecutionDirective ExecutionControl::wait_while_paused(const std::stop_token stop_token) noexcept {
+    std::unique_lock lock(mutex_);
+    condition_.wait(lock, stop_token, [this] { return directive_ != ExecutionDirective::Pause; });
+    return stop_token.stop_requested() ? ExecutionDirective::Cancel : directive_.load();
+}
+
 } // namespace velocitycopy

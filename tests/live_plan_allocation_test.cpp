@@ -43,6 +43,8 @@ int run_test() {
     for (int allocation = 0; allocation < 4096; ++allocation) {
         LiveCopyPlan live(make_plan(0, 1));
         auto incoming = make_plan(1, 40);
+        incoming.failures.push_back({"C:/source/unreadable-directory-with-a-long-name",
+            "C:/destination/unreadable-directory-with-a-long-name", -1});
         const auto before = live.export_remaining_plan();
         fail_after = allocation;
         const auto result = live.append(std::move(incoming));
@@ -53,7 +55,8 @@ int run_test() {
             if (after.files.size() != before.files.size() ||
                 after.directories.size() != before.directories.size() ||
                 after.source_roots != before.source_roots || after.total_bytes != before.total_bytes ||
-                live.total_files() != 1 || live.resolution_view().counters.resolution_total != 11) {
+                live.total_files() != 1 || live.resolution_view().counters.resolution_total != 11 ||
+                live.resolution_view().outcomes.failed != 0 || !live.retained_results().empty()) {
                 std::cerr << "Failed append changed live state at allocation " << allocation << '\n';
                 return 1;
             }
@@ -61,7 +64,8 @@ int run_test() {
                 live.total_files() != 41 || live.remaining_files() != 41) return 2;
         } else if (result == LivePlanAppendResult::Appended) {
             succeeded = true;
-            if (live.total_files() != 41 || live.remaining_files() != 41) return 3;
+            if (live.total_files() != 41 || live.remaining_files() != 41 ||
+                live.resolution_view().outcomes.failed != 1 || live.retained_results().size() != 1) return 3;
             break;
         } else return 4;
     }

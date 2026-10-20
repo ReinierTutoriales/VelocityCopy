@@ -48,6 +48,7 @@ add_library(velocitycopy_core STATIC
     src/core/storage_topology.cpp
     src/core/transfer_router.cpp
     src/core/strategy_selector.cpp
+    src/core/streaming_copy.cpp
     src/core/ui_snapshot.cpp
     src/shell/shell_data.cpp
 )
@@ -213,4 +214,5 @@ add_velocitycopy_test(VelocityCopyUiSnapshotMailboxTest tests/ui_snapshot_mailbo
 target_include_directories(VelocityCopyUiSnapshotMailboxTest PRIVATE src/ui/VelocityCopy.UI)
 
 add_velocitycopy_test(VelocityCopyLivePlanAllocationTest tests/live_plan_allocation_test.cpp velocitycopy_live_plan_allocation)
+add_velocitycopy_test(VelocityCopyStreamingCopyTest tests/streaming_copy_test.cpp velocitycopy_streaming_copy)
 add_velocitycopy_test(VelocityCopyIntegrationAllocationTest tests/integration_allocation_test.cpp velocitycopy_integration_allocation)

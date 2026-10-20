@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cstdint>
 #include <mutex>
+#include <stop_token>
 #include <unordered_set>
 
 namespace velocitycopy {
@@ -33,11 +34,12 @@ public:
     [[nodiscard]] bool consume_skip(std::uint64_t file_id) noexcept;
 
     [[nodiscard]] ExecutionDirective wait_while_paused() noexcept;
+    [[nodiscard]] ExecutionDirective wait_while_paused(std::stop_token stop_token) noexcept;
     [[nodiscard]] ExecutionDirective wait_for_retry(std::chrono::milliseconds delay) noexcept;
 
 private:
     mutable std::mutex mutex_;
-    std::condition_variable condition_;
+    std::condition_variable_any condition_;
     std::atomic<ExecutionDirective> directive_{ExecutionDirective::Run};
     std::atomic_bool has_pending_skips_{false};
     std::unordered_set<std::uint64_t> skip_file_ids_;

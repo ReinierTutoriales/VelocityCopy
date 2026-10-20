@@ -29,6 +29,7 @@ struct JobProgress {
     bool current_file_skippable{};
     std::filesystem::path current_source;
     std::filesystem::path current_destination;
+    bool totals_final{true};
 };
 
 enum class JobDecision {

@@ -11,7 +11,7 @@ permissions:
 jobs:
   native:
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -21,7 +21,7 @@ jobs:
         run: |
           cmake -S . -B build/native -A x64
           if ($LASTEXITCODE) { throw 'Configure failed' }
-          cmake --build build/native --config Release --target VelocityCopySourceIdentityTest VelocityCopyUnicodePathsTest VelocityCopyCaseSensitivePathsTest VelocityCopyLivePlanAllocationTest --parallel
+          cmake --build build/native --config Release --target VelocityCopySourceIdentityTest VelocityCopyUnicodePathsTest VelocityCopyCaseSensitivePathsTest VelocityCopyLivePlanAllocationTest VelocityCopyStreamingCopyTest --parallel
           if ($LASTEXITCODE) { throw 'Build failed' }
           @{
             commit = (git rev-parse HEAD)
@@ -30,7 +30,18 @@ jobs:
             executables = @(Get-FileHash build/native/Release/*Test.exe -Algorithm SHA256 | Select-Object Path, Hash)
           } | ConvertTo-Json -Depth 5 | Set-Content native-build.json
       - name: Execute focused safety regressions
-        run: ctest --test-dir build/native -C Release --output-on-failure --timeout 120 -R "velocitycopy_(source_identity|unicode_paths|case_sensitive_paths|live_plan_allocation)$"
+        run: ctest --test-dir build/native -C Release --output-on-failure --timeout 120 -R "velocitycopy_(source_identity|unicode_paths|case_sensitive_paths|live_plan_allocation|streaming_copy)$"
+      - name: Compare static and streaming Copy with verified contents
+        shell: pwsh
+        run: |
+          & build/native/Release/VelocityCopyStreamingCopyTest.exe --benchmark | Set-Content streaming-benchmark.json
+          if ($LASTEXITCODE) { throw 'Streaming benchmark failed' }
+      - name: Copy more than 250000 files with bounded pending batches
+        timeout-minutes: 25
+        shell: pwsh
+        run: |
+          & build/native/Release/VelocityCopyStreamingCopyTest.exe --large | Set-Content streaming-large.json
+          if ($LASTEXITCODE) { throw 'Large streaming copy failed' }
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
@@ -39,5 +50,7 @@ jobs:
             build/native/Release/*Test.exe
             build/native/Testing/Temporary/LastTest.log
             native-build.json
+            streaming-benchmark.json
+            streaming-large.json
           if-no-files-found: warn
           retention-days: 14
