@@ -1,17 +1,59 @@
 #include "velocitycopy/copy_engine.hpp"
 #include "velocitycopy/execution_control.hpp"
 #include "destination_path_guard.hpp"
+#include "file_fingerprint.hpp"
+#include "win32_handle.hpp"
 
 #include <memory>
 
 #include <windows.h>
 
 #include <algorithm>
+#include <cstddef>
+#include <cstring>
 #include <new>
 #include <system_error>
 #include <vector>
 
 namespace velocitycopy {
+
+struct SourceLease::State {
+    detail::DestinationPathGuard ancestors;
+    std::filesystem::path path;
+    HANDLE handle{INVALID_HANDLE_VALUE};
+    FileFingerprint fingerprint{};
+    ~State() { if (handle != INVALID_HANDLE_VALUE) CloseHandle(handle); }
+
+    bool prepare(const std::filesystem::path& source, const bool for_rename, std::error_code& error) {
+        path = std::filesystem::absolute(source).lexically_normal();
+        if (!ancestors.lock_existing_chain(path.parent_path(), error) || !ancestors.missing.empty()) {
+            if (!error) error = std::error_code(ERROR_PATH_NOT_FOUND, std::system_category());
+            return false;
+        }
+        handle = CreateFileW(path.c_str(), GENERIC_READ | (for_rename ? DELETE : 0),
+            FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
+        if (handle == INVALID_HANDLE_VALUE) {
+            error = std::error_code(static_cast<int>(GetLastError()), std::system_category());
+            return false;
+        }
+        if (detail::name_surrogate_reparse(handle)) {
+            error = std::error_code(ERROR_CANT_ACCESS_FILE, std::system_category());
+            return false;
+        }
+        const auto probe = detail::fingerprint_from_handle(handle);
+        if (probe.status != FingerprintProbe::Present) {
+            error = std::error_code(HRESULT_CODE(probe.hresult), std::system_category());
+            return false;
+        }
+        fingerprint = probe.fingerprint;
+        return true;
+    }
+};
+
+SourceLease::SourceLease() = default;
+SourceLease::~SourceLease() = default;
+void SourceLease::reset() noexcept { state_.reset(); }
+
 namespace {
 
 constexpr ULONG kDefaultIoSize = 1u * 1024u * 1024u;
@@ -44,16 +86,27 @@ struct CallbackContext {
     FILE_BASIC_INFO source_basic{};
     HANDLE destination_handle{};
     HRESULT metadata_error{S_OK};
+    FileFingerprint expected_source{};
+    FileFingerprint copied_source{};
 
     ~CallbackContext() { reset_metadata(); }
     void reset_metadata() noexcept {
         if (destination_handle != nullptr) CloseHandle(destination_handle);
         destination_handle = nullptr;
         metadata_error = S_OK;
+        copied_source = {};
     }
 
     bool capture_metadata(HANDLE source, HANDLE destination) noexcept {
-        if (!preserve_basic_metadata || destination_handle != nullptr) return true;
+        if (destination_handle != nullptr) return true;
+        const auto probe = detail::fingerprint_from_handle(source);
+        if (detail::name_surrogate_reparse(source) || probe.status != FingerprintProbe::Present ||
+            (expected_source.has_identity && !detail::same_file_fingerprint(expected_source, probe.fingerprint))) {
+            metadata_error = HRESULT_FROM_WIN32(ERROR_FILE_INVALID);
+            latched_action = COPYFILE2_PROGRESS_STOP;
+            return false;
+        }
+        copied_source = probe.fingerprint;
         if (!GetFileInformationByHandleEx(source, FileBasicInfo, &source_basic, sizeof(source_basic)) ||
             !DuplicateHandle(GetCurrentProcess(), destination, GetCurrentProcess(),
                 &destination_handle, 0, FALSE, DUPLICATE_SAME_ACCESS)) {
@@ -174,27 +227,6 @@ COPYFILE2_MESSAGE_ACTION CALLBACK copy_progress_routine(
     }
 }
 
-bool source_is_unsafe_reparse_point(const std::filesystem::path& source) noexcept {
-    const HANDLE handle = CreateFileW(
-        source.c_str(), FILE_READ_ATTRIBUTES,
-        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-        nullptr, OPEN_EXISTING,
-        FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
-    if (handle == INVALID_HANDLE_VALUE) {
-        // Let CopyFile2 report missing/inaccessible sources with its native error.
-        return false;
-    }
-    const bool unsafe = detail::name_surrogate_reparse(handle);
-    CloseHandle(handle);
-    return unsafe;
-}
-
-std::uint64_t source_size_no_throw(const std::filesystem::path& source) {
-    std::error_code ec;
-    const auto size = std::filesystem::file_size(source, ec);
-    return ec ? 0 : size;
-}
-
 ULONG desired_io_size(
     const std::uint64_t source_size,
     const std::uint32_t requested_io_size) noexcept {
@@ -227,6 +259,14 @@ bool is_transient_lock(const HRESULT result) noexcept {
 }
 
 constexpr DWORD kTransientRetryDelaysMs[] = {150, 400, 900};
+
+bool wait_before_retry(const DWORD delay, ExecutionControl* control) noexcept {
+    if (control == nullptr) {
+        Sleep(delay);
+        return true;
+    }
+    return control->wait_for_retry(std::chrono::milliseconds(delay)) == ExecutionDirective::Run;
+}
 
 } // namespace
 
@@ -267,14 +307,38 @@ CopyResult CopyEngine::copy_file(
         // directory is created through it.
         detail::DestinationPathGuard destination_guard;
         std::error_code directory_error;
-        const auto parent = destination.parent_path();
+        const auto target = std::filesystem::absolute(destination).lexically_normal();
+        SourceLease local_source;
+        auto& source_lease = options.source_lease ? *options.source_lease : local_source;
+        if (!source_lease.state_) {
+            const auto prepare_source = [&] {
+                auto fresh = std::make_unique<SourceLease::State>();
+                directory_error.clear();
+                if (!fresh->prepare(source, false, directory_error)) return false;
+                source_lease.state_ = std::move(fresh);
+                return true;
+            };
+            bool prepared = prepare_source();
+            for (const DWORD delay : kTransientRetryDelaysMs) {
+                if (prepared || !is_transient_lock(HRESULT_FROM_WIN32(directory_error.value()))) break;
+                if (!wait_before_retry(delay, options.control))
+                    return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED))};
+                prepared = prepare_source();
+            }
+            if (!prepared) {
+                return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(directory_error.value()))};
+            }
+        } else if (source_lease.state_->path != std::filesystem::absolute(source).lexically_normal()) {
+            return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_INVALID_STATE))};
+        }
+        const auto parent = target.parent_path();
         const auto prepare_parent = [&]() {
             if (parent.empty()) return true;
             return options.lease != nullptr
                 ? options.lease->state_->prepare(parent, directory_error)
                 : destination_guard.prepare_directory(parent, directory_error);
         };
-        if (source_is_unsafe_reparse_point(source) || !prepare_parent()) {
+        if (!prepare_parent()) {
             const auto native = directory_error
                 ? static_cast<DWORD>(directory_error.value())
                 : ERROR_CANT_ACCESS_FILE;
@@ -284,8 +348,9 @@ CopyResult CopyEngine::copy_file(
             };
         }
 
-        const auto source_size = source_size_no_throw(source);
+        const auto source_size = source_lease.state_->fingerprint.size;
         CallbackContext callback_context{&progress};
+        callback_context.expected_source = source_lease.state_->fingerprint;
         callback_context.preserve_basic_metadata = options.preserve_basic_metadata;
         callback_context.last_progress = {source_size, 0};
         callback_context.has_progress = source_size != 0;
@@ -305,34 +370,26 @@ CopyResult CopyEngine::copy_file(
             parameters.dwCopyFlags |= COPY_FILE_FAIL_IF_EXISTS;
         }
         parameters.ioDesiredSize = desired_io_size(source_size, options.io_size_bytes);
-        if (progress || options.preserve_basic_metadata) {
-            parameters.pProgressRoutine = copy_progress_routine;
-            parameters.pvCallbackContext = &callback_context;
-        }
+        parameters.pProgressRoutine = copy_progress_routine;
+        parameters.pvCallbackContext = &callback_context;
 
         const auto copy = [&]() {
             callback_context.reset_metadata();
             return CopyFile2(
-                source.c_str(),
-                destination.c_str(),
+                source_lease.state_->path.c_str(),
+                target.c_str(),
                 reinterpret_cast<COPYFILE2_EXTENDED_PARAMETERS*>(&parameters));
         };
         HRESULT result = copy();
         if (result == HRESULT_FROM_WIN32(ERROR_ACCESS_DENIED) && !callback_context.callback_failed &&
             options.existing_destination == ExistingDestinationPolicy::Replace &&
-            clear_replace_blocking_attributes(destination)) {
+            clear_replace_blocking_attributes(target)) {
             result = copy();
         }
         for (const DWORD delay : kTransientRetryDelaysMs) {
             if (!is_transient_lock(result) || callback_context.callback_failed) break;
-            if (options.control != nullptr) {
-                const auto directive = options.control->wait_for_retry(std::chrono::milliseconds(delay));
-                if (directive == ExecutionDirective::Stop || directive == ExecutionDirective::Cancel) {
-                    return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED))};
-                }
-            } else {
-                Sleep(delay);
-            }
+            if (!wait_before_retry(delay, options.control))
+                return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED))};
             result = copy();
         }
 
@@ -348,9 +405,18 @@ CopyResult CopyEngine::copy_file(
             result = callback_context.apply_metadata();
         }
 
+        FileFingerprint destination_fingerprint{};
+        if (SUCCEEDED(result)) {
+            const auto probe = detail::fingerprint_from_handle(callback_context.destination_handle);
+            if (probe.status != FingerprintProbe::Present) return {false, probe.hresult};
+            destination_fingerprint = probe.fingerprint;
+        }
+
         return {
             SUCCEEDED(result),
             static_cast<std::int32_t>(result),
+            callback_context.copied_source,
+            destination_fingerprint,
         };
     } catch (const std::bad_alloc&) {
         return {false, static_cast<std::int32_t>(E_OUTOFMEMORY)};
@@ -369,31 +435,43 @@ CopyResult CopyEngine::rename_file(
     try {
         detail::DestinationPathGuard destination_guard;
         std::error_code directory_error;
-        const auto parent = destination.parent_path();
+        SourceLease::State source_guard;
+        if (!source_guard.prepare(source, true, directory_error)) {
+            return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(directory_error.value()))};
+        }
+        const auto target = std::filesystem::absolute(destination).lexically_normal();
+        const auto parent = target.parent_path();
         const auto prepare_parent = [&]() {
             if (parent.empty()) return true;
             return lease != nullptr
                 ? lease->state_->prepare(parent, directory_error)
                 : destination_guard.prepare_directory(parent, directory_error);
         };
-        if (source_is_unsafe_reparse_point(source) ||
-            !prepare_parent()) {
+        if (!prepare_parent()) {
             const auto native = directory_error
                 ? static_cast<DWORD>(directory_error.value())
                 : ERROR_CANT_ACCESS_FILE;
             return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(native))};
         }
 
-        const DWORD flags = existing_destination == ExistingDestinationPolicy::Replace
-            ? MOVEFILE_REPLACE_EXISTING
-            : 0;
-        if (MoveFileExW(source.c_str(), destination.c_str(), flags) != FALSE) {
+        const auto& name = target.native();
+        const auto bytes = offsetof(FILE_RENAME_INFO, FileName) + (name.size() + 1) * sizeof(wchar_t);
+        auto storage = std::make_unique<std::byte[]>(bytes);
+        auto* rename = reinterpret_cast<FILE_RENAME_INFO*>(storage.get());
+        rename->ReplaceIfExists = existing_destination == ExistingDestinationPolicy::Replace;
+        rename->RootDirectory = nullptr;
+        rename->FileNameLength = static_cast<DWORD>(name.size() * sizeof(wchar_t));
+        std::memcpy(rename->FileName, name.c_str(), (name.size() + 1) * sizeof(wchar_t));
+        const auto perform_rename = [&] {
+            return SetFileInformationByHandle(source_guard.handle, FileRenameInfo, rename, static_cast<DWORD>(bytes));
+        };
+        if (perform_rename() != FALSE) {
             return {true, static_cast<std::int32_t>(S_OK)};
         }
         DWORD error = GetLastError();
         if (error == ERROR_ACCESS_DENIED && existing_destination == ExistingDestinationPolicy::Replace &&
-            clear_replace_blocking_attributes(destination)) {
-            if (MoveFileExW(source.c_str(), destination.c_str(), flags) != FALSE) {
+            clear_replace_blocking_attributes(target)) {
+            if (perform_rename() != FALSE) {
                 return {true, static_cast<std::int32_t>(S_OK)};
             }
             error = GetLastError();
