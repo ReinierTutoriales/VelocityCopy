@@ -39,6 +39,7 @@ add_library(velocitycopy_core STATIC
     src/core/job_planning_worker.cpp
     src/core/live_copy_plan.cpp
     src/core/live_copy_plan_export.cpp
+    src/core/path_key.cpp
     src/core/process_activation.cpp
     src/core/queue_archive.cpp
     src/core/shell_session.cpp
@@ -119,6 +120,8 @@ add_velocitycopy_test(VelocityCopyTransferBackoffTest tests/transfer_backoff_tes
 add_velocitycopy_test(VelocityCopyRenameLeaseTest tests/rename_lease_test.cpp velocitycopy_rename_lease)
 add_velocitycopy_test(VelocityCopyDestinationGuardTest tests/destination_guard_test.cpp velocitycopy_destination_guard)
 add_velocitycopy_test(VelocityCopySourceIdentityTest tests/source_identity_test.cpp velocitycopy_source_identity)
+add_velocitycopy_test(VelocityCopyUnicodePathsTest tests/unicode_paths_test.cpp velocitycopy_unicode_paths)
+add_velocitycopy_test(VelocityCopyCaseSensitivePathsTest tests/case_sensitive_paths_test.cpp velocitycopy_case_sensitive_paths)
 add_velocitycopy_test(VelocityCopySkipTest tests/skip_test.cpp velocitycopy_skip)
 add_velocitycopy_test(VelocityCopyExistingDestinationTest tests/existing_destination_test.cpp velocitycopy_existing_destination)
 add_velocitycopy_test(VelocityCopyItemResultContractTest tests/item_result_contract_test.cpp velocitycopy_item_result_contract)

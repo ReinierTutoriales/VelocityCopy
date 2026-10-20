@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <memory>
 #include <functional>
+#include <optional>
 
 namespace velocitycopy {
 
@@ -77,6 +78,7 @@ struct CopyOptions {
     // Optional session control for interruptible transient-lock backoff.
     ExecutionControl* control{};
     SourceLease* source_lease{};
+    std::optional<bool> destination_case_sensitive;
 };
 
 struct CopyResult {
@@ -110,7 +112,8 @@ public:
         const std::filesystem::path& source,
         const std::filesystem::path& destination,
         ExistingDestinationPolicy existing_destination,
-        DestinationLease* lease = nullptr) const noexcept;
+        DestinationLease* lease = nullptr,
+        std::optional<bool> destination_case_sensitive = {}) const noexcept;
 };
 
 } // namespace velocitycopy

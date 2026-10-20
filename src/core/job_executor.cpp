@@ -653,7 +653,8 @@ JobResult JobExecutor::execute(
                                     ? ExistingDestinationPolicy::Replace
                                     : options.existing_destination;
                             renamed = engine_.rename_file(
-                                file->source, file->destination, rename_policy, &destination_lease).success;
+                                file->source, file->destination, rename_policy, &destination_lease,
+                                file->destination_case_sensitive).success;
                         }
 
                         while (!renamed) {
@@ -675,6 +676,7 @@ JobResult JobExecutor::execute(
                                     options.preserve_basic_metadata,
                                     &control,
                                     &source_lease,
+                                    file->destination_case_sensitive,
                                 },
                                 [&](const CopyProgress& file_progress) {
                                     plan.record_attempt_bytes(file_id, file_progress.transferred_bytes);

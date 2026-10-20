@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <stop_token>
 #include <system_error>
 #include <vector>
@@ -24,6 +25,8 @@ struct PlannedFile {
     std::filesystem::path source;
     std::filesystem::path destination;
     std::uint64_t size{};
+    // Recomputed when restoring a queue; verified before execution.
+    std::optional<bool> destination_case_sensitive;
 };
 
 // An entry found while planning that cannot be transferred (unreadable

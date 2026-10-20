@@ -17,14 +17,6 @@ static_assert(std::is_nothrow_move_constructible_v<PlannedDirectory>);
 static_assert(std::is_nothrow_move_constructible_v<PlannedFile>);
 static_assert(std::is_nothrow_move_assignable_v<PlannedFile>);
 
-std::wstring normalized_path_key(const std::filesystem::path& path) {
-    auto value = path.lexically_normal().wstring();
-    std::transform(value.begin(), value.end(), value.begin(), [](const wchar_t ch) {
-        return static_cast<wchar_t>(std::towlower(ch));
-    });
-    return value;
-}
-
 std::unordered_set<std::uint64_t> make_id_set(
     const std::vector<std::uint64_t>& file_ids) {
     std::unordered_set<std::uint64_t> ids;
@@ -45,14 +37,18 @@ LiveCopyPlan::LiveCopyPlan(CopyPlan plan)
       total_bytes_(plan.total_bytes),
       total_files_(pending_files_.size()),
       largest_file_bytes_(plan.largest_file_bytes) {
-    reserved_destination_keys_.reserve(pending_files_.size());
-    for (const auto& file : pending_files_) {
+    for (auto& file : pending_files_) {
         if (file.id == std::numeric_limits<std::uint64_t>::max()) {
             next_file_id_ = 0;
         } else if (next_file_id_ != 0) {
             next_file_id_ = std::max(next_file_id_, file.id + 1);
         }
-        reserved_destination_keys_.insert(normalized_path_key(file.destination));
+        if (!file.destination_case_sensitive)
+            file.destination_case_sensitive = path_keys_.directory_case_sensitive(file.destination.parent_path());
+        const auto key = path_keys_.make(file.destination);
+        if (key.empty() || !reserved_destination_keys_.insert(key).second)
+            throw std::filesystem::filesystem_error("Conflicting destination in copy plan", file.destination,
+                std::make_error_code(std::errc::file_exists));
         counters_.resolution_total += item_resolution_weight(file.size);
     }
     record_planning_failures_locked(plan.failures);
@@ -142,7 +138,7 @@ LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan, const bool allow_draine
             parked_files_.empty()) {
             return LivePlanAppendResult::Drained;
         }
-        if (normalized_path_key(plan.destination_root) != normalized_path_key(destination_root_)) {
+        if (!path_key_equal(path_keys_.make(plan.destination_root), path_keys_.make(destination_root_))) {
             return LivePlanAppendResult::DifferentDestination;
         }
         if (plan.operation != operation_) {
@@ -170,10 +166,11 @@ LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan, const bool allow_draine
 
         std::vector<std::wstring> incoming_keys;
         incoming_keys.reserve(plan.files.size());
-        std::unordered_set<std::wstring> unique_incoming;
-        unique_incoming.reserve(plan.files.size());
-        for (const auto& file : plan.files) {
-            auto key = normalized_path_key(file.destination);
+        std::set<std::wstring, PathKeyLess> unique_incoming;
+        for (auto& file : plan.files) {
+            if (!file.destination_case_sensitive)
+                file.destination_case_sensitive = path_keys_.directory_case_sensitive(file.destination.parent_path());
+            auto key = path_keys_.make(file.destination);
             if (key.empty() || reserved_destination_keys_.contains(key) ||
                 !unique_incoming.insert(key).second) {
                 return LivePlanAppendResult::DestinationCollision;
@@ -188,7 +185,6 @@ LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan, const bool allow_draine
         retained_results_.reserve(retained_results_.size() + plan.failures.size());
 
         auto staged_destination_keys = reserved_destination_keys_;
-        staged_destination_keys.reserve(staged_destination_keys.size() + incoming_keys.size());
         for (const auto& key : incoming_keys) {
             staged_destination_keys.insert(key);
         }
@@ -424,7 +420,7 @@ std::size_t LiveCopyPlan::remove_pending_files(const std::vector<std::uint64_t>&
         bool removed_largest = false;
         for (const auto& file : pending_files_) {
             if (!selected.contains(file.id)) continue;
-            removals.push_back({file.size, normalized_path_key(file.destination)});
+            removals.push_back({file.size, path_keys_.make(file.destination)});
             removed_bytes += file.size;
             removed_weight += item_resolution_weight(file.size);
             removed_largest = removed_largest || file.size == largest_file_bytes_;
@@ -509,7 +505,7 @@ std::optional<std::filesystem::path> LiveCopyPlan::redirect_active_destination(
         const auto extension = it->destination.extension().wstring();
         for (std::uint32_t index = 2; index <= kMaxAlternates; ++index) {
             auto candidate = parent / (stem + L" (" + std::to_wstring(index) + L")" + extension);
-            auto key = normalized_path_key(candidate);
+            auto key = path_keys_.make(candidate);
             if (reserved_destination_keys_.contains(key)) continue;
             std::error_code ec;
             const bool taken = std::filesystem::exists(std::filesystem::symlink_status(candidate, ec));
@@ -517,7 +513,7 @@ std::optional<std::filesystem::path> LiveCopyPlan::redirect_active_destination(
             if (taken) continue;
 
             reserved_destination_keys_.insert(std::move(key));
-            reserved_destination_keys_.erase(normalized_path_key(it->destination));
+            reserved_destination_keys_.erase(path_keys_.make(it->destination));
             it->destination = candidate;
             return candidate;
         }
@@ -535,7 +531,7 @@ bool LiveCopyPlan::skip_active(const std::uint64_t file_id) noexcept {
 
         const auto skipped_size = it->size;
         const bool skipped_largest = skipped_size == largest_file_bytes_;
-        const auto destination_key = normalized_path_key(it->destination);
+        const auto destination_key = path_keys_.make(it->destination);
 
         reserved_destination_keys_.erase(destination_key);
         // Legacy skip removes the item from the plan (pre-contract semantics).
@@ -609,7 +605,7 @@ bool LiveCopyPlan::resolve_locked(
     const bool releases_destination =
         outcome == ItemOutcome::Skipped || outcome == ItemOutcome::Failed;
     std::wstring destination_key;
-    if (releases_destination) destination_key = normalized_path_key(file.destination);
+    if (releases_destination) destination_key = path_keys_.make(file.destination);
     if (outcome != ItemOutcome::Succeeded) {
         retained_results_.push_back(ItemResult{
             file.id, outcome, hresult, file.source, file.destination, destination_preexisted});
@@ -715,7 +711,7 @@ bool LiveCopyPlan::restore_parked_source_removal(const SourceRemovalRecovery& ar
             archived.attempt_count == 0 ? 1u : archived.attempt_count};
         recovery.attempt_count = incident.attempt_count;
 
-        const auto destination_key = normalized_path_key(file.destination);
+        const auto destination_key = path_keys_.make(file.destination);
         if (destination_key.empty() || reserved_destination_keys_.contains(destination_key)) return false;
 
         try {
@@ -872,20 +868,13 @@ std::size_t LiveCopyPlan::fail_pending_under(
     const std::filesystem::path& directory,
     const std::int32_t hresult) noexcept {
     try {
-        auto prefix = normalized_path_key(directory);
-        if (prefix.empty()) return 0;
-        if (prefix.back() != L'\\' && prefix.back() != L'/') prefix.push_back(L'\\');
-        const auto alternate = [&] {
-            auto value = prefix;
-            value.back() = value.back() == L'\\' ? L'/' : L'\\';
-            return value;
-        }();
-
         std::lock_guard lock(mutex_);
+        const auto prefix = path_keys_.make(directory);
+        if (prefix.empty()) return 0;
         std::size_t resolved = 0;
         for (auto it = pending_files_.begin(); it != pending_files_.end();) {
-            const auto key = normalized_path_key(it->destination);
-            if (!key.starts_with(prefix) && !key.starts_with(alternate)) {
+            const auto key = path_keys_.make(it->destination);
+            if (!path_key_is_prefix(prefix, key) || path_key_equal(prefix, key)) {
                 ++it;
                 continue;
             }
