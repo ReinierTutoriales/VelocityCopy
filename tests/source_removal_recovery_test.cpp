@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <iostream>
 
 namespace {
 namespace fs = std::filesystem;
@@ -64,7 +65,7 @@ fs::path unavailable_root() {
 
 } // namespace
 
-int wmain() {
+int run_test() {
     const auto root = fs::temp_directory_path() / L"VelocityCopySourceRemovalRecoveryTest";
     std::error_code ec;
     fs::remove_all(root, ec);
@@ -170,6 +171,60 @@ int wmain() {
         }
     }
 
+    // Simulate replacement after the executor's advisory validation. Matching
+    // size and write time cannot authorize deletion of a different file ID.
+    for (const bool replace_destination : {false, true}) {
+        const auto folder = root / (replace_destination ? L"destination-swap" : L"source-swap");
+        const auto source = folder / L"source.txt";
+        const auto destination = folder / L"destination.txt";
+        write_text(source, "same");
+        write_text(destination, "same");
+        const auto recovery = make_recovery(source, destination);
+        if (validate_source_removal_recovery(recovery) != SourceRemovalValidation::Verified) return 32;
+        const auto replaced = replace_destination ? destination : source;
+        fs::rename(replaced, folder / L"original.txt");
+        write_text(replaced, "same");
+        const auto expected = replace_destination ? recovery.destination_fingerprint : recovery.source_fingerprint;
+        const HANDLE file = CreateFileW(replaced.c_str(), FILE_WRITE_ATTRIBUTES,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, 0, nullptr);
+        if (file == INVALID_HANDLE_VALUE) return 33;
+        ULARGE_INTEGER ticks{};
+        ticks.QuadPart = static_cast<ULONGLONG>(expected.last_write_time);
+        const FILETIME time{ticks.LowPart, ticks.HighPart};
+        const bool set_time = SetFileTime(file, nullptr, nullptr, &time) != FALSE;
+        CloseHandle(file);
+        if (!set_time || remove_verified_recovery_source(recovery) == S_OK ||
+            !fs::exists(source) || !fs::exists(destination)) return 34;
+    }
+    // An existing writer must prevent destructive recovery even when all
+    // fingerprints still match. Missing identity is deliberately fail-closed.
+    {
+        const auto source = root / L"writer" / L"source.txt";
+        const auto destination = root / L"writer" / L"destination.txt";
+        write_text(source, "same");
+        write_text(destination, "same");
+        auto recovery = make_recovery(source, destination);
+        for (const auto& path : {source, destination}) {
+            const HANDLE writer = CreateFileW(path.c_str(), GENERIC_WRITE,
+                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, 0, nullptr);
+            if (writer == INVALID_HANDLE_VALUE) return 35;
+            const auto result = remove_verified_recovery_source(recovery);
+            CloseHandle(writer);
+            if (result == S_OK || !fs::exists(source)) return 36;
+        }
+        recovery.source_fingerprint.has_identity = false;
+        if (remove_verified_recovery_source(recovery) == S_OK || !fs::exists(source)) return 37;
+        recovery = make_recovery(source, destination);
+        if (remove_verified_recovery_source(recovery) != S_OK || fs::exists(source) ||
+            !fs::exists(destination)) return 38;
+    }
+
     fs::remove_all(root, ec);
     return 0;
+}
+
+int wmain() {
+    const auto result = run_test();
+    if (result) std::cerr << "Source-removal recovery failed at check " << result << '\n';
+    return result;
 }
