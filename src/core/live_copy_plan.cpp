@@ -52,6 +52,7 @@ LiveCopyPlan::LiveCopyPlan(CopyPlan plan)
         counters_.resolution_total += item_resolution_weight(file.size);
     }
     record_planning_failures_locked(plan.failures);
+    prepare_tree_move();
 }
 
 void LiveCopyPlan::record_planning_failures_locked(const std::vector<PlanningFailure>& failures) {
@@ -220,6 +221,7 @@ LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan, const bool allow_draine
         }
 
         reserved_destination_keys_.swap(staged_destination_keys);
+        tree_move_candidate_.reset();
         next_file_id_ = assigned_id;
         total_bytes_ += plan.total_bytes;
         total_files_ += static_cast<std::uint64_t>(plan.files.size());
@@ -265,6 +267,7 @@ bool LiveCopyPlan::move_pending_file(const std::uint64_t file_id, const std::siz
     if (current_index == new_index) {
         return true;
     }
+    tree_move_candidate_.reset();
     if (current_index < new_index) {
         std::rotate(it, it + 1, pending_files_.begin() + static_cast<std::ptrdiff_t>(new_index + 1));
     } else {
@@ -293,6 +296,7 @@ bool LiveCopyPlan::move_pending_files_up(const std::vector<std::uint64_t>& file_
                 std::iter_swap(pending_files_.begin() + static_cast<std::ptrdiff_t>(index - 1),
                                pending_files_.begin() + static_cast<std::ptrdiff_t>(index));
                 changed = true;
+                tree_move_candidate_.reset();
             }
         }
         return changed;
@@ -315,6 +319,7 @@ bool LiveCopyPlan::move_pending_files_down(const std::vector<std::uint64_t>& fil
                 std::iter_swap(pending_files_.begin() + static_cast<std::ptrdiff_t>(index),
                                pending_files_.begin() + static_cast<std::ptrdiff_t>(index + 1));
                 changed = true;
+                tree_move_candidate_.reset();
             }
         }
         return changed;
@@ -353,6 +358,7 @@ bool LiveCopyPlan::reorder_pending_files(const std::vector<std::uint64_t>& order
             changed = changed || pending_files_[positions[index]].id != matched[index].id;
             pending_files_[positions[index]] = std::move(matched[index]);
         }
+        if (changed) tree_move_candidate_.reset();
         return changed;
     } catch (...) {
         return false;
@@ -392,6 +398,7 @@ bool LiveCopyPlan::reorder_pending_page(
             const auto& file = pending_files_[offset + i];
             sorted[rank.at(file.id)] = file;
         }
+        tree_move_candidate_.reset();
         for (std::size_t i = 0; i < sorted.size(); ++i) {
             pending_files_[offset + i] = std::move(sorted[i]);
         }
@@ -428,6 +435,7 @@ std::size_t LiveCopyPlan::remove_pending_files(const std::vector<std::uint64_t>&
             removed_largest = removed_largest || file.size == largest_file_bytes_;
         }
         if (removals.empty()) return 0;
+        tree_move_candidate_.reset();
 
         for (const auto& removal : removals) {
             reserved_destination_keys_.erase(removal.destination_key);
@@ -455,6 +463,7 @@ std::size_t LiveCopyPlan::remove_pending_files(const std::vector<std::uint64_t>&
 std::optional<PlannedFile> LiveCopyPlan::acquire_next() {
     std::lock_guard lock(mutex_);
     if (pending_files_.empty()) return std::nullopt;
+    tree_move_candidate_.reset();
     PlannedFile file = pending_files_.front();
     active_files_.push_back(std::move(pending_files_.front()));
     pending_files_.pop_front();

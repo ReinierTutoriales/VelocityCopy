@@ -19,6 +19,14 @@
 
 namespace velocitycopy {
 
+class ExecutionControl;
+
+struct TreeMoveCandidate {
+    std::filesystem::path source;
+    std::filesystem::path destination;
+    FileIdentity identity;
+};
+
 struct LiveCopyPlanSnapshot {
     std::vector<PlannedFile> pending_files;
     std::vector<PlannedFile> active_files;
@@ -82,6 +90,11 @@ enum class LivePlanAppendResult {
 class LiveCopyPlan final {
 public:
     explicit LiveCopyPlan(CopyPlan plan);
+
+    [[nodiscard]] std::optional<TreeMoveCandidate> tree_move_candidate() const;
+    // A failed attempt never changes resolution state. A successful rename
+    // commits all outcomes before releasing the plan/control locks.
+    [[nodiscard]] bool try_move_tree(ExecutionControl& control) noexcept;
 
     LiveCopyPlan(const LiveCopyPlan&) = delete;
     LiveCopyPlan& operator=(const LiveCopyPlan&) = delete;
@@ -210,6 +223,8 @@ private:
 
 
     PathKeyFactory path_keys_;
+    void prepare_tree_move() noexcept;
+    std::optional<TreeMoveCandidate> tree_move_candidate_;
     std::vector<PlannedDirectory> directories_;
     std::size_t materialized_directory_count_{};
     std::vector<std::filesystem::path> source_roots_;

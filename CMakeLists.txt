@@ -47,6 +47,7 @@ add_library(velocitycopy_core STATIC
     src/core/storage_profiler.cpp
     src/core/storage_topology.cpp
     src/core/transfer_router.cpp
+    src/core/tree_move.cpp
     src/core/strategy_selector.cpp
     src/core/ui_snapshot.cpp
     src/shell/shell_data.cpp
@@ -120,6 +121,7 @@ add_velocitycopy_test(VelocityCopyTransferBackoffTest tests/transfer_backoff_tes
 add_velocitycopy_test(VelocityCopyRenameLeaseTest tests/rename_lease_test.cpp velocitycopy_rename_lease)
 add_velocitycopy_test(VelocityCopyDestinationGuardTest tests/destination_guard_test.cpp velocitycopy_destination_guard)
 add_velocitycopy_test(VelocityCopySourceIdentityTest tests/source_identity_test.cpp velocitycopy_source_identity)
+add_velocitycopy_test(VelocityCopyTreeMoveTest tests/tree_move_test.cpp velocitycopy_tree_move)
 add_velocitycopy_test(VelocityCopyUnicodePathsTest tests/unicode_paths_test.cpp velocitycopy_unicode_paths)
 add_velocitycopy_test(VelocityCopyCaseSensitivePathsTest tests/case_sensitive_paths_test.cpp velocitycopy_case_sensitive_paths)
 add_velocitycopy_test(VelocityCopySkipTest tests/skip_test.cpp velocitycopy_skip)

@@ -36,6 +36,7 @@ public:
     [[nodiscard]] ExecutionDirective wait_for_retry(std::chrono::milliseconds delay) noexcept;
 
 private:
+    friend class LiveCopyPlan;
     mutable std::mutex mutex_;
     std::condition_variable condition_;
     std::atomic<ExecutionDirective> directive_{ExecutionDirective::Run};

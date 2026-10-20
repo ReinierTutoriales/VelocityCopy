@@ -52,6 +52,7 @@ struct JobResult {
     // finish from a finish with errors.
     ItemOutcomeCounts outcomes{};
     std::uint64_t parked_files{};
+    bool tree_moved{};
 };
 
 enum class ConflictPolicy : std::uint8_t {
@@ -76,6 +77,7 @@ struct JobExecutionOptions {
     ConflictPolicy conflict_policy{ConflictPolicy::Prompt};
     bool retry_source_removals{};
     bool preserve_basic_metadata{true};
+    bool enable_tree_move{true};
 };
 
 class JobExecutor final {

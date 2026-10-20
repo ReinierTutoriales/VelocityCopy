@@ -462,6 +462,39 @@ JobResult JobExecutor::execute(
             }
         }
 
+        if (options.enable_tree_move && !options.retry_source_removals && options.replace_file_id == 0) {
+            if (const auto candidate = plan.tree_move_candidate()) {
+                const auto before = plan.resolution_view();
+                JobProgress aggregate{};
+                aggregate.total_bytes = before.counters.resolution_total;
+                aggregate.total_files = before.pending_files;
+                aggregate.current_source = candidate->source;
+                aggregate.current_destination = candidate->destination;
+                // The unit is the selected tree, not a skippable current file.
+                if (progress && progress(aggregate) == JobDecision::Cancel) control.request_cancel();
+                if (const auto result = check_control()) return *result;
+                if (plan.try_move_tree(control)) {
+                    JobResult moved{true, false, S_OK};
+                    moved.tree_moved = true;
+                    aggregate.transferred_bytes = aggregate.total_bytes;
+                    aggregate.completed_files = aggregate.total_files;
+                    try {
+                        if (progress && progress(aggregate) == JobDecision::Cancel) control.request_cancel();
+                    } catch (...) {
+                        moved.success = false;
+                        moved.native_code = kUnhandledExecutorError;
+                        return finish(moved);
+                    }
+                    if (auto result = check_control()) {
+                        result->tree_moved = true;
+                        return *result;
+                    }
+                    return finish(moved);
+                }
+                if (const auto result = check_control()) return *result;
+            }
+        }
+
         const auto directory_batch = plan.pending_directories();
         for (const auto& directory : directory_batch.directories) {
             if (const auto result = check_control()) return *result;
