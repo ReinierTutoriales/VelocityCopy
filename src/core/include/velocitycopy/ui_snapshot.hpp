@@ -44,6 +44,7 @@ public:
 
 private:
     std::uint64_t emit_interval_ms_{};
+    std::uint64_t first_sample_ms_{};
     std::uint64_t last_sample_ms_{};
     std::uint64_t last_emit_ms_{};
     std::uint64_t last_sample_bytes_{};

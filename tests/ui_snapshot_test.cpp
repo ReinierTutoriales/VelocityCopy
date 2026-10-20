@@ -50,7 +50,7 @@ int main() {
     CHECK(second->current_file_id == 42);
     CHECK(std::abs(second->fraction - 0.25) < 0.0001);
     CHECK(second->bytes_per_second > 0.0);
-    CHECK(second->eta_seconds > 0.0);
+    CHECK(second->eta_seconds == 0.0); // Warm-up hides an unstable early estimate.
 
     progress.transferred_bytes = 1'000;
     progress.bytes_written_physical = 1'000;
@@ -88,6 +88,50 @@ int main() {
     CHECK(reset_snapshot.has_value());
     CHECK(reset_snapshot->sequence == 1);
     CHECK(reset_snapshot->current_file_id == 0);
+
+    // Time-based smoothing must be independent of callback frequency.
+    double rates[2]{};
+    for (int variant = 0; variant < 2; ++variant) {
+        velocitycopy::ProgressPresenter timed{16};
+        velocitycopy::JobProgress sample{};
+        sample.total_bytes = 100'000;
+        sample.total_files = 10;
+        CHECK(timed.observe(sample, 10'000)->eta_seconds == 0.0);
+        const std::uint64_t step = variant == 0 ? 100 : 1'000;
+        for (std::uint64_t elapsed = step; elapsed <= 3'000; elapsed += step) {
+            sample.bytes_written_physical = elapsed;
+            sample.transferred_bytes = elapsed;
+            const auto value = timed.observe(sample, 10'000 + elapsed);
+            CHECK(value.has_value());
+            if (elapsed < 3'000) CHECK(value->eta_seconds == 0.0);
+            else {
+                CHECK(value->eta_seconds > 0.0);
+                rates[variant] = value->bytes_per_second;
+            }
+        }
+        // A stalled transfer must lose its old throughput rather than freezing it.
+        const auto idle = timed.observe(sample, 14'000);
+        CHECK(idle->bytes_per_second < rates[variant]);
+        CHECK(std::abs(idle->bytes_per_second - rates[variant] * std::exp(-1.0)) < 0.0001);
+        timed.reset();
+        CHECK(timed.observe(sample, 15'000)->eta_seconds == 0.0);
+    }
+    CHECK(std::abs(rates[0] - rates[1]) < 0.0001);
+
+    // A rename-only Move resolves bytes but cannot invent physical speed or ETA.
+    {
+        velocitycopy::ProgressPresenter rename_presenter{16};
+        velocitycopy::JobProgress rename{};
+        rename.total_bytes = 100'000;
+        rename.total_files = 10;
+        (void)rename_presenter.observe(rename, 0);
+        rename.transferred_bytes = 50'000;
+        rename.completed_files = 5;
+        const auto value = rename_presenter.observe(rename, 4'000);
+        CHECK(value->bytes_per_second == 0.0);
+        CHECK(value->eta_seconds == 0.0);
+        CHECK(value->fraction == 0.5);
+    }
 
     return 0;
 }
