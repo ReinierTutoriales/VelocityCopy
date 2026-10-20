@@ -1,0 +1,85 @@
+name: Incremental comparison
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/incremental-benchmark.yml'
+      - 'tools/incremental-benchmark/**'
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: candidate
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: baseline
+          ref: 38def1c3b682ba5117952aa7ce14d6a1025d9bb6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: path-buffer
+          ref: 506a3c78e57e70e29f10cba8295012394260e39d
+      - name: Build identical harness against exact revisions
+        shell: pwsh
+        run: |
+          foreach ($revision in @('baseline', 'candidate', 'path-buffer')) {
+            cmake -S candidate/tools/incremental-benchmark -B "build-$revision" -A x64 "-DVELOCITYCOPY_REPO_ROOT=$env:GITHUB_WORKSPACE/$revision"
+            if ($LASTEXITCODE) { throw "Configure failed: $revision" }
+            cmake --build "build-$revision" --config Release --target VelocityCopyIncrementalBenchmark --parallel
+            if ($LASTEXITCODE) { throw "Build failed: $revision" }
+          }
+      - name: Alternating before and after samples with content verification
+        shell: pwsh
+        run: |
+          $samples = [Collections.Generic.List[object]]::new()
+          $metadata = @{
+            runner = $env:RUNNER_OS
+            os = (Get-CimInstance Win32_OperatingSystem).Caption
+            cpu = (Get-CimInstance Win32_Processor).Name
+            disks = @(Get-CimInstance Win32_DiskDrive | Select-Object Model, Size, InterfaceType)
+            memory = (Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory
+            baseline = (git -C baseline rev-parse HEAD)
+            candidate = (git -C candidate rev-parse HEAD)
+            path_buffer = (git -C path-buffer rev-parse HEAD)
+            note = 'Warm-cache hosted VM; fixture generation and full byte verification excluded from timed execution. Not representative physical SSD/HDD/USB/NAS validation. No 20 GB workload on constrained hosted storage.'
+          }
+          $metadata | ConvertTo-Json -Depth 5 | Set-Content metadata.json
+          foreach ($mode in @('control', 'move', 'plan', 'directories', 'copy')) {
+            $workers = if ($mode -eq 'copy') { @(1, 2, 4) } else { @(1) }
+            foreach ($worker in $workers) {
+              for ($iteration = 0; $iteration -lt 5; $iteration++) {
+                $order = if ($iteration % 2) { @('candidate', 'baseline') } else { @('baseline', 'candidate') }
+                if ($mode -eq 'plan') { $order += 'path-buffer' }
+                foreach ($revision in $order) {
+                  $fixture = Join-Path $env:RUNNER_TEMP "velocitycopy-incremental-$([guid]::NewGuid())"
+                  $json = & "./build-$revision/Release/VelocityCopyIncrementalBenchmark.exe" $mode $fixture $worker
+                  if ($LASTEXITCODE) { throw "Benchmark failed: $revision / $mode ($LASTEXITCODE)" }
+                  $sample = $json | ConvertFrom-Json
+                  $sample | Add-Member revision $revision
+                  $sample | Add-Member iteration $iteration
+                  $samples.Add($sample)
+                  $samples | ConvertTo-Json -Depth 5 | Set-Content samples.json
+                }
+              }
+            }
+          }
+          $summary = foreach ($group in ($samples | Group-Object revision, mode, workers)) {
+            $sorted = @($group.Group.seconds | Sort-Object)
+            [pscustomobject]@{ group = $group.Name; samples = $sorted.Count; median_seconds = $sorted[2]; min_seconds = $sorted[0]; max_seconds = $sorted[-1] }
+          }
+          $summary | ConvertTo-Json | Set-Content summary.json
+          $summary | Format-Table | Out-String | Add-Content $env:GITHUB_STEP_SUMMARY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: incremental-comparison-${{ github.run_id }}
+          path: |
+            metadata.json
+            samples.json
+            summary.json
+          if-no-files-found: warn
