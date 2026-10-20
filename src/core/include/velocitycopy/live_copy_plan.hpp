@@ -3,6 +3,7 @@
 #include "velocitycopy/item_result.hpp"
 #include "velocitycopy/job_planner.hpp"
 #include "velocitycopy/source_removal_recovery.hpp"
+#include "velocitycopy/path_key.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -11,6 +12,7 @@
 #include <filesystem>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -207,6 +209,7 @@ private:
     void record_planning_failures_locked(const std::vector<PlanningFailure>& failures);
 
 
+    PathKeyFactory path_keys_;
     std::vector<PlannedDirectory> directories_;
     std::size_t materialized_directory_count_{};
     std::vector<std::filesystem::path> source_roots_;
@@ -215,7 +218,7 @@ private:
     mutable std::mutex mutex_;
     std::deque<PlannedFile> pending_files_;
     std::vector<PlannedFile> active_files_;
-    std::unordered_set<std::wstring> reserved_destination_keys_;
+    std::set<std::wstring, PathKeyLess> reserved_destination_keys_;
     std::uint64_t total_bytes_{};
     std::uint64_t total_files_{};
     std::uint64_t completed_bytes_{};

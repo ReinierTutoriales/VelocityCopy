@@ -1,5 +1,6 @@
 #include "velocitycopy/copy_engine.hpp"
 #include "velocitycopy/execution_control.hpp"
+#include "velocitycopy/path_key.hpp"
 #include "destination_path_guard.hpp"
 #include "file_fingerprint.hpp"
 #include "win32_handle.hpp"
@@ -26,6 +27,10 @@ struct SourceLease::State {
 
     bool prepare(const std::filesystem::path& source, const bool for_rename, std::error_code& error) {
         path = std::filesystem::absolute(source).lexically_normal();
+        if (path.native().find(L'\0') != std::wstring::npos) {
+            error = std::error_code(ERROR_INVALID_NAME, std::system_category());
+            return false;
+        }
         if (!ancestors.lock_existing_chain(path.parent_path(), error) || !ancestors.missing.empty()) {
             if (!error) error = std::error_code(ERROR_PATH_NOT_FOUND, std::system_category());
             return false;
@@ -88,6 +93,8 @@ struct CallbackContext {
     HRESULT metadata_error{S_OK};
     FileFingerprint expected_source{};
     FileFingerprint copied_source{};
+    std::optional<bool> expected_destination_case;
+    const std::filesystem::path* destination_parent{};
 
     ~CallbackContext() { reset_metadata(); }
     void reset_metadata() noexcept {
@@ -99,6 +106,22 @@ struct CallbackContext {
 
     bool capture_metadata(HANDLE source, HANDLE destination) noexcept {
         if (destination_handle != nullptr) return true;
+        try {
+            if (expected_destination_case &&
+                directory_case_sensitive(*destination_parent) != *expected_destination_case) {
+                metadata_error = HRESULT_FROM_WIN32(ERROR_INVALID_STATE);
+                latched_action = COPYFILE2_PROGRESS_STOP;
+                return false;
+            }
+        } catch (const std::system_error& error) {
+            metadata_error = HRESULT_FROM_WIN32(error.code().value());
+            latched_action = COPYFILE2_PROGRESS_STOP;
+            return false;
+        } catch (...) {
+            metadata_error = E_FAIL;
+            latched_action = COPYFILE2_PROGRESS_STOP;
+            return false;
+        }
         const auto probe = detail::fingerprint_from_handle(source);
         if (detail::name_surrogate_reparse(source) || probe.status != FingerprintProbe::Present ||
             (expected_source.has_identity && !detail::same_file_fingerprint(expected_source, probe.fingerprint))) {
@@ -308,6 +331,8 @@ CopyResult CopyEngine::copy_file(
         detail::DestinationPathGuard destination_guard;
         std::error_code directory_error;
         const auto target = std::filesystem::absolute(destination).lexically_normal();
+        if (target.native().find(L'\0') != std::wstring::npos)
+            return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_INVALID_NAME))};
         SourceLease local_source;
         auto& source_lease = options.source_lease ? *options.source_lease : local_source;
         if (!source_lease.state_) {
@@ -347,10 +372,14 @@ CopyResult CopyEngine::copy_file(
                 static_cast<std::int32_t>(HRESULT_FROM_WIN32(native)),
             };
         }
+        if (options.destination_case_sensitive && directory_case_sensitive(parent) != *options.destination_case_sensitive)
+            return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_INVALID_STATE))};
 
         const auto source_size = source_lease.state_->fingerprint.size;
         CallbackContext callback_context{&progress};
         callback_context.expected_source = source_lease.state_->fingerprint;
+        callback_context.expected_destination_case = options.destination_case_sensitive;
+        callback_context.destination_parent = &parent;
         callback_context.preserve_basic_metadata = options.preserve_basic_metadata;
         callback_context.last_progress = {source_size, 0};
         callback_context.has_progress = source_size != 0;
@@ -431,7 +460,8 @@ CopyResult CopyEngine::rename_file(
     const std::filesystem::path& source,
     const std::filesystem::path& destination,
     const ExistingDestinationPolicy existing_destination,
-    DestinationLease* lease) const noexcept {
+    DestinationLease* lease,
+    const std::optional<bool> destination_case_sensitive) const noexcept {
     try {
         detail::DestinationPathGuard destination_guard;
         std::error_code directory_error;
@@ -440,6 +470,8 @@ CopyResult CopyEngine::rename_file(
             return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(directory_error.value()))};
         }
         const auto target = std::filesystem::absolute(destination).lexically_normal();
+        if (target.native().find(L'\0') != std::wstring::npos)
+            return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_INVALID_NAME))};
         const auto parent = target.parent_path();
         const auto prepare_parent = [&]() {
             if (parent.empty()) return true;
@@ -453,6 +485,8 @@ CopyResult CopyEngine::rename_file(
                 : ERROR_CANT_ACCESS_FILE;
             return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(native))};
         }
+        if (destination_case_sensitive && velocitycopy::directory_case_sensitive(parent) != *destination_case_sensitive)
+            return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_INVALID_STATE))};
 
         const auto& name = target.native();
         const auto bytes = offsetof(FILE_RENAME_INFO, FileName) + (name.size() + 1) * sizeof(wchar_t);
