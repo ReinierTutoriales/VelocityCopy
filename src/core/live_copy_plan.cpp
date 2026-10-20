@@ -135,6 +135,7 @@ LiveQueueView LiveCopyPlan::active_queue_view(const std::size_t max_active_items
 LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan, const bool allow_drained) noexcept {
     try {
         std::lock_guard lock(mutex_);
+        if (tree_move_in_flight_) return LivePlanAppendResult::InternalFailure;
         if (!allow_drained && pending_files_.empty() && active_files_.empty() &&
             parked_files_.empty()) {
             return LivePlanAppendResult::Drained;
@@ -259,6 +260,7 @@ void LiveCopyPlan::recompute_largest_file_bytes_locked() noexcept {
 
 bool LiveCopyPlan::move_pending_file(const std::uint64_t file_id, const std::size_t new_index) noexcept {
     std::lock_guard lock(mutex_);
+    if (tree_move_in_flight_) return false;
     auto it = find_pending(file_id);
     if (it == pending_files_.end() || new_index >= pending_files_.size()) {
         return false;
@@ -290,6 +292,7 @@ bool LiveCopyPlan::move_pending_files_up(const std::vector<std::uint64_t>& file_
         const auto selected = make_id_set(file_ids);
         std::lock_guard lock(mutex_);
         bool changed = false;
+        if (tree_move_in_flight_) return false;
         for (std::size_t index = 1; index < pending_files_.size(); ++index) {
             if (selected.contains(pending_files_[index].id) &&
                 !selected.contains(pending_files_[index - 1].id)) {
@@ -311,6 +314,7 @@ bool LiveCopyPlan::move_pending_files_down(const std::vector<std::uint64_t>& fil
         const auto selected = make_id_set(file_ids);
         std::lock_guard lock(mutex_);
         if (pending_files_.size() < 2) return false;
+        if (tree_move_in_flight_) return false;
         bool changed = false;
         for (std::size_t cursor = pending_files_.size() - 1; cursor != 0; --cursor) {
             const auto index = cursor - 1;
@@ -339,6 +343,7 @@ bool LiveCopyPlan::reorder_pending_files(const std::vector<std::uint64_t>& order
 
         std::lock_guard lock(mutex_);
         std::vector<std::size_t> positions;
+        if (tree_move_in_flight_) return false;
         std::vector<PlannedFile> matched;
         positions.reserve(ordered_file_ids.size());
         matched.reserve(ordered_file_ids.size());
@@ -378,6 +383,7 @@ bool LiveCopyPlan::reorder_pending_page(
         std::lock_guard lock(mutex_);
         if (offset > pending_files_.size() ||
             ordered_file_ids.size() > pending_files_.size() - offset) return false;
+        if (tree_move_in_flight_) return false;
 
         // A concurrent acquisition/removal must never turn a stale drag into
         // a reorder of unrelated files. Validate the entire page before writing.
@@ -417,6 +423,7 @@ std::size_t LiveCopyPlan::remove_pending_files(const std::vector<std::uint64_t>&
         if (file_ids.empty()) return 0;
         const auto selected = make_id_set(file_ids);
         std::lock_guard lock(mutex_);
+        if (tree_move_in_flight_) return 0;
 
         struct RemovalInfo {
             std::uint64_t size{};
@@ -462,6 +469,7 @@ std::size_t LiveCopyPlan::remove_pending_files(const std::vector<std::uint64_t>&
 
 std::optional<PlannedFile> LiveCopyPlan::acquire_next() {
     std::lock_guard lock(mutex_);
+    if (tree_move_in_flight_) return std::nullopt;
     if (pending_files_.empty()) return std::nullopt;
     tree_move_candidate_.reset();
     PlannedFile file = pending_files_.front();
@@ -702,6 +710,7 @@ bool LiveCopyPlan::park_active_source_removal(
 bool LiveCopyPlan::restore_parked_source_removal(const SourceRemovalRecovery& archived) noexcept {
     try {
         std::lock_guard lock(mutex_);
+        if (tree_move_in_flight_) return false;
         if (archived.source.empty() || archived.destination.empty() || next_file_id_ == 0) return false;
         const auto size = archived.source_fingerprint.size;
         const auto weight = item_resolution_weight(size);
@@ -829,6 +838,7 @@ bool LiveCopyPlan::resolve_pending(
     static_assert(is_valid_item_transition(ItemState::Pending, ItemState::Terminal));
     try {
         std::lock_guard lock(mutex_);
+        if (tree_move_in_flight_) return false;
         auto it = find_pending(file_id);
         if (it == pending_files_.end()) return false;
         if (!resolve_locked(*it, outcome, hresult, destination_preexisted)) return false;
@@ -881,6 +891,7 @@ std::size_t LiveCopyPlan::fail_pending_under(
     try {
         std::lock_guard lock(mutex_);
         const auto prefix = path_keys_.make(directory);
+        if (tree_move_in_flight_) return 0;
         if (prefix.empty()) return 0;
         std::size_t resolved = 0;
         for (auto it = pending_files_.begin(); it != pending_files_.end();) {

@@ -9,6 +9,21 @@
 #include <iostream>
 #include <stdexcept>
 #include <thread>
+#include <cstdlib>
+#include <new>
+
+namespace { thread_local int fail_after = -1; }
+void* operator new(std::size_t size) {
+    if (fail_after == 0) { fail_after = -1; throw std::bad_alloc{}; }
+    if (fail_after > 0) --fail_after;
+    if (auto* value = std::malloc(size ? size : 1)) return value;
+    throw std::bad_alloc{};
+}
+void* operator new[](std::size_t size) { return ::operator new(size); }
+void operator delete(void* value) noexcept { std::free(value); }
+void operator delete[](void* value) noexcept { std::free(value); }
+void operator delete(void* value, std::size_t) noexcept { std::free(value); }
+void operator delete[](void* value, std::size_t) noexcept { std::free(value); }
 
 namespace fs = std::filesystem;
 using namespace velocitycopy;
@@ -23,7 +38,7 @@ std::string read_text(const fs::path& path) {
     std::ifstream in(path, std::ios::binary);
     return {std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
 }
-std::array<unsigned char, 16> identity(const fs::path& path) {
+std::array<unsigned char, 16> identity(const fs::path& path, std::uint64_t* volume = nullptr) {
     HANDLE handle = CreateFileW(path.c_str(), FILE_READ_ATTRIBUTES,
         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING,
         FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
@@ -31,6 +46,7 @@ std::array<unsigned char, 16> identity(const fs::path& path) {
     FILE_ID_INFO info{};
     const bool ok = GetFileInformationByHandleEx(handle, FileIdInfo, &info, sizeof(info)) != FALSE;
     CloseHandle(handle); REQUIRE(ok);
+    if (volume) *volume = info.VolumeSerialNumber;
     std::array<unsigned char, 16> result{};
     std::copy(std::begin(info.FileId.Identifier), std::end(info.FileId.Identifier), result.begin());
     return result;
@@ -152,6 +168,50 @@ void correctness() {
         });
         REQUIRE(result.cancelled && result.tree_moved && result.outcomes.succeeded == 2);
         REQUIRE(!fs::exists(f.source) && plan.export_remaining_plan().files.empty());
+    }
+    { // A stale pre-commit archive must not overwrite or delete the moved tree.
+        Fixture f; LiveCopyPlan plan(JobPlanner{}.build(f.job()));
+        QueueArchive archive{}; archive.current_plan = plan.export_remaining_plan();
+        QueueArchiveStore store; REQUIRE(store.save(f.root / L"before.vcq", archive));
+        REQUIRE(JobExecutor{}.execute(plan).tree_moved);
+        const auto id = identity(f.moved());
+        auto restored = store.load(f.root / L"before.vcq"); REQUIRE(restored && restored->current_plan);
+        LiveCopyPlan stale(*restored->current_plan); ExecutionControl control;
+        JobExecutionOptions options{}; options.conflict_policy = ConflictPolicy::ReplaceAll;
+        const auto result = JobExecutor{}.execute(stale, control, options);
+        REQUIRE(!result.tree_moved && result.parked_files == 2 && identity(f.moved()) == id);
+        REQUIRE(read_text(f.moved() / L"É.txt") == "upper");
+    }
+    { // The hosted runner provides a real second volume; single-volume machines report the gap.
+        Fixture f; std::uint64_t source_volume{}, other_volume{};
+        (void)identity(f.source, &source_volume); (void)identity(fs::current_path(), &other_volume);
+        if (source_volume != other_volume) {
+            const auto folder = fs::current_path() / (L"VelocityCopyCrossVolume-" + std::to_wstring(GetCurrentProcessId()));
+            REQUIRE(fs::create_directory(folder));
+            struct Cleanup { fs::path path; ~Cleanup() { std::error_code error; fs::remove_all(path, error); } } cleanup{folder};
+            f.target = folder;
+            LiveCopyPlan plan(JobPlanner{}.build(f.job())); ExecutionControl control;
+            REQUIRE(!plan.try_move_tree(control) && fs::exists(f.source));
+            const auto result = JobExecutor{}.execute(plan, control, JobExecutionOptions{});
+            REQUIRE(result.success && !result.tree_moved && result.outcomes.succeeded == 2);
+            REQUIRE(read_text(f.moved() / L"É.txt") == "upper" && !fs::exists(f.source));
+            std::cout << "Cross-volume copy/delete fallback passed\n";
+        } else std::cout << "Cross-volume runtime case unavailable on this single-volume fixture\n";
+    }
+    {
+        bool succeeded = false; int failures = 0;
+        for (int allocation = 0; allocation < 4096; ++allocation) {
+            Fixture f; LiveCopyPlan plan(JobPlanner{}.build(f.job())); ExecutionControl control;
+            fail_after = allocation;
+            const bool moved = plan.try_move_tree(control);
+            fail_after = -1;
+            if (moved) { REQUIRE(!fs::exists(f.source) && plan.completed_files() == 2); succeeded = true; break; }
+            ++failures;
+            REQUIRE(fs::exists(f.source) && !fs::exists(f.moved()) && plan.completed_files() == 0);
+            REQUIRE(plan.try_move_tree(control));
+        }
+        REQUIRE(succeeded && failures > 10);
+        std::cout << "Tree Move allocation failures checked: " << failures << '\n';
     }
     std::cout << "Tree Move admission, identity, controls, conflicts and recovery passed\n";
 }

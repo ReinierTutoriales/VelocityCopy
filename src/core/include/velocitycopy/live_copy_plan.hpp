@@ -93,7 +93,8 @@ public:
 
     [[nodiscard]] std::optional<TreeMoveCandidate> tree_move_candidate() const;
     // A failed attempt never changes resolution state. A successful rename
-    // commits all outcomes before releasing the plan/control locks.
+    // commits all outcomes before unfreezing queue edits. Controls remain
+    // responsive while the admitted synchronous filesystem call is in flight.
     [[nodiscard]] bool try_move_tree(ExecutionControl& control) noexcept;
 
     LiveCopyPlan(const LiveCopyPlan&) = delete;
@@ -103,6 +104,7 @@ public:
     [[nodiscard]] LiveDirectoryBatch pending_directories() const {
         std::lock_guard lock(mutex_);
         LiveDirectoryBatch batch{};
+        if (tree_move_in_flight_) return batch;
         batch.through_index = directories_.size();
         batch.directories.reserve(batch.through_index - materialized_directory_count_);
         batch.directories.insert(
@@ -113,6 +115,7 @@ public:
     }
     void mark_directories_materialized(const std::size_t through_index) noexcept {
         std::lock_guard lock(mutex_);
+        if (tree_move_in_flight_) return;
         materialized_directory_count_ = std::max(
             materialized_directory_count_, std::min(through_index, directories_.size()));
     }
@@ -225,6 +228,7 @@ private:
     PathKeyFactory path_keys_;
     void prepare_tree_move() noexcept;
     std::optional<TreeMoveCandidate> tree_move_candidate_;
+    bool tree_move_in_flight_{};
     std::vector<PlannedDirectory> directories_;
     std::size_t materialized_directory_count_{};
     std::vector<std::filesystem::path> source_roots_;

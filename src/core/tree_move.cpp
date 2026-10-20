@@ -107,7 +107,7 @@ void LiveCopyPlan::prepare_tree_move() noexcept {
 
 std::optional<TreeMoveCandidate> LiveCopyPlan::tree_move_candidate() const {
     std::lock_guard lock(mutex_);
-    if (!tree_move_candidate_ || materialized_directory_count_ || !active_files_.empty() ||
+    if (!tree_move_candidate_ || tree_move_in_flight_ || materialized_directory_count_ || !active_files_.empty() ||
         !parked_files_.empty() || !retained_results_.empty() || completed_files_ ||
         counters_.resolution_weight || counters_.bytes_written_physical ||
         pending_files_.size() != total_files_) return std::nullopt;
@@ -152,14 +152,22 @@ bool LiveCopyPlan::try_move_tree(ExecutionControl& control) noexcept {
         rename->FileNameLength = static_cast<DWORD>(name.size() * sizeof(wchar_t));
         std::memcpy(rename->FileName, name.c_str(), (name.size() + 1) * sizeof(wchar_t));
 
-        std::scoped_lock commit(mutex_, control.mutex_);
-        if (!tree_move_candidate_ || materialized_directory_count_ || !active_files_.empty() ||
+        {
+        std::scoped_lock admission(mutex_, control.mutex_);
+        if (!tree_move_candidate_ || tree_move_in_flight_ || materialized_directory_count_ || !active_files_.empty() ||
             !parked_files_.empty() || !retained_results_.empty() || completed_files_ ||
             counters_.resolution_weight || counters_.bytes_written_physical ||
             control.directive_ != ExecutionDirective::Run || control.has_pending_skips_.load()) return false;
+        tree_move_in_flight_ = true;
+        }
         // FileRenameInfo never copies across volumes and never replaces the
         // destination. Its kernel result is authoritative even for cloned IDs.
-        if (!SetFileInformationByHandle(source.get(), FileRenameInfo, rename, static_cast<DWORD>(bytes))) return false;
+        // No UI/control mutex is held over the synchronous filesystem call.
+        // Once admitted, it may complete despite a concurrent cancellation.
+        const bool renamed = SetFileInformationByHandle(source.get(), FileRenameInfo, rename, static_cast<DWORD>(bytes)) != FALSE;
+        std::lock_guard commit(mutex_);
+        tree_move_in_flight_ = false;
+        if (!renamed) return false;
 
         // No allocation, callback or fallible operation after the rename.
         counters_.resolution_weight = counters_.resolution_total;
