@@ -120,7 +120,9 @@ std::int32_t remove_verified_recovery_source(const SourceRemovalRecovery& recove
         }
         // Refuse existing writers/deleters and prevent new ones until deletion
         // completes. OPEN_REPARSE_POINT inspects the named objects themselves.
-        detail::Win32Handle destination(CreateFileW(recovery.destination.c_str(), FILE_READ_ATTRIBUTES,
+        // Metadata-only access does not participate in Windows share checks.
+        // Request data-read access to exclude an already-open data writer.
+        detail::Win32Handle destination(CreateFileW(recovery.destination.c_str(), GENERIC_READ,
             FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT, nullptr));
         if (destination.get() == INVALID_HANDLE_VALUE)
             return static_cast<std::int32_t>(HRESULT_FROM_WIN32(GetLastError()));
