@@ -43,6 +43,7 @@ void ExecutionControl::request_cancel() noexcept {
         std::lock_guard lock(mutex_);
         directive_ = ExecutionDirective::Cancel;
         skip_file_ids_.clear();
+        has_pending_skips_ = false;
     }
     condition_.notify_all();
 }
@@ -52,6 +53,7 @@ void ExecutionControl::reset() noexcept {
         std::lock_guard lock(mutex_);
         directive_ = ExecutionDirective::Run;
         skip_file_ids_.clear();
+        has_pending_skips_ = false;
     }
     condition_.notify_all();
 }
@@ -64,6 +66,7 @@ void ExecutionControl::request_skip(const std::uint64_t file_id) noexcept {
         std::lock_guard lock(mutex_);
         if (directive_ == ExecutionDirective::Run || directive_ == ExecutionDirective::Pause) {
             skip_file_ids_.insert(file_id);
+            has_pending_skips_ = true;
         }
     } catch (...) {
         // A skip request is advisory user input. Allocation failure must never
@@ -72,12 +75,16 @@ void ExecutionControl::request_skip(const std::uint64_t file_id) noexcept {
 }
 
 bool ExecutionControl::consume_skip(const std::uint64_t file_id) noexcept {
+    // Only the empty case bypasses the mutex; lookup and exactly-once removal
+    // stay serialized with insert, reset and cancellation.
+    if (!has_pending_skips_.load()) return false;
     std::lock_guard lock(mutex_);
     const auto it = skip_file_ids_.find(file_id);
     if (it == skip_file_ids_.end()) {
         return false;
     }
     skip_file_ids_.erase(it);
+    has_pending_skips_ = !skip_file_ids_.empty();
     return true;
 }
 
