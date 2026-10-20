@@ -7,6 +7,8 @@
 
 namespace velocitycopy {
 
+class ExecutionControl;
+
 struct CopyProgress {
     std::uint64_t total_bytes{};
     std::uint64_t transferred_bytes{};
@@ -55,6 +57,8 @@ struct CopyOptions {
     // Creation/write times and mutable file attributes, not ACL/owner/SACL.
     // Fail rather than report success when the requested metadata cannot be set.
     bool preserve_basic_metadata{true};
+    // Optional session control for interruptible transient-lock backoff.
+    ExecutionControl* control{};
 };
 
 struct CopyResult {
@@ -83,7 +87,8 @@ public:
     [[nodiscard]] CopyResult rename_file(
         const std::filesystem::path& source,
         const std::filesystem::path& destination,
-        ExistingDestinationPolicy existing_destination) const noexcept;
+        ExistingDestinationPolicy existing_destination,
+        DestinationLease* lease = nullptr) const noexcept;
 };
 
 } // namespace velocitycopy

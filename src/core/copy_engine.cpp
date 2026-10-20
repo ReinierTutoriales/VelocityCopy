@@ -1,4 +1,5 @@
 #include "velocitycopy/copy_engine.hpp"
+#include "velocitycopy/execution_control.hpp"
 #include "destination_path_guard.hpp"
 
 #include <memory>
@@ -324,7 +325,14 @@ CopyResult CopyEngine::copy_file(
         }
         for (const DWORD delay : kTransientRetryDelaysMs) {
             if (!is_transient_lock(result) || callback_context.callback_failed) break;
-            Sleep(delay);
+            if (options.control != nullptr) {
+                const auto directive = options.control->wait_for_retry(std::chrono::milliseconds(delay));
+                if (directive == ExecutionDirective::Stop || directive == ExecutionDirective::Cancel) {
+                    return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED))};
+                }
+            } else {
+                Sleep(delay);
+            }
             result = copy();
         }
 
@@ -356,13 +364,20 @@ CopyResult CopyEngine::copy_file(
 CopyResult CopyEngine::rename_file(
     const std::filesystem::path& source,
     const std::filesystem::path& destination,
-    const ExistingDestinationPolicy existing_destination) const noexcept {
+    const ExistingDestinationPolicy existing_destination,
+    DestinationLease* lease) const noexcept {
     try {
         detail::DestinationPathGuard destination_guard;
         std::error_code directory_error;
         const auto parent = destination.parent_path();
+        const auto prepare_parent = [&]() {
+            if (parent.empty()) return true;
+            return lease != nullptr
+                ? lease->state_->prepare(parent, directory_error)
+                : destination_guard.prepare_directory(parent, directory_error);
+        };
         if (source_is_unsafe_reparse_point(source) ||
-            (!parent.empty() && !destination_guard.prepare_directory(parent, directory_error))) {
+            !prepare_parent()) {
             const auto native = directory_error
                 ? static_cast<DWORD>(directory_error.value())
                 : ERROR_CANT_ACCESS_FILE;

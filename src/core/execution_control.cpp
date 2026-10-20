@@ -3,15 +3,17 @@
 namespace velocitycopy {
 
 ExecutionDirective ExecutionControl::directive() const noexcept {
-    std::lock_guard lock(mutex_);
-    return directive_;
+    return directive_.load();
 }
 
 void ExecutionControl::request_pause() noexcept {
-    std::lock_guard lock(mutex_);
-    if (directive_ == ExecutionDirective::Run) {
-        directive_ = ExecutionDirective::Pause;
+    {
+        std::lock_guard lock(mutex_);
+        if (directive_ == ExecutionDirective::Run) {
+            directive_ = ExecutionDirective::Pause;
+        }
     }
+    condition_.notify_all();
 }
 
 void ExecutionControl::resume() noexcept {
@@ -83,6 +85,19 @@ ExecutionDirective ExecutionControl::wait_while_paused() noexcept {
     std::unique_lock lock(mutex_);
     condition_.wait(lock, [this] { return directive_ != ExecutionDirective::Pause; });
     return directive_;
+}
+
+ExecutionDirective ExecutionControl::wait_for_retry(const std::chrono::milliseconds delay) noexcept {
+    const auto deadline = std::chrono::steady_clock::now() + delay;
+    std::unique_lock lock(mutex_);
+    for (;;) {
+        condition_.wait(lock, [this] { return directive_ != ExecutionDirective::Pause; });
+        const auto current = directive_.load();
+        if (current != ExecutionDirective::Run || std::chrono::steady_clock::now() >= deadline) {
+            return current;
+        }
+        condition_.wait_until(lock, deadline, [this] { return directive_ != ExecutionDirective::Run; });
+    }
 }
 
 } // namespace velocitycopy
