@@ -137,6 +137,27 @@ int run_test() {
     if (!stale_result.success || stale_result.parked_files != 1 ||
         read_text(changed / L"a.txt") != "existing" || !fs::exists(source / L"A.txt")) return 17;
 
+    // Distinct directory components and non-BMP names must survive actual I/O,
+    // including inherited case policy on destination directories not yet created.
+    const auto nested_source = root / L"資料-\U0001F600";
+    const auto nested_target = root / L"目的-\U0001F4C1";
+    fs::create_directory(nested_source);
+    fs::create_directory(nested_target);
+    if (!set_case(nested_source, true) || !set_case(nested_target, true)) return 24;
+    fs::create_directory(nested_source / L"É");
+    fs::create_directory(nested_source / L"é");
+    const fs::path nested_name = L"данные-\U0001F600.txt";
+    write_text(nested_source / L"É" / nested_name, "upper-directory");
+    write_text(nested_source / L"é" / nested_name, "lower-directory");
+    CopyJob nested_job{};
+    nested_job.sources = {nested_source};
+    nested_job.destination = nested_target;
+    nested_job.layout = DestinationLayout::ContentsOnly;
+    const auto nested = JobExecutor{}.execute(nested_job);
+    if (!nested.success || nested.outcomes.succeeded != 2 ||
+        read_text(nested_target / L"É" / nested_name) != "upper-directory" ||
+        read_text(nested_target / L"é" / nested_name) != "lower-directory") return 25;
+
     // The same-volume Move path must preserve all four distinct names too.
     const auto moved_target = root / L"moved";
     fs::create_directory(moved_target);
