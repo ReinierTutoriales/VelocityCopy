@@ -1,9 +1,13 @@
 #include "velocitycopy/source_removal_recovery.hpp"
+#include "destination_path_guard.hpp"
+#include "win32_handle.hpp"
 
 #include <windows.h>
 
 #include <algorithm>
 #include <iterator>
+#include <new>
+#include <system_error>
 
 namespace velocitycopy {
 namespace {
@@ -21,6 +25,23 @@ bool same_fingerprint(const FileFingerprint& expected, const FileFingerprint& ac
     return actual.has_identity &&
         expected.identity.volume_serial == actual.identity.volume_serial &&
         expected.identity.file_id == actual.identity.file_id;
+}
+
+bool matches_pinned_file(const HANDLE handle, const FileFingerprint& expected) noexcept {
+    FILE_STANDARD_INFO standard{};
+    FILE_BASIC_INFO basic{};
+    FILE_ID_INFO id{};
+    if (!expected.has_identity || detail::name_surrogate_reparse(handle) ||
+        !GetFileInformationByHandleEx(handle, FileStandardInfo, &standard, sizeof(standard)) ||
+        !GetFileInformationByHandleEx(handle, FileBasicInfo, &basic, sizeof(basic)) ||
+        !GetFileInformationByHandleEx(handle, FileIdInfo, &id, sizeof(id)) || standard.Directory) {
+        return false;
+    }
+    return expected.size == static_cast<std::uint64_t>(standard.EndOfFile.QuadPart) &&
+        expected.last_write_time == basic.LastWriteTime.QuadPart &&
+        expected.identity.volume_serial == id.VolumeSerialNumber &&
+        std::equal(expected.identity.file_id.begin(), expected.identity.file_id.end(),
+            std::begin(id.FileId.Identifier));
 }
 
 } // namespace
@@ -86,6 +107,44 @@ SourceRemovalValidation validate_source_removal_recovery(
         return SourceRemovalValidation::ChangedOrMissing;
     }
     return SourceRemovalValidation::Verified;
+}
+
+std::int32_t remove_verified_recovery_source(const SourceRemovalRecovery& recovery) noexcept {
+    try {
+        detail::DestinationPathGuard source_ancestors;
+        detail::DestinationPathGuard destination_ancestors;
+        std::error_code error;
+        if (!source_ancestors.lock_existing_chain(recovery.source.parent_path(), error, FILE_SHARE_READ) ||
+            !destination_ancestors.lock_existing_chain(recovery.destination.parent_path(), error, FILE_SHARE_READ)) {
+            return static_cast<std::int32_t>(HRESULT_FROM_WIN32(error.value()));
+        }
+        // Refuse existing writers/deleters and prevent new ones until deletion
+        // completes. OPEN_REPARSE_POINT inspects the named objects themselves.
+        detail::Win32Handle destination(CreateFileW(recovery.destination.c_str(), FILE_READ_ATTRIBUTES,
+            FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT, nullptr));
+        if (destination.get() == INVALID_HANDLE_VALUE)
+            return static_cast<std::int32_t>(HRESULT_FROM_WIN32(GetLastError()));
+        if (!matches_pinned_file(destination.get(), recovery.destination_fingerprint))
+            return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_FILE_INVALID));
+        detail::Win32Handle source(CreateFileW(recovery.source.c_str(), DELETE | FILE_READ_ATTRIBUTES,
+            FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT, nullptr));
+        if (source.get() == INVALID_HANDLE_VALUE) {
+            const auto native = GetLastError();
+            return native == ERROR_FILE_NOT_FOUND ? S_OK :
+                static_cast<std::int32_t>(HRESULT_FROM_WIN32(native));
+        }
+        if (!matches_pinned_file(source.get(), recovery.source_fingerprint))
+            return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_FILE_INVALID));
+        FILE_DISPOSITION_INFO disposition{TRUE};
+        return SetFileInformationByHandle(source.get(), FileDispositionInfo, &disposition, sizeof(disposition))
+            ? S_OK : static_cast<std::int32_t>(HRESULT_FROM_WIN32(GetLastError()));
+    } catch (const std::bad_alloc&) {
+        return static_cast<std::int32_t>(E_OUTOFMEMORY);
+    } catch (const std::system_error& error) {
+        return static_cast<std::int32_t>(HRESULT_FROM_WIN32(error.code().value()));
+    } catch (...) {
+        return static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION));
+    }
 }
 
 } // namespace velocitycopy

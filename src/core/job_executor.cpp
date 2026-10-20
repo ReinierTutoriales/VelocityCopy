@@ -469,7 +469,7 @@ JobResult JobExecutor::execute(
                     return finish({false, false, kInvalidPlanState});
                 }
                 if (const auto result = check_control()) return *result;
-                const auto remove_source = remove_moved_source_file(recovery.source);
+                const auto remove_source = remove_verified_recovery_source(recovery);
                 if (remove_source == S_OK) {
                     if (!plan.resolve_parked(
                             recovery.file_id, ItemOutcome::Succeeded, S_OK,
