@@ -35,6 +35,7 @@ bool admission_reply_survives_delayed_read(const bool stop_without_reading) {
     velocitycopy::ShellRequest request{};
     request.version = 3;
     request.request_id = 123;
+    request.action = velocitycopy::ShellAction::Transfer;
     request.sources = {L"C:\\source.txt"};
     request.destination = L"C:\\destination";
     const auto payload = velocitycopy::serialize_shell_request(request);
