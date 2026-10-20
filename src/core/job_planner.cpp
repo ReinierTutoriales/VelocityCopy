@@ -79,7 +79,8 @@ std::wstring normalized_path_key(const std::filesystem::path& input) {
         return {};
     }
 
-    std::array<wchar_t, 32768> buffer{};
+    // GetFullPathNameW writes the returned length on success; no need to clear 64 KiB first.
+    std::array<wchar_t, 32768> buffer;
     const DWORD length = GetFullPathNameW(
         input.c_str(),
         static_cast<DWORD>(buffer.size()),
