@@ -90,7 +90,9 @@ struct DestinationPathGuard final {
         while (!probe.empty() && probe != root) {
             const HANDLE handle = CreateFileW(
                 probe.c_str(),
-                FILE_READ_ATTRIBUTES,
+                // Attribute-only handles do not enforce sharing restrictions.
+                // Traverse access makes the no-delete-sharing pin effective.
+                FILE_READ_ATTRIBUTES | FILE_TRAVERSE,
                 share_mode,
                 nullptr,
                 OPEN_EXISTING,
@@ -137,7 +139,7 @@ struct DestinationPathGuard final {
 
             const HANDLE handle = CreateFileW(
                 it->c_str(),
-                FILE_READ_ATTRIBUTES | (created_now != 0 ? DELETE : 0),
+                FILE_READ_ATTRIBUTES | FILE_TRAVERSE | (created_now != 0 ? DELETE : 0),
                 FILE_SHARE_READ | FILE_SHARE_WRITE,
                 nullptr,
                 OPEN_EXISTING,
