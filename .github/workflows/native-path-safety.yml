@@ -21,7 +21,7 @@ jobs:
         run: |
           cmake -S . -B build/native -A x64
           if ($LASTEXITCODE) { throw 'Configure failed' }
-          cmake --build build/native --config Release --target VelocityCopySourceIdentityTest VelocityCopyUnicodePathsTest VelocityCopyCaseSensitivePathsTest --parallel
+          cmake --build build/native --config Release --target VelocityCopySourceIdentityTest VelocityCopyUnicodePathsTest VelocityCopyCaseSensitivePathsTest VelocityCopyLivePlanAllocationTest --parallel
           if ($LASTEXITCODE) { throw 'Build failed' }
           @{
             commit = (git rev-parse HEAD)
@@ -30,7 +30,7 @@ jobs:
             executables = @(Get-FileHash build/native/Release/*Test.exe -Algorithm SHA256 | Select-Object Path, Hash)
           } | ConvertTo-Json -Depth 5 | Set-Content native-build.json
       - name: Execute focused safety regressions
-        run: ctest --test-dir build/native -C Release --output-on-failure --timeout 120 -R "velocitycopy_(source_identity|unicode_paths|case_sensitive_paths)$"
+        run: ctest --test-dir build/native -C Release --output-on-failure --timeout 120 -R "velocitycopy_(source_identity|unicode_paths|case_sensitive_paths|live_plan_allocation)$"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
