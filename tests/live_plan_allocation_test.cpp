@@ -35,7 +35,7 @@ CopyPlan make_plan(int first, int count) {
     return plan;
 }
 
-int main() {
+int run_test() {
     int failed_appends = 0;
     bool succeeded = false;
     for (int allocation = 0; allocation < 600; ++allocation) {
@@ -175,4 +175,10 @@ int main() {
     if (failed_reorders < 5 || !reordered) return 18;
     std::cout << "Live-plan allocation failures preserve state and allow retry\n";
     return 0;
+}
+
+int main() {
+    const auto result = run_test();
+    if (result) std::cerr << "Live-plan allocation failed at check " << result << '\n';
+    return result;
 }

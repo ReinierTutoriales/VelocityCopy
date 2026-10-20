@@ -2,6 +2,7 @@
 #include "velocitycopy/job_executor.hpp"
 #include "velocitycopy/path_key.hpp"
 #include "velocitycopy/transfer_router.hpp"
+#include "../src/core/destination_path_guard.hpp"
 
 #include <windows.h>
 
@@ -98,6 +99,19 @@ int run_test() {
     job.sources = {upper};
     job.destination = extended;
     job.layout = DestinationLayout::ContentsOnly;
+    {
+        detail::DestinationPathGuard guard;
+        std::error_code error;
+        if (!guard.prepare_directory(extended, error)) {
+            std::cerr << "Long-path guard error: " << error.value() << '\n';
+            return 18;
+        }
+    }
+    const auto direct = CopyEngine{}.copy_file(upper, extended / L"direct.txt");
+    if (!direct.success) {
+        std::cerr << "Long-path direct copy: " << std::hex << direct.native_code << '\n';
+        return 19;
+    }
     LiveCopyPlan long_plan(JobPlanner{}.build(job));
     const auto long_copy = JobExecutor{}.execute(long_plan);
     if (!long_copy.success || long_copy.outcomes.succeeded != 1 || read_text(extended / L"É.txt") != "UPPER") {
