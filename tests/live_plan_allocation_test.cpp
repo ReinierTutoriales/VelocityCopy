@@ -38,7 +38,9 @@ CopyPlan make_plan(int first, int count) {
 int run_test() {
     int failed_appends = 0;
     bool succeeded = false;
-    for (int allocation = 0; allocation < 600; ++allocation) {
+    // Case-aware path snapshots add allocations. Inject failure at every index
+    // through the first successful append, retaining all rollback assertions.
+    for (int allocation = 0; allocation < 4096; ++allocation) {
         LiveCopyPlan live(make_plan(0, 1));
         auto incoming = make_plan(1, 40);
         const auto before = live.export_remaining_plan();
@@ -64,6 +66,7 @@ int run_test() {
         } else return 4;
     }
     if (failed_appends < 10 || !succeeded) return 5;
+    std::cout << "Append allocation failures checked: " << failed_appends << '\n';
 
     // A failed acquisition must retain the item in Pending, and be retryable.
     int failed_acquires = 0;
