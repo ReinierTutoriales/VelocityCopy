@@ -105,6 +105,20 @@ int run_test() {
     escaped.current_plan = invalid;
     if (store.save(root / L"invalid.vcq", escaped)) return 14;
 
+    // Completed outputs remain reserved if the parent policy changes before
+    // a new batch is appended to the same live queue.
+    const auto appended = root / L"appended";
+    fs::create_directory(appended);
+    if (!set_case(appended, true)) return 20;
+    job.sources = {source / L"A.txt"};
+    job.destination = appended;
+    LiveCopyPlan completed(JobPlanner{}.build(job));
+    if (!JobExecutor{}.execute(completed).success || read_text(appended / L"A.txt") != "upper-ascii") return 21;
+    if (!set_case(appended, false)) return 22;
+    job.sources = {source / L"a.txt"};
+    if (completed.append(JobPlanner{}.build(job), true) != LivePlanAppendResult::DestinationCollision ||
+        completed.total_files() != 1 || read_text(appended / L"A.txt") != "upper-ascii") return 23;
+
     // A changed flag after planning is not permission to overwrite the other
     // spelling. The item must remain recoverable without mutating the target.
     const auto changed = root / L"changed";
