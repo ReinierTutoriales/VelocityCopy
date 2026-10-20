@@ -90,6 +90,26 @@ int regressions() {
     require(!failed.result.success && !fs::exists(f.root / "checkpoint-failed"), "checkpoint failure copied data");
     require(failed.recovery.queued_jobs.size() == 1, "checkpoint failure lost intent");
 
+    ExecutionControl skip_control; bool requested_skip = false;
+    auto one_skipped = execute_streaming_copy(f.job(L"one-skipped"), skip_control, {}, options,
+        [&](const JobProgress& p) {
+            if (!requested_skip && p.current_file_skippable) {
+                requested_skip = true; skip_control.request_skip(p.current_file_id);
+            }
+            return JobDecision::Continue;
+        });
+    require(requested_skip && one_skipped.result.success && one_skipped.result.outcomes.skipped == 1 &&
+        one_skipped.result.outcomes.succeeded == 128, "per-file Skip affected wrong items");
+
+    ExecutionControl throwing_control;
+    auto throwing_options = options;
+    throwing_options.checkpoint = [&](const QueueArchive&) -> bool {
+        throwing_control.request_pause(); throw std::runtime_error("checkpoint failure");
+    };
+    auto threw = execute_streaming_copy(f.job(L"throwing"), throwing_control, {}, throwing_options);
+    require(!threw.result.success && threw.recovery.queued_jobs.size() == 1 &&
+        !fs::exists(f.root / "throwing"), "exception during paused checkpoint lost intent or hung");
+
     JobExecutionOptions policy; policy.conflict_policy = ConflictPolicy::SkipAll;
     ExecutionControl skipping;
     auto skipped = execute_streaming_copy(f.job(), skipping, policy, options);
@@ -107,6 +127,8 @@ int regressions() {
 
     auto move = f.job(); move.operation = FileOperation::Move; ExecutionControl invalid;
     require(!execute_streaming_copy(move, invalid, {}, options).result.success, "stream Move unexpectedly accepted");
+    auto bad_options = options; bad_options.buffered_entries = 1;
+    require(!execute_streaming_copy(f.job(), invalid, {}, bad_options).result.success, "invalid buffer accepted");
     std::cout << "Streaming overlap, bounded pending, Unicode, controls, policies and checkpoint recovery passed\n";
     return 0;
 }

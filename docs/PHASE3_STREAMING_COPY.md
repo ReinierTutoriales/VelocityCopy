@@ -4,6 +4,7 @@
 planner and executor through `execute_streaming_copy`. Discovery produces
 batches while the consumer copies admitted batches. Defaults are 512 entries
 per batch and 2048 buffered entries, including the batch being executed.
+The producer can additionally hold one batch while waiting for capacity.
 The ordinary planner and GUI retain their existing 250000-entry limit.
 Streaming Move is rejected; source removal during enumeration needs a separate
 protocol. This change does not enable streaming in the GUI or Explorer yet.

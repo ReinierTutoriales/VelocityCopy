@@ -132,6 +132,15 @@ StreamingCopyResult execute_streaming_copy(const CopyJob& job, ExecutionControl&
         producer.join();
         result.scan_complete = done && producer_error == S_OK;
         result.peak_buffered_entries = peak;
+        // A producer can notice Stop/Cancel between the consumer's directive
+        // check and its queue lock. Preserve that control result on this path.
+        if (control.directive() == ExecutionDirective::Cancel) {
+            result.result.success = false; result.result.cancelled = true;
+            result.result.native_code = HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED);
+        } else if (control.directive() == ExecutionDirective::Stop) {
+            result.result.success = false; result.result.stopped = true;
+            result.result.native_code = S_OK;
+        }
         const auto resolution = live.resolution_view();
         result.result.outcomes = resolution.outcomes;
         result.result.parked_files = resolution.parked_files;

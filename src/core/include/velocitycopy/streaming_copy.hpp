@@ -21,7 +21,7 @@ struct StreamingCopyResult {
 
 // Copy only. Move needs a separate discovery/removal protocol and is rejected
 // rather than deleting source entries while their directory is enumerated.
-// Pending batches are bounded. Collision reservations and directory history
+// Pending batches are bounded. Collision reservations and traversal state
 // remain proportional to all discovered entries, not constant memory.
 [[nodiscard]] StreamingCopyResult execute_streaming_copy(
     const CopyJob& job, ExecutionControl& control,
