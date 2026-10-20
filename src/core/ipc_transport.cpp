@@ -220,6 +220,29 @@ bool write_all(
     return true;
 }
 
+void drain_admission_reply(HANDLE pipe, HANDLE stop_event, const SteadyClock::time_point deadline) noexcept {
+    try {
+        // DisconnectNamedPipe discards an unread buffered reply. Flush waits
+        // for the peer's read, so bound and cancel its synchronous worker.
+        std::atomic_bool abort_flush{false};
+        std::jthread flusher([&] {
+            if (!abort_flush.load(std::memory_order_acquire)) (void)FlushFileBuffers(pipe);
+        });
+        const HANDLE thread = static_cast<HANDLE>(flusher.native_handle());
+        const HANDLE waits[] = {thread, stop_event};
+        if (WaitForMultipleObjects(2, waits, FALSE, remaining_timeout_ms(deadline)) != WAIT_OBJECT_0) {
+            abort_flush.store(true, std::memory_order_release);
+            do {
+                (void)CancelSynchronousIo(thread);
+            } while (WaitForSingleObject(thread, 10) == WAIT_TIMEOUT);
+        }
+        flusher.join();
+    } catch (...) {
+        // Admission has already occurred; a missing reply remains ambiguous to
+        // the client. Never undo or replay the admitted operation here.
+    }
+}
+
 bool connected_client_in_same_session(HANDLE pipe) noexcept {
     ULONG client_process_id = 0;
     if (!GetNamedPipeClientProcessId(pipe, &client_process_id) || client_process_id == 0) {
@@ -366,7 +389,10 @@ std::optional<ShellRequest> ShellIpcServer::receive_and_ack(const std::function<
         try { accepted = admit(*result); } catch (...) { accepted = false; }
         const std::uint8_t ack = accepted ? 1u : 0u;
         UniqueHandle ack_event{CreateEventW(nullptr, TRUE, FALSE, nullptr)};
-        if (ack_event.valid()) (void)write_all(pipe, &ack, 1, ack_event.get(), SteadyClock::now() + kFrameTimeout);
+        const auto deadline = SteadyClock::now() + kFrameTimeout;
+        if (ack_event.valid() && write_all(pipe, &ack, 1, ack_event.get(), deadline)) {
+            drain_admission_reply(pipe, stop_event, deadline);
+        }
     }
     // Keep the same
     // pipe instance and its bounded buffer for the next activation.
