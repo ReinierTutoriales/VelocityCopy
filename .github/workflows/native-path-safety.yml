@@ -1,0 +1,43 @@
+name: Native path safety
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/core/**'
+      - 'tests/**'
+      - '.github/workflows/native-path-safety.yml'
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Build native safety tests
+        shell: pwsh
+        run: |
+          cmake -S . -B build/native -A x64
+          if ($LASTEXITCODE) { throw 'Configure failed' }
+          cmake --build build/native --config Release --target VelocityCopySourceIdentityTest VelocityCopyUnicodePathsTest VelocityCopyCaseSensitivePathsTest VelocityCopyLivePlanAllocationTest --parallel
+          if ($LASTEXITCODE) { throw 'Build failed' }
+          @{
+            commit = (git rev-parse HEAD)
+            os = (Get-CimInstance Win32_OperatingSystem | Select-Object Caption, BuildNumber)
+            config = 'Release x64, default project MSVC runtime'
+            executables = @(Get-FileHash build/native/Release/*Test.exe -Algorithm SHA256 | Select-Object Path, Hash)
+          } | ConvertTo-Json -Depth 5 | Set-Content native-build.json
+      - name: Execute focused safety regressions
+        run: ctest --test-dir build/native -C Release --output-on-failure --timeout 120 -R "velocitycopy_(source_identity|unicode_paths|case_sensitive_paths|live_plan_allocation)$"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: native-path-safety-${{ github.event.pull_request.head.sha }}
+          path: |
+            build/native/Release/*Test.exe
+            build/native/Testing/Temporary/LastTest.log
+            native-build.json
+          if-no-files-found: warn
+          retention-days: 14

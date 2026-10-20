@@ -118,5 +118,45 @@ int main() {
     if (control.directive() != ExecutionDirective::Run || control.consume_skip(77)) {
         return 13;
     }
+    // Concurrent workers must still consume a queued skip exactly once.
+    control.request_skip(88);
+    std::atomic_uint consumed{};
+    for (auto& thread : waiters) {
+        thread = std::jthread([&] {
+            if (control.consume_skip(88)) consumed.fetch_add(1);
+        });
+    }
+    for (auto& thread : waiters) thread.join();
+    if (consumed.load() != 1) return 14;
+
+    // Pause/Resume must never override a terminal directive observed by readers.
+    control.request_stop();
+    control.request_pause();
+    control.resume();
+    if (control.directive() != ExecutionDirective::Stop) return 15;
+    control.reset();
+    consumed = 0;
+    std::atomic_bool expired{false};
+    const auto deadline = std::chrono::steady_clock::now() + 5s;
+    std::jthread producer([&] {
+        for (std::uint64_t id = 1; id <= 1'000; ++id) control.request_skip(id);
+    });
+    for (std::size_t worker = 0; worker < waiters.size(); ++worker) {
+        waiters[worker] = std::jthread([&, worker] {
+            for (std::uint64_t id = worker + 1; id <= 1'000; id += waiters.size()) {
+                while (!control.consume_skip(id)) {
+                    if (std::chrono::steady_clock::now() >= deadline) {
+                        expired = true;
+                        return;
+                    }
+                    std::this_thread::yield();
+                }
+                consumed.fetch_add(1);
+            }
+        });
+    }
+    producer.join();
+    for (auto& thread : waiters) thread.join();
+    if (expired.load() || consumed.load() != 1'000) return 16;
     return 0;
 }

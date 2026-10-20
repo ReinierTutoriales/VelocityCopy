@@ -14,6 +14,60 @@
 using namespace std::chrono_literals;
 
 namespace {
+bool admission_reply_survives_delayed_read(const bool stop_without_reading) {
+    velocitycopy::ShellIpcServer server;
+    if (!server.valid()) return false;
+    const HANDLE admitted = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    if (!admitted) return false;
+    std::optional<velocitycopy::ShellRequest> received;
+    std::jthread receiver([&] {
+        received = server.receive_and_ack([&](const velocitycopy::ShellRequest&) {
+            SetEvent(admitted);
+            return true;
+        });
+    });
+    const auto name = velocitycopy::shell_pipe_name();
+    HANDLE client = INVALID_HANDLE_VALUE;
+    if (WaitNamedPipeW(name.c_str(), 2000)) {
+        client = CreateFileW(name.c_str(), GENERIC_READ | GENERIC_WRITE, 0,
+            nullptr, OPEN_EXISTING, 0, nullptr);
+    }
+    velocitycopy::ShellRequest request{};
+    request.version = 3;
+    request.request_id = 123;
+    request.action = velocitycopy::ShellAction::Transfer;
+    request.sources = {L"C:\\source.txt"};
+    request.destination = L"C:\\destination";
+    const auto payload = velocitycopy::serialize_shell_request(request);
+    DWORD written = 0;
+    const auto size = payload ? static_cast<std::uint32_t>(payload->size()) : 0;
+    bool ok = client != INVALID_HANDLE_VALUE && size != 0 &&
+        WriteFile(client, &size, sizeof(size), &written, nullptr) && written == sizeof(size) &&
+        WriteFile(client, payload->data(), size, &written, nullptr) && written == size &&
+        WaitForSingleObject(admitted, 2000) == WAIT_OBJECT_0;
+    const HANDLE thread = static_cast<HANDLE>(receiver.native_handle());
+    if (ok) {
+        // The server must retain the unread acknowledgement instead of
+        // disconnecting immediately after the buffered one-byte write.
+        ok = WaitForSingleObject(thread, 100) == WAIT_TIMEOUT;
+        if (stop_without_reading) {
+            server.stop();
+            ok = ok && WaitForSingleObject(thread, 1000) == WAIT_OBJECT_0;
+        } else {
+            DWORD available = 0;
+            std::uint8_t ack = 0;
+            DWORD read = 0;
+            ok = ok && PeekNamedPipe(client, nullptr, 0, nullptr, &available, nullptr) && available == 1 &&
+                ReadFile(client, &ack, 1, &read, nullptr) && read == 1 && ack == 1;
+        }
+    }
+    if (client != INVALID_HANDLE_VALUE) CloseHandle(client);
+    if (!ok) server.stop();
+    receiver.join();
+    CloseHandle(admitted);
+    return ok && (stop_without_reading ? !received : received && received->request_id == request.request_id);
+}
+
 bool send_times_out_when_server_stops_reading(const bool small_frame = false) {
     const auto name = velocitycopy::shell_pipe_name();
     if (name.empty()) return false;
@@ -352,6 +406,8 @@ int run_test() {
     if (!large_frame_with_bounded_buffer()) return 18;
     if (!send_times_out_when_server_stops_reading(true)) return 19;
     if (!concurrent_clients_preserve_distinct_requests()) return 20;
+    if (!admission_reply_survives_delayed_read(false)) return 30;
+    if (!admission_reply_survives_delayed_read(true)) return 31;
 
     // No pipe exists after server teardown. This failure is known to occur
     // before any frame write, so a secondary launch may safely retry it.

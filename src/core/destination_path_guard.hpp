@@ -86,11 +86,24 @@ struct DestinationPathGuard final {
             return false;
         }
 
-        const auto root = probe.root_path();
+        auto root = probe.root_path();
+        const auto& native = probe.native();
+        if (native.starts_with(L"\\\\?\\")) {
+            // filesystem::path treats the device prefix as the root name.
+            // Do not walk into the bare volume (e.g. \\?\C:), which is
+            // a volume handle rather than a directory handle.
+            auto end = native.find(L'\\', 4);
+            if (native.size() >= 8 &&
+                CompareStringOrdinal(native.c_str(), 8, L"\\\\?\\UNC\\", 8, TRUE) == CSTR_EQUAL)
+                end = native.find(L'\\', 8); // Stop at the server; pin the share.
+            if (end != std::wstring::npos) root = native.substr(0, end);
+        }
         while (!probe.empty() && probe != root) {
             const HANDLE handle = CreateFileW(
                 probe.c_str(),
-                FILE_READ_ATTRIBUTES,
+                // Attribute-only handles do not enforce sharing restrictions.
+                // Traverse access makes the no-delete-sharing pin effective.
+                FILE_READ_ATTRIBUTES | FILE_TRAVERSE,
                 share_mode,
                 nullptr,
                 OPEN_EXISTING,
@@ -137,7 +150,7 @@ struct DestinationPathGuard final {
 
             const HANDLE handle = CreateFileW(
                 it->c_str(),
-                FILE_READ_ATTRIBUTES | (created_now != 0 ? DELETE : 0),
+                FILE_READ_ATTRIBUTES | FILE_TRAVERSE | (created_now != 0 ? DELETE : 0),
                 FILE_SHARE_READ | FILE_SHARE_WRITE,
                 nullptr,
                 OPEN_EXISTING,
