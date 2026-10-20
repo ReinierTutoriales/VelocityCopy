@@ -1,6 +1,7 @@
 #include "velocitycopy/ui_snapshot.hpp"
 
 #include <algorithm>
+#include <cmath>
 
 namespace velocitycopy {
 
@@ -24,6 +25,7 @@ std::optional<UiSnapshot> ProgressPresenter::observe(
     const std::uint64_t now_ms) {
     if (!has_sample_) {
         has_sample_ = true;
+        first_sample_ms_ = now_ms;
         last_sample_ms_ = now_ms;
         last_emit_ms_ = now_ms;
         last_sample_bytes_ = progress.bytes_written_physical;
@@ -38,12 +40,10 @@ std::optional<UiSnapshot> ProgressPresenter::observe(
             ? 0.0
             : (static_cast<double>(delta_bytes) * 1000.0) / static_cast<double>(elapsed_ms);
 
-        if (instant_rate > 0.0) {
-            constexpr double alpha = 0.20;
-            smoothed_bytes_per_second_ = smoothed_bytes_per_second_ <= 0.0
-                ? instant_rate
-                : (alpha * instant_rate) + ((1.0 - alpha) * smoothed_bytes_per_second_);
-        }
+        // A one-second time constant gives the same response at any callback
+        // frequency. Zero-I/O intervals decay stale throughput as well.
+        const double alpha = -std::expm1(-static_cast<double>(elapsed_ms) / 1000.0);
+        smoothed_bytes_per_second_ += alpha * (instant_rate - smoothed_bytes_per_second_);
 
         last_sample_ms_ = now_ms;
         last_sample_bytes_ = progress.bytes_written_physical;
@@ -78,7 +78,8 @@ std::optional<UiSnapshot> ProgressPresenter::observe(
             0.0,
             1.0);
 
-        if (smoothed_bytes_per_second_ > 1.0 && snapshot.transferred_bytes < progress.total_bytes) {
+        const bool eta_ready = now_ms >= first_sample_ms_ && now_ms - first_sample_ms_ >= 3'000;
+        if (eta_ready && smoothed_bytes_per_second_ > 1.0 && snapshot.transferred_bytes < progress.total_bytes) {
             const auto remaining = progress.total_bytes - snapshot.transferred_bytes;
             snapshot.eta_seconds = static_cast<double>(remaining) / smoothed_bytes_per_second_;
         }
@@ -93,6 +94,7 @@ std::optional<UiSnapshot> ProgressPresenter::observe(
 }
 
 void ProgressPresenter::reset() noexcept {
+    first_sample_ms_ = 0;
     last_sample_ms_ = 0;
     last_emit_ms_ = 0;
     last_sample_bytes_ = 0;
