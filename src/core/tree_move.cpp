@@ -41,9 +41,9 @@ bool matches_inventory(const CopyPlan& plan, const TreeMoveCandidate& candidate,
     expected.reserve(plan.files.size() + plan.directories.size());
     const auto add = [&](const fs::path& source, const fs::path& target, bool directory, std::uint64_t size) {
         const auto relative = normalized_absolute(source).lexically_relative(candidate.source);
-        if (relative.empty() || relative.is_absolute() || *relative.begin() == L".." ||
-            normalized_absolute(target) != (candidate.destination / relative).lexically_normal()) return false;
-        if (relative == L".") return directory;
+        if (relative.empty() || relative.is_absolute() || *relative.begin() == L"..") return false;
+        if (relative == L".") return directory && normalized_absolute(target) == candidate.destination;
+        if (normalized_absolute(target) != (candidate.destination / relative).lexically_normal()) return false;
         return expected.emplace(relative.native(), ExpectedEntry{directory, size}).second;
     };
     for (const auto& directory : plan.directories)
