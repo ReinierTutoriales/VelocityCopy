@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.4.0 — 2026-10-20
+
+- Improve source identity and recovery safeguards, destination path protection, execution controls and IPC handling.
+- Reduce unnecessary planner path-buffer initialization and refine the estimated time remaining display.
+- Consolidate the reviewed improvements from pull requests #84–#91 without enabling the experimental Phase 3 tree-move or streaming-copy paths (#92 and #93).
+- Preserve Explorer clipboard integration and existing copy/move behavior; the unsigned x64 and ARM64 installers require Windows 11.
+
+Validation limits:
+- The release must pass Windows CI and Windows Package on the exact release commit before publication. Physical-device, SMB, removable-media and ARM64 runtime coverage remains separate from hosted CI.
+
+
 ## 1.3.0 — 2026-10-15
 
 - Unify the main window, About and decision dialogs with the native Acrylic policy and theme resources. Conflicts show labeled source/destination paths, available size/date metadata and explicit action consequences; metadata reads run off the UI thread.
