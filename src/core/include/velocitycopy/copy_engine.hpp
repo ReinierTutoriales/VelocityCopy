@@ -20,6 +20,7 @@ public:
     ~SourceLease();
     SourceLease(const SourceLease&) = delete;
     SourceLease& operator=(const SourceLease&) = delete;
+    void release_file() noexcept;
     void reset() noexcept;
 private:
     friend class CopyEngine;

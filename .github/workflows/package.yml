@@ -16,7 +16,39 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  upgrade-fixture:
+    runs-on: ubuntu-latest
+    # Releases may be drafts; draft assets are visible only with push access.
+    # Keep that permission out of the build job.
+    permissions:
+      contents: write
+    steps:
+      - name: Fetch pinned v1.1.0 upgrade fixture
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          asset_id=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+            --jq '.[] | select(.tag_name == "v1.1.0") | .assets[] | select(.name == "VelocityCopy-Setup-x64-v1.1.0.exe") | .id')
+          if [ "$(printf '%s\n' "$asset_id" | grep -c .)" -ne 1 ]; then
+            echo "::error::v1.1.0 x64 upgrade fixture asset not found exactly once"
+            exit 1
+          fi
+          mkdir -p fixture
+          gh api -H "Accept: application/octet-stream" \
+            "repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}" > fixture/VelocityCopy-Setup-x64-v1.1.0.exe
+          echo "21647db6ca0b98b8c523c7f68ec56fb14b0151d536d97d5eb3677d17a6da22a7  fixture/VelocityCopy-Setup-x64-v1.1.0.exe" | sha256sum -c -
+
+      - name: Upload upgrade fixture
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: upgrade-fixture-v1.1.0
+          path: fixture/VelocityCopy-Setup-x64-v1.1.0.exe
+          if-no-files-found: error
+          retention-days: 1
+
   build:
+    needs: upgrade-fixture
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -347,14 +379,19 @@ jobs:
             Remove-Item $fixture -Force -ErrorAction SilentlyContinue
           }
 
+      - name: Download v1.1.0 upgrade fixture
+        if: ${{ matrix.smoke }}
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: upgrade-fixture-v1.1.0
+          path: ${{ runner.temp }}
+
       - name: Smoke upgrade from v1.1.0 with write-locked shell DLL
         if: ${{ matrix.smoke }}
         shell: pwsh
         run: |
           $legacy = Join-Path $env:RUNNER_TEMP "VelocityCopy-Setup-x64-v1.1.0.exe"
-          $legacyUrl = "https://github.com/ReinierTutoriales/VelocityCopy/releases/download/v1.1.0/VelocityCopy-Setup-x64-v1.1.0.exe"
-          & curl.exe -L --fail --retry 4 --retry-all-errors --output $legacy $legacyUrl
-          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $legacy)) { throw "Unable to download v1.1.0 upgrade fixture" }
+          if (-not (Test-Path $legacy)) { throw "Unable to download v1.1.0 upgrade fixture" }
           $expected = "21647db6ca0b98b8c523c7f68ec56fb14b0151d536d97d5eb3677d17a6da22a7"
           $actual = (Get-FileHash -LiteralPath $legacy -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($actual -ne $expected) { throw "v1.1.0 fixture SHA256 mismatch: $actual" }

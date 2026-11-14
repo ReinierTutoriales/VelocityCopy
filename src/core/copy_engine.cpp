@@ -20,36 +20,58 @@ namespace velocitycopy {
 
 struct SourceLease::State {
     detail::DestinationPathGuard ancestors;
+    std::filesystem::path folder;
     std::filesystem::path path;
     HANDLE handle{INVALID_HANDLE_VALUE};
     FileFingerprint fingerprint{};
-    ~State() { if (handle != INVALID_HANDLE_VALUE) CloseHandle(handle); }
+    ~State() { close_file(); }
+
+    void close_file() noexcept {
+        if (handle != INVALID_HANDLE_VALUE) {
+            CloseHandle(handle);
+            handle = INVALID_HANDLE_VALUE;
+        }
+        path.clear();
+        fingerprint = {};
+    }
 
     bool prepare(const std::filesystem::path& source, const bool for_rename, std::error_code& error) {
-        path = std::filesystem::absolute(source).lexically_normal();
-        if (path.native().find(L'\0') != std::wstring::npos) {
+        close_file();
+        auto normalized = std::filesystem::absolute(source).lexically_normal();
+        if (normalized.native().find(L'\0') != std::wstring::npos) {
             error = std::error_code(ERROR_INVALID_NAME, std::system_category());
             return false;
         }
-        if (!ancestors.lock_existing_chain(path.parent_path(), error) || !ancestors.missing.empty()) {
-            if (!error) error = std::error_code(ERROR_PATH_NOT_FOUND, std::system_category());
-            return false;
+        const auto parent = normalized.parent_path();
+        if (folder != parent ||
+            (ancestors.handles.empty() && !parent.empty() && parent != parent.root_path())) {
+            ancestors.clear();
+            folder.clear();
+            if (!ancestors.lock_existing_chain(parent, error) || !ancestors.missing.empty()) {
+                ancestors.clear();
+                if (!error) error = std::error_code(ERROR_PATH_NOT_FOUND, std::system_category());
+                return false;
+            }
+            folder = parent;
         }
-        handle = CreateFileW(path.c_str(), GENERIC_READ | (for_rename ? DELETE : 0),
+        handle = CreateFileW(normalized.c_str(), GENERIC_READ | (for_rename ? DELETE : 0),
             FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
         if (handle == INVALID_HANDLE_VALUE) {
             error = std::error_code(static_cast<int>(GetLastError()), std::system_category());
             return false;
         }
         if (detail::name_surrogate_reparse(handle)) {
+            close_file();
             error = std::error_code(ERROR_CANT_ACCESS_FILE, std::system_category());
             return false;
         }
         const auto probe = detail::fingerprint_from_handle(handle);
         if (probe.status != FingerprintProbe::Present) {
+            close_file();
             error = std::error_code(HRESULT_CODE(probe.hresult), std::system_category());
             return false;
         }
+        path = std::move(normalized);
         fingerprint = probe.fingerprint;
         return true;
     }
@@ -57,6 +79,7 @@ struct SourceLease::State {
 
 SourceLease::SourceLease() = default;
 SourceLease::~SourceLease() = default;
+void SourceLease::release_file() noexcept { if (state_) state_->close_file(); }
 void SourceLease::reset() noexcept { state_.reset(); }
 
 namespace {
@@ -335,13 +358,13 @@ CopyResult CopyEngine::copy_file(
             return {false, static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_INVALID_NAME))};
         SourceLease local_source;
         auto& source_lease = options.source_lease ? *options.source_lease : local_source;
-        if (!source_lease.state_) {
+        if (!source_lease.state_ || source_lease.state_->handle == INVALID_HANDLE_VALUE) {
             const auto prepare_source = [&] {
-                auto fresh = std::make_unique<SourceLease::State>();
+                if (!source_lease.state_) {
+                    source_lease.state_ = std::make_unique<SourceLease::State>();
+                }
                 directory_error.clear();
-                if (!fresh->prepare(source, false, directory_error)) return false;
-                source_lease.state_ = std::move(fresh);
-                return true;
+                return source_lease.state_->prepare(source, false, directory_error);
             };
             bool prepared = prepare_source();
             for (const DWORD delay : kTransientRetryDelaysMs) {

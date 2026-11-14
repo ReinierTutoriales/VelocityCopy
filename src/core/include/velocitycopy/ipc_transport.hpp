@@ -43,7 +43,7 @@ public:
     [[nodiscard]] bool stopping() const noexcept;
 
 private:
-    bool create_pipe() noexcept;
+    bool create_pipe(bool first_instance = true) noexcept;
     bool recreate_pipe_or_stop() noexcept;
     void close_pipe() noexcept;
 

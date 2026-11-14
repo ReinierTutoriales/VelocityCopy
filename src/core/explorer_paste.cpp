@@ -21,7 +21,12 @@ struct Paste {
     HWND window;
     HWND focus;
     DWORD sequence;
+    WORD key{'V'};
 };
+
+bool key_down(const int vk) noexcept {
+    return (GetAsyncKeyState(vk) & 0x8000) != 0;
+}
 
 bool same_context(const Paste& paste) noexcept {
     GUITHREADINFO info{sizeof(info)};
@@ -36,15 +41,17 @@ void replay(const Paste& paste) noexcept {
         log_diagnostic(L"Explorer paste cancelled: focus or clipboard changed");
         return;
     }
+    const WORD modifier = paste.key == VK_INSERT ? VK_SHIFT : VK_CONTROL;
+    const DWORD key_flags = paste.key == VK_INSERT ? KEYEVENTF_EXTENDEDKEY : 0;
     std::array<INPUT, 4> keys{};
     for (auto& key : keys) { key.type = INPUT_KEYBOARD; key.ki.dwExtraInfo = replay_marker; }
-    keys[0].ki.wVk = VK_CONTROL;
-    keys[1].ki.wVk = 'V';
-    keys[2].ki.wVk = 'V'; keys[2].ki.dwFlags = KEYEVENTF_KEYUP;
-    keys[3].ki.wVk = VK_CONTROL; keys[3].ki.dwFlags = KEYEVENTF_KEYUP;
-    const bool control_held = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
-    const UINT count = control_held ? 2u : 4u;
-    if (SendInput(count, keys.data() + (control_held ? 1 : 0), sizeof(INPUT)) != count)
+    keys[0].ki.wVk = modifier;
+    keys[1].ki.wVk = paste.key; keys[1].ki.dwFlags = key_flags;
+    keys[2].ki.wVk = paste.key; keys[2].ki.dwFlags = key_flags | KEYEVENTF_KEYUP;
+    keys[3].ki.wVk = modifier; keys[3].ki.dwFlags = KEYEVENTF_KEYUP;
+    const bool modifier_held = key_down(modifier);
+    const UINT count = modifier_held ? 2u : 4u;
+    if (SendInput(count, keys.data() + (modifier_held ? 1 : 0), sizeof(INPUT)) != count)
         log_diagnostic(L"Explorer native paste replay failed");
 }
 
@@ -123,8 +130,7 @@ struct ExplorerPaste::State {
     std::atomic<HWND> target{};
     DWORD keyboard_id{};
     std::atomic_bool stopping{};
-    std::array<bool, 256> keys{};
-    bool swallowed{};
+    DWORD swallowed_vk{};
     static inline thread_local State* current{};
 
     static LRESULT CALLBACK key(int code, WPARAM message, LPARAM value) noexcept {
@@ -133,12 +139,27 @@ struct ExplorerPaste::State {
         const auto& event = *reinterpret_cast<const KBDLLHOOKSTRUCT*>(value);
         if (event.dwExtraInfo == replay_marker) return CallNextHookEx(nullptr, code, message, value);
         const bool down = message == WM_KEYDOWN || message == WM_SYSKEYDOWN;
-        if (event.vkCode < self->keys.size()) self->keys[event.vkCode] = down;
-        if (event.vkCode != 'V') return CallNextHookEx(nullptr, code, message, value);
-        if (self->swallowed) { if (!down) self->swallowed = false; return 1; }
-        const auto& keys = self->keys;
-        if (!down || !(keys[VK_LCONTROL] || keys[VK_RCONTROL]) || keys[VK_LMENU] || keys[VK_RMENU] ||
-            keys[VK_LSHIFT] || keys[VK_RSHIFT] || keys[VK_LWIN] || keys[VK_RWIN] || self->stopping)
+        if (event.vkCode != 'V' && event.vkCode != VK_INSERT) return CallNextHookEx(nullptr, code, message, value);
+        if (self->swallowed_vk == event.vkCode) {
+            if (!down) {
+                self->swallowed_vk = 0;
+                return 1;
+            }
+            const bool modifier_still_down = event.vkCode == 'V'
+                ? (key_down(VK_CONTROL) || key_down(VK_LCONTROL) || key_down(VK_RCONTROL))
+                : (key_down(VK_SHIFT) || key_down(VK_LSHIFT) || key_down(VK_RSHIFT));
+            if (modifier_still_down) return 1;
+            self->swallowed_vk = 0;
+        }
+        if (!down || self->stopping) return CallNextHookEx(nullptr, code, message, value);
+        const bool ctrl = key_down(VK_CONTROL) || key_down(VK_LCONTROL) || key_down(VK_RCONTROL);
+        const bool shift = key_down(VK_SHIFT) || key_down(VK_LSHIFT) || key_down(VK_RSHIFT);
+        const bool alt = (event.flags & LLKHF_ALTDOWN) != 0 ||
+            key_down(VK_MENU) || key_down(VK_LMENU) || key_down(VK_RMENU);
+        const bool win = key_down(VK_LWIN) || key_down(VK_RWIN);
+        const bool ctrl_v = event.vkCode == 'V' && ctrl && !shift && !alt && !win;
+        const bool shift_insert = event.vkCode == VK_INSERT && shift && !ctrl && !alt && !win;
+        if (!ctrl_v && !shift_insert)
             return CallNextHookEx(nullptr, code, message, value);
         const HWND foreground = GetForegroundWindow();
         std::array<wchar_t, 32> name{};
@@ -148,12 +169,13 @@ struct ExplorerPaste::State {
         GUITHREADINFO info{sizeof(info)};
         if (!GetGUIThreadInfo(GetWindowThreadProcessId(foreground, nullptr), &info) || !info.hwndFocus)
             return CallNextHookEx(nullptr, code, message, value);
-        auto* paste = new (std::nothrow) Paste{foreground, info.hwndFocus, GetClipboardSequenceNumber()};
+        auto* paste = new (std::nothrow) Paste{
+            foreground, info.hwndFocus, GetClipboardSequenceNumber(), static_cast<WORD>(event.vkCode)};
         if (!paste) return CallNextHookEx(nullptr, code, message, value);
         if (!PostMessageW(self->target, paste_message, 0, reinterpret_cast<LPARAM>(paste))) {
             delete paste; return CallNextHookEx(nullptr, code, message, value);
         }
-        self->swallowed = true;
+        self->swallowed_vk = event.vkCode;
         return 1;
     }
 
@@ -180,7 +202,7 @@ bool ExplorerPaste::start() noexcept {
     if (state_->keyboard.joinable()) return true;
     auto* state = state_.get();
     state->stopping = false;
-    state->swallowed = false;
+    state->swallowed_vk = 0;
     try {
         std::promise<bool> ready;
         auto started = ready.get_future();
@@ -209,7 +231,6 @@ bool ExplorerPaste::start() noexcept {
             State::current = state;
             state->keyboard_id = GetCurrentThreadId();
             MSG message{}; PeekMessageW(&message, nullptr, 0, 0, PM_NOREMOVE);
-            for (int i = 0; i < 256; ++i) state->keys[i] = (GetAsyncKeyState(i) & 0x8000) != 0;
             HHOOK hook = SetWindowsHookExW(WH_KEYBOARD_LL, State::key, GetModuleHandleW(nullptr), 0);
             hooked.set_value(hook != nullptr);
             if (hook) {

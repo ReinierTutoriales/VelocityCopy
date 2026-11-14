@@ -56,6 +56,27 @@ int run_test() {
     if (same_destination(destination / L"A", destination / L"a")) return 4;
     if (DestinationCatalog::validate(std::vector<fs::path>{destination / L"A"}, destination / L"a") !=
         DestinationValidation::Valid) return 5;
+    const auto cwd = fs::temp_directory_path();
+    if (cwd == cwd.root_path() || !SetCurrentDirectoryW(cwd.c_str())) return 27;
+    const auto probe = cwd.root_path() / L"VelocityCopyRootProbe";
+    const auto extended_probe = fs::path(L"\\\\?\\" + probe.wstring());
+    if (!path_key_equal(keys.make(probe), keys.make(extended_probe)) ||
+        !path_key_equal(keys.make(probe / L"Sub"), keys.make(extended_probe / L"Sub")) ||
+        !path_key_is_prefix(keys.make(probe), keys.make(probe / L"Sub")) ||
+        DestinationCatalog::validate(
+            std::vector<fs::path>{probe},
+            probe / L"Sub") != DestinationValidation::InsideSource ||
+        !path_key_equal(
+            keys.make(L"\\\\127.0.0.1\\VelocityCopyNoShare\\VelocityCopyProbe"),
+            keys.make(L"\\\\?\\UNC\\127.0.0.1\\VelocityCopyNoShare\\VelocityCopyProbe")) ||
+        !path_key_equal(
+            keys.make(L"\\\\127.0.0.1\\VelocityCopyNoShare\\VelocityCopyProbe\\Sub"),
+            keys.make(L"\\\\?\\UNC\\127.0.0.1\\VelocityCopyNoShare\\VelocityCopyProbe\\Sub")) ||
+        !path_key_is_prefix(
+            keys.make(L"\\\\127.0.0.1\\VelocityCopyNoShare\\VelocityCopyProbe"),
+            keys.make(L"\\\\127.0.0.1\\VelocityCopyNoShare\\VelocityCopyProbe\\Sub"))) {
+        return 26;
+    }
 
     CopyJob job{};
     job.sources = {source};

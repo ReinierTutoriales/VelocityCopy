@@ -25,7 +25,7 @@ constexpr std::uint32_t kLegacyFormatVersion = 1;
 std::mutex archive_commit_mutex;
 constexpr std::uint32_t kPreviousFormatVersion = 2;
 constexpr std::uint32_t kMaxStringChars = 32767;
-constexpr std::uint64_t kMaxEntries = 250'000;
+constexpr std::uint64_t kMaxEntries = 500'000;
 constexpr std::uintmax_t kMaxArchiveBytes = 256ull * 1024ull * 1024ull;
 
 template <typename T>

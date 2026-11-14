@@ -50,8 +50,11 @@ Before publication, the exact candidate commit must pass:
 - x64 upgrade, install, installed-launch and uninstall smoke;
 - payload inventory and forbidden-component checks.
 
-The upgrade fixture is the published unsigned x64 v1.1.0 installer, pinned to
+The upgrade fixture is the unsigned x64 v1.1.0 release installer, pinned to
 SHA256 `21647db6ca0b98b8c523c7f68ec56fb14b0151d536d97d5eb3677d17a6da22a7`.
+A separate `upgrade-fixture` job fetches it through the authenticated releases
+API (so it also works while the release is a draft) and hands it to the build
+job as an artifact; only that job holds `contents: write`.
 Historical v1.0.0 upgrade coverage requires its original external fixture and
 remains a manual check.
 

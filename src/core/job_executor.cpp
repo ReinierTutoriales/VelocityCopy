@@ -546,11 +546,14 @@ JobResult JobExecutor::execute(
                 std::uint64_t held_file_id = 0;
                 // Released when this worker ends, i.e. with the session.
                 DestinationLease destination_lease;
+                SourceLease source_lease;
+                std::filesystem::path cross_device_source_root;
                 for (;;) {
                 try {
                     for (;;) {
                         auto directive = control.directive();
                         if (directive == ExecutionDirective::Pause) {
+                            source_lease.reset();
                             directive = control.wait_while_paused();
                         }
                         if (directive == ExecutionDirective::Cancel) {
@@ -590,6 +593,7 @@ JobResult JobExecutor::execute(
                         }
 
                         if (directive == ExecutionDirective::Pause) {
+                            source_lease.reset();
                             directive = control.wait_while_paused();
                             if (directive == ExecutionDirective::Cancel || directive == ExecutionDirective::Stop) {
                                 plan.release_active(file_id);
@@ -635,7 +639,11 @@ JobResult JobExecutor::execute(
                         }
 
                         bool resume_from_pause = false;
-                        SourceLease source_lease;
+                        source_lease.release_file();
+                        struct ActiveSourceFileGuard final {
+                            SourceLease& lease;
+                            ~ActiveSourceFileGuard() noexcept { lease.release_file(); }
+                        } active_source_file_guard{source_lease};
                         CopyResult completed_copy{};
                         bool skipped = false;
                         bool failed = false;
@@ -648,13 +656,23 @@ JobResult JobExecutor::execute(
                         // also owns conflict reporting.
                         bool renamed = false;
                         if (plan.operation() == FileOperation::Move) {
-                            const auto rename_policy =
-                                replaces_existing(options, file_id)
-                                    ? ExistingDestinationPolicy::Replace
-                                    : options.existing_destination;
-                            renamed = engine_.rename_file(
-                                file->source, file->destination, rename_policy, &destination_lease,
-                                file->destination_case_sensitive).success;
+                            const auto source_root = file->source.root_path();
+                            if (cross_device_source_root.empty() || source_root != cross_device_source_root) {
+                                const auto rename_policy =
+                                    replaces_existing(options, file_id)
+                                        ? ExistingDestinationPolicy::Replace
+                                        : options.existing_destination;
+                                const auto rename_result = engine_.rename_file(
+                                    file->source, file->destination, rename_policy, &destination_lease,
+                                    file->destination_case_sensitive);
+                                renamed = rename_result.success;
+                                if (!renamed &&
+                                    rename_result.native_code ==
+                                        static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_NOT_SAME_DEVICE)) &&
+                                    !source_root.empty()) {
+                                    cross_device_source_root = source_root;
+                                }
+                            }
                         }
 
                         while (!renamed) {
@@ -850,7 +868,10 @@ JobResult JobExecutor::execute(
                                 file_id, S_OK, file->source, file->destination, !skip_allowed, 1,
                                 completed_copy.source_fingerprint, completed_copy.destination_fingerprint};
                             auto directive = control.directive();
-                            if (directive == ExecutionDirective::Pause) directive = control.wait_while_paused();
+                            if (directive == ExecutionDirective::Pause) {
+                                source_lease.reset();
+                                directive = control.wait_while_paused();
+                            }
                             if (directive == ExecutionDirective::Stop || directive == ExecutionDirective::Cancel) {
                                 if (!plan.park_active_source_removal(file_id, HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED),
                                         !skip_allowed, recovery.source_fingerprint, recovery.destination_fingerprint)) {
@@ -861,7 +882,7 @@ JobResult JobExecutor::execute(
                                     : JobResult{false, true, HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED), false};
                                 return;
                             }
-                            source_lease.reset(); // DELETE access requires releasing the read-only pin.
+                            source_lease.release_file(); // DELETE access requires releasing the read-only pin.
                             const auto remove_source = remove_verified_recovery_source(recovery);
                             if (remove_source != S_OK) {
                                 if (!recovery.source_fingerprint.has_identity ||
