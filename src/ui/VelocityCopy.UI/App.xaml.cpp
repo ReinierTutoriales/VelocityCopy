@@ -173,6 +173,10 @@ App::App() {
             static_cast<std::uint32_t>(exception),
             message.c_str());
         OutputDebugStringW(diagnostic.c_str());
+        velocitycopy::log_diagnostic(std::format(
+            L"crash: UnhandledException 0x{:08X}: {}",
+            static_cast<std::uint32_t>(exception),
+            message.c_str()));
         char* raw_path = nullptr;
         std::size_t path_size = 0;
         if (_dupenv_s(&raw_path, &path_size, "VELOCITYCOPY_DIAGNOSTIC_LOG") == 0 && raw_path != nullptr) {
@@ -235,13 +239,14 @@ void App::ReturnRecoveryFile(std::filesystem::path path) noexcept {
 }
 
 void App::ApplyEfficiencyMode(const bool enabled) noexcept {
-    if (efficiency_mode_enabled_ == enabled) return;
+    const bool effective = enabled && !request_in_flight_ && pending_requests_.empty();
+    if (efficiency_mode_enabled_ == effective) return;
     PROCESS_POWER_THROTTLING_STATE state{};
     state.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
     state.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
-    state.StateMask = enabled ? PROCESS_POWER_THROTTLING_EXECUTION_SPEED : 0;
+    state.StateMask = effective ? PROCESS_POWER_THROTTLING_EXECUTION_SPEED : 0;
     if (SetProcessInformation(GetCurrentProcess(), ProcessPowerThrottling, &state, sizeof(state))) {
-        efficiency_mode_enabled_ = enabled;
+        efficiency_mode_enabled_ = effective;
     }
 }
 
@@ -330,8 +335,12 @@ void App::DeliverShellRequest(const velocitycopy::ShellRequest& request) {
 }
 
 void App::StartNextPendingRequest() {
-    if (request_in_flight_ || pending_requests_.empty()) return;
+    if (request_in_flight_ || pending_requests_.empty()) {
+        ApplyEfficiencyMode(efficiency_coordinator_.desired());
+        return;
+    }
     request_in_flight_ = true;
+    ApplyEfficiencyMode(false);
     auto job = std::move(pending_requests_.front());
     pending_requests_.pop_front();
     ResolveStorageKeysAsync(std::move(job));

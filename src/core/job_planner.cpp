@@ -22,7 +22,7 @@
 namespace velocitycopy {
 namespace {
 
-constexpr std::size_t kMaxPlannedEntries = 250'000;
+constexpr std::size_t kMaxPlannedEntries = 1'000'000;
 
 class DirectorySearch final {
 public:
@@ -131,6 +131,9 @@ class OutputRegistry final {
 public:
     explicit OutputRegistry(PathKeyFactory& keys) : keys_(keys) {}
     void add_directory(const std::filesystem::path& path) {
+        if (!last_directory_.empty() && path == last_directory_) {
+            return;
+        }
         auto cursor = path;
         while (!cursor.empty()) {
             const auto key = keys_.make(cursor);
@@ -156,6 +159,7 @@ public:
             }
             cursor = parent;
         }
+        last_directory_ = path;
     }
 
     void add_file(const std::filesystem::path& path) {
@@ -178,6 +182,7 @@ public:
 
 private:
     PathKeyFactory& keys_;
+    std::filesystem::path last_directory_;
     std::set<std::wstring, PathKeyLess> files_;
     std::set<std::wstring, PathKeyLess> directories_;
 };

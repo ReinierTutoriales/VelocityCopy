@@ -308,7 +308,7 @@ bool ShellIpcServer::stopping() const noexcept {
     return stopping_.load(std::memory_order_acquire);
 }
 
-bool ShellIpcServer::create_pipe() noexcept {
+bool ShellIpcServer::create_pipe(const bool first_instance) noexcept {
     close_pipe();
     if (stopping()) return false;
 
@@ -318,9 +318,12 @@ bool ShellIpcServer::create_pipe() noexcept {
     LocalSecurityDescriptor security;
     if (security.attributes() == nullptr) return false;
 
+    constexpr DWORD kMaxPipeInstances = 8;
+    const DWORD open_mode = PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED |
+        (first_instance ? FILE_FLAG_FIRST_PIPE_INSTANCE : 0);
     HANDLE pipe = CreateNamedPipeW(
-        name.c_str(), PIPE_ACCESS_DUPLEX | FILE_FLAG_FIRST_PIPE_INSTANCE | FILE_FLAG_OVERLAPPED,
-        PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS, 1,
+        name.c_str(), open_mode,
+        PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS, kMaxPipeInstances,
         kPipeBufferBytes, kPipeBufferBytes, 0, security.attributes());
     if (pipe == INVALID_HANDLE_VALUE) {
         pipe_ = nullptr;
@@ -332,7 +335,7 @@ bool ShellIpcServer::create_pipe() noexcept {
 
 bool ShellIpcServer::recreate_pipe_or_stop() noexcept {
     if (stopping()) return false;
-    if (create_pipe()) return true;
+    if (create_pipe(false)) return true;
     stopping_.store(true, std::memory_order_release);
     return false;
 }
@@ -368,6 +371,14 @@ std::optional<ShellRequest> ShellIpcServer::receive_and_ack(const std::function<
         return std::nullopt;
     }
 
+    // Stand up the next listening instance immediately so a concurrent sender
+    // (e.g. rapid Ctrl+V while the UI thread processes admission) connects
+    // without ERROR_PIPE_BUSY instead of falling back to Explorer paste.
+    pipe_ = nullptr;
+    if (!stopping()) {
+        (void)create_pipe(false);
+    }
+
     std::optional<ShellRequest> result;
     if (!stopping() && connected_client_in_same_session(pipe)) {
         // No timer runs while idle. A connected sender gets a bounded interval
@@ -394,9 +405,15 @@ std::optional<ShellRequest> ShellIpcServer::receive_and_ack(const std::function<
             drain_admission_reply(pipe, stop_event, deadline);
         }
     }
-    // Keep the same
-    // pipe instance and its bounded buffer for the next activation.
-    if (!DisconnectNamedPipe(pipe) && !stopping()) (void)recreate_pipe_or_stop();
+    if (valid()) {
+        (void)DisconnectNamedPipe(pipe);
+        CloseHandle(pipe);
+    } else {
+        // Keep the connected pipe instance for the next activation if standing
+        // up a fresh instance failed.
+        pipe_ = pipe;
+        if (!DisconnectNamedPipe(pipe) && !stopping()) (void)recreate_pipe_or_stop();
+    }
     if (stopping()) return std::nullopt;
     return result;
 }

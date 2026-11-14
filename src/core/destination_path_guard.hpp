@@ -51,11 +51,17 @@ struct DestinationPathGuard final {
     DestinationPathGuard& operator=(const DestinationPathGuard&) = delete;
 
     ~DestinationPathGuard() noexcept {
+        clear();
+    }
+
+    void clear() noexcept {
         for (auto& entry : handles) {
             if (entry.handle != INVALID_HANDLE_VALUE) {
                 CloseHandle(entry.handle);
             }
         }
+        handles.clear();
+        missing.clear();
     }
 
     void rollback_created() noexcept {

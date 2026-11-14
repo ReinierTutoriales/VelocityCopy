@@ -27,9 +27,14 @@ public:
     [[nodiscard]] std::wstring make(const std::filesystem::path& path);
     [[nodiscard]] bool directory_case_sensitive(const std::filesystem::path& path);
 private:
+    struct DirectoryKey final {
+        std::wstring key;
+        bool case_sensitive{};
+    };
     [[nodiscard]] std::wstring make_impl(const std::filesystem::path& path, bool* directory_case);
     [[nodiscard]] bool directory_policy(const std::filesystem::path& path, bool inherited);
     std::unordered_map<std::wstring, bool> directories_;
+    std::unordered_map<std::wstring, DirectoryKey> directory_cache_;
 };
 
 } // namespace velocitycopy

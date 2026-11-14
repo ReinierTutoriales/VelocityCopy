@@ -92,8 +92,8 @@ int main() {
         return fail(8, "planner must reject only name-surrogate reparse points and leave cloud placeholders eligible");
     }
 
-    if (!contains(planner, "kMaxPlannedEntries = 250'000") ||
-        !contains(archive, "kMaxEntries = 250'000") ||
+    if (!contains(planner, "kMaxPlannedEntries = 1'000'000") ||
+        !contains(archive, "kMaxEntries = 1'000'000") ||
         !contains(archive, "kMaxArchiveBytes")) {
         return fail(9, "materialized plans and queue archives must have explicit memory bounds");
     }

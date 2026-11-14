@@ -290,7 +290,7 @@ int wmain() {
 
     // A hostile declared count must be rejected before it can drive large
     // allocations or long parse loops from a tiny file.
-    if (!write_count_bomb_archive(archive_path, 250001)) return 20;
+    if (!write_count_bomb_archive(archive_path, 1000001)) return 20;
     if (store.load(archive_path)) return 21;
 
     // A fixed .tmp belongs to nobody: do not truncate a preexisting file, and
