@@ -150,16 +150,22 @@ std::wstring PathKeyFactory::make_impl(const std::filesystem::path& path, bool* 
 
 std::wstring PathKeyFactory::make(const std::filesystem::path& path) {
     const auto& raw = path.native();
-    if (raw.find(L'\0') == std::wstring::npos && raw.find(L':', 2) == std::wstring::npos) {
+    if (!raw.starts_with(L"\\\\?\\") &&
+        raw.find(L'\0') == std::wstring::npos &&
+        raw.find(L':', 2) == std::wstring::npos) {
         const auto sep = raw.find_last_of(L"\\/");
         if (sep != std::wstring::npos && sep > 0 && sep + 1 < raw.size()) {
             const std::wstring_view leaf(raw.data() + sep + 1, raw.size() - sep - 1);
             if (leaf != L"." && leaf != L".." && leaf.back() != L'.' && leaf.back() != L' ') {
                 const std::wstring parent_raw(raw.data(), sep);
+                const std::filesystem::path parent_path(parent_raw);
+                if (!parent_path.is_absolute() || !parent_path.has_relative_path()) {
+                    return make_impl(path, nullptr);
+                }
                 auto it = directory_cache_.find(parent_raw);
                 if (it == directory_cache_.end()) {
                     bool policy = false;
-                    auto dir_key = make_impl(std::filesystem::path(parent_raw), &policy);
+                    auto dir_key = make_impl(parent_path, &policy);
                     if (!dir_key.empty()) {
                         it = directory_cache_.emplace(parent_raw, DirectoryKey{std::move(dir_key), policy}).first;
                     }
@@ -181,14 +187,19 @@ std::wstring PathKeyFactory::make(const std::filesystem::path& path) {
 
 bool PathKeyFactory::directory_case_sensitive(const std::filesystem::path& path) {
     const auto& raw = path.native();
-    if (const auto it = directory_cache_.find(raw); it != directory_cache_.end()) {
-        return it->second.case_sensitive;
+    const bool cacheable = !raw.starts_with(L"\\\\?\\") && path.is_absolute() && path.has_relative_path();
+    if (cacheable) {
+        if (const auto it = directory_cache_.find(raw); it != directory_cache_.end()) {
+            return it->second.case_sensitive;
+        }
     }
     bool policy = false;
     auto key = make_impl(path, &policy);
     if (key.empty()) throw std::filesystem::filesystem_error("Invalid directory", path,
         std::make_error_code(std::errc::invalid_argument));
-    directory_cache_.emplace(raw, DirectoryKey{std::move(key), policy});
+    if (cacheable) {
+        directory_cache_.emplace(raw, DirectoryKey{std::move(key), policy});
+    }
     return policy;
 }
 

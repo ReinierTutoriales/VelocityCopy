@@ -56,6 +56,17 @@ int run_test() {
     if (same_destination(destination / L"A", destination / L"a")) return 4;
     if (DestinationCatalog::validate(std::vector<fs::path>{destination / L"A"}, destination / L"a") !=
         DestinationValidation::Valid) return 5;
+    if (!path_key_equal(keys.make(L"C:\\VelocityCopyRootProbe"), keys.make(L"\\\\?\\C:\\VelocityCopyRootProbe")) ||
+        !path_key_equal(keys.make(L"C:\\VelocityCopyRootProbe\\Sub"), keys.make(L"\\\\?\\C:\\VelocityCopyRootProbe\\Sub")) ||
+        !path_key_is_prefix(keys.make(L"C:\\VelocityCopyRootProbe"), keys.make(L"C:\\VelocityCopyRootProbe\\Sub")) ||
+        DestinationCatalog::validate(
+            std::vector<fs::path>{L"C:\\VelocityCopyRootProbe"},
+            L"C:\\VelocityCopyRootProbe\\Sub") != DestinationValidation::InsideSource ||
+        !path_key_equal(keys.make(L"\\\\server\\share\\VelocityCopyProbe"), keys.make(L"\\\\?\\UNC\\server\\share\\VelocityCopyProbe")) ||
+        !path_key_equal(keys.make(L"\\\\server\\share\\VelocityCopyProbe\\Sub"), keys.make(L"\\\\?\\UNC\\server\\share\\VelocityCopyProbe\\Sub")) ||
+        !path_key_is_prefix(keys.make(L"\\\\server\\share\\VelocityCopyProbe"), keys.make(L"\\\\server\\share\\VelocityCopyProbe\\Sub"))) {
+        return 26;
+    }
 
     CopyJob job{};
     job.sources = {source};

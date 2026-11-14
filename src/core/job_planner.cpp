@@ -22,7 +22,7 @@
 namespace velocitycopy {
 namespace {
 
-constexpr std::size_t kMaxPlannedEntries = 1'000'000;
+constexpr std::size_t kMaxPlannedEntries = 500'000;
 
 class DirectorySearch final {
 public:

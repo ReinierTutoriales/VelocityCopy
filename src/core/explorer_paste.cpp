@@ -42,11 +42,12 @@ void replay(const Paste& paste) noexcept {
         return;
     }
     const WORD modifier = paste.key == VK_INSERT ? VK_SHIFT : VK_CONTROL;
+    const DWORD key_flags = paste.key == VK_INSERT ? KEYEVENTF_EXTENDEDKEY : 0;
     std::array<INPUT, 4> keys{};
     for (auto& key : keys) { key.type = INPUT_KEYBOARD; key.ki.dwExtraInfo = replay_marker; }
     keys[0].ki.wVk = modifier;
-    keys[1].ki.wVk = paste.key;
-    keys[2].ki.wVk = paste.key; keys[2].ki.dwFlags = KEYEVENTF_KEYUP;
+    keys[1].ki.wVk = paste.key; keys[1].ki.dwFlags = key_flags;
+    keys[2].ki.wVk = paste.key; keys[2].ki.dwFlags = key_flags | KEYEVENTF_KEYUP;
     keys[3].ki.wVk = modifier; keys[3].ki.dwFlags = KEYEVENTF_KEYUP;
     const bool modifier_held = key_down(modifier);
     const UINT count = modifier_held ? 2u : 4u;

@@ -553,6 +553,7 @@ JobResult JobExecutor::execute(
                     for (;;) {
                         auto directive = control.directive();
                         if (directive == ExecutionDirective::Pause) {
+                            source_lease.reset();
                             directive = control.wait_while_paused();
                         }
                         if (directive == ExecutionDirective::Cancel) {
@@ -592,6 +593,7 @@ JobResult JobExecutor::execute(
                         }
 
                         if (directive == ExecutionDirective::Pause) {
+                            source_lease.reset();
                             directive = control.wait_while_paused();
                             if (directive == ExecutionDirective::Cancel || directive == ExecutionDirective::Stop) {
                                 plan.release_active(file_id);
@@ -866,7 +868,10 @@ JobResult JobExecutor::execute(
                                 file_id, S_OK, file->source, file->destination, !skip_allowed, 1,
                                 completed_copy.source_fingerprint, completed_copy.destination_fingerprint};
                             auto directive = control.directive();
-                            if (directive == ExecutionDirective::Pause) directive = control.wait_while_paused();
+                            if (directive == ExecutionDirective::Pause) {
+                                source_lease.reset();
+                                directive = control.wait_while_paused();
+                            }
                             if (directive == ExecutionDirective::Stop || directive == ExecutionDirective::Cancel) {
                                 if (!plan.park_active_source_removal(file_id, HRESULT_FROM_WIN32(ERROR_REQUEST_ABORTED),
                                         !skip_allowed, recovery.source_fingerprint, recovery.destination_fingerprint)) {
