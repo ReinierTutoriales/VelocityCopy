@@ -102,4 +102,8 @@
   <data name="PerformanceHistoryTitle.Text" xml:space="preserve"><value>Historial de velocidad</value></data>
   <data name="SourcePathRole" xml:space="preserve"><value>Ruta de origen</value></data>
   <data name="DestinationPathRole" xml:space="preserve"><value>Ruta de destino</value></data>
+  <data name="StrategyThreadSingular" xml:space="preserve"><value>{} hilo</value></data>
+  <data name="StrategyThreadPlural" xml:space="preserve"><value>{} hilos</value></data>
+  <data name="StrategyFlagSparse" xml:space="preserve"><value>Disperso</value></data>
+  <data name="StrategyFlagCompressed" xml:space="preserve"><value>Comprimido</value></data>
 </root>

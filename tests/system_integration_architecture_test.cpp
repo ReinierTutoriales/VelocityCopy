@@ -245,7 +245,8 @@ int main() {
         return fail(14, "drag-and-drop must append storage items only to the active transfer session");
     }
 
-    if (!contains(shell, "SHGetPathFromIDListEx") ||
+    if (!contains(shell_data, "SHGetPathFromIDListEx") ||
+        !contains(shell, "resolve_folder_path(folder)") ||
         !contains(shell_data, "CF_HDROP") || !contains(shell, "IContextMenu") ||
         contains(shell, "IExplorerCommand") ||
         contains(shell, "SetMenuDefaultItem") ||

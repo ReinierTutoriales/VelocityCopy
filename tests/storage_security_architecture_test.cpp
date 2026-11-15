@@ -47,7 +47,8 @@ int main() {
         !contains(engine, "SourceLease::State") || !contains(engine, "FILE_SHARE_READ, nullptr, OPEN_EXISTING") ||
         !contains(engine, "source_lease.state_->path.c_str()") ||
         !contains(engine, "detail::same_file_fingerprint(expected_source, probe.fingerprint)") ||
-        !contains(engine, "SetFileInformationByHandle(source_guard.handle, FileRenameInfo") ||
+        !contains(engine, "active_source.state_->prepare(source, true, directory_error)") ||
+        !contains(engine, "SetFileInformationByHandle(active_source.state_->handle, FileRenameInfo") ||
         !contains(executor, "remove_verified_recovery_source(recovery)") ||
         contains(executor, "remove_moved_source_file")) {
         return fail(2, "source must remain pinned across copying, and Move must mutate a verified handle");

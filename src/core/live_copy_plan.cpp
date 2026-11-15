@@ -186,16 +186,18 @@ LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan, const bool allow_draine
         // below cannot throw and leave a half-applied append.
         retained_results_.reserve(retained_results_.size() + plan.failures.size());
 
-        auto staged_destination_keys = reserved_destination_keys_;
-        for (const auto& key : incoming_keys) {
-            staged_destination_keys.insert(key);
-        }
+        std::vector<std::set<std::wstring, PathKeyLess>::iterator> inserted_keys;
+        inserted_keys.reserve(incoming_keys.size());
 
         const auto old_directories = directories_.size();
         const auto old_roots = source_roots_.size();
         const auto old_pending = pending_files_.size();
         std::uint64_t assigned_id = next_file_id_;
         try {
+            for (const auto& key : incoming_keys) {
+                auto [it, inserted] = reserved_destination_keys_.insert(key);
+                if (inserted) inserted_keys.push_back(it);
+            }
             directories_.insert(
                 directories_.end(),
                 std::make_move_iterator(plan.directories.begin()),
@@ -211,15 +213,16 @@ LivePlanAppendResult LiveCopyPlan::append(CopyPlan plan, const bool allow_draine
                 pending_files_.push_back(std::move(file));
             }
         } catch (...) {
-            // Deque growth can fail after some files have been appended. Roll
-            // back only the new tail; existing queued work is never copied.
+            // Roll back only the newly inserted keys and tail; existing queued work is never copied.
+            for (const auto it : inserted_keys) {
+                reserved_destination_keys_.erase(it);
+            }
             while (pending_files_.size() > old_pending) pending_files_.pop_back();
             directories_.resize(old_directories);
             source_roots_.resize(old_roots);
             throw;
         }
 
-        reserved_destination_keys_.swap(staged_destination_keys);
         next_file_id_ = assigned_id;
         total_bytes_ += plan.total_bytes;
         total_files_ += static_cast<std::uint64_t>(plan.files.size());

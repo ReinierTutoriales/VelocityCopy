@@ -361,6 +361,14 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
         // same way: everything that can be copied is copied and the rest is
         // reported. Job-level problems (cancellation, collisions, the entry
         // limit) still throw.
+        // Pin the source root and its ancestors once for the duration of this
+        // root's traversal; subfolders only need to pin their relative suffix.
+        detail::DestinationPathGuard root_guard;
+        if (!root_guard.lock_existing_chain(source, ec) || !root_guard.missing.empty()) {
+            if (!ec) ec = std::error_code(ERROR_PATH_NOT_FOUND, std::system_category());
+            throw std::filesystem::filesystem_error("Unable to enumerate source", source, ec);
+        }
+
         std::vector<std::pair<std::filesystem::path, std::filesystem::path>> pending_directories;
         pending_directories.emplace_back(source, root);
         while (!pending_directories.empty()) {
@@ -368,17 +376,18 @@ CopyPlan JobPlanner::build(const CopyJob& job, const std::stop_token stop_token)
             auto [directory_source, directory_target] = std::move(pending_directories.back());
             pending_directories.pop_back();
 
-            // Pin this directory and its ancestors while enumerating, so a
+            // Pin this directory down to source while enumerating, so a
             // previously inspected directory cannot be replaced by a junction.
             detail::DestinationPathGuard source_guard;
-            if (!source_guard.lock_existing_chain(directory_source, ec) || !source_guard.missing.empty()) {
-                if (!ec) ec = std::error_code(ERROR_PATH_NOT_FOUND, std::system_category());
-                if (directory_source == source) {
-                    throw std::filesystem::filesystem_error("Unable to enumerate source", source, ec);
+            if (directory_source != source) {
+                if (!source_guard.lock_existing_chain(
+                        directory_source, ec, FILE_SHARE_READ | FILE_SHARE_WRITE, source) ||
+                    !source_guard.missing.empty()) {
+                    if (!ec) ec = std::error_code(ERROR_PATH_NOT_FOUND, std::system_category());
+                    record_failure(plan, directory_source, directory_target, ec);
+                    ec.clear();
+                    continue;
                 }
-                record_failure(plan, directory_source, directory_target, ec);
-                ec.clear();
-                continue;
             }
 
             // Enumeration supplies size, attributes and the reparse tag in one

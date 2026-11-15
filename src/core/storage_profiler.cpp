@@ -33,6 +33,10 @@ std::filesystem::path nearest_existing_path(std::filesystem::path path) {
 }
 
 bool open_volume(const std::filesystem::path& volume_root, HANDLE& volume) {
+    // GetVolumePathNameW may return a drive root or a mounted-folder root.
+    // Resolve that mount point to its stable volume GUID path before opening
+    // the volume. Microsoft documents that CreateFile must receive the GUID
+    // path without its trailing backslash when opening the volume itself.
     std::array<wchar_t, 64> volume_name{};
     if (GetVolumeNameForVolumeMountPointW(
             volume_root.c_str(),
@@ -57,13 +61,11 @@ bool open_volume(const std::filesystem::path& volume_root, HANDLE& volume) {
     return volume != INVALID_HANDLE_VALUE;
 }
 
-void query_physical_disk_extents(const std::filesystem::path& volume_root, StorageProfile& profile) {
-    HANDLE volume = INVALID_HANDLE_VALUE;
-    if (!open_volume(volume_root, volume)) {
+void query_physical_disk_extents(const HANDLE volume, StorageProfile& profile) {
+    if (volume == INVALID_HANDLE_VALUE) {
         return;
     }
 
-    detail::Win32Handle owned_volume(volume);
     std::vector<std::byte> buffer(sizeof(VOLUME_DISK_EXTENTS) + sizeof(DISK_EXTENT) * 7);
     for (;;) {
         DWORD bytes_returned = 0;
@@ -97,35 +99,9 @@ void query_physical_disk_extents(const std::filesystem::path& volume_root, Stora
         }
         buffer.resize(buffer.size() * 2);
     }
-
 }
 
-void query_device_number(const std::filesystem::path& volume_root, StorageProfile& profile) {
-    // GetVolumePathNameW may return a drive root or a mounted-folder root.
-    // Resolve that mount point to its stable volume GUID path before opening
-    // the volume. Microsoft documents that CreateFile must receive the GUID
-    // path without its trailing backslash when opening the volume itself.
-    std::array<wchar_t, 64> volume_name{};
-    if (GetVolumeNameForVolumeMountPointW(
-            volume_root.c_str(),
-            volume_name.data(),
-            static_cast<DWORD>(volume_name.size())) == 0) {
-        return;
-    }
-
-    std::wstring device_path = volume_name.data();
-    if (!device_path.empty() && device_path.back() == L'\\') {
-        device_path.pop_back();
-    }
-
-    const HANDLE volume = CreateFileW(
-        device_path.c_str(),
-        0,
-        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-        nullptr,
-        OPEN_EXISTING,
-        0,
-        nullptr);
+void query_device_number(const HANDLE volume, StorageProfile& profile) {
     if (volume == INVALID_HANDLE_VALUE) {
         return;
     }
@@ -147,32 +123,12 @@ void query_device_number(const std::filesystem::path& volume_root, StorageProfil
         profile.device_number = device_number.DeviceNumber;
         profile.device_number_available = true;
     }
-
-    CloseHandle(volume);
 }
 
-void query_seek_penalty(const std::filesystem::path& volume_root, StorageProfile& profile) {
-    const auto root = volume_root.wstring();
-    if (root.size() < 2 || root[1] != L':') {
-        return;
-    }
-
-    std::wstring device_path = L"\\\\.\\";
-    device_path.push_back(root[0]);
-    device_path.push_back(L':');
-
-    const HANDLE volume = CreateFileW(
-        device_path.c_str(),
-        0,
-        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-        nullptr,
-        OPEN_EXISTING,
-        0,
-        nullptr);
+bool query_seek_penalty_handle(const HANDLE volume, StorageProfile& profile) {
     if (volume == INVALID_HANDLE_VALUE) {
-        return;
+        return false;
     }
-
     STORAGE_PROPERTY_QUERY query{};
     query.PropertyId = StorageDeviceSeekPenaltyProperty;
     query.QueryType = PropertyStandardQuery;
@@ -191,9 +147,34 @@ void query_seek_penalty(const std::filesystem::path& volume_root, StorageProfile
         bytes_returned >= sizeof(descriptor)) {
         profile.incurs_seek_penalty = descriptor.IncursSeekPenalty != FALSE;
         profile.seek_penalty_available = true;
+        return true;
+    }
+    return false;
+}
+
+void query_seek_penalty(const HANDLE volume, const std::filesystem::path& volume_root, StorageProfile& profile) {
+    if (query_seek_penalty_handle(volume, profile)) {
+        return;
     }
 
-    CloseHandle(volume);
+    const auto root = volume_root.wstring();
+    if (root.size() < 2 || root[1] != L':') {
+        return;
+    }
+
+    std::wstring device_path = L"\\\\.\\";
+    device_path.push_back(root[0]);
+    device_path.push_back(L':');
+
+    const detail::Win32Handle fallback_volume(CreateFileW(
+        device_path.c_str(),
+        0,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        nullptr,
+        OPEN_EXISTING,
+        0,
+        nullptr));
+    (void)query_seek_penalty_handle(fallback_volume.get(), profile);
 }
 
 } // namespace
@@ -240,9 +221,12 @@ StorageProfile StorageProfiler::inspect(const std::filesystem::path& path) const
         // transfers already fall back to conservative single-worker behavior, so
         // do not put those synchronous hardware probes on the transfer path.
         if (profile.kind == StorageKind::Fixed) {
-            query_device_number(profile.volume_root, profile);
-            query_physical_disk_extents(profile.volume_root, profile);
-            query_seek_penalty(profile.volume_root, profile);
+            HANDLE volume = INVALID_HANDLE_VALUE;
+            (void)open_volume(profile.volume_root, volume);
+            const detail::Win32Handle owned_volume(volume);
+            query_device_number(owned_volume.get(), profile);
+            query_physical_disk_extents(owned_volume.get(), profile);
+            query_seek_penalty(owned_volume.get(), profile.volume_root, profile);
         }
     }
 
