@@ -171,13 +171,18 @@ velocitycopy::JobResult MainWindow::RunLivePlanSession(
             options.replace_file_id = replace_file_id;
         }
         {
-            std::wstring summary = std::to_wstring(options.worker_count) +
-                (options.worker_count == 1 ? L" thread" : L" threads");
+            std::wstring summary(velocitycopy::localization::get_string(
+                options.worker_count == 1 ? L"StrategyThreadSingular" : L"StrategyThreadPlural"));
+            if (const auto pos = summary.find(L"{}"); pos != std::wstring::npos) {
+                summary.replace(pos, 2, std::to_wstring(options.worker_count));
+            }
             if ((options.copy_flags & COPY_FILE_ENABLE_SPARSE_COPY) != 0) {
-                summary += L" \u00B7 Sparse";
+                summary += L" \u00B7 ";
+                summary += velocitycopy::localization::get_string(L"StrategyFlagSparse");
             }
             if ((options.copy_flags & COPY_FILE_REQUEST_COMPRESSED_TRAFFIC) != 0) {
-                summary += L" \u00B7 Compressed";
+                summary += L" \u00B7 ";
+                summary += velocitycopy::localization::get_string(L"StrategyFlagCompressed");
             }
             (void)dispatcher.TryEnqueue([weak, summary = std::move(summary)]() {
                 if (auto self = weak.get()) {

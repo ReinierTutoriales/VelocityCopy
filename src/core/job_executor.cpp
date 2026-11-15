@@ -685,11 +685,15 @@ JobResult JobExecutor::execute(
                                     file->source, file->destination, rename_policy, &destination_lease,
                                     file->destination_case_sensitive, &source_lease);
                                 renamed = rename_result.success;
-                                if (!renamed &&
-                                    rename_result.native_code ==
-                                        static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_NOT_SAME_DEVICE)) &&
-                                    !source_root.empty()) {
-                                    cross_device_source_root = source_root;
+                                if (!renamed) {
+                                    // rename_file opened the source with DELETE access; release it before
+                                    // CopyFile2 opens the source for the fallback copy.
+                                    source_lease.release_file();
+                                    if (rename_result.native_code ==
+                                            static_cast<std::int32_t>(HRESULT_FROM_WIN32(ERROR_NOT_SAME_DEVICE)) &&
+                                        !source_root.empty()) {
+                                        cross_device_source_root = source_root;
+                                    }
                                 }
                             }
                         }

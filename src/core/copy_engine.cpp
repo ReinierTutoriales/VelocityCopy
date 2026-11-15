@@ -322,7 +322,6 @@ bool wait_before_retry(const DWORD delay, ExecutionControl* control) noexcept {
 struct DestinationLease::State {
     std::filesystem::path folder;
     std::unique_ptr<detail::DestinationPathGuard> guard;
-    std::optional<bool> case_sensitive;
 
     HANDLE leaf_handle() const noexcept {
         return guard ? guard->leaf_handle : INVALID_HANDLE_VALUE;
@@ -332,10 +331,8 @@ struct DestinationLease::State {
         if (guard && folder == parent) return true;
         guard.reset();
         folder.clear();
-        case_sensitive.reset();
         auto fresh = std::make_unique<detail::DestinationPathGuard>();
         if (!fresh->prepare_directory(parent, error)) return false;
-        case_sensitive = detail::query_directory_case_sensitive_handle(fresh->leaf_handle);
         guard = std::move(fresh);
         folder = parent;
         return true;
@@ -409,9 +406,7 @@ CopyResult CopyEngine::copy_file(
             ? options.lease->state_->leaf_handle()
             : destination_guard.leaf_handle;
         if (options.destination_case_sensitive) {
-            const auto actual_case = options.lease != nullptr && options.lease->state_->case_sensitive
-                ? options.lease->state_->case_sensitive
-                : detail::query_directory_case_sensitive_handle(parent_handle);
+            const auto actual_case = detail::query_directory_case_sensitive_handle(parent_handle);
             const bool resolved_case = actual_case
                 ? *actual_case
                 : directory_case_sensitive(parent);
@@ -539,9 +534,7 @@ CopyResult CopyEngine::rename_file(
             const HANDLE parent_handle = lease != nullptr
                 ? lease->state_->leaf_handle()
                 : destination_guard.leaf_handle;
-            const auto actual_case = lease != nullptr && lease->state_->case_sensitive
-                ? lease->state_->case_sensitive
-                : detail::query_directory_case_sensitive_handle(parent_handle);
+            const auto actual_case = detail::query_directory_case_sensitive_handle(parent_handle);
             const bool resolved_case = actual_case
                 ? *actual_case
                 : velocitycopy::directory_case_sensitive(parent);
