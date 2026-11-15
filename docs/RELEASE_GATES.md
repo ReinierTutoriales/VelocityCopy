@@ -118,6 +118,12 @@ commit; checksum generation; no binary rebuild; verified tag and assets.
 - Remove obsolete temporary branches when possible.
 - One logical change should produce one coherent commit.
 - Do not intentionally push known-broken intermediate states.
+- Every commit reaching `main` is authored by `ReinierTutoriales`; the only
+  other accepted committer is `GitHub <noreply@github.com>` (web/API merges).
+  `Co-authored-by`, `Claude-Session`, "Generated with" and 🤖 lines are
+  forbidden. `.github/workflows/attribution-guard.yml` enforces this on pull
+  requests and `main` pushes; `.githooks/commit-msg` strips those trailers
+  locally (`git config core.hooksPath .githooks`).
 
 ## Failure triage
 

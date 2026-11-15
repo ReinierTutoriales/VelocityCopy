@@ -1,0 +1,15 @@
+#!/bin/sh
+# Strips co-author and tool attribution trailers and refuses commits that are
+# not authored by the repository owner. Enable once per clone with:
+#   git config core.hooksPath .githooks
+owner_email='86568548+ReinierTutoriales@users.noreply.github.com'
+
+author_email=$(git var GIT_AUTHOR_IDENT | sed -n 's/.*<\(.*\)>.*/\1/p')
+if [ "$author_email" != "$owner_email" ]; then
+  echo "commit-msg: author email '$author_email' is not $owner_email" >&2
+  exit 1
+fi
+
+tmp="$1.tmp"
+grep -viE '^(co-authored-by|claude-session):|🤖|generated (with|by) \[?(claude|codex|gemini|copilot|chatgpt|cursor)' "$1" > "$tmp" || true
+mv "$tmp" "$1"
