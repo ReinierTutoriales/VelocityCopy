@@ -3,6 +3,7 @@
 #include <windows.h>
 
 #include <filesystem>
+#include <optional>
 #include <system_error>
 #include <vector>
 
@@ -45,6 +46,7 @@ struct DestinationPathHandle final {
 struct DestinationPathGuard final {
     std::vector<DestinationPathHandle> handles;
     std::vector<std::filesystem::path> missing;
+    HANDLE leaf_handle{INVALID_HANDLE_VALUE};
 
     DestinationPathGuard() = default;
     DestinationPathGuard(const DestinationPathGuard&) = delete;
@@ -62,6 +64,7 @@ struct DestinationPathGuard final {
         }
         handles.clear();
         missing.clear();
+        leaf_handle = INVALID_HANDLE_VALUE;
     }
 
     void rollback_created() noexcept {
@@ -83,8 +86,10 @@ struct DestinationPathGuard final {
 
     bool lock_existing_chain(
         const std::filesystem::path& path, std::error_code& error,
-        const DWORD share_mode = FILE_SHARE_READ | FILE_SHARE_WRITE) {
+        const DWORD share_mode = FILE_SHARE_READ | FILE_SHARE_WRITE,
+        const std::filesystem::path& stop_at = {}) {
         missing.clear();
+        leaf_handle = INVALID_HANDLE_VALUE;
         std::error_code absolute_error;
         auto probe = std::filesystem::absolute(path, absolute_error);
         if (absolute_error) {
@@ -104,7 +109,7 @@ struct DestinationPathGuard final {
                 end = native.find(L'\\', 8); // Stop at the server; pin the share.
             if (end != std::wstring::npos) root = native.substr(0, end);
         }
-        while (!probe.empty() && probe != root) {
+        while (!probe.empty() && probe != root && probe != stop_at) {
             const HANDLE handle = CreateFileW(
                 probe.c_str(),
                 // Attribute-only handles do not enforce sharing restrictions.
@@ -132,6 +137,9 @@ struct DestinationPathGuard final {
             }
 
             try {
+                if (handles.empty() && missing.empty()) {
+                    leaf_handle = handle;
+                }
                 handles.push_back({handle, false});
             } catch (...) {
                 CloseHandle(handle);
@@ -175,6 +183,7 @@ struct DestinationPathGuard final {
 
             try {
                 handles.push_back({handle, created_now != 0});
+                leaf_handle = handle;
             } catch (...) {
                 if (created_now != 0) {
                     FILE_DISPOSITION_INFO disposition{TRUE};
@@ -196,5 +205,20 @@ struct DestinationPathGuard final {
         return lock_existing_chain(directory, error) && create_missing(error);
     }
 };
+
+inline std::optional<bool> query_directory_case_sensitive_handle(const HANDLE handle) noexcept {
+    if (handle == INVALID_HANDLE_VALUE) {
+        return std::nullopt;
+    }
+    FILE_CASE_SENSITIVE_INFO info{};
+    if (GetFileInformationByHandleEx(handle, FileCaseSensitiveInfo, &info, sizeof(info))) {
+        return (info.Flags & FILE_CS_FLAG_CASE_SENSITIVE_DIR) != 0;
+    }
+    const auto error = GetLastError();
+    if (error == ERROR_INVALID_PARAMETER || error == ERROR_NOT_SUPPORTED || error == ERROR_INVALID_FUNCTION) {
+        return false;
+    }
+    return std::nullopt;
+}
 
 } // namespace velocitycopy::detail

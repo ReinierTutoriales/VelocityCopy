@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -247,6 +248,7 @@ JobExecutionOptions recommend_for_roots(
     bool first_recommendation = true;
     bool source_destination_share_disk = false;
     bool disks_proven_distinct = true;
+    bool all_proven_nonrotational_fixed = true;
     std::vector<StorageProfile> source_profiles;
     std::array<wchar_t, 32768> volume_root{};
 
@@ -278,6 +280,13 @@ JobExecutionOptions recommend_for_roots(
         const auto recommendation = selector.choose(source, destination, workload);
         worker_count = std::min(worker_count, recommendation.suggested_queue_depth);
 
+        const bool root_nonrotational_fixed =
+            source.kind == StorageKind::Fixed && destination.kind == StorageKind::Fixed &&
+            !source.remote && !destination.remote &&
+            source.seek_penalty_available && destination.seek_penalty_available &&
+            !source.incurs_seek_penalty && !destination.incurs_seek_penalty;
+        all_proven_nonrotational_fixed = all_proven_nonrotational_fixed && root_nonrotational_fixed;
+
         source_destination_share_disk = source_destination_share_disk ||
             physical_storage_relationship(source, destination) == PhysicalStorageRelationship::SharedDisk;
         disks_proven_distinct = disks_proven_distinct &&
@@ -293,9 +302,10 @@ JobExecutionOptions recommend_for_roots(
         }
     }
 
-    // Concurrent copies only between disks known to be different devices;
-    // a shared or undetermined topology stays serial.
-    if (source_destination_share_disk || !disks_proven_distinct) {
+    // Concurrent copies only between disks known to be different devices, or on
+    // the same proven non-rotational fixed SSD when StrategySelector recommends
+    // concurrency for many small files. Unknown or rotational topologies stay serial.
+    if (!disks_proven_distinct && !(source_destination_share_disk && all_proven_nonrotational_fixed)) {
         worker_count = 1;
     }
 
@@ -510,6 +520,7 @@ JobResult JobExecutor::execute(
             static_cast<std::uint32_t>(std::min<std::uint64_t>(remaining_files, kMaxCopyWorkers)));
         ConcurrentResultState result_state;
         std::mutex callback_mutex;
+        std::atomic<ULONGLONG> last_progress_tick_ms{0};
         std::vector<JobResult> worker_results(worker_count, {true, false, S_OK, false});
         std::vector<std::jthread> workers;
         workers.reserve(worker_count);
@@ -518,7 +529,15 @@ JobResult JobExecutor::execute(
             if (!progress) {
                 return true;
             }
+            if (active) {
+                const ULONGLONG now = GetTickCount64();
+                const ULONGLONG prev = last_progress_tick_ms.load(std::memory_order_relaxed);
+                if (prev != 0 && now - prev < 16) {
+                    return true;
+                }
+            }
             std::lock_guard callback_lock(callback_mutex);
+            last_progress_tick_ms.store(GetTickCount64(), std::memory_order_relaxed);
             // Single source of truth: the plan's per-item resolution state.
             const auto view = plan.resolution_view();
             const auto& outcomes = view.outcomes;
@@ -664,7 +683,7 @@ JobResult JobExecutor::execute(
                                         : options.existing_destination;
                                 const auto rename_result = engine_.rename_file(
                                     file->source, file->destination, rename_policy, &destination_lease,
-                                    file->destination_case_sensitive);
+                                    file->destination_case_sensitive, &source_lease);
                                 renamed = rename_result.success;
                                 if (!renamed &&
                                     rename_result.native_code ==

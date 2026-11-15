@@ -114,7 +114,8 @@ public:
         const std::filesystem::path& destination,
         ExistingDestinationPolicy existing_destination,
         DestinationLease* lease = nullptr,
-        std::optional<bool> destination_case_sensitive = {}) const noexcept;
+        std::optional<bool> destination_case_sensitive = {},
+        SourceLease* source_lease = nullptr) const noexcept;
 };
 
 } // namespace velocitycopy

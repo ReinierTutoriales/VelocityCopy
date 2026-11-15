@@ -68,11 +68,10 @@ public:
         request_ = {};
         if (!folder) return E_INVALIDARG;
         try {
-            std::array<wchar_t, 32768> target{};
-            if (!SHGetPathFromIDListEx(folder, target.data(), static_cast<DWORD>(target.size()), GPFIDL_DEFAULT))
-                return E_INVALIDARG;
+            auto target = velocitycopy::shell::resolve_folder_path(folder);
+            if (target.empty()) return E_INVALIDARG;
             request_.action = velocitycopy::ShellAction::Transfer;
-            request_.destination = target.data();
+            request_.destination = std::move(target);
             if (!data) {
                 clipboard_mode_ = true;
                 ready_ = true;

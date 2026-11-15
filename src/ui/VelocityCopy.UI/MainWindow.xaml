@@ -578,10 +578,11 @@
                                     <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                                             BorderThickness="0,0,0,1"
                                             Padding="{StaticResource SectionHeaderPadding}">
-                                        <Grid>
+                                        <Grid ColumnSpacing="{StaticResource SpaceRelated}">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
                                             <FontIcon x:Name="PerformanceHistoryIcon" Glyph="&#xE9D2;"
                                                       FontSize="{StaticResource SectionIconSize}"
@@ -596,6 +597,12 @@
                                                        TextWrapping="Wrap"
                                                        FontWeight="SemiBold"
                                                        FontSize="{StaticResource BodyFontSize}" />
+                                            <TextBlock x:Name="StrategySummaryText"
+                                                       Grid.Column="2"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                       FontSize="{StaticResource CaptionFontSize}"
+                                                       Visibility="Collapsed" />
                                         </Grid>
                                     </Border>
 

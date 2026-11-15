@@ -5,4 +5,5 @@
 namespace velocitycopy::shell {
 HRESULT read_sources(IDataObject* data, std::vector<std::filesystem::path>& paths);
 HRESULT clipboard_sources_from_data(IDataObject* object, ShellRequest& request);
+std::filesystem::path resolve_folder_path(PCIDLIST_ABSOLUTE folder);
 }

@@ -1,5 +1,6 @@
 #include "shell_data.hpp"
 #include "velocitycopy/ipc_protocol.hpp"
+#include <array>
 #include <cstring>
 
 namespace velocitycopy::shell {
@@ -91,6 +92,44 @@ HRESULT clipboard_sources_from_data(IDataObject* object, velocitycopy::ShellRequ
     if (effect & DROPEFFECT_MOVE) request.operation = velocitycopy::FileOperation::Move;
     else if (!(effect & DROPEFFECT_COPY)) return E_INVALIDARG;
     return S_OK;
+}
+
+std::filesystem::path resolve_folder_path(PCIDLIST_ABSOLUTE folder) {
+    if (!folder) return {};
+    std::array<wchar_t, 32768> path{};
+    if (SHGetPathFromIDListEx(folder, path.data(), static_cast<DWORD>(path.size()), GPFIDL_DEFAULT)) {
+        return path.data();
+    }
+
+    struct ReleaseShell {
+        IUnknown* p{};
+        ~ReleaseShell() { if (p) p->Release(); }
+    };
+    IShellItem* item = nullptr;
+    if (FAILED(SHCreateItemFromIDList(folder, IID_PPV_ARGS(&item))) || !item) return {};
+    ReleaseShell item_owner{item};
+
+    PWSTR raw = nullptr;
+    if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &raw)) && raw) {
+        std::filesystem::path resolved(raw);
+        CoTaskMemFree(raw);
+        return resolved;
+    }
+
+    IShellLibrary* library = nullptr;
+    if (FAILED(SHLoadLibraryFromItem(item, STGM_READ, IID_PPV_ARGS(&library))) || !library) return {};
+    ReleaseShell library_owner{library};
+
+    IShellItem* save_folder = nullptr;
+    if (FAILED(library->GetDefaultSaveFolder(DSFT_DETECT, IID_PPV_ARGS(&save_folder))) || !save_folder) return {};
+    ReleaseShell save_owner{save_folder};
+
+    if (SUCCEEDED(save_folder->GetDisplayName(SIGDN_FILESYSPATH, &raw)) && raw) {
+        std::filesystem::path resolved(raw);
+        CoTaskMemFree(raw);
+        return resolved;
+    }
+    return {};
 }
 
 }

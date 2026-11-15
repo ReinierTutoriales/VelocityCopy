@@ -97,6 +97,8 @@ void MainWindow::SetExecutionButtonsIdle() {
 
     ResetCurrentItemState();
     pending_resume_ = {};
+    StrategySummaryText().Text(L"");
+    StrategySummaryText().Visibility(Visibility::Collapsed);
     PauseIcon().Glyph(L"\xE769");
     try {
         const auto label = velocitycopy::localization::get_string(L"ActionPause");
@@ -167,6 +169,22 @@ velocitycopy::JobResult MainWindow::RunLivePlanSession(
         if (replace_file_id != 0) {
             options.worker_count = 1;
             options.replace_file_id = replace_file_id;
+        }
+        {
+            std::wstring summary = std::to_wstring(options.worker_count) +
+                (options.worker_count == 1 ? L" thread" : L" threads");
+            if ((options.copy_flags & COPY_FILE_ENABLE_SPARSE_COPY) != 0) {
+                summary += L" \u00B7 Sparse";
+            }
+            if ((options.copy_flags & COPY_FILE_REQUEST_COMPRESSED_TRAFFIC) != 0) {
+                summary += L" \u00B7 Compressed";
+            }
+            (void)dispatcher.TryEnqueue([weak, summary = std::move(summary)]() {
+                if (auto self = weak.get()) {
+                    self->StrategySummaryText().Text(summary);
+                    self->StrategySummaryText().Visibility(Visibility::Visible);
+                }
+            });
         }
 
         result = executor_.execute(

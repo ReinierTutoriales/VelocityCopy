@@ -89,10 +89,9 @@ std::filesystem::path destination(const Paste& paste) {
         if (FAILED(view.As(&folder_view)) || FAILED(folder_view->GetFolder(IID_PPV_ARGS(&folder)))) continue;
         PIDLIST_ABSOLUTE pidl{};
         if (FAILED(folder->GetCurFolder(&pidl))) continue;
-        std::array<wchar_t, 32768> path{};
-        const bool valid = SHGetPathFromIDListEx(pidl, path.data(), static_cast<DWORD>(path.size()), GPFIDL_DEFAULT) != FALSE;
+        auto resolved = shell::resolve_folder_path(pidl);
         CoTaskMemFree(pidl);
-        if (valid) return path.data();
+        if (!resolved.empty()) return resolved;
     }
     return {};
 }
