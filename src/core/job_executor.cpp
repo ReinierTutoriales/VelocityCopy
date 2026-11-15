@@ -525,11 +525,14 @@ JobResult JobExecutor::execute(
         std::vector<std::jthread> workers;
         workers.reserve(worker_count);
 
-        auto emit_progress = [&](const PlannedFile& file, bool active, bool skippable) -> bool {
+        // throttle: in-flight byte updates only. The first update of each file
+        // is always delivered so the UI sees the current item and its Skip state.
+        auto emit_progress = [&](const PlannedFile& file, bool active, bool skippable,
+                                 bool throttle = false) -> bool {
             if (!progress) {
                 return true;
             }
-            if (active) {
+            if (active && throttle) {
                 const ULONGLONG now = GetTickCount64();
                 const ULONGLONG prev = last_progress_tick_ms.load(std::memory_order_relaxed);
                 if (prev != 0 && now - prev < 16) {
@@ -698,6 +701,7 @@ JobResult JobExecutor::execute(
                             }
                         }
 
+                        bool first_file_progress = true;
                         while (!renamed) {
                             bool skip_requested = false;
                             const auto existing_policy =
@@ -735,7 +739,9 @@ JobResult JobExecutor::execute(
                                     if (current == ExecutionDirective::Cancel) {
                                         return CopyDecision::Cancel;
                                     }
-                                    return emit_progress(*file, true, skip_allowed)
+                                    const bool throttle = !first_file_progress;
+                                    first_file_progress = false;
+                                    return emit_progress(*file, true, skip_allowed, throttle)
                                         ? CopyDecision::Continue
                                         : CopyDecision::Cancel;
                                 });
