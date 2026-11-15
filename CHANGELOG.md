@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.5.0 — 2026-11-15
+
+- Explorer paste: modifier state is read live, so a key held across Win+L, UAC or Ctrl+Alt+Del no longer leaves paste interception stuck; Shift+Insert is supported; pasting or dropping into a Windows Library uses its default save folder.
+- A second paste no longer falls back to the native Explorer copy while VelocityCopy is busy: the IPC pipe accepts several pending clients, and EcoQoS is lifted while shell requests are in flight.
+- Move across volumes stops retrying a rename per file after the first cross-device failure. Same-volume Move reuses the worker's pinned source directory chain.
+- Many small files on the same proven non-rotational fixed SSD/NVMe may use up to 4 workers; HDD, unknown, removable and network storage stay serial.
+- Less per-file work: source directory chains are cached per worker and released while paused, destination case sensitivity is checked on the already open directory handle, path keys reuse the parent directory key, and the storage profiler opens each volume once.
+- In-flight progress updates are limited to one every 16 ms; the first update of every file is always delivered.
+- The planner and queue archive accept up to 500,000 entries (previously 250,000).
+- Unhandled UI exceptions are always written to `VelocityCopy.log`.
+- The speed history header shows the active strategy (threads, sparse, compressed), localized.
+
+Validation limits:
+- Windows CI and Windows Package pass on the release commit. Physical Explorer, Library, same-SSD concurrency, Move, upgrade/uninstall and ARM64 runtime checks have not been run for this release.
+
 ## 1.4.0 — 2026-10-20
 
 - Improve source identity and recovery safeguards, destination path protection, execution controls and IPC handling.
