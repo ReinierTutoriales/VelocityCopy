@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.5.1 — 2026-11-19
+
+- Explorer foreground surfacing: `AllowSetForegroundWindow` from the shell extension and a non-activating Z-order raise in `ShowFromTray` bring transfer windows in front of Explorer even when Windows blocks background foreground activation.
+- Window sizing skips `ResizeWindow` while minimized (`IsIconic`) so restored coordinates are preserved.
+- Cloud-file diagnostics: log every failed item with its `HRESULT` (mutex-protected in `VelocityCopy.log`) and show localized guidance for OneDrive / cloud-file download errors.
+
+Validation limits:
+- Windows CI and Windows Package must pass on the release commit before publication. Physical Explorer, OneDrive hydration, upgrade/uninstall and ARM64 runtime checks remain separate from hosted CI.
+
 ## 1.5.0 — 2026-11-15
 
 - Explorer paste: modifier state is read live, so a key held across Win+L, UAC or Ctrl+Alt+Del no longer leaves paste interception stuck; Shift+Insert is supported; pasting or dropping into a Windows Library uses its default save folder.
