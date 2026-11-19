@@ -297,6 +297,7 @@ void MainWindow::ResizeWindow(const int client_width_epx, const int client_heigh
         HWND hwnd{};
         auto window_native = this->m_inner.as<::IWindowNative>();
         if (SUCCEEDED(window_native->get_WindowHandle(&hwnd)) && hwnd != nullptr) {
+            if (IsIconic(hwnd)) return;
             const auto dpi = GetDpiForWindow(hwnd);
             if (dpi == 0) return;
 
