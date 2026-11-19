@@ -1,4 +1,5 @@
 #include "velocitycopy/job_executor.hpp"
+#include "velocitycopy/diagnostics.hpp"
 #include "velocitycopy/storage_topology.hpp"
 #include "velocitycopy/source_removal_recovery.hpp"
 #include "destination_path_guard.hpp"
@@ -8,6 +9,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <format>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -22,6 +24,17 @@
 
 namespace velocitycopy {
 namespace {
+
+// Records the native result of every failed item so a report can name the cause.
+void log_item_failure(const std::int32_t code, const PlannedFile& file, const bool move) noexcept {
+    try {
+        log_diagnostic(std::format(
+            L"transfer: item failed hr=0x{:08X} op={} source=\"{}\" destination=\"{}\"",
+            static_cast<std::uint32_t>(code), move ? L"move" : L"copy",
+            file.source.native(), file.destination.native()));
+    } catch (...) {
+    }
+}
 
 constexpr std::uint32_t kMaxCopyWorkers = 4;
 constexpr std::int32_t kInvalidPlanState =
@@ -853,6 +866,7 @@ JobResult JobExecutor::execute(
                             if (!cancelled && !is_session_fatal(result.native_code) &&
                                 !is_destination_conflict(result.native_code)) {
                                 if (skip_allowed) remove_partial_destination(file->destination);
+                                log_item_failure(result.native_code, *file, plan.operation() == FileOperation::Move);
                                 if (!plan.park_active(
                                         file_id, result.native_code, !skip_allowed,
                                         RecoveryAction::RetryTransfer)) {
@@ -866,7 +880,10 @@ JobResult JobExecutor::execute(
                             }
                             if (cancelled && skip_allowed) remove_partial_destination(file->destination);
                             plan.release_active(file_id);
-                            if (!cancelled) result_state.record_error(result.native_code, &*file);
+                            if (!cancelled) {
+                                log_item_failure(result.native_code, *file, plan.operation() == FileOperation::Move);
+                                result_state.record_error(result.native_code, &*file);
+                            }
                             control.request_cancel();
                             worker_results[worker_index] = {
                                 false,

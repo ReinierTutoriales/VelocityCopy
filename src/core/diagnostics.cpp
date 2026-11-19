@@ -5,12 +5,14 @@
 #include <fstream>
 #include <format>
 #include <limits>
+#include <mutex>
 #include <string>
 namespace velocitycopy { namespace {
 constexpr std::uintmax_t kMaxLogBytes=256u*1024u;
 std::wstring timestamp() noexcept {SYSTEMTIME v{};GetLocalTime(&v);try{return std::format(L"{:04}-{:02}-{:02} {:02}:{:02}:{:02}.{:03}",v.wYear,v.wMonth,v.wDay,v.wHour,v.wMinute,v.wSecond,v.wMilliseconds);}catch(...){return L"unknown-time";}}
 }
 void log_diagnostic(std::wstring_view message) noexcept {try{
+ static std::mutex log_mutex;const std::lock_guard lock(log_mutex);
  const auto dir=app_data_directory();if(!dir)return;const auto path=*dir/L"VelocityCopy.log",rotated=*dir/L"VelocityCopy.log.1";std::error_code ec;const auto size=std::filesystem::file_size(path,ec);
  if(!ec&&size>=kMaxLogBytes){std::filesystem::remove(rotated,ec);ec.clear();std::filesystem::rename(path,rotated,ec);}
  const auto text=std::format(L"[{}] {}\n",timestamp(),message);if(text.size()>static_cast<std::size_t>((std::numeric_limits<int>::max)()))return;
