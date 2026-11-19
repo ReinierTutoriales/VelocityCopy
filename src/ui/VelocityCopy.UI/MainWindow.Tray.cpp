@@ -159,6 +159,13 @@ void MainWindow::ShowFromTray() {
     // previously hidden WinUI window visible without mixing SW_SHOW/SW_RESTORE with
     // AppWindow presenter state.
     Activate();
+    if (hwnd_ != nullptr && GetForegroundWindow() != hwnd_) {
+        // When launched from Explorer (e.g. Ctrl+V hook), Windows' foreground lock
+        // can reject SetForegroundWindow inside Activate(), leaving the new copy
+        // behind Explorer. Surface it above Explorer without stealing keyboard focus.
+        (void)SetWindowPos(hwnd_, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        (void)SetWindowPos(hwnd_, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    }
     tray_window_hidden_ = false;
     RefreshEfficiencyMode();
 }

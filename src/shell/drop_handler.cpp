@@ -27,6 +27,9 @@ HRESULT clipboard_sources(velocitycopy::ShellRequest& request) {
 }
 
 bool dispatch(const velocitycopy::ShellRequest& request) noexcept {
+    // Explorer owns the foreground lock during context-menu and drag-drop
+    // invocation; allow the resident or launched UI process to surface itself.
+    (void)AllowSetForegroundWindow(ASFW_ANY);
     const auto delivery = velocitycopy::send_shell_request(request, 25);
     if (delivery) return true;
     // The resident app may already own this transfer. Launching again could
