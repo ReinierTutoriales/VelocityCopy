@@ -106,4 +106,5 @@
   <data name="StrategyThreadPlural" xml:space="preserve"><value>{} hilos</value></data>
   <data name="StrategyFlagSparse" xml:space="preserve"><value>Disperso</value></data>
   <data name="StrategyFlagCompressed" xml:space="preserve"><value>Comprimido</value></data>
+  <data name="CloudFileHint" xml:space="preserve"><value>Es un archivo de OneDrive u otra nube que no está descargado en este equipo. En Configuración &gt; Privacidad y seguridad &gt; Descargas automáticas de archivos, permite VelocityCopy si está bloqueado, o marca la carpeta como «Mantener siempre en este dispositivo».</value></data>
 </root>

@@ -927,6 +927,25 @@ hstring MainWindow::FormatFailureReason(const std::int32_t native_code) {
             message.pop_back();
         }
         if (!message.empty()) {
+            // Online-only OneDrive/cloud files need the provider to download them
+            // for this app; Windows lets users block that per app.
+            if (HRESULT_FACILITY(hr) == FACILITY_WIN32) {
+                switch (HRESULT_CODE(hr)) {
+                case ERROR_CLOUD_FILE_PROVIDER_NOT_RUNNING:
+                case ERROR_CLOUD_FILE_NETWORK_UNAVAILABLE:
+                case ERROR_CLOUD_FILE_REQUEST_ABORTED:
+                case ERROR_CLOUD_FILE_ACCESS_DENIED:
+                case ERROR_CLOUD_FILE_REQUEST_TIMEOUT:
+                    try {
+                        message.append(L" ");
+                        message.append(velocitycopy::localization::get_string(L"CloudFileHint").c_str());
+                    } catch (...) {
+                    }
+                    break;
+                default:
+                    break;
+                }
+            }
             return hstring(message);
         }
     } else if (message_buffer != nullptr) {
