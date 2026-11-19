@@ -586,7 +586,7 @@ void App::RestoreMinimizedTransfers(const std::uint64_t restored_window_id) noex
             // stay there until the tray icon is used.
             if (hwnd != nullptr && implementation->HasActiveTransfer() && IsWindowVisible(hwnd) && IsIconic(hwnd)) {
                 if (auto presenter = main_window.AppWindow().Presenter().try_as<Microsoft::UI::Windowing::OverlappedPresenter>()) {
-                    presenter.Restore();
+                    presenter.Restore(false);
                 }
             }
         }
